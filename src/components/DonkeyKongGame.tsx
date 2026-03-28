@@ -430,24 +430,24 @@ const DonkeyKongGame = () => {
         <div className="grid grid-cols-3 grid-rows-3 gap-0.5 w-32 h-32">
           <div />
           <button className="bg-muted active:bg-primary rounded text-foreground text-xl flex items-center justify-center"
-            onTouchStart={handleTouchStart('ArrowUp')} onTouchEnd={handleTouchEnd('ArrowUp')}>↑</button>
+            {...handleDown('ArrowUp')}>↑</button>
           <div />
           <button className="bg-muted active:bg-primary rounded text-foreground text-xl flex items-center justify-center"
-            onTouchStart={handleTouchStart('ArrowLeft')} onTouchEnd={handleTouchEnd('ArrowLeft')}>←</button>
+            {...handleDown('ArrowLeft')}>←</button>
           <div />
           <button className="bg-muted active:bg-primary rounded text-foreground text-xl flex items-center justify-center"
-            onTouchStart={handleTouchStart('ArrowRight')} onTouchEnd={handleTouchEnd('ArrowRight')}>→</button>
+            {...handleDown('ArrowRight')}>→</button>
           <div />
           <button className="bg-muted active:bg-primary rounded text-foreground text-xl flex items-center justify-center"
-            onTouchStart={handleTouchStart('ArrowDown')} onTouchEnd={handleTouchEnd('ArrowDown')}>↓</button>
+            {...handleDown('ArrowDown')}>↓</button>
           <div />
         </div>
         {/* Action Buttons */}
         <div className="flex gap-3 items-center">
           <button className="w-16 h-16 rounded-full bg-primary text-primary-foreground text-xs font-bold active:scale-95"
-            onTouchStart={handleTouchStart(' ')} onTouchEnd={handleTouchEnd(' ')}>JUMP</button>
+            {...handleDown(' ')}>JUMP</button>
           <button className="w-12 h-12 rounded-full bg-accent text-accent-foreground text-xs font-bold active:scale-95"
-            onTouchStart={() => resetGame()} onTouchEnd={() => {}}>R</button>
+            onMouseDown={() => resetGame()} onTouchStart={() => resetGame()}>R</button>
         </div>
       </div>
     </div>
