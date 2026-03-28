@@ -1,48 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-
-const CANVAS_W = 512;
-const CANVAS_H = 480;
-const TILE = 16;
-const GRAVITY = 0.5;
-const JUMP_FORCE = -8;
-const MOVE_SPEED = 2.5;
-const BARREL_SPEED = 2;
-const CLIMB_SPEED = 2;
-
-interface Rect { x: number; y: number; w: number; h: number }
-interface Barrel extends Rect { vx: number; vy: number; onLadder: boolean; falling: boolean }
-
-// Platform definitions (y, xStart, xEnd)
-const PLATFORMS: { y: number; x1: number; x2: number; slope?: number }[] = [
-  { y: 432, x1: 0, x2: 512 },           // ground
-  { y: 368, x1: 48, x2: 512, slope: 0.03 },
-  { y: 304, x1: 0, x2: 464, slope: -0.03 },
-  { y: 240, x1: 48, x2: 512, slope: 0.03 },
-  { y: 176, x1: 0, x2: 464, slope: -0.03 },
-  { y: 112, x1: 80, x2: 432 },           // top
-];
-
-// Ladder definitions (x, yTop, yBottom)
-const LADDERS: { x: number; yTop: number; yBot: number }[] = [
-  { x: 460, yTop: 368, yBot: 432 },
-  { x: 100, yTop: 304, yBot: 368 },
-  { x: 400, yTop: 240, yBot: 304 },
-  { x: 140, yTop: 176, yBot: 240 },
-  { x: 350, yTop: 112, yBot: 176 },
-  // extra short ladders
-  { x: 260, yTop: 368, yBot: 432 },
-  { x: 300, yTop: 240, yBot: 304 },
-  { x: 200, yTop: 304, yBot: 368 },
-];
-
-function getPlatformY(plat: typeof PLATFORMS[0], x: number): number {
-  const slope = plat.slope || 0;
-  return plat.y + (x - plat.x1) * slope;
-}
-
-function rectsOverlap(a: Rect, b: Rect): boolean {
-  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-}
+import {
+  CANVAS_W, CANVAS_H, GRAVITY, JUMP_FORCE, MOVE_SPEED, BARREL_SPEED, CLIMB_SPEED, ROBOT_SPEED,
+  PLATFORMS, LADDERS, getPlatformY, rectsOverlap, findPlatformIndex, findBestLadder,
+  Barrel, Robot
+} from './game/constants';
+import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound } from './game/sounds';
 
 const DonkeyKongGame = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -53,12 +15,15 @@ const DonkeyKongGame = () => {
   const gameRef = useRef({
     player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false },
     barrels: [] as Barrel[],
+    robots: [] as Robot[],
     barrelTimer: 0,
+    robotSpawnTimer: 0,
     score: 0,
     lives: 3,
     state: 'playing' as string,
     dkFrame: 0,
     dkTimer: 0,
+    barrelSoundTimer: 0,
   });
 
   const resetPlayer = useCallback(() => {
@@ -70,13 +35,11 @@ const DonkeyKongGame = () => {
 
   const resetGame = useCallback(() => {
     const g = gameRef.current;
-    g.score = 0;
-    g.lives = 3;
-    g.state = 'playing';
+    g.score = 0; g.lives = 3; g.state = 'playing';
+    g.robots = [];
+    g.robotSpawnTimer = 0;
     resetPlayer();
-    setScore(0);
-    setLives(3);
-    setGameState('playing');
+    setScore(0); setLives(3); setGameState('playing');
   }, [resetPlayer]);
 
   useEffect(() => {
@@ -101,18 +64,14 @@ const DonkeyKongGame = () => {
       const p = g.player;
 
       if (g.state === 'playing') {
-        // Player movement
-        const onLadder = LADDERS.some(l => 
+        // === PLAYER MOVEMENT ===
+        const onLadder = LADDERS.some(l =>
           p.x + p.w / 2 > l.x - 8 && p.x + p.w / 2 < l.x + 16 + 8 &&
           p.y + p.h > l.yTop && p.y + p.h <= l.yBot + 4
         );
 
-        if (keys.has('ArrowUp') && onLadder) {
-          p.climbing = true;
-        }
-        if (keys.has('ArrowDown') && onLadder) {
-          p.climbing = true;
-        }
+        if (keys.has('ArrowUp') && onLadder) p.climbing = true;
+        if (keys.has('ArrowDown') && onLadder) p.climbing = true;
 
         if (p.climbing) {
           if (!onLadder) p.climbing = false;
@@ -128,128 +87,189 @@ const DonkeyKongGame = () => {
           if (keys.has('ArrowLeft')) { p.x -= MOVE_SPEED; p.facing = -1; }
           if (keys.has('ArrowRight')) { p.x += MOVE_SPEED; p.facing = 1; }
           if ((keys.has(' ') || keys.has('ArrowUp')) && p.onGround && !onLadder) {
-            p.vy = JUMP_FORCE;
-            p.onGround = false;
-            p.jumping = true;
+            p.vy = JUMP_FORCE; p.onGround = false; p.jumping = true;
+            playJumpSound();
           }
-          p.vy += GRAVITY;
-          p.y += p.vy;
-
-          // Platform collision
+          p.vy += GRAVITY; p.y += p.vy;
           p.onGround = false;
           for (const plat of PLATFORMS) {
             if (p.x + p.w > plat.x1 && p.x < plat.x2) {
               const platY = getPlatformY(plat, p.x + p.w / 2);
               if (p.y + p.h >= platY && p.y + p.h <= platY + 12 && p.vy >= 0) {
-                p.y = platY - p.h;
-                p.vy = 0;
-                p.onGround = true;
-                p.jumping = false;
+                p.y = platY - p.h; p.vy = 0; p.onGround = true; p.jumping = false;
               }
             }
           }
         }
 
-        // Bounds
         p.x = Math.max(0, Math.min(CANVAS_W - p.w, p.x));
         if (p.y > CANVAS_H) {
-          g.lives--;
-          setLives(g.lives);
-          if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); }
-          else resetPlayer();
+          g.lives--; setLives(g.lives);
+          if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
+          else { playHitSound(); resetPlayer(); }
         }
 
-        // Win condition - reach Pauline
+        // Win condition
         if (p.y < 100 && p.x > 180 && p.x < 320) {
-          g.state = 'win';
-          setGameState('win');
-          g.score += 1000;
-          setScore(g.score);
+          g.state = 'win'; setGameState('win');
+          g.score += 1000; setScore(g.score); playWinSound();
         }
 
-        // Barrel spawning
+        // === BARREL SPAWNING ===
         g.barrelTimer++;
-        if (g.barrelTimer > 120) {
+        if (g.barrelTimer > 100) {
           g.barrelTimer = 0;
-          g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: BARREL_SPEED, vy: 0, onLadder: false, falling: false });
+          g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: BARREL_SPEED, vy: 0, onLadder: false, falling: false, targetLadder: null });
+          playBarrelRollSound();
+        }
+
+        // === ROBOT SPAWNING ===
+        g.robotSpawnTimer++;
+        if (g.robotSpawnTimer > 300 && g.robots.length < 4) {
+          g.robotSpawnTimer = 0;
+          // Spawn on ground platform edges
+          const spawnX = Math.random() > 0.5 ? 490 : 10;
+          g.robots.push({ x: spawnX, y: 400, w: 14, h: 16, vx: 0, vy: 0, onGround: false, climbing: false, targetLadder: null, direction: 1, frame: 0, frameTimer: 0 });
         }
 
         // DK animation
         g.dkTimer++;
         if (g.dkTimer > 30) { g.dkTimer = 0; g.dkFrame = (g.dkFrame + 1) % 2; }
 
-        // Update barrels
+        // === UPDATE BARRELS (with pathfinding) ===
+        g.barrelSoundTimer++;
         for (let i = g.barrels.length - 1; i >= 0; i--) {
           const b = g.barrels[i];
+          const bCenterX = b.x + b.w / 2;
+          const bPlatIdx = findPlatformIndex(b.y + b.h, bCenterX);
+          const pPlatIdx = findPlatformIndex(p.y + p.h, p.x + p.w / 2);
 
-          // Check if barrel is on a ladder (random chance to go down)
           if (!b.onLadder && !b.falling) {
-            for (const l of LADDERS) {
-              if (b.x + b.w / 2 > l.x && b.x + b.w / 2 < l.x + 16 && 
-                  Math.abs(b.y + b.h - l.yTop) < 4 && Math.random() < 0.02) {
-                b.onLadder = true;
-                b.vx = 0;
-                break;
+            // Find ladder to chase player
+            if (bPlatIdx < pPlatIdx) {
+              // Player is below, find ladder going down
+              const ladderIdx = findBestLadder(bCenterX, bPlatIdx, pPlatIdx, true);
+              if (ladderIdx !== null) {
+                const l = LADDERS[ladderIdx];
+                if (Math.abs(bCenterX - (l.x + 7)) < 6) {
+                  b.onLadder = true; b.vx = 0; b.targetLadder = ladderIdx;
+                } else {
+                  b.vx = bCenterX < l.x + 7 ? BARREL_SPEED : -BARREL_SPEED;
+                }
               }
+            } else {
+              // Same platform or above - move toward player
+              b.vx = bCenterX < p.x + p.w / 2 ? BARREL_SPEED : -BARREL_SPEED;
             }
           }
 
           if (b.onLadder) {
-            b.y += 2;
-            // Check if reached bottom of ladder
-            const onLadderStill = LADDERS.some(l => 
-              b.x + b.w / 2 > l.x && b.x + b.w / 2 < l.x + 16 && b.y + b.h <= l.yBot
+            b.y += 2.5;
+            const onLadderStill = LADDERS.some(l =>
+              bCenterX > l.x - 4 && bCenterX < l.x + 20 && b.y + b.h <= l.yBot
             );
             if (!onLadderStill) {
-              b.onLadder = false;
-              b.vx = Math.random() > 0.5 ? BARREL_SPEED : -BARREL_SPEED;
+              b.onLadder = false; b.targetLadder = null;
+              b.vx = bCenterX < p.x + p.w / 2 ? BARREL_SPEED : -BARREL_SPEED;
             }
           } else {
-            b.vy += GRAVITY;
-            b.x += b.vx;
-            b.y += b.vy;
-
-            // Platform collision for barrels
+            b.vy += GRAVITY; b.x += b.vx; b.y += b.vy;
             for (const plat of PLATFORMS) {
               if (b.x + b.w > plat.x1 && b.x < plat.x2) {
-                const platY = getPlatformY(plat, b.x + b.w / 2);
+                const platY = getPlatformY(plat, bCenterX);
                 if (b.y + b.h >= platY && b.y + b.h <= platY + 12 && b.vy >= 0) {
-                  b.y = platY - b.h;
-                  b.vy = 0;
-                  // Roll in direction of slope
-                  const slope = plat.slope || 0;
-                  b.vx = slope > 0 ? BARREL_SPEED : -BARREL_SPEED;
+                  b.y = platY - b.h; b.vy = 0;
                 }
               }
             }
-
-            // Bounce off walls
-            if (b.x < 0 || b.x + b.w > CANVAS_W) b.vx *= -1;
+            if (b.x < 0) { b.x = 0; b.vx = BARREL_SPEED; }
+            if (b.x + b.w > CANVAS_W) { b.x = CANVAS_W - b.w; b.vx = -BARREL_SPEED; }
           }
 
-          // Remove barrels that fall off screen
-          if (b.y > CANVAS_H + 20) g.barrels.splice(i, 1);
+          if (b.y > CANVAS_H + 20) { g.barrels.splice(i, 1); continue; }
 
-          // Collision with player
           if (rectsOverlap(p, b)) {
-            // Check if player jumped over barrel
             if (p.jumping && p.vy < 0 && p.y + p.h < b.y + b.h / 2) {
-              g.score += 100;
-              setScore(g.score);
+              g.score += 100; setScore(g.score);
+              g.barrels.splice(i, 1);
             } else {
-              g.lives--;
-              setLives(g.lives);
-              if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); }
-              else resetPlayer();
+              g.lives--; setLives(g.lives);
+              if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
+              else { playHitSound(); resetPlayer(); }
               break;
             }
           }
         }
 
-        // Score from jumping barrels
-        for (const b of g.barrels) {
-          if (p.jumping && !rectsOverlap(p, b) && Math.abs(p.x - b.x) < 20 && p.y + p.h < b.y) {
-            // Already handled above
+        // === UPDATE ROBOTS (pathfinding AI) ===
+        for (let i = g.robots.length - 1; i >= 0; i--) {
+          const r = g.robots[i];
+          const rCenterX = r.x + r.w / 2;
+          const rPlatIdx = findPlatformIndex(r.y + r.h, rCenterX);
+          const pPlatIdx = findPlatformIndex(p.y + p.h, p.x + p.w / 2);
+
+          r.frameTimer++;
+          if (r.frameTimer > 15) { r.frameTimer = 0; r.frame = (r.frame + 1) % 2; }
+
+          if (r.climbing) {
+            const goingUp = rPlatIdx > pPlatIdx;
+            r.y += goingUp ? -ROBOT_SPEED : ROBOT_SPEED;
+            const stillOnLadder = LADDERS.some(l =>
+              rCenterX > l.x - 4 && rCenterX < l.x + 20 &&
+              r.y + r.h > l.yTop && r.y + r.h <= l.yBot + 4
+            );
+            if (!stillOnLadder) {
+              r.climbing = false; r.targetLadder = null;
+            }
+          } else {
+            // Pathfinding: decide to use a ladder or chase on same platform
+            if (rPlatIdx !== pPlatIdx) {
+              const goingDown = rPlatIdx < pPlatIdx;
+              const ladderIdx = findBestLadder(rCenterX, rPlatIdx, pPlatIdx, goingDown);
+              if (ladderIdx !== null) {
+                const l = LADDERS[ladderIdx];
+                const targetX = l.x + 7;
+                if (Math.abs(rCenterX - targetX) < 5) {
+                  r.climbing = true; r.targetLadder = ladderIdx; r.vx = 0;
+                } else {
+                  r.vx = rCenterX < targetX ? ROBOT_SPEED : -ROBOT_SPEED;
+                  r.direction = r.vx > 0 ? 1 : -1;
+                }
+              } else {
+                r.vx = rCenterX < p.x + p.w / 2 ? ROBOT_SPEED : -ROBOT_SPEED;
+                r.direction = r.vx > 0 ? 1 : -1;
+              }
+            } else {
+              r.vx = rCenterX < p.x + p.w / 2 ? ROBOT_SPEED : -ROBOT_SPEED;
+              r.direction = r.vx > 0 ? 1 : -1;
+            }
+
+            r.vy += GRAVITY; r.x += r.vx; r.y += r.vy;
+            r.onGround = false;
+            for (const plat of PLATFORMS) {
+              if (r.x + r.w > plat.x1 && r.x < plat.x2) {
+                const platY = getPlatformY(plat, rCenterX);
+                if (r.y + r.h >= platY && r.y + r.h <= platY + 12 && r.vy >= 0) {
+                  r.y = platY - r.h; r.vy = 0; r.onGround = true;
+                }
+              }
+            }
+            r.x = Math.max(0, Math.min(CANVAS_W - r.w, r.x));
+          }
+
+          if (r.y > CANVAS_H + 20) { g.robots.splice(i, 1); continue; }
+
+          // Robot-player collision
+          if (rectsOverlap(p, r)) {
+            if (p.jumping && p.vy < 0 && p.y + p.h < r.y + r.h / 2) {
+              g.score += 200; setScore(g.score);
+              g.robots.splice(i, 1);
+            } else {
+              g.lives--; setLives(g.lives);
+              if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
+              else { playHitSound(); resetPlayer(); }
+              break;
+            }
           }
         }
       }
@@ -258,13 +278,12 @@ const DonkeyKongGame = () => {
       ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-      // Draw platforms
+      // Platforms
       for (const plat of PLATFORMS) {
         ctx.fillStyle = '#D42A2A';
         for (let x = plat.x1; x < plat.x2; x += 16) {
           const y = getPlatformY(plat, x + 8);
           ctx.fillRect(x, y, 16, 8);
-          // Girder pattern
           ctx.fillStyle = '#FF6B4A';
           ctx.fillRect(x + 2, y + 1, 5, 3);
           ctx.fillRect(x + 9, y + 4, 5, 3);
@@ -272,117 +291,113 @@ const DonkeyKongGame = () => {
         }
       }
 
-      // Draw ladders
-      ctx.strokeStyle = '#66CCFF';
-      ctx.lineWidth = 2;
+      // Ladders
+      ctx.strokeStyle = '#66CCFF'; ctx.lineWidth = 2;
       for (const l of LADDERS) {
         ctx.beginPath();
         ctx.moveTo(l.x, l.yTop); ctx.lineTo(l.x, l.yBot);
         ctx.moveTo(l.x + 14, l.yTop); ctx.lineTo(l.x + 14, l.yBot);
-        for (let y = l.yTop; y < l.yBot; y += 12) {
-          ctx.moveTo(l.x, y); ctx.lineTo(l.x + 14, y);
-        }
+        for (let y = l.yTop; y < l.yBot; y += 12) { ctx.moveTo(l.x, y); ctx.lineTo(l.x + 14, y); }
         ctx.stroke();
       }
 
-      // Draw DK
+      // DK
       ctx.fillStyle = '#8B4513';
       const dkX = 100, dkY = 76;
-      // Body
       ctx.fillRect(dkX, dkY, 32, 32);
-      ctx.fillStyle = '#654321';
-      ctx.fillRect(dkX + 4, dkY + 4, 24, 20);
-      // Face
-      ctx.fillStyle = '#DEB887';
-      ctx.fillRect(dkX + 8, dkY + 6, 16, 12);
-      // Eyes
+      ctx.fillStyle = '#654321'; ctx.fillRect(dkX + 4, dkY + 4, 24, 20);
+      ctx.fillStyle = '#DEB887'; ctx.fillRect(dkX + 8, dkY + 6, 16, 12);
       ctx.fillStyle = '#FFF';
-      ctx.fillRect(dkX + 10, dkY + 8, 4, 4);
-      ctx.fillRect(dkX + 18, dkY + 8, 4, 4);
+      ctx.fillRect(dkX + 10, dkY + 8, 4, 4); ctx.fillRect(dkX + 18, dkY + 8, 4, 4);
       ctx.fillStyle = '#000';
-      ctx.fillRect(dkX + 12, dkY + 9, 2, 2);
-      ctx.fillRect(dkX + 20, dkY + 9, 2, 2);
-      // Arms (animated)
+      ctx.fillRect(dkX + 12, dkY + 9, 2, 2); ctx.fillRect(dkX + 20, dkY + 9, 2, 2);
       ctx.fillStyle = '#8B4513';
       if (g.dkFrame === 0) {
-        ctx.fillRect(dkX - 8, dkY + 8, 8, 8);
-        ctx.fillRect(dkX + 32, dkY + 8, 8, 8);
+        ctx.fillRect(dkX - 8, dkY + 8, 8, 8); ctx.fillRect(dkX + 32, dkY + 8, 8, 8);
       } else {
-        ctx.fillRect(dkX - 8, dkY + 2, 8, 8);
-        ctx.fillRect(dkX + 32, dkY + 2, 8, 8);
+        ctx.fillRect(dkX - 8, dkY + 2, 8, 8); ctx.fillRect(dkX + 32, dkY + 2, 8, 8);
       }
 
-      // Draw Pauline (princess)
+      // Pauline
       const paulX = 240, paulY = 72;
-      ctx.fillStyle = '#FF69B4';
-      ctx.fillRect(paulX, paulY, 12, 20);
-      ctx.fillStyle = '#FFD700';
-      ctx.fillRect(paulX + 2, paulY - 6, 8, 8);
-      // HELP text
-      ctx.fillStyle = '#FF69B4';
-      ctx.font = '8px var(--font-arcade)';
+      ctx.fillStyle = '#FF69B4'; ctx.fillRect(paulX, paulY, 12, 20);
+      ctx.fillStyle = '#FFD700'; ctx.fillRect(paulX + 2, paulY - 6, 8, 8);
+      ctx.fillStyle = '#FF69B4'; ctx.font = '8px var(--font-arcade)';
       ctx.fillText('HELP!', paulX - 8, paulY - 10);
 
-      // Draw barrels
+      // Barrels
       for (const b of g.barrels) {
-        ctx.fillStyle = '#4488FF';
-        ctx.fillRect(b.x, b.y, b.w, b.h);
-        ctx.strokeStyle = '#88BBFF';
-        ctx.lineWidth = 1;
+        ctx.fillStyle = '#4488FF'; ctx.fillRect(b.x, b.y, b.w, b.h);
+        ctx.strokeStyle = '#88BBFF'; ctx.lineWidth = 1;
         ctx.strokeRect(b.x + 2, b.y + 2, b.w - 4, b.h - 4);
       }
 
-      // Draw player (Mario)
-      const pl = g.player;
-      ctx.fillStyle = '#FF0000'; // hat
-      ctx.fillRect(pl.x + 2, pl.y, 12, 4);
-      ctx.fillStyle = '#FFB366'; // face
-      ctx.fillRect(pl.x + 2, pl.y + 4, 12, 6);
-      ctx.fillStyle = '#FF0000'; // shirt
-      ctx.fillRect(pl.x, pl.y + 10, 16, 8);
-      ctx.fillStyle = '#3366FF'; // pants
-      ctx.fillRect(pl.x + 2, pl.y + 18, 12, 6);
-      // Eyes
-      ctx.fillStyle = '#000';
-      if (pl.facing > 0) {
-        ctx.fillRect(pl.x + 9, pl.y + 5, 2, 2);
-      } else {
-        ctx.fillRect(pl.x + 5, pl.y + 5, 2, 2);
+      // Robots
+      for (const r of g.robots) {
+        // Body
+        ctx.fillStyle = '#FF4444';
+        ctx.fillRect(r.x, r.y + 4, r.w, r.h - 4);
+        // Head
+        ctx.fillStyle = '#CC2222';
+        ctx.fillRect(r.x + 2, r.y, r.w - 4, 6);
+        // Eyes (glowing)
+        ctx.fillStyle = '#FFFF00';
+        ctx.fillRect(r.x + 3, r.y + 1, 3, 3);
+        ctx.fillRect(r.x + r.w - 6, r.y + 1, 3, 3);
+        // Legs (animated)
+        ctx.fillStyle = '#AA1111';
+        if (r.frame === 0) {
+          ctx.fillRect(r.x + 1, r.y + r.h - 2, 4, 3);
+          ctx.fillRect(r.x + r.w - 5, r.y + r.h - 1, 4, 2);
+        } else {
+          ctx.fillRect(r.x + 1, r.y + r.h - 1, 4, 2);
+          ctx.fillRect(r.x + r.w - 5, r.y + r.h - 2, 4, 3);
+        }
+        // Antenna
+        ctx.strokeStyle = '#FF6666'; ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(r.x + r.w / 2, r.y);
+        ctx.lineTo(r.x + r.w / 2 + (r.frame === 0 ? 3 : -3), r.y - 5);
+        ctx.stroke();
+        ctx.fillStyle = '#FFFF00';
+        ctx.fillRect(r.x + r.w / 2 + (r.frame === 0 ? 2 : -4), r.y - 6, 3, 3);
       }
 
-      // Draw barrel stack near DK
+      // Player (Mario)
+      const pl = g.player;
+      ctx.fillStyle = '#FF0000'; ctx.fillRect(pl.x + 2, pl.y, 12, 4);
+      ctx.fillStyle = '#FFB366'; ctx.fillRect(pl.x + 2, pl.y + 4, 12, 6);
+      ctx.fillStyle = '#FF0000'; ctx.fillRect(pl.x, pl.y + 10, 16, 8);
+      ctx.fillStyle = '#3366FF'; ctx.fillRect(pl.x + 2, pl.y + 18, 12, 6);
+      ctx.fillStyle = '#000';
+      if (pl.facing > 0) ctx.fillRect(pl.x + 9, pl.y + 5, 2, 2);
+      else ctx.fillRect(pl.x + 5, pl.y + 5, 2, 2);
+
+      // Barrel stack
       ctx.fillStyle = '#4488FF';
       for (let i = 0; i < 3; i++) {
         ctx.fillRect(60, 90 + i * 16, 14, 14);
-        ctx.strokeStyle = '#88BBFF';
-        ctx.strokeRect(62, 92 + i * 16, 10, 10);
+        ctx.strokeStyle = '#88BBFF'; ctx.strokeRect(62, 92 + i * 16, 10, 10);
       }
 
       // HUD
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = '10px var(--font-arcade)';
+      ctx.fillStyle = '#FFFFFF'; ctx.font = '10px var(--font-arcade)';
       ctx.fillText(`SCORE: ${g.score}`, 10, 20);
       ctx.fillText(`LIVES: ${'♥'.repeat(g.lives)}`, 350, 20);
 
-      // Game over / Win overlay
+      // Overlays
       if (g.state === 'gameover') {
-        ctx.fillStyle = 'rgba(0,0,0,0.7)';
-        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-        ctx.fillStyle = '#FF0000';
-        ctx.font = '20px var(--font-arcade)';
+        ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.fillStyle = '#FF0000'; ctx.font = '20px var(--font-arcade)';
         ctx.fillText('GAME OVER', 120, 220);
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = '10px var(--font-arcade)';
+        ctx.fillStyle = '#FFFFFF'; ctx.font = '10px var(--font-arcade)';
         ctx.fillText('Press R to restart', 140, 260);
       }
       if (g.state === 'win') {
-        ctx.fillStyle = 'rgba(0,0,0,0.7)';
-        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-        ctx.fillStyle = '#FFD700';
-        ctx.font = '20px var(--font-arcade)';
+        ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.fillStyle = '#FFD700'; ctx.font = '20px var(--font-arcade)';
         ctx.fillText('YOU WIN!', 140, 220);
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = '10px var(--font-arcade)';
+        ctx.fillStyle = '#FFFFFF'; ctx.font = '10px var(--font-arcade)';
         ctx.fillText(`Score: ${g.score}`, 170, 260);
         ctx.fillText('Press R to restart', 140, 290);
       }
@@ -391,16 +406,11 @@ const DonkeyKongGame = () => {
     };
 
     animId = requestAnimationFrame(gameLoop);
-    return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
+    return () => { cancelAnimationFrame(animId); window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp); };
   }, [resetGame, resetPlayer]);
 
   const simulateKey = useCallback((key: string, type: 'down' | 'up') => {
-    if (type === 'down') keysRef.current.add(key);
-    else keysRef.current.delete(key);
+    if (type === 'down') keysRef.current.add(key); else keysRef.current.delete(key);
   }, []);
 
   const handleDown = useCallback((key: string) => ({
@@ -415,37 +425,23 @@ const DonkeyKongGame = () => {
     <div className="flex flex-col items-center justify-center min-h-screen gap-2 p-2 select-none">
       <h1 className="text-accent text-sm tracking-wider">DONKEY KONG</h1>
       <div className="border-4 border-primary rounded-sm shadow-[0_0_30px_rgba(212,42,42,0.3)]">
-        <canvas
-          ref={canvasRef}
-          width={CANVAS_W}
-          height={CANVAS_H}
-          className="block w-full max-w-[512px]"
-          style={{ imageRendering: 'pixelated' }}
-          tabIndex={0}
-        />
+        <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
+          className="block w-full max-w-[512px]" style={{ imageRendering: 'pixelated' }} tabIndex={0} />
       </div>
-      {/* Touch Controls */}
       <div className="flex w-full max-w-[512px] justify-between items-end mt-2 touch-none">
-        {/* D-Pad */}
         <div className="grid grid-cols-3 grid-rows-3 gap-0.5 w-32 h-32">
           <div />
-          <button className="bg-muted active:bg-primary rounded text-foreground text-xl flex items-center justify-center"
-            {...handleDown('ArrowUp')}>↑</button>
+          <button className="bg-muted active:bg-primary rounded text-foreground text-xl flex items-center justify-center" {...handleDown('ArrowUp')}>↑</button>
           <div />
-          <button className="bg-muted active:bg-primary rounded text-foreground text-xl flex items-center justify-center"
-            {...handleDown('ArrowLeft')}>←</button>
+          <button className="bg-muted active:bg-primary rounded text-foreground text-xl flex items-center justify-center" {...handleDown('ArrowLeft')}>←</button>
           <div />
-          <button className="bg-muted active:bg-primary rounded text-foreground text-xl flex items-center justify-center"
-            {...handleDown('ArrowRight')}>→</button>
+          <button className="bg-muted active:bg-primary rounded text-foreground text-xl flex items-center justify-center" {...handleDown('ArrowRight')}>→</button>
           <div />
-          <button className="bg-muted active:bg-primary rounded text-foreground text-xl flex items-center justify-center"
-            {...handleDown('ArrowDown')}>↓</button>
+          <button className="bg-muted active:bg-primary rounded text-foreground text-xl flex items-center justify-center" {...handleDown('ArrowDown')}>↓</button>
           <div />
         </div>
-        {/* Action Buttons */}
         <div className="flex gap-3 items-center">
-          <button className="w-16 h-16 rounded-full bg-primary text-primary-foreground text-xs font-bold active:scale-95"
-            {...handleDown(' ')}>JUMP</button>
+          <button className="w-16 h-16 rounded-full bg-primary text-primary-foreground text-xs font-bold active:scale-95" {...handleDown(' ')}>JUMP</button>
           <button className="w-12 h-12 rounded-full bg-accent text-accent-foreground text-xs font-bold active:scale-95"
             onMouseDown={() => resetGame()} onTouchStart={() => resetGame()}>R</button>
         </div>
