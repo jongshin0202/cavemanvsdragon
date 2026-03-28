@@ -398,23 +398,59 @@ const DonkeyKongGame = () => {
     };
   }, [resetGame, resetPlayer]);
 
+  const simulateKey = useCallback((key: string, type: 'down' | 'up') => {
+    if (type === 'down') keysRef.current.add(key);
+    else keysRef.current.delete(key);
+  }, []);
+
+  const handleTouchStart = useCallback((key: string) => (e: React.TouchEvent) => {
+    e.preventDefault();
+    simulateKey(key, 'down');
+  }, [simulateKey]);
+
+  const handleTouchEnd = useCallback((key: string) => (e: React.TouchEvent) => {
+    e.preventDefault();
+    simulateKey(key, 'up');
+  }, [simulateKey]);
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen gap-4">
-      <h1 className="text-accent text-lg tracking-wider">DONKEY KONG</h1>
+    <div className="flex flex-col items-center justify-center min-h-screen gap-2 p-2 select-none">
+      <h1 className="text-accent text-sm tracking-wider">DONKEY KONG</h1>
       <div className="border-4 border-primary rounded-sm shadow-[0_0_30px_rgba(212,42,42,0.3)]">
         <canvas
           ref={canvasRef}
           width={CANVAS_W}
           height={CANVAS_H}
-          className="block"
+          className="block w-full max-w-[512px]"
+          style={{ imageRendering: 'pixelated' }}
           tabIndex={0}
         />
       </div>
-      <div className="flex gap-8 text-xs text-muted-foreground">
-        <span>← → Move</span>
-        <span>↑ Jump / Climb</span>
-        <span>↓ Descend</span>
-        <span>R Restart</span>
+      {/* Touch Controls */}
+      <div className="flex w-full max-w-[512px] justify-between items-end mt-2 touch-none">
+        {/* D-Pad */}
+        <div className="grid grid-cols-3 grid-rows-3 gap-0.5 w-32 h-32">
+          <div />
+          <button className="bg-muted active:bg-primary rounded text-foreground text-xl flex items-center justify-center"
+            onTouchStart={handleTouchStart('ArrowUp')} onTouchEnd={handleTouchEnd('ArrowUp')}>↑</button>
+          <div />
+          <button className="bg-muted active:bg-primary rounded text-foreground text-xl flex items-center justify-center"
+            onTouchStart={handleTouchStart('ArrowLeft')} onTouchEnd={handleTouchEnd('ArrowLeft')}>←</button>
+          <div />
+          <button className="bg-muted active:bg-primary rounded text-foreground text-xl flex items-center justify-center"
+            onTouchStart={handleTouchStart('ArrowRight')} onTouchEnd={handleTouchEnd('ArrowRight')}>→</button>
+          <div />
+          <button className="bg-muted active:bg-primary rounded text-foreground text-xl flex items-center justify-center"
+            onTouchStart={handleTouchStart('ArrowDown')} onTouchEnd={handleTouchEnd('ArrowDown')}>↓</button>
+          <div />
+        </div>
+        {/* Action Buttons */}
+        <div className="flex gap-3 items-center">
+          <button className="w-16 h-16 rounded-full bg-primary text-primary-foreground text-xs font-bold active:scale-95"
+            onTouchStart={handleTouchStart(' ')} onTouchEnd={handleTouchEnd(' ')}>JUMP</button>
+          <button className="w-12 h-12 rounded-full bg-accent text-accent-foreground text-xs font-bold active:scale-95"
+            onTouchStart={() => resetGame()} onTouchEnd={() => {}}>R</button>
+        </div>
       </div>
     </div>
   );
