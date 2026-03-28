@@ -333,7 +333,7 @@ const DonkeyKongGame = () => {
       }
 
       // Draw player (Mario)
-      const p = g.player;
+      const pl = g.player;
       ctx.fillStyle = '#FF0000'; // hat
       ctx.fillRect(p.x + 2, p.y, 12, 4);
       ctx.fillStyle = '#FFB366'; // face
