@@ -302,7 +302,6 @@ const DonkeyKongGame = () => {
       }
 
       // DK
-      const g = gameRef.current;
       ctx.fillStyle = '#8B4513';
       const dkX = 100, dkY = 76;
       ctx.fillRect(dkX, dkY, 32, 32);
