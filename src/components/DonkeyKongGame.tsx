@@ -403,15 +403,13 @@ const DonkeyKongGame = () => {
     else keysRef.current.delete(key);
   }, []);
 
-  const handleTouchStart = useCallback((key: string) => (e: React.TouchEvent) => {
-    e.preventDefault();
-    simulateKey(key, 'down');
-  }, [simulateKey]);
-
-  const handleTouchEnd = useCallback((key: string) => (e: React.TouchEvent) => {
-    e.preventDefault();
-    simulateKey(key, 'up');
-  }, [simulateKey]);
+  const handleDown = useCallback((key: string) => ({
+    onTouchStart: (e: React.TouchEvent) => { e.preventDefault(); simulateKey(key, 'down'); },
+    onTouchEnd: (e: React.TouchEvent) => { e.preventDefault(); simulateKey(key, 'up'); },
+    onMouseDown: () => simulateKey(key, 'down'),
+    onMouseUp: () => simulateKey(key, 'up'),
+    onMouseLeave: () => simulateKey(key, 'up'),
+  }), [simulateKey]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen gap-2 p-2 select-none">
