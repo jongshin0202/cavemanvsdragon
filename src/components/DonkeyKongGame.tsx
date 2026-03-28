@@ -335,19 +335,19 @@ const DonkeyKongGame = () => {
       // Draw player (Mario)
       const pl = g.player;
       ctx.fillStyle = '#FF0000'; // hat
-      ctx.fillRect(p.x + 2, p.y, 12, 4);
+      ctx.fillRect(pl.x + 2, pl.y, 12, 4);
       ctx.fillStyle = '#FFB366'; // face
-      ctx.fillRect(p.x + 2, p.y + 4, 12, 6);
+      ctx.fillRect(pl.x + 2, pl.y + 4, 12, 6);
       ctx.fillStyle = '#FF0000'; // shirt
-      ctx.fillRect(p.x, p.y + 10, 16, 8);
+      ctx.fillRect(pl.x, pl.y + 10, 16, 8);
       ctx.fillStyle = '#3366FF'; // pants
-      ctx.fillRect(p.x + 2, p.y + 18, 12, 6);
+      ctx.fillRect(pl.x + 2, pl.y + 18, 12, 6);
       // Eyes
       ctx.fillStyle = '#000';
-      if (p.facing > 0) {
-        ctx.fillRect(p.x + 9, p.y + 5, 2, 2);
+      if (pl.facing > 0) {
+        ctx.fillRect(pl.x + 9, pl.y + 5, 2, 2);
       } else {
-        ctx.fillRect(p.x + 5, p.y + 5, 2, 2);
+        ctx.fillRect(pl.x + 5, pl.y + 5, 2, 2);
       }
 
       // Draw barrel stack near DK
