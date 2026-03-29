@@ -136,115 +136,117 @@ const DonkeyKongGame = () => {
         g.dkTimer++;
         if (g.dkTimer > 30) { g.dkTimer = 0; g.dkFrame = (g.dkFrame + 1) % 2; }
 
+        const playerCenterX = p.x + p.w / 2;
+        const playerFeetY = p.y + p.h;
+        const scoreToPlayer = (x: number, y: number) => Math.abs(x - playerCenterX) + Math.abs(y - playerFeetY);
+
         // === UPDATE BARRELS ===
         g.barrelSoundTimer++;
         for (let i = g.barrels.length - 1; i >= 0; i--) {
           const b = g.barrels[i];
           const bCenterX = b.x + b.w / 2;
+          const bFeetY = b.y + b.h;
+          const bPlatIdx = findPlatformIndex(bFeetY, bCenterX);
 
           if (b.onLadder) {
-            // Climbing down a ladder
             b.y += 2.5;
             b.vx = 0;
+
             if (b.targetLadder !== null) {
               const l = LADDERS[b.targetLadder];
               if (b.y + b.h >= l.yBot) {
                 b.y = l.yBot - b.h;
                 b.onLadder = false;
                 b.targetLadder = null;
-                // Continue rolling in same direction, or pick toward player
-                b.vx = bCenterX < p.x + p.w / 2 ? BARREL_SPEED : -BARREL_SPEED;
+                b.vx = playerCenterX >= l.x + 7 ? BARREL_SPEED : -BARREL_SPEED;
               }
             }
           } else if (b.falling) {
-            // Falling off platform edge
             b.vy += GRAVITY;
             b.y += b.vy;
+
+            let landed = false;
             for (const plat of PLATFORMS) {
               if (b.x + b.w > plat.x1 && b.x < plat.x2) {
-                const platY = getPlatformY(plat, bCenterX);
+                const platY = getPlatformY(plat, b.x + b.w / 2);
                 if (b.y + b.h >= platY && b.y + b.h <= platY + 16 && b.vy >= 0) {
                   b.y = platY - b.h;
                   b.vy = 0;
                   b.falling = false;
-                  // After landing, pick direction toward player
-                  b.vx = bCenterX < p.x + p.w / 2 ? BARREL_SPEED : -BARREL_SPEED;
+                  b.vx = playerCenterX >= b.x + b.w / 2 ? BARREL_SPEED : -BARREL_SPEED;
+                  landed = true;
+                  break;
                 }
               }
             }
+
+            if (!landed && b.y > CANVAS_H + 20) {
+              g.barrels.splice(i, 1);
+              continue;
+            }
           } else {
-            // Rolling on platform — always keep moving
-            // If no direction yet, pick one toward player
-            if (b.vx === 0) b.vx = bCenterX < p.x + p.w / 2 ? BARREL_SPEED : -BARREL_SPEED;
+            if (b.vx === 0) b.vx = playerCenterX >= bCenterX ? BARREL_SPEED : -BARREL_SPEED;
 
-            // Check if we're passing over a ladder — decide whether to take it
-            const bPlatIdx = findPlatformIndex(b.y + b.h, bCenterX);
-            const pPlatIdx = findPlatformIndex(p.y + p.h, p.x + p.w / 2);
-
-            if (bPlatIdx < pPlatIdx) {
-              // Player is below — check if we're on top of a ladder going down
+            let tookLadder = false;
+            if (bPlatIdx > 0) {
               for (let li = 0; li < LADDERS.length; li++) {
                 const l = LADDERS[li];
                 const ladderCenterX = l.x + 7;
-                // Are we crossing over this ladder right now?
-                if (Math.abs(bCenterX - ladderCenterX) < 6) {
-                  const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 8);
-                  const botPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 8);
-                  if (topPlatIdx === bPlatIdx && botPlatIdx > bPlatIdx) {
-                    // This ladder goes down from our platform — should we take it?
-                    // Compare: distance to player if we go down this ladder vs keep rolling
-                    const afterLadderY = l.yBot;
-                    const distIfTakeLadder = Math.abs(bCenterX - (p.x + p.w / 2)) + Math.abs(afterLadderY - (p.y + p.h));
-                    // If we keep rolling, estimate distance (we'll need another ladder later)
-                    const distIfKeepRolling = Math.abs(bCenterX - (p.x + p.w / 2)) + Math.abs((b.y + b.h) - (p.y + p.h)) + 50;
-                    if (distIfTakeLadder < distIfKeepRolling) {
-                      b.onLadder = true;
-                      b.targetLadder = li;
-                      b.x = l.x + (16 - b.w) / 2;
-                      b.vx = 0;
-                      break;
-                    }
+                const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 8);
+                const botPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 8);
+
+                if (topPlatIdx === bPlatIdx && botPlatIdx >= 0 && botPlatIdx < bPlatIdx && Math.abs(bCenterX - ladderCenterX) <= BARREL_SPEED + 4) {
+                  const continueScore = scoreToPlayer(bCenterX + Math.sign(b.vx || 1) * BARREL_SPEED, bFeetY);
+                  const ladderScore = scoreToPlayer(ladderCenterX, l.yBot);
+
+                  if (ladderScore <= continueScore) {
+                    b.onLadder = true;
+                    b.targetLadder = li;
+                    b.x = l.x + (16 - b.w) / 2;
+                    b.vx = 0;
+                    tookLadder = true;
+                    break;
                   }
                 }
               }
             }
 
-            if (!b.onLadder) {
+            if (!tookLadder) {
               b.x += b.vx;
 
-              // Apply slope / stay on platform
-              let onPlat = false;
+              let supportingPlat: (typeof PLATFORMS)[number] | null = null;
+              const movedCenterX = b.x + b.w / 2;
+              const movedFeetY = b.y + b.h;
+
               for (const plat of PLATFORMS) {
                 if (b.x + b.w > plat.x1 && b.x < plat.x2) {
-                  const platY = getPlatformY(plat, bCenterX);
-                  if (Math.abs((b.y + b.h) - platY) < 10) {
+                  const platY = getPlatformY(plat, movedCenterX);
+                  if (Math.abs(movedFeetY - platY) < 12) {
                     b.y = platY - b.h;
-                    onPlat = true;
+                    supportingPlat = plat;
+                    break;
                   }
                 }
               }
 
-              // Check if barrel reached edge of platform — fall off
-              const currentPlat = PLATFORMS.find(pl =>
-                bCenterX >= pl.x1 && bCenterX <= pl.x2 &&
-                Math.abs((b.y + b.h) - getPlatformY(pl, bCenterX)) < 10
-              );
-
-              if (currentPlat) {
-                if (b.x <= currentPlat.x1 || b.x + b.w >= currentPlat.x2) {
+              if (supportingPlat) {
+                const nextCenterX = movedCenterX + Math.sign(b.vx || 1) * BARREL_SPEED;
+                if (nextCenterX < supportingPlat.x1 || nextCenterX > supportingPlat.x2) {
                   b.falling = true;
                   b.vy = 0;
                 }
-              } else if (!onPlat) {
+              } else {
                 b.falling = true;
                 b.vy = 0;
               }
             }
           }
 
-          if (b.y > CANVAS_H + 20) { g.barrels.splice(i, 1); continue; }
+          if (b.y > CANVAS_H + 20) {
+            g.barrels.splice(i, 1);
+            continue;
+          }
 
-          // Barrels always hurt - cannot be killed
           if (rectsOverlap(p, b)) {
             g.lives--; setLives(g.lives);
             if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
@@ -253,109 +255,98 @@ const DonkeyKongGame = () => {
           }
         }
 
-        // === UPDATE ROBOTS (continuous movement, decide at ladders) ===
+        // === UPDATE ROBOTS (always moving, decide at ladders) ===
         for (let i = g.robots.length - 1; i >= 0; i--) {
           const r = g.robots[i];
           const rCenterX = r.x + r.w / 2;
-          const rPlatIdx = findPlatformIndex(r.y + r.h, rCenterX);
-          const pPlatIdx = findPlatformIndex(p.y + p.h, p.x + p.w / 2);
+          const rFeetY = r.y + r.h;
+          const rPlatIdx = findPlatformIndex(rFeetY, rCenterX);
 
           r.frameTimer++;
           if (r.frameTimer > 15) { r.frameTimer = 0; r.frame = (r.frame + 1) % 2; }
 
           if (r.climbing) {
-            // Climbing a ladder — always continue until reaching the end
+            r.y += r.vy;
+            r.vx = 0;
+
             if (r.targetLadder !== null) {
               const l = LADDERS[r.targetLadder];
-              const goingUp = r.y + r.h > l.yTop + 4;
-              r.y += goingUp ? -ROBOT_SPEED : ROBOT_SPEED;
-              r.vx = 0;
-
-              // Reached top of ladder
-              if (r.y + r.h <= l.yTop + 2) {
+              if (r.vy < 0 && r.y + r.h <= l.yTop + 2) {
                 r.y = l.yTop - r.h;
+                r.vy = 0;
                 r.climbing = false;
                 r.targetLadder = null;
-                // Continue moving toward player
-                r.vx = rCenterX < p.x + p.w / 2 ? ROBOT_SPEED : -ROBOT_SPEED;
-                r.direction = r.vx > 0 ? 1 : -1;
-              }
-              // Reached bottom of ladder
-              else if (r.y + r.h >= l.yBot) {
+              } else if (r.vy > 0 && r.y + r.h >= l.yBot) {
                 r.y = l.yBot - r.h;
+                r.vy = 0;
                 r.climbing = false;
                 r.targetLadder = null;
-                r.vx = rCenterX < p.x + p.w / 2 ? ROBOT_SPEED : -ROBOT_SPEED;
-                r.direction = r.vx > 0 ? 1 : -1;
               }
             } else {
+              r.vy = 0;
               r.climbing = false;
             }
           } else {
-            // On platform — always keep moving
-            // Default: move toward player horizontally
-            if (r.vx === 0) {
-              r.vx = rCenterX < p.x + p.w / 2 ? ROBOT_SPEED : -ROBOT_SPEED;
-              r.direction = r.vx > 0 ? 1 : -1;
-            }
+            const desiredDirection = playerCenterX >= rCenterX ? 1 : -1;
+            const continueScore = scoreToPlayer(rCenterX + desiredDirection * ROBOT_SPEED, rFeetY);
+            let climbChoice: { ladderIdx: number; climbVy: number; score: number } | null = null;
 
-            // Check if we're passing over a ladder — decide whether to take it
             for (let li = 0; li < LADDERS.length; li++) {
               const l = LADDERS[li];
               const ladderCenterX = l.x + 7;
-              if (Math.abs(rCenterX - ladderCenterX) < 5) {
-                const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 8);
-                const botPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 8);
+              if (Math.abs(rCenterX - ladderCenterX) > ROBOT_SPEED + 4) continue;
 
-                let canGoUp = topPlatIdx < rPlatIdx && botPlatIdx === rPlatIdx;
-                let canGoDown = topPlatIdx === rPlatIdx && botPlatIdx > rPlatIdx;
+              const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 8);
+              const botPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 8);
 
-                if (canGoUp || canGoDown) {
-                  // Should we take this ladder? Compare distance to player
-                  const afterY = canGoUp ? l.yTop : l.yBot;
-                  const distIfTakeLadder = Math.abs(rCenterX - (p.x + p.w / 2)) + Math.abs(afterY - (p.y + p.h));
-                  const distIfKeepWalking = Math.abs(rCenterX - (p.x + p.w / 2)) + Math.abs((r.y + r.h) - (p.y + p.h));
+              if (botPlatIdx === rPlatIdx && topPlatIdx > rPlatIdx) {
+                const scoreUp = scoreToPlayer(ladderCenterX, l.yTop);
+                if (scoreUp < continueScore && (!climbChoice || scoreUp < climbChoice.score)) {
+                  climbChoice = { ladderIdx: li, climbVy: -ROBOT_SPEED, score: scoreUp };
+                }
+              }
 
-                  if (distIfTakeLadder < distIfKeepWalking) {
-                    r.climbing = true;
-                    r.targetLadder = li;
-                    r.x = l.x + (16 - r.w) / 2;
-                    r.vx = 0;
-                    break;
-                  }
+              if (topPlatIdx === rPlatIdx && botPlatIdx >= 0 && botPlatIdx < rPlatIdx) {
+                const scoreDown = scoreToPlayer(ladderCenterX, l.yBot);
+                if (scoreDown < continueScore && (!climbChoice || scoreDown < climbChoice.score)) {
+                  climbChoice = { ladderIdx: li, climbVy: ROBOT_SPEED, score: scoreDown };
                 }
               }
             }
 
-            if (!r.climbing) {
-              // On same platform as player, always move toward them
-              if (rPlatIdx === pPlatIdx) {
-                r.vx = rCenterX < p.x + p.w / 2 ? ROBOT_SPEED : -ROBOT_SPEED;
-                r.direction = r.vx > 0 ? 1 : -1;
-              }
-
+            if (climbChoice) {
+              const l = LADDERS[climbChoice.ladderIdx];
+              r.climbing = true;
+              r.targetLadder = climbChoice.ladderIdx;
+              r.vx = 0;
+              r.vy = climbChoice.climbVy;
+              r.x = l.x + (16 - r.w) / 2;
+            } else {
+              r.vx = desiredDirection * ROBOT_SPEED;
+              r.direction = desiredDirection;
               r.x += r.vx;
               r.vy += GRAVITY;
               r.y += r.vy;
               r.onGround = false;
+
               for (const plat of PLATFORMS) {
                 if (r.x + r.w > plat.x1 && r.x < plat.x2) {
-                  const platY = getPlatformY(plat, rCenterX);
+                  const platY = getPlatformY(plat, r.x + r.w / 2);
                   if (r.y + r.h >= platY && r.y + r.h <= platY + 12 && r.vy >= 0) {
-                    r.y = platY - r.h; r.vy = 0; r.onGround = true;
+                    r.y = platY - r.h;
+                    r.vy = 0;
+                    r.onGround = true;
+                    break;
                   }
                 }
               }
 
-              // Bounce off edges — keep moving, reverse direction
-              if (r.x <= 0) { r.x = 0; r.vx = ROBOT_SPEED; r.direction = 1; }
-              if (r.x + r.w >= CANVAS_W) { r.x = CANVAS_W - r.w; r.vx = -ROBOT_SPEED; r.direction = -1; }
+              r.x = Math.max(0, Math.min(CANVAS_W - r.w, r.x));
             }
           }
 
           if (r.y > CANVAS_H + 20) { g.robots.splice(i, 1); continue; }
 
-          // Robot-player collision
           if (rectsOverlap(p, r)) {
             if (p.jumping && p.vy < 0 && p.y + p.h < r.y + r.h / 2) {
               g.score += 200; setScore(g.score);
