@@ -345,7 +345,6 @@ const DonkeyKongGame = () => {
           }
         }
       }
-      }
 
       // === RENDER ===
       ctx.fillStyle = '#000000';
