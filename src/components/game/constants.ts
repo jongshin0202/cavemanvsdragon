@@ -56,7 +56,7 @@ export function findPlatformIndex(y: number, x: number): number {
 }
 
 // Find the best ladder to use to get closer to a target
-export function findBestLadder(entityX: number, entityPlatIdx: number, targetPlatIdx: number, goingDown: boolean): number | null {
+export function findBestLadder(entityX: number, entityPlatIdx: number, targetPlatIdx: number, goingDown: boolean, targetX?: number): number | null {
   let bestIdx: number | null = null;
   let bestDist = Infinity;
 
@@ -68,14 +68,19 @@ export function findBestLadder(entityX: number, entityPlatIdx: number, targetPla
     if (goingDown) {
       // Need ladder whose top is on our platform
       if (topPlatIdx === entityPlatIdx && botPlatIdx > entityPlatIdx) {
-        const dist = Math.abs(l.x - entityX);
-        if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+        // Score: distance from entity + distance from target on the next platform
+        const distFromEntity = Math.abs(l.x - entityX);
+        const distFromTarget = targetX !== undefined ? Math.abs(l.x - targetX) : 0;
+        const score = distFromEntity + distFromTarget * 0.5;
+        if (score < bestDist) { bestDist = score; bestIdx = i; }
       }
     } else {
       // Need ladder whose bottom is on our platform
       if (botPlatIdx === entityPlatIdx && topPlatIdx < entityPlatIdx) {
-        const dist = Math.abs(l.x - entityX);
-        if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+        const distFromEntity = Math.abs(l.x - entityX);
+        const distFromTarget = targetX !== undefined ? Math.abs(l.x - targetX) : 0;
+        const score = distFromEntity + distFromTarget * 0.5;
+        if (score < bestDist) { bestDist = score; bestIdx = i; }
       }
     }
   }
