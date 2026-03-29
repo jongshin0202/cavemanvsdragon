@@ -284,7 +284,7 @@ const DonkeyKongGame = () => {
             if (rPlatIdx !== pPlatIdx) {
               // Need to get to player's platform
               const goingDown = rPlatIdx < pPlatIdx;
-              const ladderIdx = findBestLadder(rCenterX, rPlatIdx, pPlatIdx, goingDown);
+              const ladderIdx = findBestLadder(rCenterX, rPlatIdx, pPlatIdx, goingDown, p.x + p.w / 2);
               if (ladderIdx !== null) {
                 const l = LADDERS[ladderIdx];
                 const targetX = l.x + 7;
