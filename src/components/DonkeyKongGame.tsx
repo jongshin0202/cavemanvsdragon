@@ -174,9 +174,38 @@ const DonkeyKongGame = () => {
             }
           } else {
             // Rolling on platform
+            const bPlatIdx = findPlatformIndex(b.y + b.h, bCenterX);
+            const pPlatIdx = findPlatformIndex(p.y + p.h, p.x + p.w / 2);
+
+            // Always roll toward the best ladder that leads closer to player
+            if (bPlatIdx < pPlatIdx) {
+              // Player is below — find closest ladder going down
+              const ladderIdx = findBestLadder(bCenterX, bPlatIdx, pPlatIdx, true);
+              if (ladderIdx !== null) {
+                const l = LADDERS[ladderIdx];
+                const targetX = l.x + 7;
+                if (Math.abs(bCenterX - targetX) < 8) {
+                  // At the ladder, go down
+                  b.onLadder = true;
+                  b.targetLadder = ladderIdx;
+                  b.x = l.x + (16 - b.w) / 2;
+                  b.vx = 0;
+                } else {
+                  // Roll toward the ladder
+                  b.vx = bCenterX < targetX ? BARREL_SPEED : -BARREL_SPEED;
+                }
+              } else {
+                // No ladder found, roll toward player
+                b.vx = bCenterX < p.x + p.w / 2 ? BARREL_SPEED : -BARREL_SPEED;
+              }
+            } else {
+              // Same platform or above player, roll toward player
+              b.vx = bCenterX < p.x + p.w / 2 ? BARREL_SPEED : -BARREL_SPEED;
+            }
+
             b.x += b.vx;
 
-            // Apply slope
+            // Apply slope / stay on platform
             let onPlat = false;
             for (const plat of PLATFORMS) {
               if (b.x + b.w > plat.x1 && b.x < plat.x2) {
@@ -188,7 +217,7 @@ const DonkeyKongGame = () => {
               }
             }
 
-            // Check if barrel reached edge of platform
+            // Check if barrel reached edge of platform — fall off
             const currentPlat = PLATFORMS.find(pl =>
               bCenterX >= pl.x1 && bCenterX <= pl.x2 &&
               Math.abs((b.y + b.h) - getPlatformY(pl, bCenterX)) < 10
@@ -197,43 +226,11 @@ const DonkeyKongGame = () => {
             if (currentPlat) {
               const atLeftEdge = b.x <= currentPlat.x1;
               const atRightEdge = b.x + b.w >= currentPlat.x2;
-
               if (atLeftEdge || atRightEdge) {
-                // Try to find a ladder near the edge first
-                const bPlatIdx = findPlatformIndex(b.y + b.h, bCenterX);
-                const ladderIdx = findBestLadder(bCenterX, bPlatIdx, bPlatIdx + 1, true);
-                if (ladderIdx !== null) {
-                  const l = LADDERS[ladderIdx];
-                  b.x = l.x + (16 - b.w) / 2;
-                  b.onLadder = true;
-                  b.targetLadder = ladderIdx;
-                  b.vx = 0;
-                } else {
-                  // Fall off edge
-                  b.falling = true;
-                  b.vy = 0;
-                }
-              } else {
-                // Check for ladders along the path that go down toward player
-                const bPlatIdx = findPlatformIndex(b.y + b.h, bCenterX);
-                const pPlatIdx = findPlatformIndex(p.y + p.h, p.x + p.w / 2);
-                if (bPlatIdx < pPlatIdx) {
-                  // Player is below, look for a ladder going down
-                  for (let li = 0; li < LADDERS.length; li++) {
-                    const l = LADDERS[li];
-                    const topPlatIdx = PLATFORMS.findIndex(pp => Math.abs(pp.y - l.yTop) < 8);
-                    if (topPlatIdx === bPlatIdx && Math.abs(bCenterX - (l.x + 7)) < 8) {
-                      b.onLadder = true;
-                      b.targetLadder = li;
-                      b.x = l.x + (16 - b.w) / 2;
-                      b.vx = 0;
-                      break;
-                    }
-                  }
-                }
+                b.falling = true;
+                b.vy = 0;
               }
             } else if (!onPlat) {
-              // Not on any platform, start falling
               b.falling = true;
               b.vy = 0;
             }
