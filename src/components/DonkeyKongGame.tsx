@@ -241,16 +241,12 @@ const DonkeyKongGame = () => {
 
           if (b.y > CANVAS_H + 20) { g.barrels.splice(i, 1); continue; }
 
+          // Barrels always hurt - cannot be killed
           if (rectsOverlap(p, b)) {
-            if (p.jumping && p.vy < 0 && p.y + p.h < b.y + b.h / 2) {
-              g.score += 100; setScore(g.score);
-              g.barrels.splice(i, 1);
-            } else {
-              g.lives--; setLives(g.lives);
-              if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
-              else { playHitSound(); resetPlayer(); }
-              break;
-            }
+            g.lives--; setLives(g.lives);
+            if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
+            else { playHitSound(); resetPlayer(); }
+            break;
           }
         }
 
