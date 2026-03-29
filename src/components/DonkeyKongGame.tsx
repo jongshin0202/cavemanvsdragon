@@ -86,8 +86,9 @@ const DonkeyKongGame = () => {
         if (!p.climbing) {
           if (keys.has('ArrowLeft')) { p.x -= MOVE_SPEED; p.facing = -1; }
           if (keys.has('ArrowRight')) { p.x += MOVE_SPEED; p.facing = 1; }
-          if ((keys.has(' ') || keys.has('ArrowUp')) && p.onGround && !onLadder) {
-            p.vy = JUMP_FORCE; p.onGround = false; p.jumping = true;
+          // Jump only for dodging, NOT for reaching platforms (reduced force)
+          if ((keys.has(' ')) && p.onGround && !onLadder) {
+            p.vy = -5; p.onGround = false; p.jumping = true;
             playJumpSound();
           }
           p.vy += GRAVITY; p.y += p.vy;
@@ -127,7 +128,6 @@ const DonkeyKongGame = () => {
         g.robotSpawnTimer++;
         if (g.robotSpawnTimer > 300 && g.robots.length < 4) {
           g.robotSpawnTimer = 0;
-          // Spawn on ground platform edges
           const spawnX = Math.random() > 0.5 ? 490 : 10;
           g.robots.push({ x: spawnX, y: 400, w: 14, h: 16, vx: 0, vy: 0, onGround: false, climbing: false, targetLadder: null, direction: 1, frame: 0, frameTimer: 0 });
         }
@@ -136,54 +136,107 @@ const DonkeyKongGame = () => {
         g.dkTimer++;
         if (g.dkTimer > 30) { g.dkTimer = 0; g.dkFrame = (g.dkFrame + 1) % 2; }
 
-        // === UPDATE BARRELS (with pathfinding) ===
+        // === UPDATE BARRELS ===
         g.barrelSoundTimer++;
         for (let i = g.barrels.length - 1; i >= 0; i--) {
           const b = g.barrels[i];
           const bCenterX = b.x + b.w / 2;
-          const bPlatIdx = findPlatformIndex(b.y + b.h, bCenterX);
-          const pPlatIdx = findPlatformIndex(p.y + p.h, p.x + p.w / 2);
-
-          if (!b.onLadder && !b.falling) {
-            // Find ladder to chase player
-            if (bPlatIdx < pPlatIdx) {
-              // Player is below, find ladder going down
-              const ladderIdx = findBestLadder(bCenterX, bPlatIdx, pPlatIdx, true);
-              if (ladderIdx !== null) {
-                const l = LADDERS[ladderIdx];
-                if (Math.abs(bCenterX - (l.x + 7)) < 6) {
-                  b.onLadder = true; b.vx = 0; b.targetLadder = ladderIdx;
-                } else {
-                  b.vx = bCenterX < l.x + 7 ? BARREL_SPEED : -BARREL_SPEED;
-                }
-              }
-            } else {
-              // Same platform or above - move toward player
-              b.vx = bCenterX < p.x + p.w / 2 ? BARREL_SPEED : -BARREL_SPEED;
-            }
-          }
 
           if (b.onLadder) {
+            // Climbing down a ladder
             b.y += 2.5;
-            const onLadderStill = LADDERS.some(l =>
-              bCenterX > l.x - 4 && bCenterX < l.x + 20 && b.y + b.h <= l.yBot
-            );
-            if (!onLadderStill) {
-              b.onLadder = false; b.targetLadder = null;
-              b.vx = bCenterX < p.x + p.w / 2 ? BARREL_SPEED : -BARREL_SPEED;
+            b.vx = 0;
+            if (b.targetLadder !== null) {
+              const l = LADDERS[b.targetLadder];
+              if (b.y + b.h >= l.yBot) {
+                b.y = l.yBot - b.h;
+                b.onLadder = false;
+                b.targetLadder = null;
+                // Pick direction toward player after exiting ladder
+                b.vx = bCenterX < p.x + p.w / 2 ? BARREL_SPEED : -BARREL_SPEED;
+              }
             }
-          } else {
-            b.vy += GRAVITY; b.x += b.vx; b.y += b.vy;
+          } else if (b.falling) {
+            // Falling off platform edge
+            b.vy += GRAVITY;
+            b.y += b.vy;
+            // Check landing on platform below
             for (const plat of PLATFORMS) {
               if (b.x + b.w > plat.x1 && b.x < plat.x2) {
                 const platY = getPlatformY(plat, bCenterX);
-                if (b.y + b.h >= platY && b.y + b.h <= platY + 12 && b.vy >= 0) {
-                  b.y = platY - b.h; b.vy = 0;
+                if (b.y + b.h >= platY && b.y + b.h <= platY + 16 && b.vy >= 0) {
+                  b.y = platY - b.h;
+                  b.vy = 0;
+                  b.falling = false;
+                  b.vx = bCenterX < p.x + p.w / 2 ? BARREL_SPEED : -BARREL_SPEED;
                 }
               }
             }
-            if (b.x < 0) { b.x = 0; b.vx = BARREL_SPEED; }
-            if (b.x + b.w > CANVAS_W) { b.x = CANVAS_W - b.w; b.vx = -BARREL_SPEED; }
+          } else {
+            // Rolling on platform
+            b.x += b.vx;
+
+            // Apply slope
+            let onPlat = false;
+            for (const plat of PLATFORMS) {
+              if (b.x + b.w > plat.x1 && b.x < plat.x2) {
+                const platY = getPlatformY(plat, bCenterX);
+                if (Math.abs((b.y + b.h) - platY) < 10) {
+                  b.y = platY - b.h;
+                  onPlat = true;
+                }
+              }
+            }
+
+            // Check if barrel reached edge of platform
+            const currentPlat = PLATFORMS.find(pl =>
+              bCenterX >= pl.x1 && bCenterX <= pl.x2 &&
+              Math.abs((b.y + b.h) - getPlatformY(pl, bCenterX)) < 10
+            );
+
+            if (currentPlat) {
+              const atLeftEdge = b.x <= currentPlat.x1;
+              const atRightEdge = b.x + b.w >= currentPlat.x2;
+
+              if (atLeftEdge || atRightEdge) {
+                // Try to find a ladder near the edge first
+                const bPlatIdx = findPlatformIndex(b.y + b.h, bCenterX);
+                const ladderIdx = findBestLadder(bCenterX, bPlatIdx, bPlatIdx + 1, true);
+                if (ladderIdx !== null) {
+                  const l = LADDERS[ladderIdx];
+                  b.x = l.x + (16 - b.w) / 2;
+                  b.onLadder = true;
+                  b.targetLadder = ladderIdx;
+                  b.vx = 0;
+                } else {
+                  // Fall off edge
+                  b.falling = true;
+                  b.vy = 0;
+                }
+              } else {
+                // Check for ladders along the path that go down toward player
+                const bPlatIdx = findPlatformIndex(b.y + b.h, bCenterX);
+                const pPlatIdx = findPlatformIndex(p.y + p.h, p.x + p.w / 2);
+                if (bPlatIdx < pPlatIdx) {
+                  // Player is below, look for a ladder going down
+                  for (let li = 0; li < LADDERS.length; li++) {
+                    const l = LADDERS[li];
+                    const topPlatIdx = PLATFORMS.findIndex(pp => Math.abs(pp.y - l.yTop) < 8);
+                    if (topPlatIdx === bPlatIdx && Math.abs(bCenterX - (l.x + 7)) < 8) {
+                      b.onLadder = true;
+                      b.targetLadder = li;
+                      b.x = l.x + (16 - b.w) / 2;
+                      b.vx = 0;
+                      break;
+                    }
+                  }
+                }
+              }
+            } else if (!onPlat) {
+              // Not on any platform, start falling
+              b.falling = true;
+              b.vy = 0;
+            }
           }
 
           if (b.y > CANVAS_H + 20) { g.barrels.splice(i, 1); continue; }
@@ -212,39 +265,58 @@ const DonkeyKongGame = () => {
           if (r.frameTimer > 15) { r.frameTimer = 0; r.frame = (r.frame + 1) % 2; }
 
           if (r.climbing) {
+            // Climbing a ladder
             const goingUp = rPlatIdx > pPlatIdx;
             r.y += goingUp ? -ROBOT_SPEED : ROBOT_SPEED;
-            const stillOnLadder = LADDERS.some(l =>
-              rCenterX > l.x - 4 && rCenterX < l.x + 20 &&
-              r.y + r.h > l.yTop && r.y + r.h <= l.yBot + 4
-            );
-            if (!stillOnLadder) {
-              r.climbing = false; r.targetLadder = null;
+            r.vx = 0;
+
+            // Check if reached end of ladder
+            if (r.targetLadder !== null) {
+              const l = LADDERS[r.targetLadder];
+              if (goingUp && r.y + r.h <= l.yTop + 2) {
+                r.y = l.yTop - r.h;
+                r.climbing = false;
+                r.targetLadder = null;
+              } else if (!goingUp && r.y + r.h >= l.yBot) {
+                r.y = l.yBot - r.h;
+                r.climbing = false;
+                r.targetLadder = null;
+              }
+            } else {
+              // Safety: if no target ladder, stop climbing
+              r.climbing = false;
             }
           } else {
-            // Pathfinding: decide to use a ladder or chase on same platform
+            // On platform - decide what to do
             if (rPlatIdx !== pPlatIdx) {
+              // Need to get to player's platform
               const goingDown = rPlatIdx < pPlatIdx;
               const ladderIdx = findBestLadder(rCenterX, rPlatIdx, pPlatIdx, goingDown);
               if (ladderIdx !== null) {
                 const l = LADDERS[ladderIdx];
                 const targetX = l.x + 7;
-                if (Math.abs(rCenterX - targetX) < 5) {
-                  r.climbing = true; r.targetLadder = ladderIdx; r.vx = 0;
+                if (Math.abs(rCenterX - targetX) < 6) {
+                  r.climbing = true;
+                  r.targetLadder = ladderIdx;
+                  r.vx = 0;
                 } else {
                   r.vx = rCenterX < targetX ? ROBOT_SPEED : -ROBOT_SPEED;
                   r.direction = r.vx > 0 ? 1 : -1;
                 }
               } else {
+                // No ladder found, just patrol
                 r.vx = rCenterX < p.x + p.w / 2 ? ROBOT_SPEED : -ROBOT_SPEED;
                 r.direction = r.vx > 0 ? 1 : -1;
               }
             } else {
+              // Same platform, chase player
               r.vx = rCenterX < p.x + p.w / 2 ? ROBOT_SPEED : -ROBOT_SPEED;
               r.direction = r.vx > 0 ? 1 : -1;
             }
 
-            r.vy += GRAVITY; r.x += r.vx; r.y += r.vy;
+            r.x += r.vx;
+            r.vy += GRAVITY;
+            r.y += r.vy;
             r.onGround = false;
             for (const plat of PLATFORMS) {
               if (r.x + r.w > plat.x1 && r.x < plat.x2) {
@@ -272,6 +344,7 @@ const DonkeyKongGame = () => {
             }
           }
         }
+      }
       }
 
       // === RENDER ===
