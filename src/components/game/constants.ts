@@ -18,7 +18,7 @@ export const PLATFORMS: { y: number; x1: number; x2: number; slope?: number }[] 
   { y: 368, x1: 48, x2: 512, slope: 0.03 },
   { y: 304, x1: 0, x2: 464, slope: -0.03 },
   { y: 240, x1: 48, x2: 512, slope: 0.03 },
-  { y: 176, x1: 0, x2: 464, slope: -0.03 },
+  { y: 176, x1: 0, x2: 430, slope: -0.03 },
   { y: 112, x1: 80, x2: 432 },           // top
 ];
 
