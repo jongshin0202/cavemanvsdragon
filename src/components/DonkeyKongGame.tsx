@@ -180,7 +180,7 @@ const DonkeyKongGame = () => {
             // Always roll toward the best ladder that leads closer to player
             if (bPlatIdx < pPlatIdx) {
               // Player is below — find closest ladder going down
-              const ladderIdx = findBestLadder(bCenterX, bPlatIdx, pPlatIdx, true);
+              const ladderIdx = findBestLadder(bCenterX, bPlatIdx, pPlatIdx, true, p.x + p.w / 2);
               if (ladderIdx !== null) {
                 const l = LADDERS[ladderIdx];
                 const targetX = l.x + 7;
