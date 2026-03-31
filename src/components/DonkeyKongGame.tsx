@@ -223,8 +223,8 @@ const DonkeyKongGame = () => {
                   b.y = platY - b.h;
                   b.vy = 0;
                   b.falling = false;
-                  // Continue rolling toward player
-                  b.vx = playerCenterX >= b.x + b.w / 2 ? BARREL_SPEED : -BARREL_SPEED;
+                  // Roll downhill: positive slope → right, negative slope → left
+                  b.vx = ((plat.slope || 0) < 0) ? -BARREL_SPEED : BARREL_SPEED;
                   landed = true;
                   break;
                 }
