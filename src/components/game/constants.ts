@@ -24,14 +24,15 @@ export const PLATFORMS: { y: number; x1: number; x2: number; slope?: number }[] 
 
 // Ladder definitions (x, yTop, yBottom)
 export const LADDERS: { x: number; yTop: number; yBot: number }[] = [
-  { x: 460, yTop: 368, yBot: 432 },
-  { x: 100, yTop: 304, yBot: 368 },
-  { x: 400, yTop: 240, yBot: 304 },
-  { x: 140, yTop: 176, yBot: 240 },
-  { x: 350, yTop: 112, yBot: 176 },
-  { x: 260, yTop: 368, yBot: 432 },
-  { x: 300, yTop: 240, yBot: 304 },
-  { x: 200, yTop: 304, yBot: 368 },
+  { x: 460, yTop: 368, yBot: 432 },   // ground → P1
+  { x: 260, yTop: 368, yBot: 432 },   // ground → P1
+  { x: 100, yTop: 304, yBot: 368 },   // P1 → P2
+  { x: 200, yTop: 304, yBot: 368 },   // P1 → P2
+  { x: 400, yTop: 240, yBot: 304 },   // P2 → P3
+  { x: 300, yTop: 240, yBot: 304 },   // P2 → P3
+  { x: 140, yTop: 176, yBot: 240 },   // P3 → P4
+  { x: 380, yTop: 176, yBot: 240 },   // P3 → P4
+  { x: 350, yTop: 112, yBot: 176 },   // P4 → top (single)
 ];
 
 export function getPlatformY(plat: typeof PLATFORMS[0], x: number): number {
