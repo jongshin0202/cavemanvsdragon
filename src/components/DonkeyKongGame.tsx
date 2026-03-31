@@ -67,9 +67,8 @@ const DonkeyKongGame = () => {
       const g = gameRef.current;
       const keys = keysRef.current;
       const p = g.player;
-      const wa = g.winAnim;
-
-      // === WIN ANIMATION ===
+      const wa = g.winAnim || { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
+      if (!g.winAnim) g.winAnim = wa;
       if (wa.active) {
         wa.timer++;
         // Gorilla falls and rotates

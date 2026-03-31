@@ -14,12 +14,12 @@ export interface Robot extends Rect { vx: number; vy: number; onGround: boolean;
 
 // Platform definitions (y, xStart, xEnd)
 export const PLATFORMS: { y: number; x1: number; x2: number; slope?: number }[] = [
-  { y: 432, x1: 0, x2: 512, slope: 0.02 },           // ground
-  { y: 368, x1: 48, x2: 512, slope: 0.02 },
-  { y: 304, x1: 0, x2: 464, slope: 0.02 },
-  { y: 240, x1: 48, x2: 512, slope: 0.02 },
-  { y: 176, x1: 0, x2: 430, slope: 0.02 },
-  { y: 112, x1: 80, x2: 432, slope: 0.02 },           // top
+  { y: 432, x1: 0, x2: 512, slope: 0.02 },           // ground (left high, right low)
+  { y: 368, x1: 48, x2: 512, slope: -0.02 },          // right high, left low
+  { y: 304, x1: 0, x2: 464, slope: 0.02 },             // left high, right low
+  { y: 240, x1: 48, x2: 512, slope: -0.02 },           // right high, left low
+  { y: 176, x1: 0, x2: 430, slope: 0.02 },             // left high, right low
+  { y: 112, x1: 80, x2: 432, slope: -0.02 },           // top (right high, left low)
 ];
 
 // Ladder definitions (x, yTop, yBottom)
