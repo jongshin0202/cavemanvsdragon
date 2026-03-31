@@ -4,7 +4,7 @@ import {
   PLATFORMS, LADDERS, getPlatformY, rectsOverlap, findPlatformIndex, findBestLadder,
   Barrel, Robot
 } from './game/constants';
-import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound } from './game/sounds';
+import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound } from './game/sounds';
 
 const LADDER_SNAP = 18; // wider snap distance for player climbing
 
@@ -389,8 +389,11 @@ const DonkeyKongGame = () => {
           if (r.y > CANVAS_H + 20) { g.robots.splice(i, 1); continue; }
 
           if (rectsOverlap(p, r)) {
-            if (p.jumping && p.vy > 0 && p.y + p.h < r.y + r.h / 2) {
+            // Stomp kill: player is falling and feet are above robot's mid-point
+            if (p.vy > 0 && p.y + p.h <= r.y + r.h * 0.6) {
               g.score += 200; setScore(g.score);
+              playRobotKillSound();
+              p.vy = -4; // bounce up after stomp
               g.robots.splice(i, 1);
             } else {
               g.lives--; setLives(g.lives);
