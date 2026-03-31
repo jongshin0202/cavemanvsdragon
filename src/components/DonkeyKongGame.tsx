@@ -6,6 +6,8 @@ import {
 } from './game/constants';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound } from './game/sounds';
 
+const LADDER_SNAP = 18; // wider snap distance for player climbing
+
 const DonkeyKongGame = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const keysRef = useRef<Set<string>>(new Set());
@@ -24,6 +26,8 @@ const DonkeyKongGame = () => {
     dkFrame: 0,
     dkTimer: 0,
     barrelSoundTimer: 0,
+    // Win animation state
+    winAnim: { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 },
   });
 
   const resetPlayer = useCallback(() => {
@@ -38,6 +42,7 @@ const DonkeyKongGame = () => {
     g.score = 0; g.lives = 3; g.state = 'playing';
     g.robots = [];
     g.robotSpawnTimer = 0;
+    g.winAnim = { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
     resetPlayer();
     setScore(0); setLives(3); setGameState('playing');
   }, [resetPlayer]);
@@ -62,19 +67,45 @@ const DonkeyKongGame = () => {
       const g = gameRef.current;
       const keys = keysRef.current;
       const p = g.player;
+      const wa = g.winAnim;
+
+      // === WIN ANIMATION ===
+      if (wa.active) {
+        wa.timer++;
+        // Gorilla falls and rotates
+        if (wa.gorillaY < CANVAS_H + 50) {
+          wa.gorillaY += 4;
+          wa.gorillaRotation += 0.15;
+        }
+        // Show kiss after 30 frames
+        if (wa.timer > 30) wa.showKiss = true;
+        // Show congrats after 90 frames
+        if (wa.timer > 90) wa.showCongrats = true;
+      }
 
       if (g.state === 'playing') {
         // === PLAYER MOVEMENT ===
-        const onLadder = LADDERS.some(l =>
-          p.x + p.w / 2 > l.x - 8 && p.x + p.w / 2 < l.x + 16 + 8 &&
-          p.y + p.h > l.yTop && p.y + p.h <= l.yBot + 4
-        );
+        // Wider snap: find nearest ladder within LADDER_SNAP pixels
+        const playerCX = p.x + p.w / 2;
+        let nearestLadder: (typeof LADDERS)[number] | null = null;
+        let nearestLadderDist = Infinity;
+        for (const l of LADDERS) {
+          const ladderCX = l.x + 7;
+          const dist = Math.abs(playerCX - ladderCX);
+          if (dist < LADDER_SNAP && p.y + p.h > l.yTop - 4 && p.y + p.h <= l.yBot + 8 && dist < nearestLadderDist) {
+            nearestLadder = l;
+            nearestLadderDist = dist;
+          }
+        }
 
-        if (keys.has('ArrowUp') && onLadder) p.climbing = true;
-        if (keys.has('ArrowDown') && onLadder) p.climbing = true;
+        if ((keys.has('ArrowUp') || keys.has('ArrowDown')) && nearestLadder) {
+          p.climbing = true;
+          // Snap player to ladder center
+          p.x = nearestLadder.x + 7 - p.w / 2;
+        }
 
         if (p.climbing) {
-          if (!onLadder) p.climbing = false;
+          if (!nearestLadder) p.climbing = false;
           else {
             p.vy = 0;
             if (keys.has('ArrowUp')) p.y -= CLIMB_SPEED;
@@ -86,8 +117,7 @@ const DonkeyKongGame = () => {
         if (!p.climbing) {
           if (keys.has('ArrowLeft')) { p.x -= MOVE_SPEED; p.facing = -1; }
           if (keys.has('ArrowRight')) { p.x += MOVE_SPEED; p.facing = 1; }
-          // Jump only for dodging, NOT for reaching platforms (reduced force)
-          if ((keys.has(' ')) && p.onGround && !onLadder) {
+          if ((keys.has(' ')) && p.onGround && !nearestLadder) {
             p.vy = -5; p.onGround = false; p.jumping = true;
             playJumpSound();
           }
@@ -110,10 +140,17 @@ const DonkeyKongGame = () => {
           else { playHitSound(); resetPlayer(); }
         }
 
-        // Win condition
-        if (p.y < 100 && p.x > 180 && p.x < 320) {
+        // Win condition - touch the girl
+        const paulX = 240, paulY = 72;
+        if (rectsOverlap(p, { x: paulX, y: paulY, w: 12, h: 20 })) {
           g.state = 'win'; setGameState('win');
           g.score += 1000; setScore(g.score); playWinSound();
+          wa.active = true;
+          wa.timer = 0;
+          wa.gorillaY = 76;
+          wa.gorillaRotation = 0;
+          wa.showKiss = false;
+          wa.showCongrats = false;
         }
 
         // === BARREL SPAWNING ===
@@ -140,7 +177,7 @@ const DonkeyKongGame = () => {
         const playerFeetY = p.y + p.h;
         const scoreToPlayer = (x: number, y: number) => Math.abs(x - playerCenterX) + Math.abs(y - playerFeetY);
 
-        // === UPDATE BARRELS ===
+        // === UPDATE BARRELS (only move downward, never upward) ===
         g.barrelSoundTimer++;
         for (let i = g.barrels.length - 1; i >= 0; i--) {
           const b = g.barrels[i];
@@ -149,6 +186,7 @@ const DonkeyKongGame = () => {
           const bPlatIdx = findPlatformIndex(bFeetY, bCenterX);
 
           if (b.onLadder) {
+            // Barrels only go DOWN through ladders
             b.y += 2.5;
             b.vx = 0;
 
@@ -158,7 +196,8 @@ const DonkeyKongGame = () => {
                 b.y = l.yBot - b.h;
                 b.onLadder = false;
                 b.targetLadder = null;
-                b.vx = playerCenterX >= l.x + 7 ? BARREL_SPEED : -BARREL_SPEED;
+                // Resume rolling toward player
+                b.vx = playerCenterX >= b.x + b.w / 2 ? BARREL_SPEED : -BARREL_SPEED;
               }
             }
           } else if (b.falling) {
@@ -173,6 +212,7 @@ const DonkeyKongGame = () => {
                   b.y = platY - b.h;
                   b.vy = 0;
                   b.falling = false;
+                  // Continue rolling toward player
                   b.vx = playerCenterX >= b.x + b.w / 2 ? BARREL_SPEED : -BARREL_SPEED;
                   landed = true;
                   break;
@@ -185,43 +225,45 @@ const DonkeyKongGame = () => {
               continue;
             }
           } else {
-            if (b.vx === 0) b.vx = playerCenterX >= bCenterX ? BARREL_SPEED : -BARREL_SPEED;
+            // Rolling on platform
+            if (b.vx === 0) b.vx = BARREL_SPEED; // default rightward
 
+            // Check for ladders going DOWN only (barrels never go up)
             let tookLadder = false;
-            if (bPlatIdx > 0) {
-              for (let li = 0; li < LADDERS.length; li++) {
-                const l = LADDERS[li];
-                const ladderCenterX = l.x + 7;
-                const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 8);
-                const botPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 8);
+            for (let li = 0; li < LADDERS.length; li++) {
+              const l = LADDERS[li];
+              const ladderCenterX = l.x + 7;
 
-                if (topPlatIdx === bPlatIdx && botPlatIdx >= 0 && botPlatIdx < bPlatIdx && Math.abs(bCenterX - ladderCenterX) <= BARREL_SPEED + 4) {
-                  const continueScore = scoreToPlayer(bCenterX + Math.sign(b.vx || 1) * BARREL_SPEED, bFeetY);
-                  const ladderScore = scoreToPlayer(ladderCenterX, l.yBot);
+              if (Math.abs(bCenterX - ladderCenterX) > BARREL_SPEED + 4) continue;
 
-                  if (ladderScore <= continueScore) {
-                    b.onLadder = true;
-                    b.targetLadder = li;
-                    b.x = l.x + (16 - b.w) / 2;
-                    b.vx = 0;
-                    tookLadder = true;
-                    break;
-                  }
-                }
+              // Only consider ladders where top matches current platform (going down)
+              const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
+              if (topPlatIdx !== bPlatIdx) continue;
+
+              // Score: is taking this ladder down closer to the player?
+              const ladderBottomY = l.yBot;
+              const ladderScore = scoreToPlayer(ladderCenterX, ladderBottomY);
+              const continueScore = scoreToPlayer(bCenterX + Math.sign(b.vx) * 50, bFeetY);
+
+              if (ladderScore <= continueScore) {
+                b.onLadder = true;
+                b.targetLadder = li;
+                b.x = l.x + (16 - b.w) / 2;
+                b.vx = 0;
+                tookLadder = true;
+                break;
               }
             }
 
             if (!tookLadder) {
               b.x += b.vx;
 
+              // Follow platform slope
               let supportingPlat: (typeof PLATFORMS)[number] | null = null;
-              const movedCenterX = b.x + b.w / 2;
-              const movedFeetY = b.y + b.h;
-
               for (const plat of PLATFORMS) {
                 if (b.x + b.w > plat.x1 && b.x < plat.x2) {
-                  const platY = getPlatformY(plat, movedCenterX);
-                  if (Math.abs(movedFeetY - platY) < 12) {
+                  const platY = getPlatformY(plat, b.x + b.w / 2);
+                  if (Math.abs((b.y + b.h) - platY) < 16) {
                     b.y = platY - b.h;
                     supportingPlat = plat;
                     break;
@@ -229,24 +271,28 @@ const DonkeyKongGame = () => {
                 }
               }
 
-              if (supportingPlat) {
-                const nextCenterX = movedCenterX + Math.sign(b.vx || 1) * BARREL_SPEED;
-                if (nextCenterX < supportingPlat.x1 || nextCenterX > supportingPlat.x2) {
+              // Fall off edge
+              if (!supportingPlat) {
+                b.falling = true;
+                b.vy = 0;
+              } else {
+                // Check if next step goes off edge
+                const nextX = b.x + b.w / 2 + Math.sign(b.vx) * BARREL_SPEED;
+                if (nextX < supportingPlat.x1 || nextX > supportingPlat.x2) {
                   b.falling = true;
                   b.vy = 0;
                 }
-              } else {
-                b.falling = true;
-                b.vy = 0;
               }
             }
           }
 
+          // Remove if off screen
           if (b.y > CANVAS_H + 20) {
             g.barrels.splice(i, 1);
             continue;
           }
 
+          // Collision with player
           if (rectsOverlap(p, b)) {
             g.lives--; setLives(g.lives);
             if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
@@ -261,6 +307,7 @@ const DonkeyKongGame = () => {
           const rCenterX = r.x + r.w / 2;
           const rFeetY = r.y + r.h;
           const rPlatIdx = findPlatformIndex(rFeetY, rCenterX);
+          const pPlatIdx = findPlatformIndex(playerFeetY, playerCenterX);
 
           r.frameTimer++;
           if (r.frameTimer > 15) { r.frameTimer = 0; r.frame = (r.frame + 1) % 2; }
@@ -273,18 +320,13 @@ const DonkeyKongGame = () => {
               const l = LADDERS[r.targetLadder];
               if (r.vy < 0 && r.y + r.h <= l.yTop + 2) {
                 r.y = l.yTop - r.h;
-                r.vy = 0;
-                r.climbing = false;
-                r.targetLadder = null;
+                r.vy = 0; r.climbing = false; r.targetLadder = null;
               } else if (r.vy > 0 && r.y + r.h >= l.yBot) {
                 r.y = l.yBot - r.h;
-                r.vy = 0;
-                r.climbing = false;
-                r.targetLadder = null;
+                r.vy = 0; r.climbing = false; r.targetLadder = null;
               }
             } else {
-              r.vy = 0;
-              r.climbing = false;
+              r.vy = 0; r.climbing = false;
             }
           } else {
             const desiredDirection = playerCenterX >= rCenterX ? 1 : -1;
@@ -296,17 +338,19 @@ const DonkeyKongGame = () => {
               const ladderCenterX = l.x + 7;
               if (Math.abs(rCenterX - ladderCenterX) > ROBOT_SPEED + 4) continue;
 
-              const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 8);
-              const botPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 8);
+              const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
+              const botPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 12);
 
-              if (botPlatIdx === rPlatIdx && topPlatIdx > rPlatIdx) {
+              // Climb UP: robot is on botPlatIdx, player is higher (lower index)
+              if (botPlatIdx === rPlatIdx && topPlatIdx >= 0 && topPlatIdx < rPlatIdx) {
                 const scoreUp = scoreToPlayer(ladderCenterX, l.yTop);
                 if (scoreUp < continueScore && (!climbChoice || scoreUp < climbChoice.score)) {
                   climbChoice = { ladderIdx: li, climbVy: -ROBOT_SPEED, score: scoreUp };
                 }
               }
 
-              if (topPlatIdx === rPlatIdx && botPlatIdx >= 0 && botPlatIdx < rPlatIdx) {
+              // Climb DOWN: robot is on topPlatIdx, player is lower (higher index)
+              if (topPlatIdx === rPlatIdx && botPlatIdx >= 0 && botPlatIdx > rPlatIdx) {
                 const scoreDown = scoreToPlayer(ladderCenterX, l.yBot);
                 if (scoreDown < continueScore && (!climbChoice || scoreDown < climbChoice.score)) {
                   climbChoice = { ladderIdx: li, climbVy: ROBOT_SPEED, score: scoreDown };
@@ -333,10 +377,7 @@ const DonkeyKongGame = () => {
                 if (r.x + r.w > plat.x1 && r.x < plat.x2) {
                   const platY = getPlatformY(plat, r.x + r.w / 2);
                   if (r.y + r.h >= platY && r.y + r.h <= platY + 12 && r.vy >= 0) {
-                    r.y = platY - r.h;
-                    r.vy = 0;
-                    r.onGround = true;
-                    break;
+                    r.y = platY - r.h; r.vy = 0; r.onGround = true; break;
                   }
                 }
               }
@@ -348,7 +389,7 @@ const DonkeyKongGame = () => {
           if (r.y > CANVAS_H + 20) { g.robots.splice(i, 1); continue; }
 
           if (rectsOverlap(p, r)) {
-            if (p.jumping && p.vy < 0 && p.y + p.h < r.y + r.h / 2) {
+            if (p.jumping && p.vy > 0 && p.y + p.h < r.y + r.h / 2) {
               g.score += 200; setScore(g.score);
               g.robots.splice(i, 1);
             } else {
@@ -388,29 +429,55 @@ const DonkeyKongGame = () => {
         ctx.stroke();
       }
 
-      // DK
-      ctx.fillStyle = '#8B4513';
-      const dkX = 100, dkY = 76;
-      ctx.fillRect(dkX, dkY, 32, 32);
-      ctx.fillStyle = '#654321'; ctx.fillRect(dkX + 4, dkY + 4, 24, 20);
-      ctx.fillStyle = '#DEB887'; ctx.fillRect(dkX + 8, dkY + 6, 16, 12);
-      ctx.fillStyle = '#FFF';
-      ctx.fillRect(dkX + 10, dkY + 8, 4, 4); ctx.fillRect(dkX + 18, dkY + 8, 4, 4);
-      ctx.fillStyle = '#000';
-      ctx.fillRect(dkX + 12, dkY + 9, 2, 2); ctx.fillRect(dkX + 20, dkY + 9, 2, 2);
-      ctx.fillStyle = '#8B4513';
-      if (g.dkFrame === 0) {
-        ctx.fillRect(dkX - 8, dkY + 8, 8, 8); ctx.fillRect(dkX + 32, dkY + 8, 8, 8);
+      // DK (with win animation - flip and fall)
+      const dkX = 100;
+      if (wa.active) {
+        ctx.save();
+        ctx.translate(dkX + 16, wa.gorillaY + 16);
+        ctx.rotate(wa.gorillaRotation);
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(-16, -16, 32, 32);
+        ctx.fillStyle = '#654321'; ctx.fillRect(-12, -12, 24, 20);
+        ctx.fillStyle = '#DEB887'; ctx.fillRect(-8, -10, 16, 12);
+        ctx.fillStyle = '#FFF';
+        ctx.fillRect(-6, -8, 4, 4); ctx.fillRect(2, -8, 4, 4);
+        ctx.fillStyle = '#000';
+        ctx.fillRect(-4, -7, 2, 2); ctx.fillRect(4, -7, 2, 2);
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(-24, -8, 8, 8); ctx.fillRect(16, -8, 8, 8);
+        ctx.restore();
       } else {
-        ctx.fillRect(dkX - 8, dkY + 2, 8, 8); ctx.fillRect(dkX + 32, dkY + 2, 8, 8);
+        const dkY = 76;
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(dkX, dkY, 32, 32);
+        ctx.fillStyle = '#654321'; ctx.fillRect(dkX + 4, dkY + 4, 24, 20);
+        ctx.fillStyle = '#DEB887'; ctx.fillRect(dkX + 8, dkY + 6, 16, 12);
+        ctx.fillStyle = '#FFF';
+        ctx.fillRect(dkX + 10, dkY + 8, 4, 4); ctx.fillRect(dkX + 18, dkY + 8, 4, 4);
+        ctx.fillStyle = '#000';
+        ctx.fillRect(dkX + 12, dkY + 9, 2, 2); ctx.fillRect(dkX + 20, dkY + 9, 2, 2);
+        ctx.fillStyle = '#8B4513';
+        if (g.dkFrame === 0) {
+          ctx.fillRect(dkX - 8, dkY + 8, 8, 8); ctx.fillRect(dkX + 32, dkY + 8, 8, 8);
+        } else {
+          ctx.fillRect(dkX - 8, dkY + 2, 8, 8); ctx.fillRect(dkX + 32, dkY + 2, 8, 8);
+        }
       }
 
-      // Pauline
+      // Pauline (with kiss animation)
       const paulX = 240, paulY = 72;
       ctx.fillStyle = '#FF69B4'; ctx.fillRect(paulX, paulY, 12, 20);
       ctx.fillStyle = '#FFD700'; ctx.fillRect(paulX + 2, paulY - 6, 8, 8);
-      ctx.fillStyle = '#FF69B4'; ctx.font = '8px var(--font-arcade)';
-      ctx.fillText('HELP!', paulX - 8, paulY - 10);
+      if (wa.active && wa.showKiss) {
+        // Heart
+        ctx.fillStyle = '#FF0000'; ctx.font = '12px serif';
+        ctx.fillText('❤', paulX + 14, paulY + 4);
+        ctx.fillStyle = '#FF69B4'; ctx.font = '7px monospace';
+        ctx.fillText('Thank You!', paulX - 20, paulY - 14);
+      } else {
+        ctx.fillStyle = '#FF69B4'; ctx.font = '8px var(--font-arcade)';
+        ctx.fillText('HELP!', paulX - 8, paulY - 10);
+      }
 
       // Barrels
       for (const b of g.barrels) {
@@ -421,17 +488,13 @@ const DonkeyKongGame = () => {
 
       // Robots
       for (const r of g.robots) {
-        // Body
         ctx.fillStyle = '#FF4444';
         ctx.fillRect(r.x, r.y + 4, r.w, r.h - 4);
-        // Head
         ctx.fillStyle = '#CC2222';
         ctx.fillRect(r.x + 2, r.y, r.w - 4, 6);
-        // Eyes (glowing)
         ctx.fillStyle = '#FFFF00';
         ctx.fillRect(r.x + 3, r.y + 1, 3, 3);
         ctx.fillRect(r.x + r.w - 6, r.y + 1, 3, 3);
-        // Legs (animated)
         ctx.fillStyle = '#AA1111';
         if (r.frame === 0) {
           ctx.fillRect(r.x + 1, r.y + r.h - 2, 4, 3);
@@ -440,7 +503,6 @@ const DonkeyKongGame = () => {
           ctx.fillRect(r.x + 1, r.y + r.h - 1, 4, 2);
           ctx.fillRect(r.x + r.w - 5, r.y + r.h - 2, 4, 3);
         }
-        // Antenna
         ctx.strokeStyle = '#FF6666'; ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(r.x + r.w / 2, r.y);
@@ -480,13 +542,14 @@ const DonkeyKongGame = () => {
         ctx.fillStyle = '#FFFFFF'; ctx.font = '10px var(--font-arcade)';
         ctx.fillText('Press R to restart', 140, 260);
       }
-      if (g.state === 'win') {
-        ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-        ctx.fillStyle = '#FFD700'; ctx.font = '20px var(--font-arcade)';
-        ctx.fillText('YOU WIN!', 140, 220);
+      if (g.state === 'win' && wa.showCongrats) {
+        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 150, CANVAS_W, 100);
+        ctx.fillStyle = '#FFD700'; ctx.font = '16px var(--font-arcade)';
+        ctx.fillText('Congratulations!', 100, 190);
+        ctx.fillText('You Won!', 160, 220);
         ctx.fillStyle = '#FFFFFF'; ctx.font = '10px var(--font-arcade)';
-        ctx.fillText(`Score: ${g.score}`, 170, 260);
-        ctx.fillText('Press R to restart', 140, 290);
+        ctx.fillText(`Score: ${g.score}`, 190, 240);
+        ctx.fillText('Press R to restart', 150, 260);
       }
 
       animId = requestAnimationFrame(gameLoop);
