@@ -67,9 +67,8 @@ const DonkeyKongGame = () => {
       const g = gameRef.current;
       const keys = keysRef.current;
       const p = g.player;
-      const wa = g.winAnim;
-
-      // === WIN ANIMATION ===
+      const wa = g.winAnim || { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
+      if (!g.winAnim) g.winAnim = wa;
       if (wa.active) {
         wa.timer++;
         // Gorilla falls and rotates
@@ -105,12 +104,23 @@ const DonkeyKongGame = () => {
         }
 
         if (p.climbing) {
-          if (!nearestLadder) p.climbing = false;
-          else {
+          // If near the top of the ladder and pressing left/right, dismount
+          const climbingLadder = nearestLadder;
+          const nearTop = climbingLadder && (p.y + p.h) < climbingLadder.yTop + 10;
+          const nearBot = climbingLadder && (p.y + p.h) > climbingLadder.yBot - 6;
+          
+          if (!nearestLadder && !nearTop) {
+            p.climbing = false;
+          } else if (nearTop && (keys.has('ArrowLeft') || keys.has('ArrowRight') || keys.has('ArrowUp'))) {
+            // Snap to top platform and dismount
+            p.climbing = false;
+            if (climbingLadder) p.y = climbingLadder.yTop - p.h;
+          } else if (keys.has('ArrowLeft') || keys.has('ArrowRight')) {
+            p.climbing = false;
+          } else {
             p.vy = 0;
             if (keys.has('ArrowUp')) p.y -= CLIMB_SPEED;
             if (keys.has('ArrowDown')) p.y += CLIMB_SPEED;
-            if (keys.has('ArrowLeft') || keys.has('ArrowRight')) p.climbing = false;
           }
         }
 
@@ -196,8 +206,9 @@ const DonkeyKongGame = () => {
                 b.y = l.yBot - b.h;
                 b.onLadder = false;
                 b.targetLadder = null;
-                // Resume rolling toward player
-                b.vx = playerCenterX >= b.x + b.w / 2 ? BARREL_SPEED : -BARREL_SPEED;
+                // Roll downhill based on platform slope
+                const landedPlat = PLATFORMS.find(pl => b.x + b.w > pl.x1 && b.x < pl.x2 && Math.abs((b.y + b.h) - getPlatformY(pl, b.x + b.w / 2)) < 16);
+                b.vx = (landedPlat && (landedPlat.slope || 0) < 0) ? -BARREL_SPEED : BARREL_SPEED;
               }
             }
           } else if (b.falling) {
@@ -212,8 +223,8 @@ const DonkeyKongGame = () => {
                   b.y = platY - b.h;
                   b.vy = 0;
                   b.falling = false;
-                  // Continue rolling toward player
-                  b.vx = playerCenterX >= b.x + b.w / 2 ? BARREL_SPEED : -BARREL_SPEED;
+                  // Roll downhill: positive slope → right, negative slope → left
+                  b.vx = ((plat.slope || 0) < 0) ? -BARREL_SPEED : BARREL_SPEED;
                   landed = true;
                   break;
                 }
@@ -225,8 +236,11 @@ const DonkeyKongGame = () => {
               continue;
             }
           } else {
-            // Rolling on platform
-            if (b.vx === 0) b.vx = BARREL_SPEED; // default rightward
+            // Rolling on platform — always roll downhill
+            if (b.vx === 0) {
+              const curPlat = PLATFORMS[bPlatIdx];
+              b.vx = (curPlat && (curPlat.slope || 0) < 0) ? -BARREL_SPEED : BARREL_SPEED;
+            }
 
             // Check for ladders going DOWN only (barrels never go up)
             let tookLadder = false;
