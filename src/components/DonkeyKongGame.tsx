@@ -206,8 +206,9 @@ const DonkeyKongGame = () => {
                 b.y = l.yBot - b.h;
                 b.onLadder = false;
                 b.targetLadder = null;
-                // Resume rolling toward player
-                b.vx = playerCenterX >= b.x + b.w / 2 ? BARREL_SPEED : -BARREL_SPEED;
+                // Roll downhill based on platform slope
+                const landedPlat = PLATFORMS.find(pl => b.x + b.w > pl.x1 && b.x < pl.x2 && Math.abs((b.y + b.h) - getPlatformY(pl, b.x + b.w / 2)) < 16);
+                b.vx = (landedPlat && (landedPlat.slope || 0) < 0) ? -BARREL_SPEED : BARREL_SPEED;
               }
             }
           } else if (b.falling) {
