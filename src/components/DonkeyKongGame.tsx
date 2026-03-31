@@ -236,8 +236,11 @@ const DonkeyKongGame = () => {
               continue;
             }
           } else {
-            // Rolling on platform
-            if (b.vx === 0) b.vx = BARREL_SPEED; // default rightward
+            // Rolling on platform — always roll downhill
+            if (b.vx === 0) {
+              const curPlat = PLATFORMS[bPlatIdx];
+              b.vx = (curPlat && (curPlat.slope || 0) < 0) ? -BARREL_SPEED : BARREL_SPEED;
+            }
 
             // Check for ladders going DOWN only (barrels never go up)
             let tookLadder = false;
