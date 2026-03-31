@@ -104,12 +104,23 @@ const DonkeyKongGame = () => {
         }
 
         if (p.climbing) {
-          if (!nearestLadder) p.climbing = false;
-          else {
+          // If near the top of the ladder and pressing left/right, dismount
+          const climbingLadder = nearestLadder;
+          const nearTop = climbingLadder && (p.y + p.h) < climbingLadder.yTop + 10;
+          const nearBot = climbingLadder && (p.y + p.h) > climbingLadder.yBot - 6;
+          
+          if (!nearestLadder && !nearTop) {
+            p.climbing = false;
+          } else if (nearTop && (keys.has('ArrowLeft') || keys.has('ArrowRight') || keys.has('ArrowUp'))) {
+            // Snap to top platform and dismount
+            p.climbing = false;
+            if (climbingLadder) p.y = climbingLadder.yTop - p.h;
+          } else if (keys.has('ArrowLeft') || keys.has('ArrowRight')) {
+            p.climbing = false;
+          } else {
             p.vy = 0;
             if (keys.has('ArrowUp')) p.y -= CLIMB_SPEED;
             if (keys.has('ArrowDown')) p.y += CLIMB_SPEED;
-            if (keys.has('ArrowLeft') || keys.has('ArrowRight')) p.climbing = false;
           }
         }
 
