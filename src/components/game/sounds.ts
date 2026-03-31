@@ -84,3 +84,20 @@ export function playHitSound() {
   osc.start(ctx.currentTime);
   osc.stop(ctx.currentTime + 0.3);
 }
+
+export function playRobotKillSound() {
+  const ctx = getCtx();
+  const notes = [800, 1200];
+  notes.forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.1);
+    gain.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.1);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.1 + 0.09);
+    osc.start(ctx.currentTime + i * 0.1);
+    osc.stop(ctx.currentTime + i * 0.1 + 0.1);
+  });
+}
