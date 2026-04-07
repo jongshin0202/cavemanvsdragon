@@ -19,14 +19,15 @@ const DonkeyKongGame = () => {
     barrels: [] as Barrel[],
     robots: [] as Robot[],
     barrelTimer: 0,
+    nextBarrelTime: 60 + Math.random() * 120,
     robotSpawnTimer: 0,
+    robotsInitialized: false,
     score: 0,
     lives: 3,
     state: 'playing' as string,
     dkFrame: 0,
     dkTimer: 0,
     barrelSoundTimer: 0,
-    // Win animation state
     winAnim: { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 },
   });
 
@@ -42,6 +43,8 @@ const DonkeyKongGame = () => {
     g.score = 0; g.lives = 3; g.state = 'playing';
     g.robots = [];
     g.robotSpawnTimer = 0;
+    g.robotsInitialized = false;
+    g.nextBarrelTime = 60 + Math.random() * 120;
     g.winAnim = { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
     resetPlayer();
     setScore(0); setLives(3); setGameState('playing');
@@ -127,7 +130,7 @@ const DonkeyKongGame = () => {
         if (!p.climbing) {
           if (keys.has('ArrowLeft')) { p.x -= MOVE_SPEED; p.facing = -1; }
           if (keys.has('ArrowRight')) { p.x += MOVE_SPEED; p.facing = 1; }
-          if ((keys.has(' ')) && p.onGround && !nearestLadder) {
+          if ((keys.has(' ')) && p.onGround) {
             p.vy = -5; p.onGround = false; p.jumping = true;
             playJumpSound();
           }
@@ -163,20 +166,31 @@ const DonkeyKongGame = () => {
           wa.showCongrats = false;
         }
 
-        // === BARREL SPAWNING ===
+        // === BARREL SPAWNING (random intervals, random speeds) ===
         g.barrelTimer++;
-        if (g.barrelTimer > 100) {
+        if (!g.nextBarrelTime) g.nextBarrelTime = 60 + Math.random() * 120;
+        if (g.barrelTimer > g.nextBarrelTime) {
           g.barrelTimer = 0;
-          g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: BARREL_SPEED, vy: 0, onLadder: false, falling: false, targetLadder: null });
+          g.nextBarrelTime = 60 + Math.random() * 120; // random 60-180 frames
+          const speed = BARREL_SPEED * (0.7 + Math.random() * 0.8); // random speed multiplier
+          g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed });
           playBarrelRollSound();
         }
 
-        // === ROBOT SPAWNING ===
-        g.robotSpawnTimer++;
-        if (g.robotSpawnTimer > 300 && g.robots.length < 4) {
-          g.robotSpawnTimer = 0;
-          const spawnX = Math.random() > 0.5 ? 490 : 10;
-          g.robots.push({ x: spawnX, y: 400, w: 14, h: 16, vx: 0, vy: 0, onGround: false, climbing: false, targetLadder: null, direction: 1, frame: 0, frameTimer: 0 });
+        // === ROBOT SPAWNING (initial random per platform, respawn) ===
+        if (!g.robotsInitialized) {
+          g.robotsInitialized = true;
+          // Spawn 0-2 robots on each platform except top (index 5)
+          for (let pi = 0; pi < PLATFORMS.length - 1; pi++) {
+            const count = Math.floor(Math.random() * 3); // 0, 1, or 2
+            const plat = PLATFORMS[pi];
+            for (let c = 0; c < count; c++) {
+              const rx = plat.x1 + 30 + Math.random() * (plat.x2 - plat.x1 - 60);
+              const ry = getPlatformY(plat, rx) - 16;
+              const spd = ROBOT_SPEED * (0.6 + Math.random() * 0.8);
+              g.robots.push({ x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0, onGround: true, climbing: false, targetLadder: null, direction: Math.random() > 0.5 ? 1 : -1, frame: 0, frameTimer: 0, speed: spd });
+            }
+          }
         }
 
         // DK animation
@@ -208,7 +222,7 @@ const DonkeyKongGame = () => {
                 b.targetLadder = null;
                 // Roll downhill based on platform slope
                 const landedPlat = PLATFORMS.find(pl => b.x + b.w > pl.x1 && b.x < pl.x2 && Math.abs((b.y + b.h) - getPlatformY(pl, b.x + b.w / 2)) < 16);
-                b.vx = (landedPlat && (landedPlat.slope || 0) < 0) ? -BARREL_SPEED : BARREL_SPEED;
+                b.vx = (landedPlat && (landedPlat.slope || 0) < 0) ? -b.speed : b.speed;
               }
             }
           } else if (b.falling) {
@@ -224,7 +238,7 @@ const DonkeyKongGame = () => {
                   b.vy = 0;
                   b.falling = false;
                   // Roll downhill: positive slope → right, negative slope → left
-                  b.vx = ((plat.slope || 0) < 0) ? -BARREL_SPEED : BARREL_SPEED;
+                  b.vx = ((plat.slope || 0) < 0) ? -b.speed : b.speed;
                   landed = true;
                   break;
                 }
@@ -239,7 +253,7 @@ const DonkeyKongGame = () => {
             // Rolling on platform — always roll downhill
             if (b.vx === 0) {
               const curPlat = PLATFORMS[bPlatIdx];
-              b.vx = (curPlat && (curPlat.slope || 0) < 0) ? -BARREL_SPEED : BARREL_SPEED;
+              b.vx = (curPlat && (curPlat.slope || 0) < 0) ? -b.speed : b.speed;
             }
 
             // Check for ladders going DOWN only (barrels never go up)
@@ -248,7 +262,7 @@ const DonkeyKongGame = () => {
               const l = LADDERS[li];
               const ladderCenterX = l.x + 7;
 
-              if (Math.abs(bCenterX - ladderCenterX) > BARREL_SPEED + 4) continue;
+              if (Math.abs(bCenterX - ladderCenterX) > b.speed + 4) continue;
 
               // Only consider ladders where top matches current platform (going down)
               const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
@@ -291,7 +305,7 @@ const DonkeyKongGame = () => {
                 b.vy = 0;
               } else {
                 // Check if next step goes off edge
-                const nextX = b.x + b.w / 2 + Math.sign(b.vx) * BARREL_SPEED;
+                const nextX = b.x + b.w / 2 + Math.sign(b.vx) * b.speed;
                 if (nextX < supportingPlat.x1 || nextX > supportingPlat.x2) {
                   b.falling = true;
                   b.vy = 0;
@@ -344,13 +358,13 @@ const DonkeyKongGame = () => {
             }
           } else {
             const desiredDirection = playerCenterX >= rCenterX ? 1 : -1;
-            const continueScore = scoreToPlayer(rCenterX + desiredDirection * ROBOT_SPEED, rFeetY);
+            const continueScore = scoreToPlayer(rCenterX + desiredDirection * r.speed, rFeetY);
             let climbChoice: { ladderIdx: number; climbVy: number; score: number } | null = null;
 
             for (let li = 0; li < LADDERS.length; li++) {
               const l = LADDERS[li];
               const ladderCenterX = l.x + 7;
-              if (Math.abs(rCenterX - ladderCenterX) > ROBOT_SPEED + 4) continue;
+              if (Math.abs(rCenterX - ladderCenterX) > r.speed + 4) continue;
 
               const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
               const botPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 12);
@@ -359,7 +373,7 @@ const DonkeyKongGame = () => {
               if (botPlatIdx === rPlatIdx && topPlatIdx >= 0 && topPlatIdx < rPlatIdx) {
                 const scoreUp = scoreToPlayer(ladderCenterX, l.yTop);
                 if (scoreUp < continueScore && (!climbChoice || scoreUp < climbChoice.score)) {
-                  climbChoice = { ladderIdx: li, climbVy: -ROBOT_SPEED, score: scoreUp };
+                  climbChoice = { ladderIdx: li, climbVy: -r.speed, score: scoreUp };
                 }
               }
 
@@ -367,7 +381,7 @@ const DonkeyKongGame = () => {
               if (topPlatIdx === rPlatIdx && botPlatIdx >= 0 && botPlatIdx > rPlatIdx) {
                 const scoreDown = scoreToPlayer(ladderCenterX, l.yBot);
                 if (scoreDown < continueScore && (!climbChoice || scoreDown < climbChoice.score)) {
-                  climbChoice = { ladderIdx: li, climbVy: ROBOT_SPEED, score: scoreDown };
+                  climbChoice = { ladderIdx: li, climbVy: r.speed, score: scoreDown };
                 }
               }
             }
@@ -380,7 +394,7 @@ const DonkeyKongGame = () => {
               r.vy = climbChoice.climbVy;
               r.x = l.x + (16 - r.w) / 2;
             } else {
-              r.vx = desiredDirection * ROBOT_SPEED;
+              r.vx = desiredDirection * r.speed;
               r.direction = desiredDirection;
               r.x += r.vx;
               r.vy += GRAVITY;

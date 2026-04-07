@@ -9,8 +9,8 @@ export const CLIMB_SPEED = 2;
 export const ROBOT_SPEED = 1.2;
 
 export interface Rect { x: number; y: number; w: number; h: number }
-export interface Barrel extends Rect { vx: number; vy: number; onLadder: boolean; falling: boolean; targetLadder: number | null }
-export interface Robot extends Rect { vx: number; vy: number; onGround: boolean; climbing: boolean; targetLadder: number | null; direction: number; frame: number; frameTimer: number }
+export interface Barrel extends Rect { vx: number; vy: number; onLadder: boolean; falling: boolean; targetLadder: number | null; speed: number }
+export interface Robot extends Rect { vx: number; vy: number; onGround: boolean; climbing: boolean; targetLadder: number | null; direction: number; frame: number; frameTimer: number; speed: number }
 
 // Platform definitions (y, xStart, xEnd)
 // P1=ground, P2, P3, P4, P5, Top
