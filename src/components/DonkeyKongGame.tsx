@@ -596,20 +596,20 @@ const DonkeyKongGame = () => {
           className="block w-full max-w-[512px]" style={{ imageRendering: 'pixelated' }} tabIndex={0} />
       </div>
       <div className="flex w-full max-w-[512px] justify-between items-end mt-2 touch-none">
-        <div className="grid grid-cols-3 grid-rows-3 gap-0.5 w-32 h-32">
+        <div className="grid grid-cols-3 grid-rows-3 gap-0 w-40 h-40">
           <div />
-          <button className="bg-muted active:bg-primary rounded text-foreground text-xl flex items-center justify-center" {...handleDown('ArrowUp')}>↑</button>
+          <button className="bg-muted active:bg-primary rounded text-foreground text-2xl flex items-center justify-center p-4 -m-1 z-10" {...handleDown('ArrowUp')}>↑</button>
           <div />
-          <button className="bg-muted active:bg-primary rounded text-foreground text-xl flex items-center justify-center" {...handleDown('ArrowLeft')}>←</button>
+          <button className="bg-muted active:bg-primary rounded text-foreground text-2xl flex items-center justify-center p-4 -m-1 z-10" {...handleDown('ArrowLeft')}>←</button>
           <div />
-          <button className="bg-muted active:bg-primary rounded text-foreground text-xl flex items-center justify-center" {...handleDown('ArrowRight')}>→</button>
+          <button className="bg-muted active:bg-primary rounded text-foreground text-2xl flex items-center justify-center p-4 -m-1 z-10" {...handleDown('ArrowRight')}>→</button>
           <div />
-          <button className="bg-muted active:bg-primary rounded text-foreground text-xl flex items-center justify-center" {...handleDown('ArrowDown')}>↓</button>
+          <button className="bg-muted active:bg-primary rounded text-foreground text-2xl flex items-center justify-center p-4 -m-1 z-10" {...handleDown('ArrowDown')}>↓</button>
           <div />
         </div>
         <div className="flex gap-3 items-center">
-          <button className="w-16 h-16 rounded-full bg-primary text-primary-foreground text-xs font-bold active:scale-95" {...handleDown(' ')}>JUMP</button>
-          <button className="w-12 h-12 rounded-full bg-accent text-accent-foreground text-xs font-bold active:scale-95"
+          <button className="w-20 h-20 rounded-full bg-primary text-primary-foreground text-sm font-bold active:scale-95" {...handleDown(' ')}>JUMP</button>
+          <button className="w-14 h-14 rounded-full bg-accent text-accent-foreground text-xs font-bold active:scale-95"
             onMouseDown={() => resetGame()} onTouchStart={() => resetGame()}>R</button>
         </div>
       </div>
