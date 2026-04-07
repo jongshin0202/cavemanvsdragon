@@ -6,7 +6,7 @@ import {
 } from './game/constants';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound } from './game/sounds';
 
-const LADDER_SNAP = 18; // wider snap distance for player climbing
+const LADDER_SNAP = 30; // very wide snap distance for easier ladder access on mobile
 
 const DonkeyKongGame = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
