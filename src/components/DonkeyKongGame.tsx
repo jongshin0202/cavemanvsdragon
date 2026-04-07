@@ -222,7 +222,7 @@ const DonkeyKongGame = () => {
                 b.targetLadder = null;
                 // Roll downhill based on platform slope
                 const landedPlat = PLATFORMS.find(pl => b.x + b.w > pl.x1 && b.x < pl.x2 && Math.abs((b.y + b.h) - getPlatformY(pl, b.x + b.w / 2)) < 16);
-                b.vx = (landedPlat && (landedPlat.slope || 0) < 0) ? -BARREL_SPEED : BARREL_SPEED;
+                b.vx = (landedPlat && (landedPlat.slope || 0) < 0) ? -b.speed : b.speed;
               }
             }
           } else if (b.falling) {
@@ -238,7 +238,7 @@ const DonkeyKongGame = () => {
                   b.vy = 0;
                   b.falling = false;
                   // Roll downhill: positive slope → right, negative slope → left
-                  b.vx = ((plat.slope || 0) < 0) ? -BARREL_SPEED : BARREL_SPEED;
+                  b.vx = ((plat.slope || 0) < 0) ? -b.speed : b.speed;
                   landed = true;
                   break;
                 }
@@ -253,7 +253,7 @@ const DonkeyKongGame = () => {
             // Rolling on platform — always roll downhill
             if (b.vx === 0) {
               const curPlat = PLATFORMS[bPlatIdx];
-              b.vx = (curPlat && (curPlat.slope || 0) < 0) ? -BARREL_SPEED : BARREL_SPEED;
+              b.vx = (curPlat && (curPlat.slope || 0) < 0) ? -b.speed : b.speed;
             }
 
             // Check for ladders going DOWN only (barrels never go up)
@@ -262,7 +262,7 @@ const DonkeyKongGame = () => {
               const l = LADDERS[li];
               const ladderCenterX = l.x + 7;
 
-              if (Math.abs(bCenterX - ladderCenterX) > BARREL_SPEED + 4) continue;
+              if (Math.abs(bCenterX - ladderCenterX) > b.speed + 4) continue;
 
               // Only consider ladders where top matches current platform (going down)
               const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
@@ -305,7 +305,7 @@ const DonkeyKongGame = () => {
                 b.vy = 0;
               } else {
                 // Check if next step goes off edge
-                const nextX = b.x + b.w / 2 + Math.sign(b.vx) * BARREL_SPEED;
+                const nextX = b.x + b.w / 2 + Math.sign(b.vx) * b.speed;
                 if (nextX < supportingPlat.x1 || nextX > supportingPlat.x2) {
                   b.falling = true;
                   b.vy = 0;
@@ -358,13 +358,13 @@ const DonkeyKongGame = () => {
             }
           } else {
             const desiredDirection = playerCenterX >= rCenterX ? 1 : -1;
-            const continueScore = scoreToPlayer(rCenterX + desiredDirection * ROBOT_SPEED, rFeetY);
+            const continueScore = scoreToPlayer(rCenterX + desiredDirection * r.speed, rFeetY);
             let climbChoice: { ladderIdx: number; climbVy: number; score: number } | null = null;
 
             for (let li = 0; li < LADDERS.length; li++) {
               const l = LADDERS[li];
               const ladderCenterX = l.x + 7;
-              if (Math.abs(rCenterX - ladderCenterX) > ROBOT_SPEED + 4) continue;
+              if (Math.abs(rCenterX - ladderCenterX) > r.speed + 4) continue;
 
               const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
               const botPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 12);
@@ -373,7 +373,7 @@ const DonkeyKongGame = () => {
               if (botPlatIdx === rPlatIdx && topPlatIdx >= 0 && topPlatIdx < rPlatIdx) {
                 const scoreUp = scoreToPlayer(ladderCenterX, l.yTop);
                 if (scoreUp < continueScore && (!climbChoice || scoreUp < climbChoice.score)) {
-                  climbChoice = { ladderIdx: li, climbVy: -ROBOT_SPEED, score: scoreUp };
+                  climbChoice = { ladderIdx: li, climbVy: -r.speed, score: scoreUp };
                 }
               }
 
@@ -381,7 +381,7 @@ const DonkeyKongGame = () => {
               if (topPlatIdx === rPlatIdx && botPlatIdx >= 0 && botPlatIdx > rPlatIdx) {
                 const scoreDown = scoreToPlayer(ladderCenterX, l.yBot);
                 if (scoreDown < continueScore && (!climbChoice || scoreDown < climbChoice.score)) {
-                  climbChoice = { ladderIdx: li, climbVy: ROBOT_SPEED, score: scoreDown };
+                  climbChoice = { ladderIdx: li, climbVy: r.speed, score: scoreDown };
                 }
               }
             }
@@ -394,7 +394,7 @@ const DonkeyKongGame = () => {
               r.vy = climbChoice.climbVy;
               r.x = l.x + (16 - r.w) / 2;
             } else {
-              r.vx = desiredDirection * ROBOT_SPEED;
+              r.vx = desiredDirection * r.speed;
               r.direction = desiredDirection;
               r.x += r.vx;
               r.vy += GRAVITY;
