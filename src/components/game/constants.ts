@@ -13,26 +13,28 @@ export interface Barrel extends Rect { vx: number; vy: number; onLadder: boolean
 export interface Robot extends Rect { vx: number; vy: number; onGround: boolean; climbing: boolean; targetLadder: number | null; direction: number; frame: number; frameTimer: number }
 
 // Platform definitions (y, xStart, xEnd)
+// P1=ground, P2, P3, P4, P5, Top
+// "tilting up L→R" = right side higher = slope < 0 (y decreases going right)
 export const PLATFORMS: { y: number; x1: number; x2: number; slope?: number }[] = [
-  { y: 432, x1: 0, x2: 512, slope: 0.02 },           // ground (left high, right low)
-  { y: 368, x1: 48, x2: 512, slope: -0.02 },          // right high, left low
-  { y: 304, x1: 0, x2: 464, slope: 0.02 },             // left high, right low
-  { y: 240, x1: 48, x2: 512, slope: -0.02 },           // right high, left low
-  { y: 176, x1: 0, x2: 430, slope: 0.02 },             // left high, right low
-  { y: 112, x1: 80, x2: 432, slope: -0.02 },           // top (right high, left low)
+  { y: 432, x1: 0, x2: 512, slope: -0.02 },            // P1: tilts up left→right
+  { y: 368, x1: 0, x2: 512, slope: 0.02 },              // P2: tilts up right→left
+  { y: 304, x1: 0, x2: 512, slope: -0.02 },             // P3: tilts up left→right
+  { y: 240, x1: 0, x2: 512, slope: 0.02 },              // P4: tilts up right→left
+  { y: 176, x1: 0, x2: 512, slope: -0.02 },             // P5: tilts up left→right
+  { y: 112, x1: 80, x2: 432, slope: 0.02 },             // Top: tilts up right→left
 ];
 
-// Ladder definitions (x, yTop, yBottom)
+// Ladders: alternating/staggered positions between levels
 export const LADDERS: { x: number; yTop: number; yBot: number }[] = [
-  { x: 460, yTop: 368, yBot: 432 },   // ground → P1
-  { x: 260, yTop: 368, yBot: 432 },   // ground → P1
-  { x: 100, yTop: 304, yBot: 368 },   // P1 → P2
-  { x: 200, yTop: 304, yBot: 368 },   // P1 → P2
-  { x: 400, yTop: 240, yBot: 304 },   // P2 → P3
-  { x: 300, yTop: 240, yBot: 304 },   // P2 → P3
-  { x: 140, yTop: 176, yBot: 240 },   // P3 → P4
-  { x: 380, yTop: 176, yBot: 240 },   // P3 → P4
-  { x: 350, yTop: 112, yBot: 176 },   // P4 → top (single)
+  { x: 120, yTop: 368, yBot: 432 },   // P1 → P2
+  { x: 360, yTop: 368, yBot: 432 },   // P1 → P2
+  { x: 240, yTop: 304, yBot: 368 },   // P2 → P3
+  { x: 440, yTop: 304, yBot: 368 },   // P2 → P3
+  { x: 100, yTop: 240, yBot: 304 },   // P3 → P4
+  { x: 340, yTop: 240, yBot: 304 },   // P3 → P4
+  { x: 220, yTop: 176, yBot: 240 },   // P4 → P5
+  { x: 420, yTop: 176, yBot: 240 },   // P4 → P5
+  { x: 350, yTop: 112, yBot: 176 },   // P5 → Top (single)
 ];
 
 export function getPlatformY(plat: typeof PLATFORMS[0], x: number): number {
