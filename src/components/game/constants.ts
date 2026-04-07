@@ -16,12 +16,12 @@ export interface Robot extends Rect { vx: number; vy: number; onGround: boolean;
 // P1=ground, P2, P3, P4, P5, Top
 // "tilting up L→R" = right side higher = slope < 0 (y decreases going right)
 export const PLATFORMS: { y: number; x1: number; x2: number; slope?: number }[] = [
-  { y: 432, x1: 0, x2: 512, slope: -0.02 },            // P1: tilts up left→right
-  { y: 368, x1: 0, x2: 512, slope: 0.02 },              // P2: tilts up right→left
-  { y: 304, x1: 0, x2: 512, slope: -0.02 },             // P3: tilts up left→right
-  { y: 240, x1: 0, x2: 512, slope: 0.02 },              // P4: tilts up right→left
-  { y: 176, x1: 0, x2: 512, slope: -0.02 },             // P5: tilts up left→right
-  { y: 112, x1: 80, x2: 432, slope: 0.02 },             // Top: tilts up right→left
+  { y: 432, x1: 0, x2: 512, slope: -0.02 },            // P1: full width
+  { y: 368, x1: 0, x2: 464, slope: 0.02 },              // P2: gap on right for barrel drop
+  { y: 304, x1: 48, x2: 512, slope: -0.02 },            // P3: gap on left for barrel drop
+  { y: 240, x1: 0, x2: 464, slope: 0.02 },              // P4: gap on right for barrel drop
+  { y: 176, x1: 48, x2: 512, slope: -0.02 },            // P5: gap on left for barrel drop
+  { y: 112, x1: 80, x2: 432, slope: 0.02 },             // Top: gaps on both sides
 ];
 
 // Ladders: alternating/staggered positions between levels
