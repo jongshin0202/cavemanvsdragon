@@ -127,7 +127,7 @@ const DonkeyKongGame = () => {
         if (!p.climbing) {
           if (keys.has('ArrowLeft')) { p.x -= MOVE_SPEED; p.facing = -1; }
           if (keys.has('ArrowRight')) { p.x += MOVE_SPEED; p.facing = 1; }
-          if ((keys.has(' ')) && p.onGround && !nearestLadder) {
+          if ((keys.has(' ')) && p.onGround) {
             p.vy = -5; p.onGround = false; p.jumping = true;
             playJumpSound();
           }
@@ -163,20 +163,31 @@ const DonkeyKongGame = () => {
           wa.showCongrats = false;
         }
 
-        // === BARREL SPAWNING ===
+        // === BARREL SPAWNING (random intervals, random speeds) ===
         g.barrelTimer++;
-        if (g.barrelTimer > 100) {
+        if (!g.nextBarrelTime) g.nextBarrelTime = 60 + Math.random() * 120;
+        if (g.barrelTimer > g.nextBarrelTime) {
           g.barrelTimer = 0;
-          g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: BARREL_SPEED, vy: 0, onLadder: false, falling: false, targetLadder: null });
+          g.nextBarrelTime = 60 + Math.random() * 120; // random 60-180 frames
+          const speed = BARREL_SPEED * (0.7 + Math.random() * 0.8); // random speed multiplier
+          g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed });
           playBarrelRollSound();
         }
 
-        // === ROBOT SPAWNING ===
-        g.robotSpawnTimer++;
-        if (g.robotSpawnTimer > 300 && g.robots.length < 4) {
-          g.robotSpawnTimer = 0;
-          const spawnX = Math.random() > 0.5 ? 490 : 10;
-          g.robots.push({ x: spawnX, y: 400, w: 14, h: 16, vx: 0, vy: 0, onGround: false, climbing: false, targetLadder: null, direction: 1, frame: 0, frameTimer: 0 });
+        // === ROBOT SPAWNING (initial random per platform, respawn) ===
+        if (!g.robotsInitialized) {
+          g.robotsInitialized = true;
+          // Spawn 0-2 robots on each platform except top (index 5)
+          for (let pi = 0; pi < PLATFORMS.length - 1; pi++) {
+            const count = Math.floor(Math.random() * 3); // 0, 1, or 2
+            const plat = PLATFORMS[pi];
+            for (let c = 0; c < count; c++) {
+              const rx = plat.x1 + 30 + Math.random() * (plat.x2 - plat.x1 - 60);
+              const ry = getPlatformY(plat, rx) - 16;
+              const spd = ROBOT_SPEED * (0.6 + Math.random() * 0.8);
+              g.robots.push({ x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0, onGround: true, climbing: false, targetLadder: null, direction: Math.random() > 0.5 ? 1 : -1, frame: 0, frameTimer: 0, speed: spd });
+            }
+          }
         }
 
         // DK animation
