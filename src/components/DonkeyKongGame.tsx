@@ -19,14 +19,15 @@ const DonkeyKongGame = () => {
     barrels: [] as Barrel[],
     robots: [] as Robot[],
     barrelTimer: 0,
+    nextBarrelTime: 60 + Math.random() * 120,
     robotSpawnTimer: 0,
+    robotsInitialized: false,
     score: 0,
     lives: 3,
     state: 'playing' as string,
     dkFrame: 0,
     dkTimer: 0,
     barrelSoundTimer: 0,
-    // Win animation state
     winAnim: { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 },
   });
 
