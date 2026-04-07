@@ -43,6 +43,8 @@ const DonkeyKongGame = () => {
     g.score = 0; g.lives = 3; g.state = 'playing';
     g.robots = [];
     g.robotSpawnTimer = 0;
+    g.robotsInitialized = false;
+    g.nextBarrelTime = 60 + Math.random() * 120;
     g.winAnim = { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
     resetPlayer();
     setScore(0); setLives(3); setGameState('playing');
