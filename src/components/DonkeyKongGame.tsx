@@ -5,8 +5,14 @@ import {
   Barrel, Robot
 } from './game/constants';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound } from './game/sounds';
+import cavemanSpriteUrl from '@/assets/caveman-sprite.png';
 
-const LADDER_SNAP = 30; // very wide snap distance for easier ladder access on mobile
+const LADDER_SNAP = 30;
+
+// Sprite sheet config: 7 cols top row (walk), 7 cols mid row (attack+fall), 5 cols bottom row (hurt/die)
+const SPRITE_COLS = 7;
+const SPRITE_W = 190; // approximate frame width
+const SPRITE_H = 200; // approximate frame height
 
 const DonkeyKongGame = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);

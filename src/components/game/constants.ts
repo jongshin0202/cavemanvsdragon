@@ -4,7 +4,7 @@ export const TILE = 16;
 export const GRAVITY = 0.5;
 export const JUMP_FORCE = -8;
 export const MOVE_SPEED = 2.5;
-export const BARREL_SPEED = 2;
+export const BARREL_SPEED = 1.2;
 export const CLIMB_SPEED = 2;
 export const ROBOT_SPEED = 1.2;
 
