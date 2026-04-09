@@ -140,8 +140,11 @@ const DonkeyKongGame = () => {
         }
 
         if (!p.climbing) {
+          const moving = keys.has('ArrowLeft') || keys.has('ArrowRight');
           if (keys.has('ArrowLeft')) { p.x -= MOVE_SPEED; p.facing = -1; }
           if (keys.has('ArrowRight')) { p.x += MOVE_SPEED; p.facing = 1; }
+          if (moving && p.onGround) { p.walkTimer++; if (p.walkTimer > 6) { p.walkTimer = 0; p.walkFrame = (p.walkFrame + 1) % 7; } }
+          else if (!moving) { p.walkFrame = 0; p.walkTimer = 0; }
           if ((keys.has(' ')) && p.onGround) {
             p.vy = -5; p.onGround = false; p.jumping = true;
             playJumpSound();
