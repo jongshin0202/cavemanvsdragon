@@ -106,7 +106,7 @@ const DonkeyKongGame = () => {
         for (const l of LADDERS) {
           const ladderCX = l.x + 7;
           const dist = Math.abs(playerCX - ladderCX);
-          if (dist < LADDER_SNAP && p.y + p.h > l.yTop - 4 && p.y + p.h <= l.yBot + 8 && dist < nearestLadderDist) {
+          if (dist < LADDER_SNAP && p.y + p.h > l.yTop - 8 && p.y + p.h <= l.yBot + 16 && dist < nearestLadderDist) {
             nearestLadder = l;
             nearestLadderDist = dist;
           }
@@ -288,12 +288,37 @@ const DonkeyKongGame = () => {
               const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
               if (topPlatIdx !== bPlatIdx) continue;
 
+              // Check if player is beyond all ladders on this platform toward the drop edge
+              // If so, skip the ladder and let barrel fall off the edge
+              const curPlat = PLATFORMS[bPlatIdx];
+              const dropEdgeIsLeft = curPlat && curPlat.x1 > 0;
+              const dropEdgeIsRight = curPlat && curPlat.x2 < CANVAS_W;
+              
+              // Find all ladders on this platform going down
+              const laddersOnPlat = LADDERS.filter((ll, lli) => {
+                const tpi = PLATFORMS.findIndex(pl => Math.abs(pl.y - ll.yTop) < 12);
+                return tpi === bPlatIdx;
+              });
+              
+              const allLadderXs = laddersOnPlat.map(ll => ll.x + 7);
+              const minLadderX = Math.min(...allLadderXs);
+              const maxLadderX = Math.max(...allLadderXs);
+              
+              // If player is past all ladders toward the drop edge, skip ladder
+              let playerBeyondLadders = false;
+              if (dropEdgeIsLeft && playerCenterX < minLadderX && bCenterX <= ladderCenterX) {
+                playerBeyondLadders = true;
+              }
+              if (dropEdgeIsRight && playerCenterX > maxLadderX && bCenterX >= ladderCenterX) {
+                playerBeyondLadders = true;
+              }
+
               // Score: is taking this ladder down closer to the player?
               const ladderBottomY = l.yBot;
               const ladderScore = scoreToPlayer(ladderCenterX, ladderBottomY);
               const continueScore = scoreToPlayer(bCenterX + Math.sign(b.vx) * 50, bFeetY);
 
-              if (ladderScore <= continueScore) {
+              if (!playerBeyondLadders && ladderScore <= continueScore) {
                 b.onLadder = true;
                 b.targetLadder = li;
                 b.x = l.x + (16 - b.w) / 2;
@@ -454,6 +479,9 @@ const DonkeyKongGame = () => {
       }
 
       // === RENDER ===
+      ctx.save();
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
       ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
       ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
@@ -626,6 +654,7 @@ const DonkeyKongGame = () => {
         ctx.fillText('Press R to restart', 150, 260);
       }
 
+      ctx.restore();
       animId = requestAnimationFrame(gameLoop);
     };
 
