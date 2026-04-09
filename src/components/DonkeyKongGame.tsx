@@ -202,7 +202,7 @@ const DonkeyKongGame = () => {
           g.robotsInitialized = true;
           // Spawn 0-2 robots on each platform except top (index 5)
           for (let pi = 0; pi < PLATFORMS.length - 1; pi++) {
-            const count = Math.floor(Math.random() * 3); // 0, 1, or 2
+            const count = 1;
             const plat = PLATFORMS[pi];
             for (let c = 0; c < count; c++) {
               const rx = plat.x1 + 30 + Math.random() * (plat.x2 - plat.x1 - 60);
