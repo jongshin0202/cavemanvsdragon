@@ -20,8 +20,9 @@ const DonkeyKongGame = () => {
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
   const [gameState, setGameState] = useState<'playing' | 'gameover' | 'win'>('playing');
+  const spriteRef = useRef<HTMLImageElement | null>(null);
   const gameRef = useRef({
-    player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false },
+    player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0 },
     barrels: [] as Barrel[],
     robots: [] as Robot[],
     barrelTimer: 0,
