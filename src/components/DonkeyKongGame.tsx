@@ -112,10 +112,15 @@ const DonkeyKongGame = () => {
           }
         }
 
-        if ((keys.has('ArrowUp') || keys.has('ArrowDown')) && nearestLadder) {
+        if (keys.has('ArrowUp') && nearestLadder) {
           p.climbing = true;
-          // Snap player to ladder center
           p.x = nearestLadder.x + 7 - p.w / 2;
+        } else if (keys.has('ArrowDown') && nearestLadder) {
+          // Only climb down if ladder goes below current position
+          if (p.y + p.h < nearestLadder.yBot - 4) {
+            p.climbing = true;
+            p.x = nearestLadder.x + 7 - p.w / 2;
+          }
         }
 
         if (p.climbing) {
@@ -449,6 +454,7 @@ const DonkeyKongGame = () => {
       }
 
       // === RENDER ===
+      ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
       ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
