@@ -654,6 +654,7 @@ const DonkeyKongGame = () => {
         ctx.fillText('Press R to restart', 150, 260);
       }
 
+      ctx.restore();
       animId = requestAnimationFrame(gameLoop);
     };
 
