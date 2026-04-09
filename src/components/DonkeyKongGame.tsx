@@ -62,6 +62,11 @@ const DonkeyKongGame = () => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
 
+    // Load sprite
+    const spriteImg = new Image();
+    spriteImg.src = cavemanSpriteUrl;
+    spriteRef.current = spriteImg;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       keysRef.current.add(e.key);
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
