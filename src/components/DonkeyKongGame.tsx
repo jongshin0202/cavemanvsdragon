@@ -5,8 +5,14 @@ import {
   Barrel, Robot
 } from './game/constants';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound } from './game/sounds';
+import cavemanSpriteUrl from '@/assets/caveman-sprite.png';
 
-const LADDER_SNAP = 30; // very wide snap distance for easier ladder access on mobile
+const LADDER_SNAP = 30;
+
+// Sprite sheet config: 7 cols top row (walk), 7 cols mid row (attack+fall), 5 cols bottom row (hurt/die)
+const SPRITE_COLS = 7;
+const SPRITE_W = 190; // approximate frame width
+const SPRITE_H = 200; // approximate frame height
 
 const DonkeyKongGame = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -14,8 +20,9 @@ const DonkeyKongGame = () => {
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
   const [gameState, setGameState] = useState<'playing' | 'gameover' | 'win'>('playing');
+  const spriteRef = useRef<HTMLImageElement | null>(null);
   const gameRef = useRef({
-    player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false },
+    player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0 },
     barrels: [] as Barrel[],
     robots: [] as Robot[],
     barrelTimer: 0,
@@ -33,7 +40,7 @@ const DonkeyKongGame = () => {
 
   const resetPlayer = useCallback(() => {
     const g = gameRef.current;
-    g.player = { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false };
+    g.player = { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0 };
     g.barrels = [];
     g.barrelTimer = 0;
   }, []);
@@ -54,6 +61,11 @@ const DonkeyKongGame = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
+
+    // Load sprite
+    const spriteImg = new Image();
+    spriteImg.src = cavemanSpriteUrl;
+    spriteRef.current = spriteImg;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       keysRef.current.add(e.key);
@@ -128,8 +140,11 @@ const DonkeyKongGame = () => {
         }
 
         if (!p.climbing) {
+          const moving = keys.has('ArrowLeft') || keys.has('ArrowRight');
           if (keys.has('ArrowLeft')) { p.x -= MOVE_SPEED; p.facing = -1; }
           if (keys.has('ArrowRight')) { p.x += MOVE_SPEED; p.facing = 1; }
+          if (moving && p.onGround) { p.walkTimer++; if (p.walkTimer > 6) { p.walkTimer = 0; p.walkFrame = (p.walkFrame + 1) % 7; } }
+          else if (!moving) { p.walkFrame = 0; p.walkTimer = 0; }
           if ((keys.has(' ')) && p.onGround) {
             p.vy = -5; p.onGround = false; p.jumping = true;
             playJumpSound();
@@ -543,15 +558,37 @@ const DonkeyKongGame = () => {
         ctx.fillRect(r.x + r.w / 2 + (r.frame === 0 ? 2 : -4), r.y - 6, 3, 3);
       }
 
-      // Player (Mario)
+      // Player (Caveman sprite)
       const pl = g.player;
-      ctx.fillStyle = '#FF0000'; ctx.fillRect(pl.x + 2, pl.y, 12, 4);
-      ctx.fillStyle = '#FFB366'; ctx.fillRect(pl.x + 2, pl.y + 4, 12, 6);
-      ctx.fillStyle = '#FF0000'; ctx.fillRect(pl.x, pl.y + 10, 16, 8);
-      ctx.fillStyle = '#3366FF'; ctx.fillRect(pl.x + 2, pl.y + 18, 12, 6);
-      ctx.fillStyle = '#000';
-      if (pl.facing > 0) ctx.fillRect(pl.x + 9, pl.y + 5, 2, 2);
-      else ctx.fillRect(pl.x + 5, pl.y + 5, 2, 2);
+      const sprite = spriteRef.current;
+      if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+        const row = pl.jumping ? 1 : 0; // top row = walk, mid row for jump/attack
+        const col = pl.jumping ? 4 : pl.walkFrame; // use attack swing frame for jump
+        const sw = sprite.naturalWidth / SPRITE_COLS;
+        const sh = sprite.naturalHeight / 3;
+        const sx = col * sw;
+        const sy = row * sh;
+        const drawW = 28;
+        const drawH = 32;
+        ctx.save();
+        if (pl.facing < 0) {
+          ctx.translate(pl.x + pl.w / 2, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(sprite, sx, sy, sw, sh, -drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
+        } else {
+          ctx.drawImage(sprite, sx, sy, sw, sh, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
+        }
+        ctx.restore();
+      } else {
+        // Fallback pixel art
+        ctx.fillStyle = '#FF0000'; ctx.fillRect(pl.x + 2, pl.y, 12, 4);
+        ctx.fillStyle = '#FFB366'; ctx.fillRect(pl.x + 2, pl.y + 4, 12, 6);
+        ctx.fillStyle = '#FF0000'; ctx.fillRect(pl.x, pl.y + 10, 16, 8);
+        ctx.fillStyle = '#3366FF'; ctx.fillRect(pl.x + 2, pl.y + 18, 12, 6);
+        ctx.fillStyle = '#000';
+        if (pl.facing > 0) ctx.fillRect(pl.x + 9, pl.y + 5, 2, 2);
+        else ctx.fillRect(pl.x + 5, pl.y + 5, 2, 2);
+      }
 
       // Barrel stack
       ctx.fillStyle = '#4488FF';
