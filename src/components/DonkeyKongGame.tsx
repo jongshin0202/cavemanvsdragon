@@ -188,10 +188,10 @@ const DonkeyKongGame = () => {
 
         // === BARREL SPAWNING (random intervals, random speeds) ===
         g.barrelTimer++;
-        if (!g.nextBarrelTime) g.nextBarrelTime = 60 + Math.random() * 120;
+        if (!g.nextBarrelTime) g.nextBarrelTime = 60 + Math.random() * 60;
         if (g.barrelTimer > g.nextBarrelTime) {
           g.barrelTimer = 0;
-          g.nextBarrelTime = 60 + Math.random() * 120; // random 60-180 frames
+          g.nextBarrelTime = 60 + Math.random() * 60; // random 60-120 frames (1-2 seconds)
           const speed = BARREL_SPEED * (0.7 + Math.random() * 0.8); // random speed multiplier
           g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed });
           playBarrelRollSound();
