@@ -6,6 +6,12 @@ import {
 } from './game/constants';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound } from './game/sounds';
 import cavemanSpriteUrl from '@/assets/caveman-sprite.png';
+import dragonSpriteUrl from '@/assets/dragon-sprite.png';
+
+// Dragon sprite sheet config (idle row: top row, 4 frames)
+const DRAGON_FRAME_W = 130;
+const DRAGON_FRAME_H = 140;
+const DRAGON_FRAMES = 4; // idle frames in top row
 
 const LADDER_SNAP = 30;
 
@@ -21,6 +27,7 @@ const DonkeyKongGame = () => {
   const [lives, setLives] = useState(3);
   const [gameState, setGameState] = useState<'playing' | 'gameover' | 'win'>('playing');
   const spriteRef = useRef<HTMLImageElement | null>(null);
+  const dragonRef = useRef<HTMLImageElement | null>(null);
   const gameRef = useRef({
     player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0 },
     barrels: [] as Barrel[],
@@ -66,6 +73,10 @@ const DonkeyKongGame = () => {
     const spriteImg = new Image();
     spriteImg.src = cavemanSpriteUrl;
     spriteRef.current = spriteImg;
+
+    const dragonImg = new Image();
+    dragonImg.src = dragonSpriteUrl;
+    dragonRef.current = dragonImg;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       keysRef.current.add(e.key);
@@ -215,7 +226,7 @@ const DonkeyKongGame = () => {
 
         // DK animation
         g.dkTimer++;
-        if (g.dkTimer > 30) { g.dkTimer = 0; g.dkFrame = (g.dkFrame + 1) % 2; }
+        if (g.dkTimer > 20) { g.dkTimer = 0; g.dkFrame = (g.dkFrame + 1) % DRAGON_FRAMES; }
 
         const playerCenterX = p.x + p.w / 2;
         const playerFeetY = p.y + p.h;
@@ -509,38 +520,27 @@ const DonkeyKongGame = () => {
         ctx.stroke();
       }
 
-      // DK (with win animation - flip and fall)
-      const dkX = 100;
+      // Dragon boss (with win animation - flip and fall)
+      const dkX = 90;
+      const dragonSize = 48;
+      const dragonImg = dragonRef.current;
       if (wa.active) {
         ctx.save();
-        ctx.translate(dkX + 16, wa.gorillaY + 16);
+        ctx.translate(dkX + dragonSize / 2, wa.gorillaY + dragonSize / 2);
         ctx.rotate(wa.gorillaRotation);
-        ctx.fillStyle = '#8B4513';
-        ctx.fillRect(-16, -16, 32, 32);
-        ctx.fillStyle = '#654321'; ctx.fillRect(-12, -12, 24, 20);
-        ctx.fillStyle = '#DEB887'; ctx.fillRect(-8, -10, 16, 12);
-        ctx.fillStyle = '#FFF';
-        ctx.fillRect(-6, -8, 4, 4); ctx.fillRect(2, -8, 4, 4);
-        ctx.fillStyle = '#000';
-        ctx.fillRect(-4, -7, 2, 2); ctx.fillRect(4, -7, 2, 2);
-        ctx.fillStyle = '#8B4513';
-        ctx.fillRect(-24, -8, 8, 8); ctx.fillRect(16, -8, 8, 8);
+        if (dragonImg && dragonImg.complete) {
+          ctx.drawImage(dragonImg, 0, 0, DRAGON_FRAME_W, DRAGON_FRAME_H, -dragonSize / 2, -dragonSize / 2, dragonSize, dragonSize);
+        } else {
+          ctx.fillStyle = '#2d8c2d'; ctx.fillRect(-dragonSize / 2, -dragonSize / 2, dragonSize, dragonSize);
+        }
         ctx.restore();
       } else {
-        const dkY = 76;
-        ctx.fillStyle = '#8B4513';
-        ctx.fillRect(dkX, dkY, 32, 32);
-        ctx.fillStyle = '#654321'; ctx.fillRect(dkX + 4, dkY + 4, 24, 20);
-        ctx.fillStyle = '#DEB887'; ctx.fillRect(dkX + 8, dkY + 6, 16, 12);
-        ctx.fillStyle = '#FFF';
-        ctx.fillRect(dkX + 10, dkY + 8, 4, 4); ctx.fillRect(dkX + 18, dkY + 8, 4, 4);
-        ctx.fillStyle = '#000';
-        ctx.fillRect(dkX + 12, dkY + 9, 2, 2); ctx.fillRect(dkX + 20, dkY + 9, 2, 2);
-        ctx.fillStyle = '#8B4513';
-        if (g.dkFrame === 0) {
-          ctx.fillRect(dkX - 8, dkY + 8, 8, 8); ctx.fillRect(dkX + 32, dkY + 8, 8, 8);
+        const dkY = 64;
+        const frameIdx = g.dkFrame % DRAGON_FRAMES;
+        if (dragonImg && dragonImg.complete) {
+          ctx.drawImage(dragonImg, frameIdx * DRAGON_FRAME_W, 0, DRAGON_FRAME_W, DRAGON_FRAME_H, dkX, dkY, dragonSize, dragonSize);
         } else {
-          ctx.fillRect(dkX - 8, dkY + 2, 8, 8); ctx.fillRect(dkX + 32, dkY + 2, 8, 8);
+          ctx.fillStyle = '#2d8c2d'; ctx.fillRect(dkX, dkY, dragonSize, dragonSize);
         }
       }
 
@@ -676,7 +676,7 @@ const DonkeyKongGame = () => {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen gap-2 p-2 select-none">
-      <h1 className="text-accent text-sm tracking-wider">DONKEY KONG</h1>
+      <h1 className="text-accent text-sm tracking-wider">DRAGON KONG</h1>
       <div className="border-4 border-primary rounded-sm shadow-[0_0_30px_rgba(212,42,42,0.3)]">
         <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
           className="block w-full max-w-[512px]" style={{ imageRendering: 'pixelated' }} tabIndex={0} />
