@@ -607,8 +607,9 @@ const DonkeyKongGame = () => {
         ctx.fillRect(r.x + r.w / 2 + (r.frame === 0 ? 2 : -4), r.y - 6, 3, 3);
       }
 
-      // Player (Caveman sprite)
+      // Player (Caveman sprite) - flash when dying (0.25s on/off = 15 frames)
       const pl = g.player;
+      const showPlayer = !g.dying || Math.floor(g.deathFlashTimer / 15) % 2 === 0;
       const sprite = spriteRef.current;
       if (sprite && sprite.complete && sprite.naturalWidth > 0) {
         const row = pl.jumping ? 1 : 0; // top row = walk, mid row for jump/attack
