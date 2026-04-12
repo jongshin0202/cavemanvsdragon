@@ -33,7 +33,7 @@ const DonkeyKongGame = () => {
     barrels: [] as Barrel[],
     robots: [] as Robot[],
     barrelTimer: 0,
-    nextBarrelTime: 60 + Math.random() * 120,
+    nextBarrelTime: 60 + Math.random() * 180,
     robotSpawnTimer: 0,
     robotsInitialized: false,
     score: 0,
@@ -42,6 +42,9 @@ const DonkeyKongGame = () => {
     dkFrame: 0,
     dkTimer: 0,
     barrelSoundTimer: 0,
+    deathTimer: 0,
+    deathFlashTimer: 0,
+    dying: false,
     winAnim: { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 },
   });
 
