@@ -111,7 +111,19 @@ const DonkeyKongGame = () => {
         if (wa.timer > 90) wa.showCongrats = true;
       }
 
-      if (g.state === 'playing') {
+      // Handle dying state (1 second pause with flashing)
+      if (g.dying) {
+        g.deathTimer++;
+        g.deathFlashTimer++;
+        if (g.deathTimer >= 60) { // 1 second at 60fps
+          g.dying = false;
+          g.deathTimer = 0;
+          g.deathFlashTimer = 0;
+          resetPlayer();
+        }
+      }
+
+      if (g.state === 'playing' && !g.dying) {
         // === PLAYER MOVEMENT ===
         // Wider snap: find nearest ladder within LADDER_SNAP pixels
         const playerCX = p.x + p.w / 2;
