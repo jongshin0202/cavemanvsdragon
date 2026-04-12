@@ -7,6 +7,7 @@ import {
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound } from './game/sounds';
 import cavemanSpriteUrl from '@/assets/caveman-sprite.png';
 import dragonSpriteUrl from '@/assets/dragon-sprite.png';
+import princessSpriteUrl from '@/assets/princess-sprite.png';
 
 // Dragon sprite sheet config (idle row: top row, 4 frames)
 const DRAGON_FRAME_W = 130;
@@ -28,6 +29,7 @@ const DonkeyKongGame = () => {
   const [gameState, setGameState] = useState<'playing' | 'gameover' | 'win'>('playing');
   const spriteRef = useRef<HTMLImageElement | null>(null);
   const dragonRef = useRef<HTMLImageElement | null>(null);
+  const princessRef = useRef<HTMLImageElement | null>(null);
   const gameRef = useRef({
     player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0 },
     barrels: [] as Barrel[],
