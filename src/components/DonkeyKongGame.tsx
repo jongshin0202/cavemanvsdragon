@@ -226,7 +226,7 @@ const DonkeyKongGame = () => {
 
         // DK animation
         g.dkTimer++;
-        if (g.dkTimer > 30) { g.dkTimer = 0; g.dkFrame = (g.dkFrame + 1) % 2; }
+        if (g.dkTimer > 20) { g.dkTimer = 0; g.dkFrame = (g.dkFrame + 1) % DRAGON_FRAMES; }
 
         const playerCenterX = p.x + p.w / 2;
         const playerFeetY = p.y + p.h;
