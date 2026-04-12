@@ -196,7 +196,7 @@ const DonkeyKongGame = () => {
         if (p.y > CANVAS_H) {
           g.lives--; setLives(g.lives);
           if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
-          else { playHitSound(); resetPlayer(); }
+          else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
         }
 
         // Win condition - touch the girl
@@ -395,7 +395,7 @@ const DonkeyKongGame = () => {
           if (rectsOverlap(p, b)) {
             g.lives--; setLives(g.lives);
             if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
-            else { playHitSound(); resetPlayer(); }
+            else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
             break;
           }
         }
@@ -497,7 +497,7 @@ const DonkeyKongGame = () => {
             } else {
               g.lives--; setLives(g.lives);
               if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
-              else { playHitSound(); resetPlayer(); }
+              else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
               break;
             }
           }
