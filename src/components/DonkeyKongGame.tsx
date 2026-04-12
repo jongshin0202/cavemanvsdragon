@@ -57,7 +57,7 @@ const DonkeyKongGame = () => {
 
   const resetGame = useCallback(() => {
     const g = gameRef.current;
-    g.score = 0; g.lives = 3; g.state = 'playing';
+    g.score = 0; g.lives = 3; g.state = 'playing'; g.dying = false; g.deathTimer = 0; g.deathFlashTimer = 0;
     g.robots = [];
     g.robotSpawnTimer = 0;
     g.robotsInitialized = false;
