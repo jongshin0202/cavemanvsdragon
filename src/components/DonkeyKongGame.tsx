@@ -35,7 +35,7 @@ const DonkeyKongGame = () => {
     barrels: [] as Barrel[],
     robots: [] as Robot[],
     barrelTimer: 0,
-    nextBarrelTime: 60 + Math.random() * 180,
+    nextBarrelTime: 90 + Math.random() * 180,
     robotSpawnTimer: 0,
     robotsInitialized: false,
     score: 0,
@@ -63,7 +63,7 @@ const DonkeyKongGame = () => {
     g.robots = [];
     g.robotSpawnTimer = 0;
     g.robotsInitialized = false;
-    g.nextBarrelTime = 60 + Math.random() * 120;
+    g.nextBarrelTime = 90 + Math.random() * 180;
     g.winAnim = { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
     resetPlayer();
     setScore(0); setLives(3); setGameState('playing');
