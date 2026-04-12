@@ -74,6 +74,10 @@ const DonkeyKongGame = () => {
     spriteImg.src = cavemanSpriteUrl;
     spriteRef.current = spriteImg;
 
+    const dragonImg = new Image();
+    dragonImg.src = dragonSpriteUrl;
+    dragonRef.current = dragonImg;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       keysRef.current.add(e.key);
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
