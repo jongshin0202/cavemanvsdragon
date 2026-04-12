@@ -83,6 +83,10 @@ const DonkeyKongGame = () => {
     dragonImg.src = dragonSpriteUrl;
     dragonRef.current = dragonImg;
 
+    const princessImg = new Image();
+    princessImg.src = princessSpriteUrl;
+    princessRef.current = princessImg;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       keysRef.current.add(e.key);
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
