@@ -629,7 +629,7 @@ const DonkeyKongGame = () => {
           ctx.drawImage(sprite, sx, sy, sw, sh, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
         }
         ctx.restore();
-      } else {
+      } else if (showPlayer) {
         // Fallback pixel art
         ctx.fillStyle = '#FF0000'; ctx.fillRect(pl.x + 2, pl.y, 12, 4);
         ctx.fillStyle = '#FFB366'; ctx.fillRect(pl.x + 2, pl.y + 4, 12, 6);
