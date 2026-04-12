@@ -6,6 +6,12 @@ import {
 } from './game/constants';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound } from './game/sounds';
 import cavemanSpriteUrl from '@/assets/caveman-sprite.png';
+import dragonSpriteUrl from '@/assets/dragon-sprite.png';
+
+// Dragon sprite sheet config (idle row: top row, 4 frames)
+const DRAGON_FRAME_W = 130;
+const DRAGON_FRAME_H = 140;
+const DRAGON_FRAMES = 4; // idle frames in top row
 
 const LADDER_SNAP = 30;
 
