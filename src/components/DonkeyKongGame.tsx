@@ -611,7 +611,7 @@ const DonkeyKongGame = () => {
       const pl = g.player;
       const showPlayer = !g.dying || Math.floor(g.deathFlashTimer / 15) % 2 === 0;
       const sprite = spriteRef.current;
-      if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+      if (showPlayer && sprite && sprite.complete && sprite.naturalWidth > 0) {
         const row = pl.jumping ? 1 : 0; // top row = walk, mid row for jump/attack
         const col = pl.jumping ? 4 : pl.walkFrame; // use attack swing frame for jump
         const sw = sprite.naturalWidth / SPRITE_COLS;
