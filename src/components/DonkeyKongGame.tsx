@@ -219,10 +219,10 @@ const DonkeyKongGame = () => {
             const count = 1;
             const plat = PLATFORMS[pi];
             for (let c = 0; c < count; c++) {
-              const rx = plat.x1 + 30 + Math.random() * (plat.x2 - plat.x1 - 60);
+              const rx = pi === 0 ? plat.x2 - 30 : plat.x1 + 30 + Math.random() * (plat.x2 - plat.x1 - 60);
               const ry = getPlatformY(plat, rx) - 16;
               const spd = ROBOT_SPEED * (0.6 + Math.random() * 0.8);
-              g.robots.push({ x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0, onGround: true, climbing: false, targetLadder: null, direction: Math.random() > 0.5 ? 1 : -1, frame: 0, frameTimer: 0, speed: spd });
+              g.robots.push({ x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0, onGround: true, climbing: false, targetLadder: null, direction: pi === 0 ? -1 : (Math.random() > 0.5 ? 1 : -1), frame: 0, frameTimer: 0, speed: spd });
             }
           }
         }
