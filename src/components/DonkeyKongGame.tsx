@@ -330,13 +330,17 @@ const DonkeyKongGame = () => {
               const minLadderX = Math.min(...allLadderXs);
               const maxLadderX = Math.max(...allLadderXs);
               
-              // If player is past all ladders toward the drop edge, skip ladder
+              // If player is left of leftmost ladder and there's a drop edge on left, skip ALL ladders
               let playerBeyondLadders = false;
-              if (dropEdgeIsLeft && playerCenterX < minLadderX && bCenterX <= ladderCenterX) {
+              if (dropEdgeIsLeft && playerCenterX < minLadderX) {
                 playerBeyondLadders = true;
               }
-              if (dropEdgeIsRight && playerCenterX > maxLadderX && bCenterX >= ladderCenterX) {
+              if (dropEdgeIsRight && playerCenterX > maxLadderX) {
                 playerBeyondLadders = true;
+              }
+
+              if (playerBeyondLadders) {
+                continue; // skip this ladder entirely, let barrel fall off edge
               }
 
               // Score: is taking this ladder down closer to the player?
@@ -344,7 +348,7 @@ const DonkeyKongGame = () => {
               const ladderScore = scoreToPlayer(ladderCenterX, ladderBottomY);
               const continueScore = scoreToPlayer(bCenterX + Math.sign(b.vx) * 50, bFeetY);
 
-              if (!playerBeyondLadders && ladderScore <= continueScore) {
+              if (ladderScore <= continueScore) {
                 b.onLadder = true;
                 b.targetLadder = li;
                 b.x = l.x + (16 - b.w) / 2;
