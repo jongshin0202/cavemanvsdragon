@@ -214,10 +214,10 @@ const DonkeyKongGame = () => {
 
         // === BARREL SPAWNING (random intervals, random speeds) ===
         g.barrelTimer++;
-        if (!g.nextBarrelTime) g.nextBarrelTime = 60 + Math.random() * 120;
+        if (!g.nextBarrelTime) g.nextBarrelTime = 90 + Math.random() * 180;
         if (g.barrelTimer > g.nextBarrelTime) {
           g.barrelTimer = 0;
-          g.nextBarrelTime = 60 + Math.random() * 120; // random 60-180 frames (1-3 seconds)
+          g.nextBarrelTime = 90 + Math.random() * 180; // random 90-270 frames (1.5-4.5 seconds)
           const speed = BARREL_SPEED * (0.7 + Math.random() * 0.8);
           g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed });
           playBarrelRollSound();
@@ -469,8 +469,9 @@ const DonkeyKongGame = () => {
               r.vy = climbChoice.climbVy;
               r.x = l.x + (16 - r.w) / 2;
             } else {
-              r.vx = desiredDirection * r.speed;
+              // Always move - patrol back and forth, prefer chasing player
               r.direction = desiredDirection;
+              r.vx = r.direction * r.speed;
               r.x += r.vx;
               r.vy += GRAVITY;
               r.y += r.vy;
@@ -563,19 +564,37 @@ const DonkeyKongGame = () => {
         }
       }
 
-      // Pauline (with kiss animation)
-      const paulX = 240, paulY = 72;
-      ctx.fillStyle = '#FF69B4'; ctx.fillRect(paulX, paulY, 12, 20);
-      ctx.fillStyle = '#FFD700'; ctx.fillRect(paulX + 2, paulY - 6, 8, 8);
-      if (wa.active && wa.showKiss) {
-        // Heart
-        ctx.fillStyle = '#FF0000'; ctx.font = '12px serif';
-        ctx.fillText('❤', paulX + 14, paulY + 4);
-        ctx.fillStyle = '#FF69B4'; ctx.font = '7px monospace';
-        ctx.fillText('Thank You!', paulX - 20, paulY - 14);
+      // Princess (sprite)
+      const paulX = 235, paulY = 62;
+      const princessImg = princessRef.current;
+      const princessDrawW = 24;
+      const princessDrawH = 32;
+      if (princessImg && princessImg.complete && princessImg.naturalWidth > 0) {
+        // Use first idle frame from top-left of sprite sheet
+        const pFrameW = princessImg.naturalWidth / 7;
+        const pFrameH = princessImg.naturalHeight / 3;
+        const pFrame = Math.floor(g.dkTimer / 15) % 2; // alternate between frame 0 and 1
+        if (wa.active && wa.showKiss) {
+          ctx.drawImage(princessImg, 0, 0, pFrameW, pFrameH, paulX, paulY, princessDrawW, princessDrawH);
+          ctx.fillStyle = '#FF0000'; ctx.font = '12px serif';
+          ctx.fillText('❤', paulX + princessDrawW + 2, paulY + 8);
+          ctx.fillStyle = '#FF69B4'; ctx.font = '7px monospace';
+          ctx.fillText('Thank You!', paulX - 20, paulY - 6);
+        } else {
+          // "HELP!" frame (frame 2 has speech bubble)
+          ctx.drawImage(princessImg, pFrame * pFrameW, 0, pFrameW, pFrameH, paulX, paulY, princessDrawW, princessDrawH);
+        }
       } else {
-        ctx.fillStyle = '#FF69B4'; ctx.font = '8px var(--font-arcade)';
-        ctx.fillText('HELP!', paulX - 8, paulY - 10);
+        // Fallback
+        ctx.fillStyle = '#FF69B4'; ctx.fillRect(paulX, paulY, 12, 20);
+        ctx.fillStyle = '#FFD700'; ctx.fillRect(paulX + 2, paulY - 6, 8, 8);
+        if (wa.active && wa.showKiss) {
+          ctx.fillStyle = '#FF0000'; ctx.font = '12px serif';
+          ctx.fillText('❤', paulX + 14, paulY + 4);
+        } else {
+          ctx.fillStyle = '#FF69B4'; ctx.font = '8px var(--font-arcade)';
+          ctx.fillText('HELP!', paulX - 8, paulY - 10);
+        }
       }
 
       // Barrels
