@@ -33,7 +33,7 @@ const DonkeyKongGame = () => {
     barrels: [] as Barrel[],
     robots: [] as Robot[],
     barrelTimer: 0,
-    nextBarrelTime: 60 + Math.random() * 120,
+    nextBarrelTime: 60 + Math.random() * 180,
     robotSpawnTimer: 0,
     robotsInitialized: false,
     score: 0,
@@ -42,6 +42,9 @@ const DonkeyKongGame = () => {
     dkFrame: 0,
     dkTimer: 0,
     barrelSoundTimer: 0,
+    deathTimer: 0,
+    deathFlashTimer: 0,
+    dying: false,
     winAnim: { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 },
   });
 
@@ -54,7 +57,7 @@ const DonkeyKongGame = () => {
 
   const resetGame = useCallback(() => {
     const g = gameRef.current;
-    g.score = 0; g.lives = 3; g.state = 'playing';
+    g.score = 0; g.lives = 3; g.state = 'playing'; g.dying = false; g.deathTimer = 0; g.deathFlashTimer = 0;
     g.robots = [];
     g.robotSpawnTimer = 0;
     g.robotsInitialized = false;
@@ -108,7 +111,19 @@ const DonkeyKongGame = () => {
         if (wa.timer > 90) wa.showCongrats = true;
       }
 
-      if (g.state === 'playing') {
+      // Handle dying state (1 second pause with flashing)
+      if (g.dying) {
+        g.deathTimer++;
+        g.deathFlashTimer++;
+        if (g.deathTimer >= 60) { // 1 second at 60fps
+          g.dying = false;
+          g.deathTimer = 0;
+          g.deathFlashTimer = 0;
+          resetPlayer();
+        }
+      }
+
+      if (g.state === 'playing' && !g.dying) {
         // === PLAYER MOVEMENT ===
         // Wider snap: find nearest ladder within LADDER_SNAP pixels
         const playerCX = p.x + p.w / 2;
@@ -181,7 +196,7 @@ const DonkeyKongGame = () => {
         if (p.y > CANVAS_H) {
           g.lives--; setLives(g.lives);
           if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
-          else { playHitSound(); resetPlayer(); }
+          else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
         }
 
         // Win condition - touch the girl
@@ -199,11 +214,11 @@ const DonkeyKongGame = () => {
 
         // === BARREL SPAWNING (random intervals, random speeds) ===
         g.barrelTimer++;
-        if (!g.nextBarrelTime) g.nextBarrelTime = 60 + Math.random() * 60;
+        if (!g.nextBarrelTime) g.nextBarrelTime = 60 + Math.random() * 120;
         if (g.barrelTimer > g.nextBarrelTime) {
           g.barrelTimer = 0;
-          g.nextBarrelTime = 60 + Math.random() * 60; // random 60-120 frames (1-2 seconds)
-          const speed = BARREL_SPEED * (0.7 + Math.random() * 0.8); // random speed multiplier
+          g.nextBarrelTime = 60 + Math.random() * 120; // random 60-180 frames (1-3 seconds)
+          const speed = BARREL_SPEED * (0.7 + Math.random() * 0.8);
           g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed });
           playBarrelRollSound();
         }
@@ -216,10 +231,10 @@ const DonkeyKongGame = () => {
             const count = 1;
             const plat = PLATFORMS[pi];
             for (let c = 0; c < count; c++) {
-              const rx = plat.x1 + 30 + Math.random() * (plat.x2 - plat.x1 - 60);
+              const rx = pi === 0 ? plat.x2 - 30 : plat.x1 + 30 + Math.random() * (plat.x2 - plat.x1 - 60);
               const ry = getPlatformY(plat, rx) - 16;
               const spd = ROBOT_SPEED * (0.6 + Math.random() * 0.8);
-              g.robots.push({ x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0, onGround: true, climbing: false, targetLadder: null, direction: Math.random() > 0.5 ? 1 : -1, frame: 0, frameTimer: 0, speed: spd });
+              g.robots.push({ x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0, onGround: true, climbing: false, targetLadder: null, direction: pi === 0 ? -1 : (Math.random() > 0.5 ? 1 : -1), frame: 0, frameTimer: 0, speed: spd });
             }
           }
         }
@@ -380,7 +395,7 @@ const DonkeyKongGame = () => {
           if (rectsOverlap(p, b)) {
             g.lives--; setLives(g.lives);
             if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
-            else { playHitSound(); resetPlayer(); }
+            else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
             break;
           }
         }
@@ -482,7 +497,7 @@ const DonkeyKongGame = () => {
             } else {
               g.lives--; setLives(g.lives);
               if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
-              else { playHitSound(); resetPlayer(); }
+              else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
               break;
             }
           }
@@ -592,10 +607,11 @@ const DonkeyKongGame = () => {
         ctx.fillRect(r.x + r.w / 2 + (r.frame === 0 ? 2 : -4), r.y - 6, 3, 3);
       }
 
-      // Player (Caveman sprite)
+      // Player (Caveman sprite) - flash when dying (0.25s on/off = 15 frames)
       const pl = g.player;
+      const showPlayer = !g.dying || Math.floor(g.deathFlashTimer / 15) % 2 === 0;
       const sprite = spriteRef.current;
-      if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+      if (showPlayer && sprite && sprite.complete && sprite.naturalWidth > 0) {
         const row = pl.jumping ? 1 : 0; // top row = walk, mid row for jump/attack
         const col = pl.jumping ? 4 : pl.walkFrame; // use attack swing frame for jump
         const sw = sprite.naturalWidth / SPRITE_COLS;
@@ -613,7 +629,7 @@ const DonkeyKongGame = () => {
           ctx.drawImage(sprite, sx, sy, sw, sh, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
         }
         ctx.restore();
-      } else {
+      } else if (showPlayer) {
         // Fallback pixel art
         ctx.fillStyle = '#FF0000'; ctx.fillRect(pl.x + 2, pl.y, 12, 4);
         ctx.fillStyle = '#FFB366'; ctx.fillRect(pl.x + 2, pl.y + 4, 12, 6);
