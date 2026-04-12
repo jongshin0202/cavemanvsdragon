@@ -7,6 +7,7 @@ import {
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound } from './game/sounds';
 import cavemanSpriteUrl from '@/assets/caveman-sprite.png';
 import dragonSpriteUrl from '@/assets/dragon-sprite.png';
+import princessSpriteUrl from '@/assets/princess-sprite.png';
 
 // Dragon sprite sheet config (idle row: top row, 4 frames)
 const DRAGON_FRAME_W = 130;
@@ -28,12 +29,13 @@ const DonkeyKongGame = () => {
   const [gameState, setGameState] = useState<'playing' | 'gameover' | 'win'>('playing');
   const spriteRef = useRef<HTMLImageElement | null>(null);
   const dragonRef = useRef<HTMLImageElement | null>(null);
+  const princessRef = useRef<HTMLImageElement | null>(null);
   const gameRef = useRef({
     player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0 },
     barrels: [] as Barrel[],
     robots: [] as Robot[],
     barrelTimer: 0,
-    nextBarrelTime: 60 + Math.random() * 180,
+    nextBarrelTime: 90 + Math.random() * 180,
     robotSpawnTimer: 0,
     robotsInitialized: false,
     score: 0,
@@ -61,7 +63,7 @@ const DonkeyKongGame = () => {
     g.robots = [];
     g.robotSpawnTimer = 0;
     g.robotsInitialized = false;
-    g.nextBarrelTime = 60 + Math.random() * 120;
+    g.nextBarrelTime = 90 + Math.random() * 180;
     g.winAnim = { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
     resetPlayer();
     setScore(0); setLives(3); setGameState('playing');
@@ -80,6 +82,10 @@ const DonkeyKongGame = () => {
     const dragonImg = new Image();
     dragonImg.src = dragonSpriteUrl;
     dragonRef.current = dragonImg;
+
+    const princessImg = new Image();
+    princessImg.src = princessSpriteUrl;
+    princessRef.current = princessImg;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       keysRef.current.add(e.key);
@@ -214,10 +220,10 @@ const DonkeyKongGame = () => {
 
         // === BARREL SPAWNING (random intervals, random speeds) ===
         g.barrelTimer++;
-        if (!g.nextBarrelTime) g.nextBarrelTime = 60 + Math.random() * 120;
+        if (!g.nextBarrelTime) g.nextBarrelTime = 90 + Math.random() * 180;
         if (g.barrelTimer > g.nextBarrelTime) {
           g.barrelTimer = 0;
-          g.nextBarrelTime = 60 + Math.random() * 120; // random 60-180 frames (1-3 seconds)
+          g.nextBarrelTime = 90 + Math.random() * 180; // random 90-270 frames (1.5-4.5 seconds)
           const speed = BARREL_SPEED * (0.7 + Math.random() * 0.8);
           g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed });
           playBarrelRollSound();
@@ -330,13 +336,17 @@ const DonkeyKongGame = () => {
               const minLadderX = Math.min(...allLadderXs);
               const maxLadderX = Math.max(...allLadderXs);
               
-              // If player is past all ladders toward the drop edge, skip ladder
+              // If player is left of leftmost ladder and there's a drop edge on left, skip ALL ladders
               let playerBeyondLadders = false;
-              if (dropEdgeIsLeft && playerCenterX < minLadderX && bCenterX <= ladderCenterX) {
+              if (dropEdgeIsLeft && playerCenterX < minLadderX) {
                 playerBeyondLadders = true;
               }
-              if (dropEdgeIsRight && playerCenterX > maxLadderX && bCenterX >= ladderCenterX) {
+              if (dropEdgeIsRight && playerCenterX > maxLadderX) {
                 playerBeyondLadders = true;
+              }
+
+              if (playerBeyondLadders) {
+                continue; // skip this ladder entirely, let barrel fall off edge
               }
 
               // Score: is taking this ladder down closer to the player?
@@ -344,7 +354,7 @@ const DonkeyKongGame = () => {
               const ladderScore = scoreToPlayer(ladderCenterX, ladderBottomY);
               const continueScore = scoreToPlayer(bCenterX + Math.sign(b.vx) * 50, bFeetY);
 
-              if (!playerBeyondLadders && ladderScore <= continueScore) {
+              if (ladderScore <= continueScore) {
                 b.onLadder = true;
                 b.targetLadder = li;
                 b.x = l.x + (16 - b.w) / 2;
@@ -465,8 +475,9 @@ const DonkeyKongGame = () => {
               r.vy = climbChoice.climbVy;
               r.x = l.x + (16 - r.w) / 2;
             } else {
-              r.vx = desiredDirection * r.speed;
+              // Always move - patrol back and forth, prefer chasing player
               r.direction = desiredDirection;
+              r.vx = r.direction * r.speed;
               r.x += r.vx;
               r.vy += GRAVITY;
               r.y += r.vy;
@@ -559,19 +570,37 @@ const DonkeyKongGame = () => {
         }
       }
 
-      // Pauline (with kiss animation)
-      const paulX = 240, paulY = 72;
-      ctx.fillStyle = '#FF69B4'; ctx.fillRect(paulX, paulY, 12, 20);
-      ctx.fillStyle = '#FFD700'; ctx.fillRect(paulX + 2, paulY - 6, 8, 8);
-      if (wa.active && wa.showKiss) {
-        // Heart
-        ctx.fillStyle = '#FF0000'; ctx.font = '12px serif';
-        ctx.fillText('❤', paulX + 14, paulY + 4);
-        ctx.fillStyle = '#FF69B4'; ctx.font = '7px monospace';
-        ctx.fillText('Thank You!', paulX - 20, paulY - 14);
+      // Princess (sprite)
+      const paulX = 235, paulY = 62;
+      const princessImg = princessRef.current;
+      const princessDrawW = 24;
+      const princessDrawH = 32;
+      if (princessImg && princessImg.complete && princessImg.naturalWidth > 0) {
+        // Use first idle frame from top-left of sprite sheet
+        const pFrameW = princessImg.naturalWidth / 7;
+        const pFrameH = princessImg.naturalHeight / 3;
+        const pFrame = Math.floor(g.dkTimer / 15) % 2; // alternate between frame 0 and 1
+        if (wa.active && wa.showKiss) {
+          ctx.drawImage(princessImg, 0, 0, pFrameW, pFrameH, paulX, paulY, princessDrawW, princessDrawH);
+          ctx.fillStyle = '#FF0000'; ctx.font = '12px serif';
+          ctx.fillText('❤', paulX + princessDrawW + 2, paulY + 8);
+          ctx.fillStyle = '#FF69B4'; ctx.font = '7px monospace';
+          ctx.fillText('Thank You!', paulX - 20, paulY - 6);
+        } else {
+          // "HELP!" frame (frame 2 has speech bubble)
+          ctx.drawImage(princessImg, pFrame * pFrameW, 0, pFrameW, pFrameH, paulX, paulY, princessDrawW, princessDrawH);
+        }
       } else {
-        ctx.fillStyle = '#FF69B4'; ctx.font = '8px var(--font-arcade)';
-        ctx.fillText('HELP!', paulX - 8, paulY - 10);
+        // Fallback
+        ctx.fillStyle = '#FF69B4'; ctx.fillRect(paulX, paulY, 12, 20);
+        ctx.fillStyle = '#FFD700'; ctx.fillRect(paulX + 2, paulY - 6, 8, 8);
+        if (wa.active && wa.showKiss) {
+          ctx.fillStyle = '#FF0000'; ctx.font = '12px serif';
+          ctx.fillText('❤', paulX + 14, paulY + 4);
+        } else {
+          ctx.fillStyle = '#FF69B4'; ctx.font = '8px var(--font-arcade)';
+          ctx.fillText('HELP!', paulX - 8, paulY - 10);
+        }
       }
 
       // Barrels
