@@ -168,11 +168,23 @@ const DonkeyKongGame = () => {
         if (keys.has('ArrowUp') && nearestLadder) {
           p.climbing = true;
           p.x = nearestLadder.x + 7 - p.w / 2;
-        } else if (keys.has('ArrowDown') && nearestLadder) {
-          // Only climb down if ladder goes below current position
-          if (p.y + p.h < nearestLadder.yBot - 4) {
+        } else if (keys.has('ArrowDown')) {
+          if (nearestLadder && p.y + p.h < nearestLadder.yBot - 4) {
+            // Climb down ladder
             p.climbing = true;
             p.x = nearestLadder.x + 7 - p.w / 2;
+          } else if (p.onGround && !nearestLadder) {
+            // Drop down from platform edge - check if near edge of current platform
+            const curPlatIdx = findPlatformIndex(p.y + p.h, playerCX);
+            const curPlat = PLATFORMS[curPlatIdx];
+            if (curPlat) {
+              const distToLeft = playerCX - curPlat.x1;
+              const distToRight = curPlat.x2 - playerCX;
+              if (distToLeft < 20 || distToRight < 20) {
+                p.onGround = false;
+                p.vy = 1;
+              }
+            }
           }
         }
 
@@ -517,7 +529,10 @@ const DonkeyKongGame = () => {
 
           if (r.y > CANVAS_H + 20) { g.robots.splice(i, 1); continue; }
 
-          if (rectsOverlap(p, r)) {
+          // Only check collision if robot is on same platform as player (not platform above while jumping)
+          const rPlatY = findPlatformIndex(r.y + r.h, r.x + r.w / 2);
+          const pPlatY = findPlatformIndex(p.y + p.h, p.x + p.w / 2);
+          if (rectsOverlap(p, r) && (rPlatY === pPlatY || p.onGround)) {
             // Stomp kill: player is falling and feet are above robot's mid-point
             if (p.vy > 0 && p.y + p.h <= r.y + r.h * 0.6) {
               g.score += 200; setScore(g.score);
