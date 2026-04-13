@@ -533,8 +533,9 @@ const DonkeyKongGame = () => {
           }
         }
       }
+      } // end frame skip else
 
-      // === RENDER ===
+
       ctx.save();
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = 'source-over';
