@@ -105,17 +105,20 @@ const DonkeyKongGame = () => {
 
     let animId: number;
 
-    const gameLoop = () => {
+    let lastTime = 0;
+    const FRAME_INTERVAL = 1000 / 45; // ~45fps instead of 60fps = 25% slower
+
+    const gameLoop = (timestamp: number) => {
+      const elapsed = timestamp - lastTime;
+      if (elapsed < FRAME_INTERVAL) {
+        animId = requestAnimationFrame(gameLoop);
+        return;
+      }
+      lastTime = timestamp - (elapsed % FRAME_INTERVAL);
+
       const g = gameRef.current;
       const keys = keysRef.current;
       const p = g.player;
-
-      // Slow down game by ~25%: skip every 4th frame
-      g.frameCount++;
-      if (g.frameCount % 4 === 0) {
-        // Only render, don't update logic
-        // (fall through to render below)
-      } else {
 
       const wa = g.winAnim || { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
       if (!g.winAnim) g.winAnim = wa;
@@ -133,7 +136,7 @@ const DonkeyKongGame = () => {
       if (g.dying) {
         g.deathTimer++;
         g.deathFlashTimer++;
-        if (g.deathTimer >= 45) { // ~1 second with 3/4 update rate
+        if (g.deathTimer >= 45) { // ~1 second at 45fps
           g.dying = false;
           g.deathTimer = 0;
           g.deathFlashTimer = 0;
@@ -141,10 +144,9 @@ const DonkeyKongGame = () => {
         }
       }
 
-      // Animate dragon and princess smoothly (always, not just when playing)
+      // Animate dragon and princess smoothly (always running)
       g.dkAnimTimer++;
       if (g.dkAnimTimer > 20) { g.dkAnimTimer = 0; g.dkFrame = (g.dkFrame + 1) % DRAGON_FRAMES; }
-      g.princessAnimTimer++;
       g.helpTimer++;
       if (g.helpTimer > 120) { g.helpTimer = 0; g.showHelp = !g.showHelp; }
 
