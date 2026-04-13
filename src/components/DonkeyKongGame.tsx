@@ -42,11 +42,15 @@ const DonkeyKongGame = () => {
     lives: 3,
     state: 'playing' as string,
     dkFrame: 0,
-    dkTimer: 0,
+    dkAnimTimer: 0,
+    princessAnimTimer: 0,
+    helpTimer: 0,
+    showHelp: false,
     barrelSoundTimer: 0,
     deathTimer: 0,
     deathFlashTimer: 0,
     dying: false,
+    frameCount: 0,
     winAnim: { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 },
   });
 
@@ -64,6 +68,9 @@ const DonkeyKongGame = () => {
     g.robotSpawnTimer = 0;
     g.robotsInitialized = false;
     g.nextBarrelTime = 90 + Math.random() * 180;
+    g.frameCount = 0;
+    g.dkAnimTimer = 0; g.dkFrame = 0;
+    g.princessAnimTimer = 0; g.helpTimer = 0; g.showHelp = false;
     g.winAnim = { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
     resetPlayer();
     setScore(0); setLives(3); setGameState('playing');
@@ -98,22 +105,30 @@ const DonkeyKongGame = () => {
 
     let animId: number;
 
-    const gameLoop = () => {
+    let lastTime = 0;
+    const FRAME_INTERVAL = 1000 / 45; // ~45fps instead of 60fps = 25% slower
+
+    const gameLoop = (timestamp: number) => {
+      const elapsed = timestamp - lastTime;
+      if (elapsed < FRAME_INTERVAL) {
+        animId = requestAnimationFrame(gameLoop);
+        return;
+      }
+      lastTime = timestamp - (elapsed % FRAME_INTERVAL);
+
       const g = gameRef.current;
       const keys = keysRef.current;
       const p = g.player;
+
       const wa = g.winAnim || { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
       if (!g.winAnim) g.winAnim = wa;
       if (wa.active) {
         wa.timer++;
-        // Gorilla falls and rotates
         if (wa.gorillaY < CANVAS_H + 50) {
           wa.gorillaY += 4;
           wa.gorillaRotation += 0.15;
         }
-        // Show kiss after 30 frames
         if (wa.timer > 30) wa.showKiss = true;
-        // Show congrats after 90 frames
         if (wa.timer > 90) wa.showCongrats = true;
       }
 
@@ -121,13 +136,19 @@ const DonkeyKongGame = () => {
       if (g.dying) {
         g.deathTimer++;
         g.deathFlashTimer++;
-        if (g.deathTimer >= 60) { // 1 second at 60fps
+        if (g.deathTimer >= 45) { // ~1 second at 45fps
           g.dying = false;
           g.deathTimer = 0;
           g.deathFlashTimer = 0;
           resetPlayer();
         }
       }
+
+      // Animate dragon and princess smoothly (always running)
+      g.dkAnimTimer++;
+      if (g.dkAnimTimer > 20) { g.dkAnimTimer = 0; g.dkFrame = (g.dkFrame + 1) % DRAGON_FRAMES; }
+      g.helpTimer++;
+      if (g.helpTimer > 120) { g.helpTimer = 0; g.showHelp = !g.showHelp; }
 
       if (g.state === 'playing' && !g.dying) {
         // === PLAYER MOVEMENT ===
@@ -147,11 +168,23 @@ const DonkeyKongGame = () => {
         if (keys.has('ArrowUp') && nearestLadder) {
           p.climbing = true;
           p.x = nearestLadder.x + 7 - p.w / 2;
-        } else if (keys.has('ArrowDown') && nearestLadder) {
-          // Only climb down if ladder goes below current position
-          if (p.y + p.h < nearestLadder.yBot - 4) {
+        } else if (keys.has('ArrowDown')) {
+          if (nearestLadder && p.y + p.h < nearestLadder.yBot - 4) {
+            // Climb down ladder
             p.climbing = true;
             p.x = nearestLadder.x + 7 - p.w / 2;
+          } else if (p.onGround && !nearestLadder) {
+            // Drop down from platform edge - check if near edge of current platform
+            const curPlatIdx = findPlatformIndex(p.y + p.h, playerCX);
+            const curPlat = PLATFORMS[curPlatIdx];
+            if (curPlat) {
+              const distToLeft = playerCX - curPlat.x1;
+              const distToRight = curPlat.x2 - playerCX;
+              if (distToLeft < 20 || distToRight < 20) {
+                p.onGround = false;
+                p.vy = 1;
+              }
+            }
           }
         }
 
@@ -245,9 +278,7 @@ const DonkeyKongGame = () => {
           }
         }
 
-        // DK animation
-        g.dkTimer++;
-        if (g.dkTimer > 20) { g.dkTimer = 0; g.dkFrame = (g.dkFrame + 1) % DRAGON_FRAMES; }
+        // DK animation moved to always-running section above
 
         const playerCenterX = p.x + p.w / 2;
         const playerFeetY = p.y + p.h;
@@ -498,7 +529,10 @@ const DonkeyKongGame = () => {
 
           if (r.y > CANVAS_H + 20) { g.robots.splice(i, 1); continue; }
 
-          if (rectsOverlap(p, r)) {
+          // Only check collision if robot is on same platform as player (not platform above while jumping)
+          const rPlatY = findPlatformIndex(r.y + r.h, r.x + r.w / 2);
+          const pPlatY = findPlatformIndex(p.y + p.h, p.x + p.w / 2);
+          if (rectsOverlap(p, r) && (rPlatY === pPlatY || p.onGround)) {
             // Stomp kill: player is falling and feet are above robot's mid-point
             if (p.vy > 0 && p.y + p.h <= r.y + r.h * 0.6) {
               g.score += 200; setScore(g.score);
@@ -515,7 +549,7 @@ const DonkeyKongGame = () => {
         }
       }
 
-      // === RENDER ===
+
       ctx.save();
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = 'source-over';
@@ -576,10 +610,9 @@ const DonkeyKongGame = () => {
       const princessDrawW = 24;
       const princessDrawH = 32;
       if (princessImg && princessImg.complete && princessImg.naturalWidth > 0) {
-        // Use first idle frame from top-left of sprite sheet
+        // Use first idle frame only - no alternation to avoid flashing
         const pFrameW = princessImg.naturalWidth / 7;
         const pFrameH = princessImg.naturalHeight / 3;
-        const pFrame = Math.floor(g.dkTimer / 15) % 2; // alternate between frame 0 and 1
         if (wa.active && wa.showKiss) {
           ctx.drawImage(princessImg, 0, 0, pFrameW, pFrameH, paulX, paulY, princessDrawW, princessDrawH);
           ctx.fillStyle = '#FF0000'; ctx.font = '12px serif';
@@ -587,8 +620,11 @@ const DonkeyKongGame = () => {
           ctx.fillStyle = '#FF69B4'; ctx.font = '7px monospace';
           ctx.fillText('Thank You!', paulX - 20, paulY - 6);
         } else {
-          // "HELP!" frame (frame 2 has speech bubble)
-          ctx.drawImage(princessImg, pFrame * pFrameW, 0, pFrameW, pFrameH, paulX, paulY, princessDrawW, princessDrawH);
+          ctx.drawImage(princessImg, 0, 0, pFrameW, pFrameH, paulX, paulY, princessDrawW, princessDrawH);
+          if (g.showHelp) {
+            ctx.fillStyle = '#FFFFFF'; ctx.font = '7px monospace';
+            ctx.fillText('Help!', paulX - 4, paulY - 6);
+          }
         }
       } else {
         // Fallback
@@ -700,10 +736,10 @@ const DonkeyKongGame = () => {
       }
 
       ctx.restore();
-      animId = requestAnimationFrame(gameLoop);
+      animId = requestAnimationFrame((t) => gameLoop(t));
     };
 
-    animId = requestAnimationFrame(gameLoop);
+    animId = requestAnimationFrame((t) => gameLoop(t));
     return () => { cancelAnimationFrame(animId); window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp); };
   }, [resetGame, resetPlayer]);
 
