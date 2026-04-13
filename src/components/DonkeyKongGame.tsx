@@ -42,11 +42,15 @@ const DonkeyKongGame = () => {
     lives: 3,
     state: 'playing' as string,
     dkFrame: 0,
-    dkTimer: 0,
+    dkAnimTimer: 0,
+    princessAnimTimer: 0,
+    helpTimer: 0,
+    showHelp: false,
     barrelSoundTimer: 0,
     deathTimer: 0,
     deathFlashTimer: 0,
     dying: false,
+    frameCount: 0,
     winAnim: { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 },
   });
 
