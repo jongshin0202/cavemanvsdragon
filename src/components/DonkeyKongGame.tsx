@@ -266,9 +266,7 @@ const DonkeyKongGame = () => {
           }
         }
 
-        // DK animation
-        g.dkTimer++;
-        if (g.dkTimer > 20) { g.dkTimer = 0; g.dkFrame = (g.dkFrame + 1) % DRAGON_FRAMES; }
+        // DK animation moved to always-running section above
 
         const playerCenterX = p.x + p.w / 2;
         const playerFeetY = p.y + p.h;
@@ -535,7 +533,6 @@ const DonkeyKongGame = () => {
           }
         }
       }
-      } // end frame skip else
 
 
       ctx.save();
@@ -598,10 +595,9 @@ const DonkeyKongGame = () => {
       const princessDrawW = 24;
       const princessDrawH = 32;
       if (princessImg && princessImg.complete && princessImg.naturalWidth > 0) {
-        // Use first idle frame from top-left of sprite sheet
+        // Use first idle frame only - no alternation to avoid flashing
         const pFrameW = princessImg.naturalWidth / 7;
         const pFrameH = princessImg.naturalHeight / 3;
-        const pFrame = Math.floor(g.dkTimer / 15) % 2; // alternate between frame 0 and 1
         if (wa.active && wa.showKiss) {
           ctx.drawImage(princessImg, 0, 0, pFrameW, pFrameH, paulX, paulY, princessDrawW, princessDrawH);
           ctx.fillStyle = '#FF0000'; ctx.font = '12px serif';
@@ -609,8 +605,11 @@ const DonkeyKongGame = () => {
           ctx.fillStyle = '#FF69B4'; ctx.font = '7px monospace';
           ctx.fillText('Thank You!', paulX - 20, paulY - 6);
         } else {
-          // "HELP!" frame (frame 2 has speech bubble)
-          ctx.drawImage(princessImg, pFrame * pFrameW, 0, pFrameW, pFrameH, paulX, paulY, princessDrawW, princessDrawH);
+          ctx.drawImage(princessImg, 0, 0, pFrameW, pFrameH, paulX, paulY, princessDrawW, princessDrawH);
+          if (g.showHelp) {
+            ctx.fillStyle = '#FFFFFF'; ctx.font = '7px monospace';
+            ctx.fillText('Help!', paulX - 4, paulY - 6);
+          }
         }
       } else {
         // Fallback
@@ -722,10 +721,10 @@ const DonkeyKongGame = () => {
       }
 
       ctx.restore();
-      animId = requestAnimationFrame(gameLoop);
+      animId = requestAnimationFrame((t) => gameLoop(t));
     };
 
-    animId = requestAnimationFrame(gameLoop);
+    animId = requestAnimationFrame((t) => gameLoop(t));
     return () => { cancelAnimationFrame(animId); window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp); };
   }, [resetGame, resetPlayer]);
 
