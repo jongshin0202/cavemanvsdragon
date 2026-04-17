@@ -7,6 +7,7 @@ import {
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound } from './game/sounds';
 import cavemanSpriteUrl from '@/assets/caveman-sprite.png';
 import cavemanWalkUrl from '@/assets/caveman-walk.png';
+import cavemanJumpUrl from '@/assets/caveman-jump.png';
 import dragonSpriteUrl from '@/assets/dragon-sprite.png';
 import princessSpriteUrl from '@/assets/princess-sprite.png';
 
@@ -30,10 +31,11 @@ const DonkeyKongGame = () => {
   const [gameState, setGameState] = useState<'playing' | 'gameover' | 'win'>('playing');
   const spriteRef = useRef<HTMLImageElement | null>(null);
   const walkSpriteRef = useRef<HTMLImageElement | null>(null);
+  const jumpSpriteRef = useRef<HTMLImageElement | null>(null);
   const dragonRef = useRef<HTMLImageElement | null>(null);
   const princessRef = useRef<HTMLImageElement | null>(null);
   const gameRef = useRef({
-    player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0 },
+    player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0 },
     barrels: [] as Barrel[],
     robots: [] as Robot[],
     barrelTimer: 0,
@@ -58,7 +60,7 @@ const DonkeyKongGame = () => {
 
   const resetPlayer = useCallback(() => {
     const g = gameRef.current;
-    g.player = { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0 };
+    g.player = { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0 };
     g.barrels = [];
     g.barrelTimer = 0;
   }, []);
@@ -91,6 +93,10 @@ const DonkeyKongGame = () => {
     const walkImg = new Image();
     walkImg.src = cavemanWalkUrl;
     walkSpriteRef.current = walkImg;
+
+    const jumpImg = new Image();
+    jumpImg.src = cavemanJumpUrl;
+    jumpSpriteRef.current = jumpImg;
 
     const dragonImg = new Image();
     dragonImg.src = dragonSpriteUrl;
@@ -223,6 +229,7 @@ const DonkeyKongGame = () => {
           else if (!moving) { p.walkFrame = 0; p.walkTimer = 0; }
           if ((keys.has(' ')) && p.onGround) {
             p.vy = -5; p.onGround = false; p.jumping = true;
+            p.jumpFrame = 0; p.jumpTimer = 0;
             playJumpSound();
           }
           p.vy += GRAVITY; p.y += p.vy;
@@ -232,8 +239,14 @@ const DonkeyKongGame = () => {
               const platY = getPlatformY(plat, p.x + p.w / 2);
               if (p.y + p.h >= platY && p.y + p.h <= platY + 12 && p.vy >= 0) {
                 p.y = platY - p.h; p.vy = 0; p.onGround = true; p.jumping = false;
+                p.jumpFrame = 0; p.jumpTimer = 0;
               }
             }
+          }
+          // Advance jump frame animation while in air
+          if (p.jumping) {
+            p.jumpTimer++;
+            if (p.jumpTimer > 4 && p.jumpFrame < 4) { p.jumpTimer = 0; p.jumpFrame++; }
           }
         }
 
@@ -683,9 +696,25 @@ const DonkeyKongGame = () => {
       const showPlayer = !g.dying || Math.floor(g.deathFlashTimer / 15) % 2 === 0;
       const sprite = spriteRef.current;
       const walkSprite = walkSpriteRef.current;
-      // Use walk sheet (4 frames, single row) for walking; fall back to old sprite for jump/attack
+      const jumpSprite = jumpSpriteRef.current;
+      const useJump = pl.jumping && jumpSprite && jumpSprite.complete && jumpSprite.naturalWidth > 0;
       const useWalk = !pl.jumping && walkSprite && walkSprite.complete && walkSprite.naturalWidth > 0;
-      if (showPlayer && useWalk) {
+      if (showPlayer && useJump) {
+        const sw = jumpSprite.naturalWidth / 5;
+        const sh = jumpSprite.naturalHeight;
+        const sx = Math.min(pl.jumpFrame, 4) * sw;
+        const drawW = 28;
+        const drawH = 32;
+        ctx.save();
+        if (pl.facing < 0) {
+          ctx.translate(pl.x + pl.w / 2, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(jumpSprite, sx, 0, sw, sh, -drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
+        } else {
+          ctx.drawImage(jumpSprite, sx, 0, sw, sh, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
+        }
+        ctx.restore();
+      } else if (showPlayer && useWalk) {
         const sw = walkSprite.naturalWidth / 4;
         const sh = walkSprite.naturalHeight;
         const sx = pl.walkFrame * sw;
