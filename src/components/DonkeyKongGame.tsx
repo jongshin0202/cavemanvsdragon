@@ -9,6 +9,7 @@ import cavemanSpriteUrl from '@/assets/caveman-sprite.png';
 import cavemanWalkUrl from '@/assets/caveman-walk.png';
 import cavemanJumpUrl from '@/assets/caveman-jump.png';
 import cavemanClimbUrl from '@/assets/caveman-climb.png';
+import cavemanWinUrl from '@/assets/caveman-win.png';
 import dragonSpriteUrl from '@/assets/dragon-sprite.png';
 import princessSpriteUrl from '@/assets/princess-sprite.png';
 
@@ -34,6 +35,7 @@ const DonkeyKongGame = () => {
   const walkSpriteRef = useRef<HTMLImageElement | null>(null);
   const jumpSpriteRef = useRef<HTMLImageElement | null>(null);
   const climbSpriteRef = useRef<HTMLImageElement | null>(null);
+  const winSpriteRef = useRef<HTMLImageElement | null>(null);
   const dragonRef = useRef<HTMLImageElement | null>(null);
   const princessRef = useRef<HTMLImageElement | null>(null);
   const gameRef = useRef({
@@ -103,6 +105,10 @@ const DonkeyKongGame = () => {
     const climbImg = new Image();
     climbImg.src = cavemanClimbUrl;
     climbSpriteRef.current = climbImg;
+
+    const winImg = new Image();
+    winImg.src = cavemanWinUrl;
+    winSpriteRef.current = winImg;
 
     const dragonImg = new Image();
     dragonImg.src = dragonSpriteUrl;
