@@ -715,10 +715,16 @@ const DonkeyKongGame = () => {
       const walkSprite = walkSpriteRef.current;
       const jumpSprite = jumpSpriteRef.current;
       const climbSprite = climbSpriteRef.current;
-      const useClimb = pl.climbing && climbSprite && climbSprite.complete && climbSprite.naturalWidth > 0;
-      const useJump = !pl.climbing && pl.jumping && jumpSprite && jumpSprite.complete && jumpSprite.naturalWidth > 0;
-      const useWalk = !pl.climbing && !pl.jumping && walkSprite && walkSprite.complete && walkSprite.naturalWidth > 0;
-      if (showPlayer && useClimb) {
+      const winSprite = winSpriteRef.current;
+      const useWin = (g.state === 'win' || wa.active) && winSprite && winSprite.complete && winSprite.naturalWidth > 0;
+      const useClimb = !useWin && pl.climbing && climbSprite && climbSprite.complete && climbSprite.naturalWidth > 0;
+      const useJump = !useWin && !pl.climbing && pl.jumping && jumpSprite && jumpSprite.complete && jumpSprite.naturalWidth > 0;
+      const useWalk = !useWin && !pl.climbing && !pl.jumping && walkSprite && walkSprite.complete && walkSprite.naturalWidth > 0;
+      if (showPlayer && useWin) {
+        const drawW = 32;
+        const drawH = 36;
+        ctx.drawImage(winSprite, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
+      } else if (showPlayer && useClimb) {
         const sw = climbSprite.naturalWidth / 4;
         const sh = climbSprite.naturalHeight;
         const sx = pl.climbFrame * sw;
