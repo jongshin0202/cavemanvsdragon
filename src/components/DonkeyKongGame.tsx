@@ -6,6 +6,7 @@ import {
 } from './game/constants';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound } from './game/sounds';
 import cavemanSpriteUrl from '@/assets/caveman-sprite.png';
+import cavemanWalkUrl from '@/assets/caveman-walk.png';
 import dragonSpriteUrl from '@/assets/dragon-sprite.png';
 import princessSpriteUrl from '@/assets/princess-sprite.png';
 
@@ -28,6 +29,7 @@ const DonkeyKongGame = () => {
   const [lives, setLives] = useState(3);
   const [gameState, setGameState] = useState<'playing' | 'gameover' | 'win'>('playing');
   const spriteRef = useRef<HTMLImageElement | null>(null);
+  const walkSpriteRef = useRef<HTMLImageElement | null>(null);
   const dragonRef = useRef<HTMLImageElement | null>(null);
   const princessRef = useRef<HTMLImageElement | null>(null);
   const gameRef = useRef({
@@ -85,6 +87,10 @@ const DonkeyKongGame = () => {
     const spriteImg = new Image();
     spriteImg.src = cavemanSpriteUrl;
     spriteRef.current = spriteImg;
+
+    const walkImg = new Image();
+    walkImg.src = cavemanWalkUrl;
+    walkSpriteRef.current = walkImg;
 
     const dragonImg = new Image();
     dragonImg.src = dragonSpriteUrl;
@@ -213,7 +219,7 @@ const DonkeyKongGame = () => {
           const moving = keys.has('ArrowLeft') || keys.has('ArrowRight');
           if (keys.has('ArrowLeft')) { p.x -= MOVE_SPEED; p.facing = -1; }
           if (keys.has('ArrowRight')) { p.x += MOVE_SPEED; p.facing = 1; }
-          if (moving && p.onGround) { p.walkTimer++; if (p.walkTimer > 6) { p.walkTimer = 0; p.walkFrame = (p.walkFrame + 1) % 7; } }
+          if (moving && p.onGround) { p.walkTimer++; if (p.walkTimer > 6) { p.walkTimer = 0; p.walkFrame = (p.walkFrame + 1) % 4; } }
           else if (!moving) { p.walkFrame = 0; p.walkTimer = 0; }
           if ((keys.has(' ')) && p.onGround) {
             p.vy = -5; p.onGround = false; p.jumping = true;
@@ -676,9 +682,28 @@ const DonkeyKongGame = () => {
       const pl = g.player;
       const showPlayer = !g.dying || Math.floor(g.deathFlashTimer / 15) % 2 === 0;
       const sprite = spriteRef.current;
-      if (showPlayer && sprite && sprite.complete && sprite.naturalWidth > 0) {
-        const row = pl.jumping ? 1 : 0; // top row = walk, mid row for jump/attack
-        const col = pl.jumping ? 4 : pl.walkFrame; // use attack swing frame for jump
+      const walkSprite = walkSpriteRef.current;
+      // Use walk sheet (4 frames, single row) for walking; fall back to old sprite for jump/attack
+      const useWalk = !pl.jumping && walkSprite && walkSprite.complete && walkSprite.naturalWidth > 0;
+      if (showPlayer && useWalk) {
+        const sw = walkSprite.naturalWidth / 4;
+        const sh = walkSprite.naturalHeight;
+        const sx = pl.walkFrame * sw;
+        const sy = 0;
+        const drawW = 28;
+        const drawH = 32;
+        ctx.save();
+        if (pl.facing < 0) {
+          ctx.translate(pl.x + pl.w / 2, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(walkSprite, sx, sy, sw, sh, -drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
+        } else {
+          ctx.drawImage(walkSprite, sx, sy, sw, sh, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
+        }
+        ctx.restore();
+      } else if (showPlayer && sprite && sprite.complete && sprite.naturalWidth > 0) {
+        const row = pl.jumping ? 1 : 0;
+        const col = pl.jumping ? 4 : 0;
         const sw = sprite.naturalWidth / SPRITE_COLS;
         const sh = sprite.naturalHeight / 3;
         const sx = col * sw;
