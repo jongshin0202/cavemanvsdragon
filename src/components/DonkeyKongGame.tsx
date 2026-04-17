@@ -100,6 +100,10 @@ const DonkeyKongGame = () => {
     jumpImg.src = cavemanJumpUrl;
     jumpSpriteRef.current = jumpImg;
 
+    const climbImg = new Image();
+    climbImg.src = cavemanClimbUrl;
+    climbSpriteRef.current = climbImg;
+
     const dragonImg = new Image();
     dragonImg.src = dragonSpriteUrl;
     dragonRef.current = dragonImg;
@@ -218,8 +222,13 @@ const DonkeyKongGame = () => {
             p.climbing = false;
           } else {
             p.vy = 0;
+            const climbMoving = keys.has('ArrowUp') || keys.has('ArrowDown');
             if (keys.has('ArrowUp')) p.y -= CLIMB_SPEED;
             if (keys.has('ArrowDown')) p.y += CLIMB_SPEED;
+            if (climbMoving) {
+              p.climbTimer++;
+              if (p.climbTimer > 8) { p.climbTimer = 0; p.climbFrame = (p.climbFrame + 1) % 4; }
+            }
           }
         }
 
