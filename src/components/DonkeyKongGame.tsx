@@ -8,6 +8,7 @@ import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, pl
 import cavemanSpriteUrl from '@/assets/caveman-sprite.png';
 import cavemanWalkUrl from '@/assets/caveman-walk.png';
 import cavemanJumpUrl from '@/assets/caveman-jump.png';
+import cavemanClimbUrl from '@/assets/caveman-climb.png';
 import dragonSpriteUrl from '@/assets/dragon-sprite.png';
 import princessSpriteUrl from '@/assets/princess-sprite.png';
 
@@ -32,10 +33,11 @@ const DonkeyKongGame = () => {
   const spriteRef = useRef<HTMLImageElement | null>(null);
   const walkSpriteRef = useRef<HTMLImageElement | null>(null);
   const jumpSpriteRef = useRef<HTMLImageElement | null>(null);
+  const climbSpriteRef = useRef<HTMLImageElement | null>(null);
   const dragonRef = useRef<HTMLImageElement | null>(null);
   const princessRef = useRef<HTMLImageElement | null>(null);
   const gameRef = useRef({
-    player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0 },
+    player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 },
     barrels: [] as Barrel[],
     robots: [] as Robot[],
     barrelTimer: 0,
@@ -60,7 +62,7 @@ const DonkeyKongGame = () => {
 
   const resetPlayer = useCallback(() => {
     const g = gameRef.current;
-    g.player = { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0 };
+    g.player = { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 };
     g.barrels = [];
     g.barrelTimer = 0;
   }, []);
@@ -97,6 +99,10 @@ const DonkeyKongGame = () => {
     const jumpImg = new Image();
     jumpImg.src = cavemanJumpUrl;
     jumpSpriteRef.current = jumpImg;
+
+    const climbImg = new Image();
+    climbImg.src = cavemanClimbUrl;
+    climbSpriteRef.current = climbImg;
 
     const dragonImg = new Image();
     dragonImg.src = dragonSpriteUrl;
@@ -216,8 +222,13 @@ const DonkeyKongGame = () => {
             p.climbing = false;
           } else {
             p.vy = 0;
+            const climbMoving = keys.has('ArrowUp') || keys.has('ArrowDown');
             if (keys.has('ArrowUp')) p.y -= CLIMB_SPEED;
             if (keys.has('ArrowDown')) p.y += CLIMB_SPEED;
+            if (climbMoving) {
+              p.climbTimer++;
+              if (p.climbTimer > 8) { p.climbTimer = 0; p.climbFrame = (p.climbFrame + 1) % 4; }
+            }
           }
         }
 
@@ -697,9 +708,18 @@ const DonkeyKongGame = () => {
       const sprite = spriteRef.current;
       const walkSprite = walkSpriteRef.current;
       const jumpSprite = jumpSpriteRef.current;
-      const useJump = pl.jumping && jumpSprite && jumpSprite.complete && jumpSprite.naturalWidth > 0;
-      const useWalk = !pl.jumping && walkSprite && walkSprite.complete && walkSprite.naturalWidth > 0;
-      if (showPlayer && useJump) {
+      const climbSprite = climbSpriteRef.current;
+      const useClimb = pl.climbing && climbSprite && climbSprite.complete && climbSprite.naturalWidth > 0;
+      const useJump = !pl.climbing && pl.jumping && jumpSprite && jumpSprite.complete && jumpSprite.naturalWidth > 0;
+      const useWalk = !pl.climbing && !pl.jumping && walkSprite && walkSprite.complete && walkSprite.naturalWidth > 0;
+      if (showPlayer && useClimb) {
+        const sw = climbSprite.naturalWidth / 4;
+        const sh = climbSprite.naturalHeight;
+        const sx = pl.climbFrame * sw;
+        const drawW = 28;
+        const drawH = 32;
+        ctx.drawImage(climbSprite, sx, 0, sw, sh, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
+      } else if (showPlayer && useJump) {
         const sw = jumpSprite.naturalWidth / 5;
         const sh = jumpSprite.naturalHeight;
         const sx = Math.min(pl.jumpFrame, 4) * sw;
