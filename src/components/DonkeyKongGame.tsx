@@ -708,9 +708,18 @@ const DonkeyKongGame = () => {
       const sprite = spriteRef.current;
       const walkSprite = walkSpriteRef.current;
       const jumpSprite = jumpSpriteRef.current;
-      const useJump = pl.jumping && jumpSprite && jumpSprite.complete && jumpSprite.naturalWidth > 0;
-      const useWalk = !pl.jumping && walkSprite && walkSprite.complete && walkSprite.naturalWidth > 0;
-      if (showPlayer && useJump) {
+      const climbSprite = climbSpriteRef.current;
+      const useClimb = pl.climbing && climbSprite && climbSprite.complete && climbSprite.naturalWidth > 0;
+      const useJump = !pl.climbing && pl.jumping && jumpSprite && jumpSprite.complete && jumpSprite.naturalWidth > 0;
+      const useWalk = !pl.climbing && !pl.jumping && walkSprite && walkSprite.complete && walkSprite.naturalWidth > 0;
+      if (showPlayer && useClimb) {
+        const sw = climbSprite.naturalWidth / 4;
+        const sh = climbSprite.naturalHeight;
+        const sx = pl.climbFrame * sw;
+        const drawW = 28;
+        const drawH = 32;
+        ctx.drawImage(climbSprite, sx, 0, sw, sh, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
+      } else if (showPlayer && useJump) {
         const sw = jumpSprite.naturalWidth / 5;
         const sh = jumpSprite.naturalHeight;
         const sx = Math.min(pl.jumpFrame, 4) * sw;
