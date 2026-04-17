@@ -696,9 +696,25 @@ const DonkeyKongGame = () => {
       const showPlayer = !g.dying || Math.floor(g.deathFlashTimer / 15) % 2 === 0;
       const sprite = spriteRef.current;
       const walkSprite = walkSpriteRef.current;
-      // Use walk sheet (4 frames, single row) for walking; fall back to old sprite for jump/attack
+      const jumpSprite = jumpSpriteRef.current;
+      const useJump = pl.jumping && jumpSprite && jumpSprite.complete && jumpSprite.naturalWidth > 0;
       const useWalk = !pl.jumping && walkSprite && walkSprite.complete && walkSprite.naturalWidth > 0;
-      if (showPlayer && useWalk) {
+      if (showPlayer && useJump) {
+        const sw = jumpSprite.naturalWidth / 5;
+        const sh = jumpSprite.naturalHeight;
+        const sx = Math.min(pl.jumpFrame, 4) * sw;
+        const drawW = 28;
+        const drawH = 32;
+        ctx.save();
+        if (pl.facing < 0) {
+          ctx.translate(pl.x + pl.w / 2, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(jumpSprite, sx, 0, sw, sh, -drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
+        } else {
+          ctx.drawImage(jumpSprite, sx, 0, sw, sh, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
+        }
+        ctx.restore();
+      } else if (showPlayer && useWalk) {
         const sw = walkSprite.naturalWidth / 4;
         const sh = walkSprite.naturalHeight;
         const sx = pl.walkFrame * sw;
