@@ -243,9 +243,21 @@ const CavemanVsDragonGame = () => {
         // Random dragon roar every 5–15 seconds
         g.roarTimer++;
         if (g.roarTimer >= g.nextRoarTime) {
-          playDragonRoarSound();
+          playDragonRoarTracked();
           g.roarTimer = 0;
           g.nextRoarTime = 300 + Math.floor(Math.random() * 600);
+        }
+        // Random princess "Help!" every 10–20 seconds (skip if dragon is roaring)
+        g.helpTimerSfx++;
+        if (g.helpTimerSfx >= g.nextHelpTime) {
+          if (!isDragonRoaringNow()) {
+            playPrincessHelpSound();
+            g.helpTimerSfx = 0;
+            g.nextHelpTime = 600 + Math.floor(Math.random() * 600);
+          } else {
+            // Try again in ~1 second
+            g.helpTimerSfx = g.nextHelpTime - 60;
+          }
         }
         // === PLAYER MOVEMENT ===
         // Wider snap: find nearest ladder within LADDER_SNAP pixels
