@@ -190,7 +190,6 @@ const CavemanVsDragonGame = () => {
     window.addEventListener('pointerdown', handleFirstGesture);
     window.addEventListener('touchstart', handleFirstGesture, { passive: true });
 
-    let animId: number;
     let intervalId: number | null = null;
 
     let lastTime = 0;
