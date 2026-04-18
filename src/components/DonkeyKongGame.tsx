@@ -1008,7 +1008,21 @@ const DonkeyKongGame = () => {
         else ctx.fillRect(pl.x + 5, pl.y + 5, 2, 2);
       }
 
-      // Barrel stack
+      // Carried seed (drawn next to the player when they're holding it)
+      if (g.hasSeed && showPlayer) {
+        const cx = pl.x + pl.w / 2 + (pl.facing > 0 ? 7 : -7);
+        const cy = pl.y + 6;
+        ctx.fillStyle = 'rgba(255, 235, 59, 0.3)';
+        ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#8D6E63';
+        ctx.beginPath(); ctx.ellipse(cx, cy + 1, 3, 4, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#5D4037';
+        ctx.fillRect(cx - 3, cy - 3, 6, 2);
+        ctx.fillStyle = '#66BB6A';
+        ctx.fillRect(cx - 1, cy - 5, 2, 2);
+      }
+
+
       ctx.fillStyle = '#4488FF';
       for (let i = 0; i < 3; i++) {
         ctx.fillRect(60, 90 + i * 16, 14, 14);
