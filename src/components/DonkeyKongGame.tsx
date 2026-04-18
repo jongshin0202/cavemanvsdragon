@@ -126,6 +126,10 @@ const DonkeyKongGame = () => {
     princessImg.src = princessSpriteUrl;
     princessRef.current = princessImg;
 
+    const robotImg = new Image();
+    robotImg.src = robotWalkUrl;
+    robotWalkRef.current = robotImg;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       keysRef.current.add(e.key);
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
