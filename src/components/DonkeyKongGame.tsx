@@ -53,6 +53,7 @@ const DonkeyKongGame = () => {
     state: 'playing' as string,
     dkFrame: 0,
     dkAnimTimer: 0,
+    dkSheet: 0 as 0 | 1, // 0 = fire, 1 = angry
     princessAnimTimer: 0,
     helpTimer: 0,
     showHelp: false,
@@ -180,7 +181,12 @@ const DonkeyKongGame = () => {
 
       // Animate dragon and princess smoothly (always running)
       g.dkAnimTimer++;
-      if (g.dkAnimTimer > 20) { g.dkAnimTimer = 0; g.dkFrame = (g.dkFrame + 1) % DRAGON_FRAMES; }
+      if (g.dkAnimTimer > 20) {
+        g.dkAnimTimer = 0;
+        g.dkFrame = (g.dkFrame + 1) % DRAGON_FRAMES;
+        // When a cycle completes, randomly pick which sheet to play next
+        if (g.dkFrame === 0) g.dkSheet = Math.random() < 0.5 ? 0 : 1;
+      }
       g.helpTimer++;
       if (g.helpTimer > 120) { g.helpTimer = 0; g.showHelp = !g.showHelp; }
 
@@ -629,25 +635,27 @@ const DonkeyKongGame = () => {
         ctx.stroke();
       }
 
-      // Dragon boss (with win animation - flip and fall)
-      const dkX = 90;
-      const dragonSize = 48;
-      const dragonImg = dragonRef.current;
+      // Dragon boss (with win animation - flip and fall) - 2x bigger
+      const dkX = 70;
+      const dragonSize = 96;
+      const dragonImg = g.dkSheet === 0 ? dragonFireRef.current : dragonAngryRef.current;
+      const dragonFrameW = dragonImg && dragonImg.naturalWidth > 0 ? dragonImg.naturalWidth / DRAGON_FRAMES : 0;
+      const dragonFrameH = dragonImg ? dragonImg.naturalHeight : 0;
       if (wa.active) {
         ctx.save();
         ctx.translate(dkX + dragonSize / 2, wa.gorillaY + dragonSize / 2);
         ctx.rotate(wa.gorillaRotation);
-        if (dragonImg && dragonImg.complete) {
-          ctx.drawImage(dragonImg, 0, 0, DRAGON_FRAME_W, DRAGON_FRAME_H, -dragonSize / 2, -dragonSize / 2, dragonSize, dragonSize);
+        if (dragonImg && dragonImg.complete && dragonFrameW > 0) {
+          ctx.drawImage(dragonImg, 0, 0, dragonFrameW, dragonFrameH, -dragonSize / 2, -dragonSize / 2, dragonSize, dragonSize);
         } else {
           ctx.fillStyle = '#2d8c2d'; ctx.fillRect(-dragonSize / 2, -dragonSize / 2, dragonSize, dragonSize);
         }
         ctx.restore();
       } else {
-        const dkY = 64;
+        const dkY = 16;
         const frameIdx = g.dkFrame % DRAGON_FRAMES;
-        if (dragonImg && dragonImg.complete) {
-          ctx.drawImage(dragonImg, frameIdx * DRAGON_FRAME_W, 0, DRAGON_FRAME_W, DRAGON_FRAME_H, dkX, dkY, dragonSize, dragonSize);
+        if (dragonImg && dragonImg.complete && dragonFrameW > 0) {
+          ctx.drawImage(dragonImg, frameIdx * dragonFrameW, 0, dragonFrameW, dragonFrameH, dkX, dkY, dragonSize, dragonSize);
         } else {
           ctx.fillStyle = '#2d8c2d'; ctx.fillRect(dkX, dkY, dragonSize, dragonSize);
         }
