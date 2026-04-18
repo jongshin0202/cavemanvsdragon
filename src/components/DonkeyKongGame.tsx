@@ -313,7 +313,12 @@ const DonkeyKongGame = () => {
           const nearBot = climbingLadder && (p.y + p.h) > climbingLadder.yBot - 6;
           const wantsHorizontal = rawLeft || rawRight;
           
-          if (!nearestLadder && !nearTop) {
+          if (jumpPressed) {
+            // Jump pressed while climbing — dismount immediately so the jump can fire below
+            p.climbing = false;
+            if (climbingLadder && nearTop) p.y = climbingLadder.yTop - p.h;
+            p.onGround = !!(climbingLadder && nearTop);
+          } else if (!nearestLadder && !nearTop) {
             p.climbing = false;
           } else if (nearTop && (wantsHorizontal || rawUp)) {
             // Snap to top platform and dismount
