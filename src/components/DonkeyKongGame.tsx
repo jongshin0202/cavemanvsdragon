@@ -620,7 +620,7 @@ const DonkeyKongGame = () => {
           // Collision with player only if on the same platform
           const bPlatY = findPlatformIndex(b.y + b.h, b.x + b.w / 2);
           const pPlatY = findPlatformIndex(p.y + p.h, p.x + p.w / 2);
-          if (rectsOverlap(p, b) && bPlatY === pPlatY) {
+          if (rectsOverlap(p, b) && bPlatY === pPlatY && g.invulnTimer === 0) {
             g.lives--; setLives(g.lives);
             if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
             else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
@@ -737,7 +737,7 @@ const DonkeyKongGame = () => {
               p.vy = -4;
               g.robots.splice(i, 1);
               g.monkeysKilled = (g.monkeysKilled || 0) + 1;
-            } else {
+            } else if (g.invulnTimer === 0) {
               g.lives--; setLives(g.lives);
               if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
               else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
