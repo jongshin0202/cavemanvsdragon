@@ -5,28 +5,21 @@ import {
   Barrel, Robot
 } from './game/constants';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound } from './game/sounds';
-import cavemanSpriteUrl from '@/assets/caveman-sprite.png';
 import cavemanWalkUrl from '@/assets/caveman-walk.png';
 import cavemanJumpUrl from '@/assets/caveman-jump.png';
 import cavemanClimbUrl from '@/assets/caveman-climb.png';
 import cavemanWinUrl from '@/assets/caveman-win.png';
-import dragonSpriteUrl from '@/assets/dragon-sprite.png';
+import dragonFireUrl from '@/assets/dragon-fire.png';
+import dragonAngryUrl from '@/assets/dragon-angry.png';
 import princessSpriteUrl from '@/assets/princess-sprite.png';
 import robotWalkUrl from '@/assets/robot-walk.png';
 
 const ROBOT_WALK_FRAMES = 5;
 
-// Dragon sprite sheet config (idle row: top row, 4 frames)
-const DRAGON_FRAME_W = 130;
-const DRAGON_FRAME_H = 140;
-const DRAGON_FRAMES = 4; // idle frames in top row
+// Dragon sprite sheets: each has 5 frames, randomly alternated
+const DRAGON_FRAMES = 5;
 
 const LADDER_SNAP = 30;
-
-// Sprite sheet config: 7 cols top row (walk), 7 cols mid row (attack+fall), 5 cols bottom row (hurt/die)
-const SPRITE_COLS = 7;
-const SPRITE_W = 190; // approximate frame width
-const SPRITE_H = 200; // approximate frame height
 
 const DonkeyKongGame = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -34,12 +27,12 @@ const DonkeyKongGame = () => {
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
   const [gameState, setGameState] = useState<'playing' | 'gameover' | 'win'>('playing');
-  const spriteRef = useRef<HTMLImageElement | null>(null);
   const walkSpriteRef = useRef<HTMLImageElement | null>(null);
   const jumpSpriteRef = useRef<HTMLImageElement | null>(null);
   const climbSpriteRef = useRef<HTMLImageElement | null>(null);
   const winSpriteRef = useRef<HTMLImageElement | null>(null);
-  const dragonRef = useRef<HTMLImageElement | null>(null);
+  const dragonFireRef = useRef<HTMLImageElement | null>(null);
+  const dragonAngryRef = useRef<HTMLImageElement | null>(null);
   const princessRef = useRef<HTMLImageElement | null>(null);
   const robotWalkRef = useRef<HTMLImageElement | null>(null);
   const gameRef = useRef({
@@ -55,6 +48,7 @@ const DonkeyKongGame = () => {
     state: 'playing' as string,
     dkFrame: 0,
     dkAnimTimer: 0,
+    dkSheet: 0 as 0 | 1, // 0 = fire, 1 = angry
     princessAnimTimer: 0,
     helpTimer: 0,
     showHelp: false,
@@ -97,11 +91,7 @@ const DonkeyKongGame = () => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
 
-    // Load sprite
-    const spriteImg = new Image();
-    spriteImg.src = cavemanSpriteUrl;
-    spriteRef.current = spriteImg;
-
+    // Load sprites
     const walkImg = new Image();
     walkImg.src = cavemanWalkUrl;
     walkSpriteRef.current = walkImg;
@@ -118,9 +108,13 @@ const DonkeyKongGame = () => {
     winImg.src = cavemanWinUrl;
     winSpriteRef.current = winImg;
 
-    const dragonImg = new Image();
-    dragonImg.src = dragonSpriteUrl;
-    dragonRef.current = dragonImg;
+    const dragonFireImg = new Image();
+    dragonFireImg.src = dragonFireUrl;
+    dragonFireRef.current = dragonFireImg;
+
+    const dragonAngryImg = new Image();
+    dragonAngryImg.src = dragonAngryUrl;
+    dragonAngryRef.current = dragonAngryImg;
 
     const princessImg = new Image();
     princessImg.src = princessSpriteUrl;
@@ -182,7 +176,12 @@ const DonkeyKongGame = () => {
 
       // Animate dragon and princess smoothly (always running)
       g.dkAnimTimer++;
-      if (g.dkAnimTimer > 20) { g.dkAnimTimer = 0; g.dkFrame = (g.dkFrame + 1) % DRAGON_FRAMES; }
+      if (g.dkAnimTimer > 20) {
+        g.dkAnimTimer = 0;
+        g.dkFrame = (g.dkFrame + 1) % DRAGON_FRAMES;
+        // When a cycle completes, randomly pick which sheet to play next
+        if (g.dkFrame === 0) g.dkSheet = Math.random() < 0.5 ? 0 : 1;
+      }
       g.helpTimer++;
       if (g.helpTimer > 120) { g.helpTimer = 0; g.showHelp = !g.showHelp; }
 
@@ -631,25 +630,27 @@ const DonkeyKongGame = () => {
         ctx.stroke();
       }
 
-      // Dragon boss (with win animation - flip and fall)
-      const dkX = 90;
-      const dragonSize = 48;
-      const dragonImg = dragonRef.current;
+      // Dragon boss (with win animation - flip and fall) - 2x bigger
+      const dkX = 70;
+      const dragonSize = 96;
+      const dragonImg = g.dkSheet === 0 ? dragonFireRef.current : dragonAngryRef.current;
+      const dragonFrameW = dragonImg && dragonImg.naturalWidth > 0 ? dragonImg.naturalWidth / DRAGON_FRAMES : 0;
+      const dragonFrameH = dragonImg ? dragonImg.naturalHeight : 0;
       if (wa.active) {
         ctx.save();
         ctx.translate(dkX + dragonSize / 2, wa.gorillaY + dragonSize / 2);
         ctx.rotate(wa.gorillaRotation);
-        if (dragonImg && dragonImg.complete) {
-          ctx.drawImage(dragonImg, 0, 0, DRAGON_FRAME_W, DRAGON_FRAME_H, -dragonSize / 2, -dragonSize / 2, dragonSize, dragonSize);
+        if (dragonImg && dragonImg.complete && dragonFrameW > 0) {
+          ctx.drawImage(dragonImg, 0, 0, dragonFrameW, dragonFrameH, -dragonSize / 2, -dragonSize / 2, dragonSize, dragonSize);
         } else {
           ctx.fillStyle = '#2d8c2d'; ctx.fillRect(-dragonSize / 2, -dragonSize / 2, dragonSize, dragonSize);
         }
         ctx.restore();
       } else {
-        const dkY = 64;
+        const dkY = 16;
         const frameIdx = g.dkFrame % DRAGON_FRAMES;
-        if (dragonImg && dragonImg.complete) {
-          ctx.drawImage(dragonImg, frameIdx * DRAGON_FRAME_W, 0, DRAGON_FRAME_W, DRAGON_FRAME_H, dkX, dkY, dragonSize, dragonSize);
+        if (dragonImg && dragonImg.complete && dragonFrameW > 0) {
+          ctx.drawImage(dragonImg, frameIdx * dragonFrameW, 0, dragonFrameW, dragonFrameH, dkX, dkY, dragonSize, dragonSize);
         } else {
           ctx.fillStyle = '#2d8c2d'; ctx.fillRect(dkX, dkY, dragonSize, dragonSize);
         }
@@ -727,7 +728,6 @@ const DonkeyKongGame = () => {
       // Player (Caveman sprite) - flash when dying (0.25s on/off = 15 frames)
       const pl = g.player;
       const showPlayer = !g.dying || Math.floor(g.deathFlashTimer / 15) % 2 === 0;
-      const sprite = spriteRef.current;
       const walkSprite = walkSpriteRef.current;
       const jumpSprite = jumpSpriteRef.current;
       const climbSprite = climbSpriteRef.current;
@@ -778,26 +778,8 @@ const DonkeyKongGame = () => {
           ctx.drawImage(walkSprite, sx, sy, sw, sh, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
         }
         ctx.restore();
-      } else if (showPlayer && sprite && sprite.complete && sprite.naturalWidth > 0) {
-        const row = pl.jumping ? 1 : 0;
-        const col = pl.jumping ? 4 : 0;
-        const sw = sprite.naturalWidth / SPRITE_COLS;
-        const sh = sprite.naturalHeight / 3;
-        const sx = col * sw;
-        const sy = row * sh;
-        const drawW = 28;
-        const drawH = 32;
-        ctx.save();
-        if (pl.facing < 0) {
-          ctx.translate(pl.x + pl.w / 2, 0);
-          ctx.scale(-1, 1);
-          ctx.drawImage(sprite, sx, sy, sw, sh, -drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
-        } else {
-          ctx.drawImage(sprite, sx, sy, sw, sh, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
-        }
-        ctx.restore();
       } else if (showPlayer) {
-        // Fallback pixel art
+        // Fallback pixel art (only if new sprites haven't loaded yet)
         ctx.fillStyle = '#FF0000'; ctx.fillRect(pl.x + 2, pl.y, 12, 4);
         ctx.fillStyle = '#FFB366'; ctx.fillRect(pl.x + 2, pl.y + 4, 12, 6);
         ctx.fillStyle = '#FF0000'; ctx.fillRect(pl.x, pl.y + 10, 16, 8);
