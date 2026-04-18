@@ -244,13 +244,7 @@ const CavemanVsDragonGame = () => {
       if (g.state === 'playing' && !g.dying) {
         // Decrement invulnerability after respawn
         if (g.invulnTimer > 0) g.invulnTimer--;
-        // Random dragon roar every 5–15 seconds (princess sound removed)
-        g.roarTimer++;
-        if (g.roarTimer >= g.nextRoarTime && !isDragonRoaringNow()) {
-          playDragonRoarTracked();
-          g.roarTimer = 0;
-          g.nextRoarTime = 300 + Math.floor(Math.random() * 600);
-        }
+        // Periodic dragon roar and princess "Help!" sounds removed per user request.
         // === PLAYER MOVEMENT ===
         // Wider snap: find nearest ladder within LADDER_SNAP pixels
         const playerCX = p.x + p.w / 2;
