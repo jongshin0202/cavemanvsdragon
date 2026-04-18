@@ -81,6 +81,7 @@ const DonkeyKongGame = () => {
     keyPos: { x: 50, y: 158, w: 14, h: 14 }, // leftmost edge of P5 (y=176, x1=48)
     keyBob: 0,
     sparkleTimer: 0,
+    invulnTimer: 0,
   });
 
   const resetPlayer = useCallback(() => {
@@ -90,6 +91,8 @@ const DonkeyKongGame = () => {
     g.barrelTimer = 0;
     g.pendingClimb = null;
     g.courseDir = 0;
+    // Brief invulnerability so we don't die on the same frame we respawn
+    g.invulnTimer = 120; // ~2s at 60fps
   }, []);
 
   const resetGame = useCallback(() => {
