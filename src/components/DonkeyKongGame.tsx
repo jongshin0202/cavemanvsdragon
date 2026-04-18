@@ -375,19 +375,29 @@ const DonkeyKongGame = () => {
           const ky = getPlatformY(p5, kx) - 16;
           g.keyPos = { x: kx, y: ky, w: 14, h: 14 };
         }
-        // Pick up the key
+        // Pick up the watering can
         if (g.keySpawned && !g.keyGrabbed) {
           g.keyBob = (g.keyBob + 1) % 120;
           if (g.keyPos && rectsOverlap(p, g.keyPos)) {
             g.keyGrabbed = true;
-            g.seedPlanted = true; // triggers vine-grow animation
             g.score += 300; setScore(g.score);
             playKeyGrabSound();
-            // Watering / sprout sound right as the vine starts to grow
+          }
+        }
+        // Carry the watering can to the sprout: when player reaches the
+        // sprout location on P5, plant/water it and start the vine growing.
+        if (g.keyGrabbed && !g.seedPlanted) {
+          const tv = LADDERS[TOP_VINE_IDX];
+          const sproutX = tv.x + 7;
+          const sproutY = tv.yBot;
+          const playerCXNow = p.x + p.w / 2;
+          const playerFeetNow = p.y + p.h;
+          if (Math.abs(playerCXNow - sproutX) < 14 && Math.abs(playerFeetNow - sproutY) < 12) {
+            g.seedPlanted = true; // triggers vine-grow animation
             playWaterSproutSound();
           }
         }
-        // Grow the vine after key grab (~1.5s at 45fps ≈ 68 frames)
+        // Grow the vine after watering (~1.5s at 60fps ≈ 68 frames)
         if (g.seedPlanted && g.topVineGrowth < 1) {
           g.topVineGrowth = Math.min(1, g.topVineGrowth + 1 / 68);
           g.sparkleTimer++;
