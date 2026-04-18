@@ -819,23 +819,29 @@ const DonkeyKongGame = () => {
       ctx.fillText(`SCORE: ${g.score}`, 10, 20);
       ctx.fillText(`LIVES: ${'♥'.repeat(g.lives)}`, 350, 20);
 
-      // Overlays
+      // Overlays - large, centered
+      ctx.textAlign = 'center';
       if (g.state === 'gameover') {
-        ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-        ctx.fillStyle = '#FF0000'; ctx.font = '20px var(--font-arcade)';
-        ctx.fillText('GAME OVER', 120, 220);
-        ctx.fillStyle = '#FFFFFF'; ctx.font = '10px var(--font-arcade)';
-        ctx.fillText('Press R to restart', 140, 260);
+        ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.fillStyle = '#FF3030'; ctx.font = 'bold 44px var(--font-arcade)';
+        ctx.fillText('GAME OVER', CANVAS_W / 2, CANVAS_H / 2 - 30);
+        ctx.fillStyle = '#FFD700'; ctx.font = 'bold 22px var(--font-arcade)';
+        ctx.fillText(`SCORE: ${g.score}`, CANVAS_W / 2, CANVAS_H / 2 + 20);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 20px var(--font-arcade)';
+        ctx.fillText('Press R to restart', CANVAS_W / 2, CANVAS_H / 2 + 60);
       }
       if (g.state === 'win' && wa.showCongrats) {
-        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 150, CANVAS_W, 100);
-        ctx.fillStyle = '#FFD700'; ctx.font = '16px var(--font-arcade)';
-        ctx.fillText('Congratulations!', 100, 190);
-        ctx.fillText('You Won!', 160, 220);
-        ctx.fillStyle = '#FFFFFF'; ctx.font = '10px var(--font-arcade)';
-        ctx.fillText(`Score: ${g.score}`, 190, 240);
-        ctx.fillText('Press R to restart', 150, 260);
+        ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.fillStyle = '#FFD700'; ctx.font = 'bold 36px var(--font-arcade)';
+        ctx.fillText('Congratulations!', CANVAS_W / 2, CANVAS_H / 2 - 50);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 32px var(--font-arcade)';
+        ctx.fillText('You Won!', CANVAS_W / 2, CANVAS_H / 2 - 10);
+        ctx.fillStyle = '#FFD700'; ctx.font = 'bold 24px var(--font-arcade)';
+        ctx.fillText(`Score: ${g.score}`, CANVAS_W / 2, CANVAS_H / 2 + 30);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 20px var(--font-arcade)';
+        ctx.fillText('Press R to restart', CANVAS_W / 2, CANVAS_H / 2 + 70);
       }
+      ctx.textAlign = 'start';
 
       ctx.restore();
       animId = requestAnimationFrame((t) => gameLoop(t));
