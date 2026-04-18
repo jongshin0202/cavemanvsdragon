@@ -855,38 +855,90 @@ const DonkeyKongGame = () => {
     if (type === 'down') keysRef.current.add(key); else keysRef.current.delete(key);
   }, []);
 
-  const handleDown = useCallback((key: string) => ({
-    onTouchStart: (e: React.TouchEvent) => { e.preventDefault(); simulateKey(key, 'down'); },
-    onTouchEnd: (e: React.TouchEvent) => { e.preventDefault(); simulateKey(key, 'up'); },
-    onMouseDown: () => simulateKey(key, 'down'),
-    onMouseUp: () => simulateKey(key, 'up'),
-    onMouseLeave: () => simulateKey(key, 'up'),
-  }), [simulateKey]);
+  // Slide-aware D-pad: track which button the pointer is over and only press that one
+  const padRef = useRef<HTMLDivElement>(null);
+  const activePadKeyRef = useRef<string | null>(null);
+  const DPAD_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+
+  const updatePadFromPoint = useCallback((clientX: number, clientY: number) => {
+    const el = document.elementFromPoint(clientX, clientY) as HTMLElement | null;
+    const key = el?.getAttribute('data-padkey');
+    const next = key && DPAD_KEYS.includes(key) ? key : null;
+    if (activePadKeyRef.current !== next) {
+      if (activePadKeyRef.current) simulateKey(activePadKeyRef.current, 'up');
+      if (next) simulateKey(next, 'down');
+      activePadKeyRef.current = next;
+    }
+  }, [simulateKey]);
+
+  const clearPad = useCallback(() => {
+    if (activePadKeyRef.current) {
+      simulateKey(activePadKeyRef.current, 'up');
+      activePadKeyRef.current = null;
+    }
+  }, [simulateKey]);
+
+  const padHandlers = {
+    onPointerDown: (e: React.PointerEvent) => {
+      e.preventDefault();
+      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+      updatePadFromPoint(e.clientX, e.clientY);
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      if (e.buttons === 0 && e.pointerType === 'mouse') return;
+      updatePadFromPoint(e.clientX, e.clientY);
+    },
+    onPointerUp: (e: React.PointerEvent) => { e.preventDefault(); clearPad(); },
+    onPointerCancel: () => clearPad(),
+    onPointerLeave: (e: React.PointerEvent) => { if (e.pointerType === 'mouse' && e.buttons === 0) clearPad(); },
+  };
+
+  // Tap-only handler for jump / R (must be pressed, not slid into)
+  const tapHandlers = (key: string) => ({
+    onPointerDown: (e: React.PointerEvent) => {
+      e.preventDefault();
+      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+      simulateKey(key, 'down');
+    },
+    onPointerUp: (e: React.PointerEvent) => { e.preventDefault(); simulateKey(key, 'up'); },
+    onPointerCancel: () => simulateKey(key, 'up'),
+  });
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen gap-2 p-2 select-none">
-      <h1 className="text-accent text-sm tracking-wider">DRAGON KONG</h1>
-      <div className="border-4 border-primary rounded-sm shadow-[0_0_30px_rgba(212,42,42,0.3)]">
-        <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
-          className="block w-full max-w-[512px]" style={{ imageRendering: 'pixelated' }} tabIndex={0} />
+    <div className="flex flex-col items-center justify-between min-h-screen gap-2 p-2 select-none">
+      <div className="w-full flex-1 flex items-center justify-center">
+        <div className="border-4 border-primary rounded-sm shadow-[0_0_30px_rgba(212,42,42,0.3)] w-full max-w-[800px]">
+          <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
+            className="block w-full h-auto" style={{ imageRendering: 'pixelated', aspectRatio: `${CANVAS_W} / ${CANVAS_H}` }} tabIndex={0} />
+        </div>
       </div>
-      <div className="flex w-full max-w-[512px] justify-between items-end mt-2 touch-none">
-        <div className="grid grid-cols-3 grid-rows-3 gap-0 w-40 h-40">
+      <div className="flex w-full max-w-[800px] justify-between items-center gap-2 mt-2 touch-none">
+        <div
+          ref={padRef}
+          className="grid grid-cols-3 grid-rows-3 gap-1 w-56 h-56 touch-none"
+          {...padHandlers}
+        >
           <div />
-          <button className="bg-muted active:bg-primary rounded text-foreground text-2xl flex items-center justify-center p-4 -m-1 z-10" {...handleDown('ArrowUp')}>↑</button>
+          <button data-padkey="ArrowUp" className="bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold">↑</button>
           <div />
-          <button className="bg-muted active:bg-primary rounded text-foreground text-2xl flex items-center justify-center p-4 -m-1 z-10" {...handleDown('ArrowLeft')}>←</button>
+          <button data-padkey="ArrowLeft" className="bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold">←</button>
           <div />
-          <button className="bg-muted active:bg-primary rounded text-foreground text-2xl flex items-center justify-center p-4 -m-1 z-10" {...handleDown('ArrowRight')}>→</button>
+          <button data-padkey="ArrowRight" className="bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold">→</button>
           <div />
-          <button className="bg-muted active:bg-primary rounded text-foreground text-2xl flex items-center justify-center p-4 -m-1 z-10" {...handleDown('ArrowDown')}>↓</button>
+          <button data-padkey="ArrowDown" className="bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold">↓</button>
           <div />
         </div>
-        <div className="flex gap-3 items-center">
-          <button className="w-20 h-20 rounded-full bg-primary text-primary-foreground text-sm font-bold active:scale-95" {...handleDown(' ')}>JUMP</button>
-          <button className="w-14 h-14 rounded-full bg-accent text-accent-foreground text-xs font-bold active:scale-95"
-            onMouseDown={() => resetGame()} onTouchStart={() => resetGame()}>R</button>
-        </div>
+
+        {/* R button placed BETWEEN arrows and jump so it isn't accidentally pressed */}
+        <button
+          className="w-12 h-12 rounded-full bg-accent text-accent-foreground text-sm font-bold active:scale-95 shrink-0"
+          onPointerDown={(e) => { e.preventDefault(); resetGame(); }}
+        >R</button>
+
+        <button
+          className="w-32 h-32 rounded-full bg-primary text-primary-foreground text-xl font-bold active:scale-95 shrink-0"
+          {...tapHandlers(' ')}
+        >JUMP</button>
       </div>
     </div>
   );
