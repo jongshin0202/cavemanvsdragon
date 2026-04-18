@@ -420,9 +420,9 @@ const DonkeyKongGame = () => {
           if (g.topVineGrowth >= 1) g.topVineUnlocked = true;
         }
 
-        // Win condition - touch the girl (on top vine)
-        const paulX = 350 - 12 + 7, paulY = 80;
-        if (rectsOverlap(p, { x: paulX, y: paulY, w: 24, h: 32 })) {
+        // Win condition - touch the girl (next to the dragon)
+        const paulX = 175, paulY = 64;
+        if (rectsOverlap(p, { x: paulX, y: paulY, w: 40, h: 48 })) {
           g.state = 'win'; setGameState('win');
           g.score += 1000; setScore(g.score); playWinSound();
           wa.active = true;
