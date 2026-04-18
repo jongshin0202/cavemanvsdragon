@@ -4,7 +4,7 @@ import {
   PLATFORMS, LADDERS, getPlatformY, rectsOverlap, findPlatformIndex, findBestLadder,
   Barrel, Robot
 } from './game/constants';
-import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarTracked, playPrincessHelpSound, isDragonRoaringNow } from './game/sounds';
+import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarTracked, playPrincessHelpSound, isDragonRoaringNow, unlockAudio } from './game/sounds';
 import cavemanWalkUrl from '@/assets/caveman-walk.png';
 import cavemanJumpUrl from '@/assets/caveman-jump.png';
 import cavemanClimbUrl from '@/assets/caveman-climb.png';
@@ -49,7 +49,7 @@ const CavemanVsDragonGame = () => {
     barrels: [] as Barrel[],
     robots: [] as (Robot & { wanderTimer?: number; wanderDir?: number })[],
     barrelTimer: 0,
-    nextBarrelTime: 90 + Math.random() * 180,
+    nextBarrelTime: 30, // first barrel within ~0.5s
     robotSpawnTimer: 0,
     robotsInitialized: false,
     score: 0,
@@ -66,7 +66,7 @@ const CavemanVsDragonGame = () => {
     deathFlashTimer: 0,
     dying: false,
     frameCount: 0,
-    playerHasMoved: false,
+    playerHasMoved: true, // start spawning barrels and audio immediately
     barrelStartDelay: 0,
     winAnim: { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 },
     pendingClimb: null as null | 'up' | 'down',
@@ -178,13 +178,17 @@ const CavemanVsDragonGame = () => {
     wateringCanRef.current = canImg;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      unlockAudio();
       keysRef.current.add(e.key);
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
       if (e.key === 'r' || e.key === 'R') resetGame();
     };
     const handleKeyUp = (e: KeyboardEvent) => keysRef.current.delete(e.key);
+    const handleFirstGesture = () => { unlockAudio(); };
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('pointerdown', handleFirstGesture);
+    window.addEventListener('touchstart', handleFirstGesture, { passive: true });
 
     let animId: number;
 
@@ -1132,7 +1136,13 @@ const CavemanVsDragonGame = () => {
     };
 
     animId = requestAnimationFrame((t) => gameLoop(t));
-    return () => { cancelAnimationFrame(animId); window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp); };
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('pointerdown', handleFirstGesture);
+      window.removeEventListener('touchstart', handleFirstGesture);
+    };
   }, [resetGame, resetPlayer]);
 
   // Direct, synchronous vibrate — Android is more reliable with a cleared pattern
