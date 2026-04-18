@@ -269,7 +269,7 @@ const DonkeyKongGame = () => {
             if (keys.has('ArrowDown')) p.y += CLIMB_SPEED;
             if (climbMoving) {
               p.climbTimer++;
-              if (p.climbTimer > 8) { p.climbTimer = 0; p.climbFrame = (p.climbFrame + 1) % 4; }
+              if (p.climbTimer > 4) { p.climbTimer = 0; p.climbFrame = (p.climbFrame + 1) % 4; }
             }
           }
         }
@@ -279,7 +279,7 @@ const DonkeyKongGame = () => {
           if (moving && !g.playerHasMoved) { g.playerHasMoved = true; g.barrelStartDelay = 22; g.barrelTimer = 0; g.nextBarrelTime = 22; }
           if (keys.has('ArrowLeft')) { p.x -= MOVE_SPEED; p.facing = -1; }
           if (keys.has('ArrowRight')) { p.x += MOVE_SPEED; p.facing = 1; }
-          if (moving && p.onGround) { p.walkTimer++; if (p.walkTimer > 6) { p.walkTimer = 0; p.walkFrame = (p.walkFrame + 1) % 4; } }
+          if (moving && p.onGround) { p.walkTimer++; if (p.walkTimer > 3) { p.walkTimer = 0; p.walkFrame = (p.walkFrame + 1) % 4; } }
           else if (!moving) { p.walkFrame = 0; p.walkTimer = 0; }
           if ((keys.has(' ')) && p.onGround) {
             p.vy = -5; p.onGround = false; p.jumping = true;
@@ -301,7 +301,7 @@ const DonkeyKongGame = () => {
           // Advance jump frame animation while in air
           if (p.jumping) {
             p.jumpTimer++;
-            if (p.jumpTimer > 4 && p.jumpFrame < 4) { p.jumpTimer = 0; p.jumpFrame++; }
+            if (p.jumpTimer > 2 && p.jumpFrame < 4) { p.jumpTimer = 0; p.jumpFrame++; }
           }
         }
 
@@ -528,7 +528,7 @@ const DonkeyKongGame = () => {
 
           // Smooth, time-based animation (not position-based)
           r.frameTimer++;
-          if (r.frameTimer >= 5) { r.frameTimer = 0; r.frame = (r.frame + 1) % ROBOT_WALK_FRAMES; }
+          if (r.frameTimer >= 3) { r.frameTimer = 0; r.frame = (r.frame + 1) % ROBOT_WALK_FRAMES; }
 
           if (r.climbing) {
             r.y += r.vy;
@@ -777,7 +777,7 @@ const DonkeyKongGame = () => {
       for (const b of g.barrels) {
         if (rockImg && rockImg.complete && rockFrameW > 0) {
           // Smooth animation: advance one frame every 4 game ticks regardless of speed
-          const frameIdx = Math.floor((b.rollPhase || 0) / 4) % ROCK_FRAMES;
+          const frameIdx = Math.floor((b.rollPhase || 0) / 2) % ROCK_FRAMES;
           const drawSize = (b.w + 4) * 1.5; // 50% bigger
           const cx = b.x + b.w / 2;
           const cy = b.y + b.h / 2;
@@ -945,7 +945,7 @@ const DonkeyKongGame = () => {
     const next = key && DPAD_KEYS.includes(key) ? key : null;
     if (activePadKeyRef.current !== next) {
       if (activePadKeyRef.current) simulateKey(activePadKeyRef.current, 'up');
-      if (next) { simulateKey(next, 'down'); vibrate(15); }
+      if (next) { simulateKey(next, 'down'); vibrate(25); }
       activePadKeyRef.current = next;
     }
   }, [simulateKey, vibrate]);
@@ -978,7 +978,7 @@ const DonkeyKongGame = () => {
       e.preventDefault();
       (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
       simulateKey(key, 'down');
-      vibrate(20);
+      vibrate(35);
     },
     onPointerUp: (e: React.PointerEvent) => { e.preventDefault(); simulateKey(key, 'up'); },
     onPointerCancel: () => simulateKey(key, 'up'),
