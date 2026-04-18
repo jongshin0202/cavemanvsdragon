@@ -105,7 +105,7 @@ const CavemanVsDragonGame = () => {
     g.robots = [];
     g.robotSpawnTimer = 0;
     g.robotsInitialized = false;
-    g.nextBarrelTime = 60 + Math.random() * 120;
+    g.nextBarrelTime = 69 + Math.random() * 138;
     g.frameCount = 0;
     g.playerHasMoved = true;
     g.barrelStartDelay = 0;
