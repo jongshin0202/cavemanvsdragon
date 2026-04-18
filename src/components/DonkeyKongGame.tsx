@@ -944,29 +944,30 @@ const DonkeyKongGame = () => {
     return () => { cancelAnimationFrame(animId); window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp); };
   }, [resetGame, resetPlayer]);
 
-  // Direct, synchronous vibrate — must be called inside the React event handler
-  // (some browsers gate vibrate() behind a fresh user-gesture stack frame).
+  // Direct, synchronous vibrate — Android is more reliable with a cleared pattern
+  // and a slightly longer minimum pulse fired directly from touch/pointer handlers.
   const vibrateNow = (ms: number) => {
     try {
       const nav = typeof navigator !== 'undefined' ? (navigator as Navigator & { vibrate?: (p: number | number[]) => boolean }) : null;
-      if (nav && typeof nav.vibrate === 'function') nav.vibrate(ms);
+      if (!nav || typeof nav.vibrate !== 'function') return;
+      const duration = Math.max(18, Math.round(ms));
+      nav.vibrate(0);
+      nav.vibrate(duration);
     } catch {}
   };
   const lastHapticAtRef = useRef(0);
   const pulseHaptic = (ms: number) => {
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    if (now - lastHapticAtRef.current < 24) return;
+    if (now - lastHapticAtRef.current < 18) return;
     lastHapticAtRef.current = now;
     vibrateNow(ms);
   };
 
-  // One-time vibration "unlock" on first user gesture (Chrome Android requires
-  // a prior user gesture before vibration calls inside async callbacks fire).
   const vibrateUnlockedRef = useRef(false);
   const ensureVibrateUnlocked = () => {
     if (!vibrateUnlockedRef.current) {
       vibrateUnlockedRef.current = true;
-      vibrateNow(1);
+      vibrateNow(18);
     }
   };
 
@@ -974,7 +975,6 @@ const DonkeyKongGame = () => {
     if (type === 'down') keysRef.current.add(key); else keysRef.current.delete(key);
   }, []);
 
-  // Slide-aware D-pad: supports diagonal data-padkey like "ArrowUp+ArrowLeft"
   const padRef = useRef<HTMLDivElement>(null);
   const activePadKeysRef = useRef<string[]>([]);
   const DPAD_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
@@ -987,7 +987,7 @@ const DonkeyKongGame = () => {
     const cur = activePadKeysRef.current;
     cur.forEach((k) => { if (!next.includes(k)) simulateKey(k, 'up'); });
     next.forEach((k) => { if (!cur.includes(k)) simulateKey(k, 'down'); });
-    if (next.length && next.join(',') !== cur.join(',')) pulseHaptic(30);
+    if (next.length && next.join(',') !== cur.join(',')) pulseHaptic(35);
     activePadKeysRef.current = next;
   };
 
@@ -1001,7 +1001,7 @@ const DonkeyKongGame = () => {
   const pressPadKey = (rawKey: string) => {
     ensureVibrateUnlocked();
     setActiveKeys(padKeyToKeys(rawKey));
-    pulseHaptic(30);
+    pulseHaptic(35);
   };
 
   const padHandlers = {
@@ -1018,9 +1018,21 @@ const DonkeyKongGame = () => {
     onPointerUp: (e: React.PointerEvent) => { e.preventDefault(); clearPad(); },
     onPointerCancel: () => clearPad(),
     onPointerLeave: (e: React.PointerEvent) => { if (e.pointerType === 'mouse' && e.buttons === 0) clearPad(); },
+    onTouchStart: (e: React.TouchEvent) => {
+      e.preventDefault();
+      ensureVibrateUnlocked();
+      const touch = e.touches[0];
+      if (touch) updatePadFromPoint(touch.clientX, touch.clientY);
+    },
+    onTouchMove: (e: React.TouchEvent) => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      if (touch) updatePadFromPoint(touch.clientX, touch.clientY);
+    },
+    onTouchEnd: (e: React.TouchEvent) => { e.preventDefault(); clearPad(); },
+    onTouchCancel: () => clearPad(),
   };
 
-  // Tap-only handler for jump / R (must be pressed, not slid into)
   const tapHandlers = (key: string, vibMs = 40) => ({
     onPointerDown: (e: React.PointerEvent) => {
       e.preventDefault();
@@ -1031,6 +1043,14 @@ const DonkeyKongGame = () => {
     },
     onPointerUp: (e: React.PointerEvent) => { e.preventDefault(); simulateKey(key, 'up'); },
     onPointerCancel: () => simulateKey(key, 'up'),
+    onTouchStart: (e: React.TouchEvent) => {
+      e.preventDefault();
+      ensureVibrateUnlocked();
+      pulseHaptic(vibMs);
+      simulateKey(key, 'down');
+    },
+    onTouchEnd: (e: React.TouchEvent) => { e.preventDefault(); simulateKey(key, 'up'); },
+    onTouchCancel: () => simulateKey(key, 'up'),
   });
 
   return (
@@ -1045,35 +1065,21 @@ const DonkeyKongGame = () => {
       {/* Controls — fixed compact height to maximize game area */}
       <div className="h-[26vh] max-h-[220px] min-h-[140px] w-full flex items-stretch justify-between gap-2 px-2 py-2 touch-none shrink-0">
 
-        {/* D-pad: wide Up & Down bars, L/R near-connected in center & slightly taller, diagonals at corners */}
+        {/* Locked D-pad shape: box-style arrows only, wide Up/Down, L/R centered and slightly taller */}
         <div
           ref={padRef}
-          className="grid flex-1 h-full touch-none gap-1"
-          style={{ gridTemplateColumns: '1fr 2.4fr 1fr', gridTemplateRows: '0.9fr 1.2fr 0.9fr' }}
+          className="flex flex-1 h-full touch-none flex-col gap-1"
           {...padHandlers}
         >
-          {/* Row 1: UpLeft (small corner), Up (WIDE), UpRight (small corner) */}
-          <button
-            data-padkey="ArrowUp+ArrowLeft"
-            className="bg-muted/70 active:bg-primary rounded-lg text-foreground text-lg flex items-center justify-center font-bold"
-            onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowUp+ArrowLeft'); }}
-            onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowUp+ArrowLeft'); }}
-          >↖</button>
           <button
             data-padkey="ArrowUp"
-            className="bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold"
+            style={{ flexGrow: 0.95, flexBasis: 0, width: '74%' }}
+            className="self-center bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold"
             onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowUp'); }}
             onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowUp'); }}
           >↑</button>
-          <button
-            data-padkey="ArrowUp+ArrowRight"
-            className="bg-muted/70 active:bg-primary rounded-lg text-foreground text-lg flex items-center justify-center font-bold"
-            onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowUp+ArrowRight'); }}
-            onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowUp+ArrowRight'); }}
-          >↗</button>
 
-          {/* Row 2: Left & Right meet near center (taller). Span 3 cols with inner flex so they nearly touch. */}
-          <div className="col-span-3 flex items-stretch gap-1">
+          <div style={{ flexGrow: 1.1, flexBasis: 0 }} className="w-full flex items-stretch gap-1">
             <button
               data-padkey="ArrowLeft"
               className="flex-1 bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-end pr-4 font-bold"
@@ -1088,38 +1094,26 @@ const DonkeyKongGame = () => {
             >→</button>
           </div>
 
-          {/* Row 3: DownLeft (small corner), Down (WIDE), DownRight (small corner) */}
-          <button
-            data-padkey="ArrowDown+ArrowLeft"
-            className="bg-muted/70 active:bg-primary rounded-lg text-foreground text-lg flex items-center justify-center font-bold"
-            onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowDown+ArrowLeft'); }}
-            onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowDown+ArrowLeft'); }}
-          >↙</button>
           <button
             data-padkey="ArrowDown"
-            className="bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold"
+            style={{ flexGrow: 0.95, flexBasis: 0, width: '74%' }}
+            className="self-center bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold"
             onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowDown'); }}
             onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowDown'); }}
           >↓</button>
-          <button
-            data-padkey="ArrowDown+ArrowRight"
-            className="bg-muted/70 active:bg-primary rounded-lg text-foreground text-lg flex items-center justify-center font-bold"
-            onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowDown+ArrowRight'); }}
-            onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowDown+ArrowRight'); }}
-          >↘</button>
         </div>
 
         {/* R button — small, between arrows and jump, must be tapped (not slid) */}
         <button
           className="w-10 h-10 self-center rounded-full bg-accent text-accent-foreground text-sm font-bold active:scale-95 shrink-0"
-          onPointerDown={(e) => { e.preventDefault(); ensureVibrateUnlocked(); pulseHaptic(40); resetGame(); }}
-          onTouchStart={(e) => { e.preventDefault(); ensureVibrateUnlocked(); pulseHaptic(40); resetGame(); }}
+          onPointerDown={(e) => { e.preventDefault(); ensureVibrateUnlocked(); pulseHaptic(45); resetGame(); }}
+          onTouchStart={(e) => { e.preventDefault(); ensureVibrateUnlocked(); pulseHaptic(45); resetGame(); }}
         >R</button>
 
         {/* JUMP button — extra-large, tap-only */}
         <button
           className="h-full aspect-square rounded-full bg-primary text-primary-foreground text-2xl font-bold active:scale-95 shrink-0"
-          {...tapHandlers(' ')}
+          {...tapHandlers(' ', 45)}
         >JUMP</button>
       </div>
     </div>
