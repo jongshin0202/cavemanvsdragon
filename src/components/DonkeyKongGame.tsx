@@ -279,7 +279,11 @@ const DonkeyKongGame = () => {
         const wantUp = rawUp || g.pendingClimb === 'up';
         const wantDown = rawDown || g.pendingClimb === 'down';
 
-        if (wantUp && nearestLadder) {
+        // Jump always takes priority — even if Up is held over a ladder.
+        // This prevents getting "stuck" climbing in place at the top of a vine.
+        const jumpPressed = keys.has(' ');
+
+        if (wantUp && nearestLadder && !jumpPressed) {
           p.climbing = true;
           p.x = nearestLadder.x + 7 - p.w / 2;
         } else if (wantDown) {
