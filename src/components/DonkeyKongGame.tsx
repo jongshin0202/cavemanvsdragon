@@ -991,7 +991,9 @@ const DonkeyKongGame = () => {
       // Player (Caveman sprite) - flash 3 times when dying
       // (toggle every 18 frames over 108 frames at 60fps → 3 on/off cycles)
       const pl = g.player;
-      const showPlayer = !g.dying || Math.floor(g.deathFlashTimer / 18) % 2 === 0;
+      const showPlayer = g.dying
+        ? Math.floor(g.deathFlashTimer / 18) % 2 === 0
+        : (g.invulnTimer === 0 || Math.floor(g.invulnTimer / 6) % 2 === 0);
       const walkSprite = walkSpriteRef.current;
       const jumpSprite = jumpSpriteRef.current;
       const climbSprite = climbSpriteRef.current;
