@@ -244,30 +244,12 @@ const CavemanVsDragonGame = () => {
       if (g.state === 'playing' && !g.dying) {
         // Decrement invulnerability after respawn
         if (g.invulnTimer > 0) g.invulnTimer--;
-        // Random dragon roar (5–15s) and princess "Help!" (10–20s).
-        // Enforce at least 5s gap between ANY of these two sounds — when one plays,
-        // both timers reset so the other can't fire for at least 5s.
-        const MIN_GAP = 300; // 5s at 60fps
+        // Random dragon roar every 5–15 seconds (princess sound removed)
         g.roarTimer++;
-        g.helpTimerSfx++;
         if (g.roarTimer >= g.nextRoarTime && !isDragonRoaringNow()) {
           playDragonRoarTracked();
           g.roarTimer = 0;
           g.nextRoarTime = 300 + Math.floor(Math.random() * 600);
-          // Push help sound out by at least MIN_GAP from now
-          if (g.nextHelpTime - g.helpTimerSfx < MIN_GAP) {
-            g.helpTimerSfx = 0;
-            g.nextHelpTime = MIN_GAP + Math.floor(Math.random() * 600);
-          }
-        } else if (g.helpTimerSfx >= g.nextHelpTime && !isDragonRoaringNow()) {
-          playPrincessHelpSound();
-          g.helpTimerSfx = 0;
-          g.nextHelpTime = 600 + Math.floor(Math.random() * 600);
-          // Push roar out by at least MIN_GAP from now
-          if (g.nextRoarTime - g.roarTimer < MIN_GAP) {
-            g.roarTimer = 0;
-            g.nextRoarTime = MIN_GAP + Math.floor(Math.random() * 600);
-          }
         }
         // === PLAYER MOVEMENT ===
         // Wider snap: find nearest ladder within LADDER_SNAP pixels
