@@ -1,7 +1,7 @@
-import DonkeyKongGame from '@/components/DonkeyKongGame';
+import CavemanVsDragonGame from '@/components/CavemanVsDragonGame';
 
 const Index = () => {
-  return <DonkeyKongGame />;
+  return <CavemanVsDragonGame />;
 };
 
 export default Index;

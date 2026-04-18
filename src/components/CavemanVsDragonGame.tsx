@@ -28,7 +28,7 @@ const TOP_VINE_IDX = 8;
 // Where the seed must be planted (base of the topmost vine, on platform P5)
 const PLANT_X = 357; // matches LADDERS[8].x + 7
 
-const DonkeyKongGame = () => {
+const CavemanVsDragonGame = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const keysRef = useRef<Set<string>>(new Set());
   const [score, setScore] = useState(0);
@@ -1311,4 +1311,4 @@ const DonkeyKongGame = () => {
   );
 };
 
-export default DonkeyKongGame;
+export default CavemanVsDragonGame;
