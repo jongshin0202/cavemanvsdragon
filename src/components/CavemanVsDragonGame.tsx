@@ -1118,23 +1118,14 @@ const CavemanVsDragonGame = () => {
       }
       if (g.state === 'win' && wa.showCongrats) {
         ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-        const maxW = CANVAS_W - 24;
-        const drawFitted = (text: string, baseSize: number, y: number, color: string) => {
-          ctx.fillStyle = color;
-          let size = baseSize;
-          ctx.font = `bold ${size}px var(--font-arcade)`;
-          let w = ctx.measureText(text).width;
-          if (w > maxW) {
-            size = Math.floor(size * (maxW / w));
-            ctx.font = `bold ${size}px var(--font-arcade)`;
-          }
-          ctx.fillText(text, CANVAS_W / 2, y);
-          return size;
-        };
-        drawFitted('Congratulations!', 72, CANVAS_H / 2 - 110, '#FFD700');
-        drawFitted('You Won!', 64, CANVAS_H / 2 - 30, '#FFFFFF');
-        drawFitted(`Score: ${g.score}`, 56, CANVAS_H / 2 + 50, '#FFD700');
-        drawFitted('Press R to restart', 40, CANVAS_H / 2 + 130, '#FFFFFF');
+        ctx.fillStyle = '#FFD700'; ctx.font = 'bold 108px var(--font-arcade)';
+        ctx.fillText('Congratulations!', CANVAS_W / 2, CANVAS_H / 2 - 150);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 96px var(--font-arcade)';
+        ctx.fillText('You Won!', CANVAS_W / 2, CANVAS_H / 2 - 30);
+        ctx.fillStyle = '#FFD700'; ctx.font = 'bold 72px var(--font-arcade)';
+        ctx.fillText(`Score: ${g.score}`, CANVAS_W / 2, CANVAS_H / 2 + 90);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 60px var(--font-arcade)';
+        ctx.fillText('Press R to restart', CANVAS_W / 2, CANVAS_H / 2 + 210);
       }
       ctx.textAlign = 'start';
 
