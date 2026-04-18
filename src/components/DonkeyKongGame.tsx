@@ -22,6 +22,11 @@ const DRAGON_FRAMES = 5;
 
 const LADDER_SNAP = 30;
 
+// Index of the topmost vine (P5 → Top). Hidden until the player plants the seed.
+const TOP_VINE_IDX = 8;
+// Where the seed must be planted (base of the topmost vine, on platform P5)
+const PLANT_X = 357; // matches LADDERS[8].x + 7
+
 const DonkeyKongGame = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const keysRef = useRef<Set<string>>(new Set());
