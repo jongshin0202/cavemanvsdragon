@@ -62,6 +62,7 @@ const DonkeyKongGame = () => {
     playerHasMoved: false,
     barrelStartDelay: 0,
     winAnim: { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 },
+    pendingClimb: null as null | 'up' | 'down',
   });
 
   const resetPlayer = useCallback(() => {
