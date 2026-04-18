@@ -495,21 +495,20 @@ const DonkeyKongGame = () => {
           }
         }
 
-        // === UPDATE ROBOTS (always moving, decide at ladders) ===
+        // === UPDATE ROBOTS (always moving — random wander biased toward player) ===
         for (let i = g.robots.length - 1; i >= 0; i--) {
           const r = g.robots[i];
           const rCenterX = r.x + r.w / 2;
           const rFeetY = r.y + r.h;
           const rPlatIdx = findPlatformIndex(rFeetY, rCenterX);
-          const pPlatIdx = findPlatformIndex(playerFeetY, playerCenterX);
 
+          // Smooth, time-based animation (not position-based)
           r.frameTimer++;
-          if (r.frameTimer > 6) { r.frameTimer = 0; r.frame = (r.frame + 1) % ROBOT_WALK_FRAMES; }
+          if (r.frameTimer >= 5) { r.frameTimer = 0; r.frame = (r.frame + 1) % ROBOT_WALK_FRAMES; }
 
           if (r.climbing) {
             r.y += r.vy;
             r.vx = 0;
-
             if (r.targetLadder !== null) {
               const l = LADDERS[r.targetLadder];
               if (r.vy < 0 && r.y + r.h <= l.yTop + 2) {
@@ -523,27 +522,33 @@ const DonkeyKongGame = () => {
               r.vy = 0; r.climbing = false;
             }
           } else {
-            const desiredDirection = playerCenterX >= rCenterX ? 1 : -1;
-            const continueScore = scoreToPlayer(rCenterX + desiredDirection * r.speed, rFeetY);
-            let climbChoice: { ladderIdx: number; climbVy: number; score: number } | null = null;
+            // Wander timer: pick a new random direction occasionally,
+            // biased toward player so movement is gradual + natural.
+            if (r.wanderTimer === undefined) r.wanderTimer = 0;
+            if (r.wanderDir === undefined) r.wanderDir = r.direction || 1;
+            r.wanderTimer--;
+            if (r.wanderTimer <= 0) {
+              r.wanderTimer = 30 + Math.floor(Math.random() * 60); // 0.7-2s at 45fps
+              const towardPlayer = playerCenterX >= rCenterX ? 1 : -1;
+              // 70% bias toward player, 30% random — never stop
+              r.wanderDir = Math.random() < 0.7 ? towardPlayer : (Math.random() < 0.5 ? 1 : -1);
+            }
 
+            // Consider climbing if a ladder is right here AND it gets us closer
+            let climbChoice: { ladderIdx: number; climbVy: number; score: number } | null = null;
+            const continueScore = scoreToPlayer(rCenterX + r.wanderDir * r.speed * 30, rFeetY);
             for (let li = 0; li < LADDERS.length; li++) {
               const l = LADDERS[li];
               const ladderCenterX = l.x + 7;
               if (Math.abs(rCenterX - ladderCenterX) > r.speed + 4) continue;
-
               const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
               const botPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 12);
-
-              // Climb UP: robot is on botPlatIdx, player is higher (lower index)
               if (botPlatIdx === rPlatIdx && topPlatIdx >= 0 && topPlatIdx < rPlatIdx) {
                 const scoreUp = scoreToPlayer(ladderCenterX, l.yTop);
                 if (scoreUp < continueScore && (!climbChoice || scoreUp < climbChoice.score)) {
                   climbChoice = { ladderIdx: li, climbVy: -r.speed, score: scoreUp };
                 }
               }
-
-              // Climb DOWN: robot is on topPlatIdx, player is lower (higher index)
               if (topPlatIdx === rPlatIdx && botPlatIdx >= 0 && botPlatIdx > rPlatIdx) {
                 const scoreDown = scoreToPlayer(ladderCenterX, l.yBot);
                 if (scoreDown < continueScore && (!climbChoice || scoreDown < climbChoice.score)) {
@@ -552,7 +557,7 @@ const DonkeyKongGame = () => {
               }
             }
 
-            if (climbChoice) {
+            if (climbChoice && Math.random() < 0.6) {
               const l = LADDERS[climbChoice.ladderIdx];
               r.climbing = true;
               r.targetLadder = climbChoice.ladderIdx;
@@ -560,8 +565,8 @@ const DonkeyKongGame = () => {
               r.vy = climbChoice.climbVy;
               r.x = l.x + (16 - r.w) / 2;
             } else {
-              // Always move - patrol back and forth, prefer chasing player
-              r.direction = desiredDirection;
+              // Always moving — never stop, even if aligned with player
+              r.direction = r.wanderDir;
               r.vx = r.direction * r.speed;
               r.x += r.vx;
               r.vy += GRAVITY;
@@ -577,21 +582,25 @@ const DonkeyKongGame = () => {
                 }
               }
 
+              // Bounce off walls / platform edges so it keeps moving
+              const curPlat = PLATFORMS[rPlatIdx];
+              if (curPlat) {
+                if (r.x <= curPlat.x1 + 2) { r.wanderDir = 1; r.x = curPlat.x1 + 2; }
+                else if (r.x + r.w >= curPlat.x2 - 2) { r.wanderDir = -1; r.x = curPlat.x2 - r.w - 2; }
+              }
               r.x = Math.max(0, Math.min(CANVAS_W - r.w, r.x));
             }
           }
 
           if (r.y > CANVAS_H + 20) { g.robots.splice(i, 1); continue; }
 
-          // Only check collision if robot is on same platform as player (not platform above while jumping)
           const rPlatY = findPlatformIndex(r.y + r.h, r.x + r.w / 2);
           const pPlatY = findPlatformIndex(p.y + p.h, p.x + p.w / 2);
           if (rectsOverlap(p, r) && (rPlatY === pPlatY || p.onGround)) {
-            // Stomp kill: player is falling and feet are above robot's mid-point
             if (p.vy > 0 && p.y + p.h <= r.y + r.h * 0.6) {
               g.score += 200; setScore(g.score);
               playRobotKillSound();
-              p.vy = -4; // bounce up after stomp
+              p.vy = -4;
               g.robots.splice(i, 1);
             } else {
               g.lives--; setLives(g.lives);
