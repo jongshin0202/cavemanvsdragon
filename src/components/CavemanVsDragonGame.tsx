@@ -244,6 +244,12 @@ const CavemanVsDragonGame = () => {
         if (wa.timer > 30) wa.showKiss = true;
         // Wait until the jingle finishes (~66 frames) + a 2-second pause (120 frames) before showing the win screen
         if (wa.timer > 186) wa.showCongrats = true;
+        // After Congrats has been visible ~1.5s, switch to "press any button to continue"
+        if (wa.timer > 186 + 90 && g.state === 'win') {
+          g.state = 'continue';
+          setGameState('continue');
+          continueArmedAtRef.current = performance.now() + 1000; // 1s input lock
+        }
       }
 
       // Handle dying state (1 second pause with flashing)
