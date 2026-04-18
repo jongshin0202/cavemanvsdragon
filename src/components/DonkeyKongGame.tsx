@@ -879,8 +879,6 @@ const DonkeyKongGame = () => {
         ctx.rotate(wa.gorillaRotation);
         if (dragonImg && dragonImg.complete && dragonFrameW > 0) {
           ctx.drawImage(dragonImg, 0, 0, dragonFrameW, dragonFrameH, -dragonSize / 2, -dragonSize / 2, dragonSize, dragonSize);
-        } else {
-          ctx.fillStyle = '#2d8c2d'; ctx.fillRect(-dragonSize / 2, -dragonSize / 2, dragonSize, dragonSize);
         }
         ctx.restore();
       } else {
@@ -888,8 +886,6 @@ const DonkeyKongGame = () => {
         const frameIdx = g.dkFrame % DRAGON_FRAMES;
         if (dragonImg && dragonImg.complete && dragonFrameW > 0) {
           ctx.drawImage(dragonImg, frameIdx * dragonFrameW, 0, dragonFrameW, dragonFrameH, dkX, dkY, dragonSize, dragonSize);
-        } else {
-          ctx.fillStyle = '#2d8c2d'; ctx.fillRect(dkX, dkY, dragonSize, dragonSize);
         }
       }
 
@@ -1041,7 +1037,19 @@ const DonkeyKongGame = () => {
         else ctx.fillRect(pl.x + 5, pl.y + 5, 2, 2);
       }
 
-      // (Carried items removed — the key is consumed instantly on pickup.)
+      // Carried watering can floats above the player until they water the sprout.
+      if (g.keyGrabbed && !g.seedPlanted) {
+        const canImg = wateringCanRef.current;
+        const cx = pl.x + pl.w / 2;
+        const cy = pl.y - 6;
+        const drawW = 20, drawH = 16;
+        if (canImg && canImg.complete && canImg.naturalWidth > 0) {
+          ctx.drawImage(canImg, cx - drawW / 2, cy - drawH / 2, drawW, drawH);
+        } else {
+          ctx.fillStyle = '#90CAF9';
+          ctx.fillRect(cx - 5, cy - 4, 10, 8);
+        }
+      }
 
 
       // Single rock wheel (frame 1) on the left of the dragon
