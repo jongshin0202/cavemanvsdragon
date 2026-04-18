@@ -1321,7 +1321,13 @@ const CavemanVsDragonGame = () => {
   };
 
   const simulateKey = useCallback((key: string, type: 'down' | 'up') => {
-    if (type === 'down') keysRef.current.add(key); else keysRef.current.delete(key);
+    if (type === 'down') {
+      keysRef.current.add(key);
+      // Route mobile pad presses through the unified menu input handler too.
+      anyInputHandlerRef.current?.(key, 'pad');
+    } else {
+      keysRef.current.delete(key);
+    }
   }, []);
 
   const padRef = useRef<HTMLDivElement>(null);
