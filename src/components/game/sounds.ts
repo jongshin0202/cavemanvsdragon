@@ -350,201 +350,163 @@ export function isDragonRoaringNow(): boolean {
   return ctx.currentTime < lastRoarEndsAt;
 }
 
-// Realistic dragon roar — heavy breath in, deep guttural growl, breath-out tail.
-// Built from layered noise sources shaped by formant-style filters (no chip-tune oscillators).
+// Scary "AAARRRGGGHHH" dragon roar — guttural growl built from a buzzy
+// sawtooth larynx tone shaped by vowel-formant bandpass filters, with a
+// sub-bass body and a fast vibrato/growl LFO. No breath/swish noise.
 export function playDragonRoarSound() {
   const ctx = getCtx();
   const t0 = ctx.currentTime;
-  const dur = 2.2;
-  const sr = ctx.sampleRate;
+  const dur = 1.8;
 
-  // ----- Helper: build a noise buffer with a custom envelope -----
-  const buildNoise = (length: number, envFn: (i: number, n: number) => number) => {
-    const n = Math.floor(sr * length);
-    const buf = ctx.createBuffer(1, n, sr);
-    const d = buf.getChannelData(0);
-    let last = 0;
-    for (let i = 0; i < n; i++) {
-      // Brown-ish noise (integrated white noise) — sounds far more "throaty" than white
-      const w = Math.random() * 2 - 1;
-      last = (last + 0.18 * w) / 1.05;
-      d[i] = last * envFn(i, n);
-    }
-    return buf;
+  // ----- 1) Larynx tone: detuned sawtooths for a thick, buzzy growl -----
+  const makeSaw = (detune: number, gainVal: number) => {
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.detune.value = detune;
+    // Pitch contour: low → slightly lower (the "aaaarrrrgggghhh" descent)
+    o.frequency.setValueAtTime(110, t0);
+    o.frequency.linearRampToValueAtTime(95, t0 + 0.25);
+    o.frequency.linearRampToValueAtTime(70, t0 + dur - 0.1);
+    const g = ctx.createGain();
+    g.gain.value = gainVal;
+    o.connect(g);
+    return { o, g };
   };
+  const saw1 = makeSaw(-12, 0.5);
+  const saw2 = makeSaw(+9, 0.45);
+  const saw3 = makeSaw(-25, 0.4);
 
-  // ----- 1) Quick inhale (breath in) -----
-  const inhaleDur = 0.25;
-  const inhale = buildNoise(inhaleDur, (i, n) => {
-    const x = i / n;
-    return Math.sin(x * Math.PI) * 0.7;
-  });
-  const inS = ctx.createBufferSource(); inS.buffer = inhale;
-  const inF = ctx.createBiquadFilter();
-  inF.type = 'highpass'; inF.frequency.value = 800; inF.Q.value = 0.7;
-  const inG = ctx.createGain();
-  inG.gain.setValueAtTime(0.18, t0);
-  inG.gain.exponentialRampToValueAtTime(0.001, t0 + inhaleDur);
-  inS.connect(inF); inF.connect(inG); inG.connect(ctx.destination);
-  inS.start(t0); inS.stop(t0 + inhaleDur);
+  // Growl LFO — fast amplitude wobble = "rrrrr" rasp
+  const growlLfo = ctx.createOscillator();
+  const growlDepth = ctx.createGain();
+  growlLfo.type = 'sine';
+  growlLfo.frequency.setValueAtTime(28, t0);
+  growlLfo.frequency.linearRampToValueAtTime(18, t0 + dur);
+  growlDepth.gain.value = 0.35;
+  growlLfo.connect(growlDepth);
 
-  // ----- 2) Main growl body (1.6s) — TWO parallel formant bands of brown noise -----
-  const growlStart = t0 + inhaleDur;
-  const growlDur = 1.6;
-  const growlBuf = buildNoise(growlDur, (i, n) => {
-    const x = i / n;
-    // Attack-sustain-release envelope shaped like a roar
-    const attack = Math.min(1, x / 0.08);
-    const release = Math.min(1, (1 - x) / 0.25);
-    return attack * release;
-  });
+  // Vowel-formant bandpass chain (open "AAH" → closing "RRGGHH")
+  const f1 = ctx.createBiquadFilter();
+  f1.type = 'bandpass'; f1.Q.value = 4;
+  f1.frequency.setValueAtTime(700, t0);
+  f1.frequency.linearRampToValueAtTime(450, t0 + dur);
 
-  // Low formant (chest rumble) ~120 Hz
-  const lowSrc = ctx.createBufferSource(); lowSrc.buffer = growlBuf;
-  const lowF = ctx.createBiquadFilter();
-  lowF.type = 'bandpass'; lowF.Q.value = 4;
-  lowF.frequency.setValueAtTime(140, growlStart);
-  lowF.frequency.linearRampToValueAtTime(95, growlStart + growlDur);
-  const lowG = ctx.createGain();
-  lowG.gain.setValueAtTime(0.55, growlStart);
-  lowG.gain.exponentialRampToValueAtTime(0.001, growlStart + growlDur);
-  lowSrc.connect(lowF); lowF.connect(lowG); lowG.connect(ctx.destination);
+  const f2 = ctx.createBiquadFilter();
+  f2.type = 'bandpass'; f2.Q.value = 6;
+  f2.frequency.setValueAtTime(1200, t0);
+  f2.frequency.linearRampToValueAtTime(800, t0 + dur);
 
-  // Mid formant (throat snarl) ~450 Hz with slow LFO sweep for "growl waver"
-  const midSrc = ctx.createBufferSource(); midSrc.buffer = growlBuf;
-  const midF = ctx.createBiquadFilter();
-  midF.type = 'bandpass'; midF.Q.value = 6;
-  midF.frequency.setValueAtTime(480, growlStart);
-  // Wobble the formant frequency to create vocal "growl" texture
-  const lfo = ctx.createOscillator();
-  const lfoG = ctx.createGain();
-  lfo.type = 'sine'; lfo.frequency.value = 11;
-  lfoG.gain.value = 90;
-  lfo.connect(lfoG); lfoG.connect(midF.frequency);
-  const midG = ctx.createGain();
-  midG.gain.setValueAtTime(0.32, growlStart);
-  midG.gain.exponentialRampToValueAtTime(0.001, growlStart + growlDur);
-  midSrc.connect(midF); midF.connect(midG); midG.connect(ctx.destination);
+  // Master amp envelope — punchy attack, no fade-in swish
+  const amp = ctx.createGain();
+  amp.gain.setValueAtTime(0.0001, t0);
+  amp.gain.exponentialRampToValueAtTime(0.55, t0 + 0.04);
+  amp.gain.setValueAtTime(0.55, t0 + dur - 0.45);
+  amp.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
 
-  // High formant (raspy edge) ~1.6 kHz
-  const hiSrc = ctx.createBufferSource(); hiSrc.buffer = growlBuf;
-  const hiF = ctx.createBiquadFilter();
-  hiF.type = 'bandpass'; hiF.Q.value = 3;
-  hiF.frequency.setValueAtTime(1700, growlStart);
-  hiF.frequency.linearRampToValueAtTime(1100, growlStart + growlDur);
-  const hiG = ctx.createGain();
-  hiG.gain.setValueAtTime(0.16, growlStart);
-  hiG.gain.exponentialRampToValueAtTime(0.001, growlStart + growlDur);
-  hiSrc.connect(hiF); hiF.connect(hiG); hiG.connect(ctx.destination);
+  // LFO modulates the master amp for the rasp
+  growlDepth.connect(amp.gain);
 
-  // Master compressor-like soft limiter via slight gain
-  lowSrc.start(growlStart); lowSrc.stop(growlStart + growlDur);
-  midSrc.start(growlStart); midSrc.stop(growlStart + growlDur);
-  hiSrc.start(growlStart); hiSrc.stop(growlStart + growlDur);
-  lfo.start(growlStart); lfo.stop(growlStart + growlDur);
+  const sumIn = ctx.createGain();
+  sumIn.gain.value = 1;
+  saw1.g.connect(sumIn);
+  saw2.g.connect(sumIn);
+  saw3.g.connect(sumIn);
+  sumIn.connect(f1);
+  f1.connect(f2);
+  f2.connect(amp);
+  amp.connect(ctx.destination);
 
-  // ----- 3) Sub-bass body thump (gives the chest weight) -----
+  saw1.o.start(t0); saw1.o.stop(t0 + dur);
+  saw2.o.start(t0); saw2.o.stop(t0 + dur);
+  saw3.o.start(t0); saw3.o.stop(t0 + dur);
+  growlLfo.start(t0); growlLfo.stop(t0 + dur);
+
+  // ----- 2) Sub-bass thump for chest weight -----
   const sub = ctx.createOscillator();
   const subG = ctx.createGain();
   sub.type = 'sine';
-  sub.frequency.setValueAtTime(75, growlStart);
-  sub.frequency.exponentialRampToValueAtTime(45, growlStart + growlDur);
-  subG.gain.setValueAtTime(0.0001, growlStart);
-  subG.gain.exponentialRampToValueAtTime(0.35, growlStart + 0.1);
-  subG.gain.exponentialRampToValueAtTime(0.001, growlStart + growlDur);
+  sub.frequency.setValueAtTime(60, t0);
+  sub.frequency.exponentialRampToValueAtTime(38, t0 + dur);
+  subG.gain.setValueAtTime(0.0001, t0);
+  subG.gain.exponentialRampToValueAtTime(0.4, t0 + 0.05);
+  subG.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
   sub.connect(subG); subG.connect(ctx.destination);
-  sub.start(growlStart); sub.stop(growlStart + growlDur);
+  sub.start(t0); sub.stop(t0 + dur);
 
-  // ----- 4) Breath-out tail -----
-  const tailStart = growlStart + growlDur - 0.05;
-  const tailDur = 0.35;
-  const tailBuf = buildNoise(tailDur, (i, n) => {
-    const x = i / n;
-    return (1 - x) * 0.6;
-  });
-  const tailSrc = ctx.createBufferSource(); tailSrc.buffer = tailBuf;
-  const tailF = ctx.createBiquadFilter();
-  tailF.type = 'lowpass'; tailF.frequency.value = 900;
-  const tailG = ctx.createGain();
-  tailG.gain.setValueAtTime(0.18, tailStart);
-  tailG.gain.exponentialRampToValueAtTime(0.001, tailStart + tailDur);
-  tailSrc.connect(tailF); tailF.connect(tailG); tailG.connect(ctx.destination);
-  tailSrc.start(tailStart); tailSrc.stop(tailStart + tailDur);
-
-  // Update tracker so princess "Help!" doesn't overlap (length = full effect)
   lastRoarEndsAt = t0 + dur;
 }
 
 // Backwards-compatible alias — main roar function already updates the tracker.
 export const playDragonRoarTracked = playDragonRoarSound;
 
-// Princess yelling "Help!" — short cry built from formant-shaped tones
+// Cute digitized girl voice screaming "HEEELP!" — bright, high-pitched
+// chiptune-style scream. Two square-wave syllables in the soprano range
+// with vibrato + a tiny "p" pop at the end. No breathy noise tail.
 export function playPrincessHelpSound() {
   const ctx = getCtx();
   const t0 = ctx.currentTime;
 
-  // "Heeeelp!" — two-syllable rising-then-falling voice
-  // Syllable 1 (longer "heeel"): pitch rises, then quick fall
-  const v1 = ctx.createOscillator();
-  const v1Gain = ctx.createGain();
-  const v1Filt = ctx.createBiquadFilter();
-  v1Filt.type = 'bandpass';
-  v1Filt.Q.value = 6;
-  v1Filt.frequency.setValueAtTime(900, t0);
-  v1Filt.frequency.linearRampToValueAtTime(1200, t0 + 0.35);
-  v1.type = 'sawtooth';
-  v1.frequency.setValueAtTime(620, t0);
-  v1.frequency.linearRampToValueAtTime(820, t0 + 0.25);
-  v1.frequency.linearRampToValueAtTime(700, t0 + 0.4);
-  // Vibrato for vocal feel
-  const lfo1 = ctx.createOscillator();
-  const lfo1g = ctx.createGain();
-  lfo1.frequency.setValueAtTime(7, t0);
-  lfo1g.gain.setValueAtTime(20, t0);
-  lfo1.connect(lfo1g); lfo1g.connect(v1.frequency);
-  v1Gain.gain.setValueAtTime(0.0001, t0);
-  v1Gain.gain.exponentialRampToValueAtTime(0.22, t0 + 0.05);
-  v1Gain.gain.exponentialRampToValueAtTime(0.18, t0 + 0.35);
-  v1Gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.45);
-  v1.connect(v1Filt); v1Filt.connect(v1Gain); v1Gain.connect(ctx.destination);
-  v1.start(t0); lfo1.start(t0);
-  v1.stop(t0 + 0.45); lfo1.stop(t0 + 0.45);
+  // ===== Syllable 1: "HEEELP" — long, high, scared =====
+  const dur1 = 0.55;
+  const sqr = ctx.createOscillator();
+  const tri = ctx.createOscillator();
+  sqr.type = 'square';
+  tri.type = 'triangle';
+  // Soprano scream: ~A5 (880) → D6 (1175) → C6 (1047)
+  sqr.frequency.setValueAtTime(880, t0);
+  sqr.frequency.linearRampToValueAtTime(1175, t0 + 0.08);
+  sqr.frequency.linearRampToValueAtTime(1047, t0 + dur1 - 0.05);
+  tri.frequency.setValueAtTime(1760, t0); // octave above for sparkle
+  tri.frequency.linearRampToValueAtTime(2349, t0 + 0.08);
+  tri.frequency.linearRampToValueAtTime(2093, t0 + dur1 - 0.05);
 
-  // Syllable 2 ("p!" cutoff) — quick high chirp
-  const t2 = t0 + 0.5;
-  const v2 = ctx.createOscillator();
-  const v2Gain = ctx.createGain();
-  const v2Filt = ctx.createBiquadFilter();
-  v2Filt.type = 'bandpass';
-  v2Filt.Q.value = 8;
-  v2Filt.frequency.setValueAtTime(1500, t2);
-  v2.type = 'sawtooth';
-  v2.frequency.setValueAtTime(900, t2);
-  v2.frequency.exponentialRampToValueAtTime(550, t2 + 0.18);
-  v2Gain.gain.setValueAtTime(0.0001, t2);
-  v2Gain.gain.exponentialRampToValueAtTime(0.20, t2 + 0.03);
-  v2Gain.gain.exponentialRampToValueAtTime(0.001, t2 + 0.22);
-  v2.connect(v2Filt); v2Filt.connect(v2Gain); v2Gain.connect(ctx.destination);
-  v2.start(t2);
-  v2.stop(t2 + 0.22);
+  // Fast vibrato — cute warble
+  const vib = ctx.createOscillator();
+  const vibAmt = ctx.createGain();
+  vib.type = 'sine';
+  vib.frequency.value = 9;
+  vibAmt.gain.value = 35;
+  vib.connect(vibAmt);
+  vibAmt.connect(sqr.frequency);
+  vibAmt.connect(tri.frequency);
 
-  // Tiny breath of noise (consonant / sibilance)
-  const dur = 0.08;
-  const bufSize = Math.floor(ctx.sampleRate * dur);
-  const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
-  const data = buf.getChannelData(0);
-  for (let i = 0; i < bufSize; i++) {
-    const env = Math.sin((i / bufSize) * Math.PI);
-    data[i] = (Math.random() * 2 - 1) * env * 0.6;
-  }
-  const noise = ctx.createBufferSource();
-  noise.buffer = buf;
-  const nf = ctx.createBiquadFilter();
-  nf.type = 'highpass'; nf.frequency.value = 2500;
-  const ng = ctx.createGain();
-  ng.gain.setValueAtTime(0.08, t2 + 0.2);
-  ng.gain.exponentialRampToValueAtTime(0.001, t2 + 0.3);
-  noise.connect(nf); nf.connect(ng); ng.connect(ctx.destination);
-  noise.start(t2 + 0.2);
-  noise.stop(t2 + 0.3);
+  // Bandpass for "voice" formant feel
+  const voiceFilt = ctx.createBiquadFilter();
+  voiceFilt.type = 'bandpass';
+  voiceFilt.Q.value = 2;
+  voiceFilt.frequency.value = 1500;
+
+  const sqrG = ctx.createGain();
+  const triG = ctx.createGain();
+  sqrG.gain.value = 0.18;
+  triG.gain.value = 0.07;
+
+  const env1 = ctx.createGain();
+  env1.gain.setValueAtTime(0.0001, t0);
+  env1.gain.exponentialRampToValueAtTime(1.0, t0 + 0.04);
+  env1.gain.setValueAtTime(1.0, t0 + dur1 - 0.08);
+  env1.gain.exponentialRampToValueAtTime(0.001, t0 + dur1);
+
+  sqr.connect(sqrG); sqrG.connect(voiceFilt);
+  tri.connect(triG); triG.connect(voiceFilt);
+  voiceFilt.connect(env1);
+  env1.connect(ctx.destination);
+
+  sqr.start(t0); sqr.stop(t0 + dur1);
+  tri.start(t0); tri.stop(t0 + dur1);
+  vib.start(t0); vib.stop(t0 + dur1);
+
+  // ===== Syllable 2: "P!" — quick high pop =====
+  const t2 = t0 + dur1 + 0.04;
+  const dur2 = 0.12;
+  const pop = ctx.createOscillator();
+  pop.type = 'square';
+  pop.frequency.setValueAtTime(1568, t2); // G6
+  pop.frequency.exponentialRampToValueAtTime(880, t2 + dur2);
+  const popG = ctx.createGain();
+  popG.gain.setValueAtTime(0.0001, t2);
+  popG.gain.exponentialRampToValueAtTime(0.22, t2 + 0.015);
+  popG.gain.exponentialRampToValueAtTime(0.001, t2 + dur2);
+  pop.connect(popG); popG.connect(ctx.destination);
+  pop.start(t2); pop.stop(t2 + dur2);
 }
