@@ -806,23 +806,24 @@ const DonkeyKongGame = () => {
       const useClimb = !useWin && pl.climbing && climbSprite && climbSprite.complete && climbSprite.naturalWidth > 0;
       const useJump = !useWin && !pl.climbing && pl.jumping && jumpSprite && jumpSprite.complete && jumpSprite.naturalWidth > 0;
       const useWalk = !useWin && !pl.climbing && !pl.jumping && walkSprite && walkSprite.complete && walkSprite.naturalWidth > 0;
+      // Player sprites — 50% bigger
       if (showPlayer && useWin) {
-        const drawW = 32;
-        const drawH = 36;
+        const drawW = 48;
+        const drawH = 54;
         ctx.drawImage(winSprite, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
       } else if (showPlayer && useClimb) {
         const sw = climbSprite.naturalWidth / 4;
         const sh = climbSprite.naturalHeight;
         const sx = pl.climbFrame * sw;
-        const drawW = 28;
-        const drawH = 32;
+        const drawW = 42;
+        const drawH = 48;
         ctx.drawImage(climbSprite, sx, 0, sw, sh, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
       } else if (showPlayer && useJump) {
         const sw = jumpSprite.naturalWidth / 5;
         const sh = jumpSprite.naturalHeight;
         const sx = Math.min(pl.jumpFrame, 4) * sw;
-        const drawW = 28;
-        const drawH = 32;
+        const drawW = 42;
+        const drawH = 48;
         ctx.save();
         if (pl.facing < 0) {
           ctx.translate(pl.x + pl.w / 2, 0);
@@ -837,8 +838,8 @@ const DonkeyKongGame = () => {
         const sh = walkSprite.naturalHeight;
         const sx = pl.walkFrame * sw;
         const sy = 0;
-        const drawW = 28;
-        const drawH = 32;
+        const drawW = 42;
+        const drawH = 48;
         ctx.save();
         if (pl.facing < 0) {
           ctx.translate(pl.x + pl.w / 2, 0);
