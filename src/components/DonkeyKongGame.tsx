@@ -283,6 +283,7 @@ const DonkeyKongGame = () => {
           if ((keys.has(' ')) && p.onGround) {
             p.vy = -5; p.onGround = false; p.jumping = true;
             p.jumpFrame = 0; p.jumpTimer = 0;
+            g.pendingClimb = null;
             playJumpSound();
           }
           p.vy += GRAVITY; p.y += p.vy;
