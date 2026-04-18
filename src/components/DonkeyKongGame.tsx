@@ -4,7 +4,7 @@ import {
   PLATFORMS, LADDERS, getPlatformY, rectsOverlap, findPlatformIndex, findBestLadder,
   Barrel, Robot
 } from './game/constants';
-import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound } from './game/sounds';
+import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound } from './game/sounds';
 import cavemanWalkUrl from '@/assets/caveman-walk.png';
 import cavemanJumpUrl from '@/assets/caveman-jump.png';
 import cavemanClimbUrl from '@/assets/caveman-climb.png';
@@ -390,6 +390,7 @@ const DonkeyKongGame = () => {
           }
           const ky = getPlatformY(kPlat, kx) - 16;
           g.keyPos = { x: kx, y: ky, w: 14, h: 14 };
+          playGenieAppearSound();
         }
         // Pick up the watering can
         if (g.keySpawned && !g.keyGrabbed) {
