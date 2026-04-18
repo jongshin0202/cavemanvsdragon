@@ -38,7 +38,7 @@ const DonkeyKongGame = () => {
   const robotWalkRef = useRef<HTMLImageElement | null>(null);
   const rockWheelRef = useRef<HTMLImageElement | null>(null);
   const gameRef = useRef({
-    player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 },
+    player: { x: 80, y: 668, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 },
     barrels: [] as Barrel[],
     robots: [] as (Robot & { wanderTimer?: number; wanderDir?: number })[],
     barrelTimer: 0,
@@ -61,12 +61,12 @@ const DonkeyKongGame = () => {
     frameCount: 0,
     playerHasMoved: false,
     barrelStartDelay: 0,
-    winAnim: { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 },
+    winAnim: { active: false, gorillaY: 144, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 },
   });
 
   const resetPlayer = useCallback(() => {
     const g = gameRef.current;
-    g.player = { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 };
+    g.player = { x: 80, y: 668, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 };
     g.barrels = [];
     g.barrelTimer = 0;
   }, []);
@@ -83,7 +83,7 @@ const DonkeyKongGame = () => {
     g.barrelStartDelay = 0;
     g.dkAnimTimer = 0; g.dkFrame = 0;
     g.princessAnimTimer = 0; g.helpTimer = 0; g.showHelp = false;
-    g.winAnim = { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
+    g.winAnim = { active: false, gorillaY: 144, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
     resetPlayer();
     setScore(0); setLives(3); setGameState('playing');
   }, [resetPlayer]);
@@ -156,7 +156,7 @@ const DonkeyKongGame = () => {
       const keys = keysRef.current;
       const p = g.player;
 
-      const wa = g.winAnim || { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
+      const wa = g.winAnim || { active: false, gorillaY: 144, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
       if (!g.winAnim) g.winAnim = wa;
       if (wa.active) {
         wa.timer++;
@@ -297,7 +297,7 @@ const DonkeyKongGame = () => {
           g.score += 1000; setScore(g.score); playWinSound();
           wa.active = true;
           wa.timer = 0;
-          wa.gorillaY = 76;
+          wa.gorillaY = 144;
           wa.gorillaRotation = 0;
           wa.showKiss = false;
           wa.showCongrats = false;
