@@ -233,6 +233,8 @@ const DonkeyKongGame = () => {
       if (g.helpTimer > 120) { g.helpTimer = 0; g.showHelp = !g.showHelp; }
 
       if (g.state === 'playing' && !g.dying) {
+        // Decrement invulnerability after respawn
+        if (g.invulnTimer > 0) g.invulnTimer--;
         // === PLAYER MOVEMENT ===
         // Wider snap: find nearest ladder within LADDER_SNAP pixels
         const playerCX = p.x + p.w / 2;
