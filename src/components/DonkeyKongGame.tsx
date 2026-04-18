@@ -300,15 +300,17 @@ const DonkeyKongGame = () => {
           wa.showCongrats = false;
         }
 
-        // === BARREL SPAWNING (random intervals, random speeds) ===
-        g.barrelTimer++;
-        if (!g.nextBarrelTime) g.nextBarrelTime = 90 + Math.random() * 180;
-        if (g.barrelTimer > g.nextBarrelTime) {
-          g.barrelTimer = 0;
-          g.nextBarrelTime = 90 + Math.random() * 180; // random 90-270 frames (1.5-4.5 seconds)
-          const speed = BARREL_SPEED * (0.7 + Math.random() * 0.8);
-          g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed });
-          playBarrelRollSound();
+        // === BARREL SPAWNING (only after player first moves; first barrel ~0.5s after) ===
+        if (g.playerHasMoved) {
+          g.barrelTimer++;
+          if (!g.nextBarrelTime) g.nextBarrelTime = 90 + Math.random() * 180;
+          if (g.barrelTimer > g.nextBarrelTime) {
+            g.barrelTimer = 0;
+            g.nextBarrelTime = 90 + Math.random() * 180;
+            const speed = BARREL_SPEED * (0.7 + Math.random() * 0.8);
+            g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed });
+            playBarrelRollSound();
+          }
         }
 
         // === ROBOT SPAWNING (initial random per platform, respawn) ===
