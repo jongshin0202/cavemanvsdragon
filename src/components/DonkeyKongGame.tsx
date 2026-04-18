@@ -697,30 +697,31 @@ const DonkeyKongGame = () => {
         ctx.strokeRect(b.x + 2, b.y + 2, b.w - 4, b.h - 4);
       }
 
-      // Robots
+      // Robots (sprite-based)
+      const robotSprite = robotWalkRef.current;
+      const robotReady = robotSprite && robotSprite.complete && robotSprite.naturalWidth > 0;
       for (const r of g.robots) {
-        ctx.fillStyle = '#FF4444';
-        ctx.fillRect(r.x, r.y + 4, r.w, r.h - 4);
-        ctx.fillStyle = '#CC2222';
-        ctx.fillRect(r.x + 2, r.y, r.w - 4, 6);
-        ctx.fillStyle = '#FFFF00';
-        ctx.fillRect(r.x + 3, r.y + 1, 3, 3);
-        ctx.fillRect(r.x + r.w - 6, r.y + 1, 3, 3);
-        ctx.fillStyle = '#AA1111';
-        if (r.frame === 0) {
-          ctx.fillRect(r.x + 1, r.y + r.h - 2, 4, 3);
-          ctx.fillRect(r.x + r.w - 5, r.y + r.h - 1, 4, 2);
+        if (robotReady) {
+          const sw = robotSprite.naturalWidth / ROBOT_WALK_FRAMES;
+          const sh = robotSprite.naturalHeight;
+          const sx = (r.frame % ROBOT_WALK_FRAMES) * sw;
+          const drawW = 22;
+          const drawH = 22;
+          const dx = r.x + r.w / 2 - drawW / 2;
+          const dy = r.y + r.h - drawH;
+          ctx.save();
+          if (r.direction < 0) {
+            ctx.translate(r.x + r.w / 2, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(robotSprite, sx, 0, sw, sh, -drawW / 2, dy, drawW, drawH);
+          } else {
+            ctx.drawImage(robotSprite, sx, 0, sw, sh, dx, dy, drawW, drawH);
+          }
+          ctx.restore();
         } else {
-          ctx.fillRect(r.x + 1, r.y + r.h - 1, 4, 2);
-          ctx.fillRect(r.x + r.w - 5, r.y + r.h - 2, 4, 3);
+          ctx.fillStyle = '#FF4444';
+          ctx.fillRect(r.x, r.y + 4, r.w, r.h - 4);
         }
-        ctx.strokeStyle = '#FF6666'; ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(r.x + r.w / 2, r.y);
-        ctx.lineTo(r.x + r.w / 2 + (r.frame === 0 ? 3 : -3), r.y - 5);
-        ctx.stroke();
-        ctx.fillStyle = '#FFFF00';
-        ctx.fillRect(r.x + r.w / 2 + (r.frame === 0 ? 2 : -4), r.y - 6, 3, 3);
       }
 
       // Player (Caveman sprite) - flash when dying (0.25s on/off = 15 frames)
