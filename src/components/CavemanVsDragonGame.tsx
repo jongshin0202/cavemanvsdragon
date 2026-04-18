@@ -190,7 +190,7 @@ const CavemanVsDragonGame = () => {
     window.addEventListener('pointerdown', handleFirstGesture);
     window.addEventListener('touchstart', handleFirstGesture, { passive: true });
 
-    let intervalId: number | null = null;
+    let intervalId: number | null = null; // 60Hz game loop driver
 
     let lastTime = 0;
     const FRAME_INTERVAL = 1000 / 60; // 60fps logical step
