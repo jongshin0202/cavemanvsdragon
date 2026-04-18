@@ -109,9 +109,10 @@ const CavemanVsDragonGame = () => {
     g.invulnTimer = 120; // ~2s at 60fps
   }, []);
 
-  const resetGame = useCallback(() => {
+  // Resets the level only (for next level / death respawn). Preserves score & lives.
+  const resetLevel = useCallback(() => {
     const g = gameRef.current;
-    g.score = 0; g.lives = 3; g.state = 'playing'; g.dying = false; g.deathTimer = 0; g.deathFlashTimer = 0;
+    g.state = 'playing'; g.dying = false; g.deathTimer = 0; g.deathFlashTimer = 0;
     g.robots = [];
     g.robotSpawnTimer = 0;
     g.robotsInitialized = false;
@@ -132,14 +133,27 @@ const CavemanVsDragonGame = () => {
     g.keyBob = 0;
     g.sparkleTimer = 0;
     resetPlayer();
-    // Spawn first rock immediately so action starts the moment the game begins
+    // Spawn first rock immediately so action starts the moment the level begins
     {
       const speed = BARREL_SPEED * (0.7 + Math.random() * 0.8);
       g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed, rollPhase: 0 });
       playBarrelRollSound();
     }
-    setScore(0); setLives(3); setGameState('playing');
+    setGameState('playing');
   }, [resetPlayer]);
+
+  const resetGame = useCallback(() => {
+    const g = gameRef.current;
+    g.score = 0; g.lives = 3;
+    setScore(0); setLives(3);
+    resetLevel();
+  }, [resetLevel]);
+
+  // Start the next level — for now (only one level), restart the same layout
+  // while preserving score and lives.
+  const startNextLevel = useCallback(() => {
+    resetLevel();
+  }, [resetLevel]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
