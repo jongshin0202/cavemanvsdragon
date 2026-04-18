@@ -1045,64 +1045,65 @@ const DonkeyKongGame = () => {
       {/* Controls — fixed compact height to maximize game area */}
       <div className="h-[26vh] max-h-[220px] min-h-[140px] w-full flex items-stretch justify-between gap-2 px-2 py-2 touch-none shrink-0">
 
-        {/* D-pad: 3x3 grid with diagonal corners; L/R row taller */}
+        {/* D-pad: wide Up & Down bars, L/R near-connected in center & slightly taller, diagonals at corners */}
         <div
           ref={padRef}
           className="grid flex-1 h-full touch-none gap-1"
-          style={{ gridTemplateColumns: '1fr 1fr 1fr', gridTemplateRows: '0.85fr 1.3fr 0.85fr' }}
+          style={{ gridTemplateColumns: '1fr 2.4fr 1fr', gridTemplateRows: '0.9fr 1.2fr 0.9fr' }}
           {...padHandlers}
         >
-          {/* Row 1: UpLeft, Up, UpRight */}
+          {/* Row 1: UpLeft (small corner), Up (WIDE), UpRight (small corner) */}
           <button
             data-padkey="ArrowUp+ArrowLeft"
-            className="bg-muted/70 active:bg-primary rounded-lg text-foreground text-xl flex items-center justify-center font-bold"
+            className="bg-muted/70 active:bg-primary rounded-lg text-foreground text-lg flex items-center justify-center font-bold"
             onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowUp+ArrowLeft'); }}
             onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowUp+ArrowLeft'); }}
           >↖</button>
           <button
             data-padkey="ArrowUp"
-            className="bg-muted active:bg-primary rounded-lg text-foreground text-2xl flex items-center justify-center font-bold"
+            className="bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold"
             onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowUp'); }}
             onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowUp'); }}
           >↑</button>
           <button
             data-padkey="ArrowUp+ArrowRight"
-            className="bg-muted/70 active:bg-primary rounded-lg text-foreground text-xl flex items-center justify-center font-bold"
+            className="bg-muted/70 active:bg-primary rounded-lg text-foreground text-lg flex items-center justify-center font-bold"
             onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowUp+ArrowRight'); }}
             onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowUp+ArrowRight'); }}
           >↗</button>
 
-          {/* Row 2: Left, (center spacer), Right — taller */}
-          <button
-            data-padkey="ArrowLeft"
-            className="bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold"
-            onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowLeft'); }}
-            onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowLeft'); }}
-          >←</button>
-          <div className="bg-muted/30 rounded-lg" />
-          <button
-            data-padkey="ArrowRight"
-            className="bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold"
-            onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowRight'); }}
-            onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowRight'); }}
-          >→</button>
+          {/* Row 2: Left & Right meet near center (taller). Span 3 cols with inner flex so they nearly touch. */}
+          <div className="col-span-3 flex items-stretch gap-1">
+            <button
+              data-padkey="ArrowLeft"
+              className="flex-1 bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-end pr-4 font-bold"
+              onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowLeft'); }}
+              onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowLeft'); }}
+            >←</button>
+            <button
+              data-padkey="ArrowRight"
+              className="flex-1 bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-start pl-4 font-bold"
+              onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowRight'); }}
+              onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowRight'); }}
+            >→</button>
+          </div>
 
-          {/* Row 3: DownLeft, Down, DownRight */}
+          {/* Row 3: DownLeft (small corner), Down (WIDE), DownRight (small corner) */}
           <button
             data-padkey="ArrowDown+ArrowLeft"
-            className="bg-muted/70 active:bg-primary rounded-lg text-foreground text-xl flex items-center justify-center font-bold"
+            className="bg-muted/70 active:bg-primary rounded-lg text-foreground text-lg flex items-center justify-center font-bold"
             onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowDown+ArrowLeft'); }}
             onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowDown+ArrowLeft'); }}
           >↙</button>
           <button
             data-padkey="ArrowDown"
-            className="bg-muted active:bg-primary rounded-lg text-foreground text-2xl flex items-center justify-center font-bold"
+            className="bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold"
             onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowDown'); }}
             onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowDown'); }}
           >↓</button>
           <button
             data-padkey="ArrowDown+ArrowRight"
-            className="bg-muted/70 active:bg-primary rounded-lg text-foreground text-xl flex items-center justify-center font-bold"
+            className="bg-muted/70 active:bg-primary rounded-lg text-foreground text-lg flex items-center justify-center font-bold"
             onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowDown+ArrowRight'); }}
             onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowDown+ArrowRight'); }}
           >↘</button>
