@@ -469,8 +469,8 @@ const DonkeyKongGame = () => {
         g.barrelSoundTimer++;
         for (let i = g.barrels.length - 1; i >= 0; i--) {
           const b = g.barrels[i];
-          // Smooth, time-based roll animation phase (advances every frame)
-          b.rollPhase = (b.rollPhase || 0) + 1;
+          // Distance-based roll: rotate based on horizontal movement (true rolling)
+          b.rollPhase = (b.rollPhase || 0) + Math.abs(b.vx) + (b.falling ? Math.abs(b.vy) * 0.5 : 0);
           const bCenterX = b.x + b.w / 2;
           const bFeetY = b.y + b.h;
           const bPlatIdx = findPlatformIndex(bFeetY, bCenterX);
