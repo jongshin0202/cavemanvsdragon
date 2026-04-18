@@ -161,6 +161,24 @@ const CavemanVsDragonGame = () => {
     resetLevel();
   }, [resetLevel]);
 
+  // Submit a high score and move to the leaderboard view
+  const submitHighScore = useCallback(() => {
+    const entry: LeaderboardEntry = {
+      initials: initialsRef.current.join('').toUpperCase().padEnd(3, 'A').slice(0, 3),
+      score: pendingScore,
+      date: new Date().toISOString(),
+    };
+    const next = insertScore(entry);
+    setScores(next);
+    setGameState('leaderboard');
+  }, [pendingScore]);
+
+  // Keep refs in sync with state for the canvas render loop
+  useEffect(() => { scoresRef.current = scores; }, [scores]);
+  useEffect(() => { initialsRef.current = initials; }, [initials]);
+  useEffect(() => { initialsCursorRef.current = initialsCursor; }, [initialsCursor]);
+  useEffect(() => { isMobileRef.current = isMobile; }, [isMobile]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
