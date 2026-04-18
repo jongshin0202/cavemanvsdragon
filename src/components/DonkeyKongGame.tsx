@@ -41,6 +41,7 @@ const DonkeyKongGame = () => {
   const winSpriteRef = useRef<HTMLImageElement | null>(null);
   const dragonRef = useRef<HTMLImageElement | null>(null);
   const princessRef = useRef<HTMLImageElement | null>(null);
+  const robotWalkRef = useRef<HTMLImageElement | null>(null);
   const gameRef = useRef({
     player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 },
     barrels: [] as Barrel[],
@@ -62,6 +63,8 @@ const DonkeyKongGame = () => {
     deathFlashTimer: 0,
     dying: false,
     frameCount: 0,
+    playerHasMoved: false,
+    barrelStartDelay: 0,
     winAnim: { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 },
   });
 
