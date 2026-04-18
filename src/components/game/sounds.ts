@@ -343,6 +343,13 @@ export function playVineGrowSound() {
   chime.stop(tc + 0.5);
 }
 
+// Track last roar time so the princess "Help!" doesn't overlap it
+let lastRoarEndsAt = 0;
+export function isDragonRoaringNow(): boolean {
+  const ctx = getCtx();
+  return ctx.currentTime < lastRoarEndsAt;
+}
+
 // Realistic dragon roar — heavy breath in, deep guttural growl, breath-out tail.
 // Built from layered noise sources shaped by formant-style filters (no chip-tune oscillators).
 export function playDragonRoarSound() {
@@ -468,19 +475,8 @@ export function playDragonRoarSound() {
   lastRoarEndsAt = t0 + dur;
 }
 
-// Track last roar time so the princess "Help!" doesn't overlap it
-let lastRoarEndsAt = 0;
-const _origRoar = playDragonRoarSound;
-export function isDragonRoaringNow(): boolean {
-  const ctx = getCtx();
-  return ctx.currentTime < lastRoarEndsAt;
-}
-// Wrap roar to record when it ends (≈1.4s duration)
-export function playDragonRoarTracked() {
-  const ctx = getCtx();
-  lastRoarEndsAt = ctx.currentTime + 1.4;
-  _origRoar();
-}
+// Backwards-compatible alias — main roar function already updates the tracker.
+export const playDragonRoarTracked = playDragonRoarSound;
 
 // Princess yelling "Help!" — short cry built from formant-shaped tones
 export function playPrincessHelpSound() {
