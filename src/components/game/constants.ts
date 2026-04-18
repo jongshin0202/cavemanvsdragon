@@ -21,7 +21,7 @@ export const PLATFORMS: { y: number; x1: number; x2: number; slope?: number }[] 
   { y: 304, x1: 48, x2: 512, slope: -0.02 },            // P3: gap on left for barrel drop
   { y: 240, x1: 0, x2: 464, slope: 0.02 },              // P4: gap on right for barrel drop
   { y: 176, x1: 48, x2: 512, slope: -0.02 },            // P5: gap on left for barrel drop
-  { y: 112, x1: 80, x2: 432, slope: 0.02 },             // Top: gaps on both sides
+  { y: 112, x1: 0, x2: 432, slope: 0.02 },              // Top (P6): left edge extended to leftmost; gap on right
 ];
 
 // Ladders: alternating/staggered positions between levels
