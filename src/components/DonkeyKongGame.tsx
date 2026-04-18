@@ -81,6 +81,7 @@ const DonkeyKongGame = () => {
     keyPos: { x: 50, y: 158, w: 14, h: 14 }, // leftmost edge of P5 (y=176, x1=48)
     keyBob: 0,
     sparkleTimer: 0,
+    invulnTimer: 0,
   });
 
   const resetPlayer = useCallback(() => {
@@ -90,6 +91,8 @@ const DonkeyKongGame = () => {
     g.barrelTimer = 0;
     g.pendingClimb = null;
     g.courseDir = 0;
+    // Brief invulnerability so we don't die on the same frame we respawn
+    g.invulnTimer = 120; // ~2s at 60fps
   }, []);
 
   const resetGame = useCallback(() => {
@@ -230,6 +233,8 @@ const DonkeyKongGame = () => {
       if (g.helpTimer > 120) { g.helpTimer = 0; g.showHelp = !g.showHelp; }
 
       if (g.state === 'playing' && !g.dying) {
+        // Decrement invulnerability after respawn
+        if (g.invulnTimer > 0) g.invulnTimer--;
         // === PLAYER MOVEMENT ===
         // Wider snap: find nearest ladder within LADDER_SNAP pixels
         const playerCX = p.x + p.w / 2;
@@ -615,7 +620,7 @@ const DonkeyKongGame = () => {
           // Collision with player only if on the same platform
           const bPlatY = findPlatformIndex(b.y + b.h, b.x + b.w / 2);
           const pPlatY = findPlatformIndex(p.y + p.h, p.x + p.w / 2);
-          if (rectsOverlap(p, b) && bPlatY === pPlatY) {
+          if (rectsOverlap(p, b) && bPlatY === pPlatY && g.invulnTimer === 0) {
             g.lives--; setLives(g.lives);
             if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
             else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
@@ -732,7 +737,7 @@ const DonkeyKongGame = () => {
               p.vy = -4;
               g.robots.splice(i, 1);
               g.monkeysKilled = (g.monkeysKilled || 0) + 1;
-            } else {
+            } else if (g.invulnTimer === 0) {
               g.lives--; setLives(g.lives);
               if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
               else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
@@ -986,7 +991,9 @@ const DonkeyKongGame = () => {
       // Player (Caveman sprite) - flash 3 times when dying
       // (toggle every 18 frames over 108 frames at 60fps → 3 on/off cycles)
       const pl = g.player;
-      const showPlayer = !g.dying || Math.floor(g.deathFlashTimer / 18) % 2 === 0;
+      const showPlayer = g.dying
+        ? Math.floor(g.deathFlashTimer / 18) % 2 === 0
+        : (g.invulnTimer === 0 || Math.floor(g.invulnTimer / 6) % 2 === 0);
       const walkSprite = walkSpriteRef.current;
       const jumpSprite = jumpSpriteRef.current;
       const climbSprite = climbSpriteRef.current;
