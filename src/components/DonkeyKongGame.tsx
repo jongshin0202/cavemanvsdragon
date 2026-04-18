@@ -208,7 +208,8 @@ const DonkeyKongGame = () => {
           wa.gorillaRotation += 0.15;
         }
         if (wa.timer > 30) wa.showKiss = true;
-        if (wa.timer > 90) wa.showCongrats = true;
+        // Wait until the jingle finishes (~66 frames) + a 2-second pause (120 frames) before showing the win screen
+        if (wa.timer > 186) wa.showCongrats = true;
       }
 
       // Handle dying state (1 second pause with flashing)
@@ -279,7 +280,11 @@ const DonkeyKongGame = () => {
         const wantUp = rawUp || g.pendingClimb === 'up';
         const wantDown = rawDown || g.pendingClimb === 'down';
 
-        if (wantUp && nearestLadder) {
+        // Jump always takes priority — even if Up is held over a ladder.
+        // This prevents getting "stuck" climbing in place at the top of a vine.
+        const jumpPressed = keys.has(' ');
+
+        if (wantUp && nearestLadder && !jumpPressed) {
           p.climbing = true;
           p.x = nearestLadder.x + 7 - p.w / 2;
         } else if (wantDown) {
@@ -309,7 +314,12 @@ const DonkeyKongGame = () => {
           const nearBot = climbingLadder && (p.y + p.h) > climbingLadder.yBot - 6;
           const wantsHorizontal = rawLeft || rawRight;
           
-          if (!nearestLadder && !nearTop) {
+          if (jumpPressed) {
+            // Jump pressed while climbing — dismount immediately so the jump can fire below
+            p.climbing = false;
+            if (climbingLadder && nearTop) p.y = climbingLadder.yTop - p.h;
+            p.onGround = !!(climbingLadder && nearTop);
+          } else if (!nearestLadder && !nearTop) {
             p.climbing = false;
           } else if (nearTop && (wantsHorizontal || rawUp)) {
             // Snap to top platform and dismount
