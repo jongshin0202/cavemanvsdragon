@@ -1047,7 +1047,7 @@ const DonkeyKongGame = () => {
         {/* R button — small, between arrows and jump, must be tapped (not slid) */}
         <button
           className="w-10 h-10 self-center rounded-full bg-accent text-accent-foreground text-sm font-bold active:scale-95 shrink-0"
-          onPointerDown={(e) => { e.preventDefault(); vibrate(25); resetGame(); }}
+          onPointerDown={(e) => { e.preventDefault(); ensureVibrateUnlocked(); vibrateNow(40); resetGame(); }}
         >R</button>
 
         {/* JUMP button — extra-large, tap-only */}
