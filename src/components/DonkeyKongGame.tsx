@@ -311,7 +311,7 @@ const DonkeyKongGame = () => {
             g.barrelTimer = 0;
             g.nextBarrelTime = 90 + Math.random() * 180;
             const speed = BARREL_SPEED * (0.7 + Math.random() * 0.8);
-            g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed });
+            g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed, rollPhase: 0 });
             playBarrelRollSound();
           }
         }
