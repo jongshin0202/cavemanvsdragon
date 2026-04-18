@@ -926,9 +926,24 @@ const DonkeyKongGame = () => {
     return () => { cancelAnimationFrame(animId); window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp); };
   }, [resetGame, resetPlayer]);
 
-  const vibrate = useCallback((ms = 15) => {
-    try { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(ms); } catch {}
-  }, []);
+  // Direct, synchronous vibrate — must be called inside the React event handler
+  // (some browsers gate vibrate() behind a fresh user-gesture stack frame).
+  const vibrateNow = (ms: number) => {
+    try {
+      const nav = typeof navigator !== 'undefined' ? (navigator as Navigator & { vibrate?: (p: number | number[]) => boolean }) : null;
+      if (nav && typeof nav.vibrate === 'function') nav.vibrate(ms);
+    } catch {}
+  };
+
+  // One-time vibration "unlock" on first user gesture (Chrome Android requires
+  // a prior user gesture before vibration calls inside async callbacks fire).
+  const vibrateUnlockedRef = useRef(false);
+  const ensureVibrateUnlocked = () => {
+    if (!vibrateUnlockedRef.current) {
+      vibrateUnlockedRef.current = true;
+      vibrateNow(1);
+    }
+  };
 
   const simulateKey = useCallback((key: string, type: 'down' | 'up') => {
     if (type === 'down') keysRef.current.add(key); else keysRef.current.delete(key);
@@ -939,27 +954,31 @@ const DonkeyKongGame = () => {
   const activePadKeyRef = useRef<string | null>(null);
   const DPAD_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
 
-  const updatePadFromPoint = useCallback((clientX: number, clientY: number) => {
+  const updatePadFromPoint = (clientX: number, clientY: number) => {
     const el = document.elementFromPoint(clientX, clientY) as HTMLElement | null;
     const key = el?.getAttribute('data-padkey');
     const next = key && DPAD_KEYS.includes(key) ? key : null;
     if (activePadKeyRef.current !== next) {
       if (activePadKeyRef.current) simulateKey(activePadKeyRef.current, 'up');
-      if (next) { simulateKey(next, 'down'); vibrate(25); }
+      if (next) {
+        simulateKey(next, 'down');
+        vibrateNow(30);
+      }
       activePadKeyRef.current = next;
     }
-  }, [simulateKey, vibrate]);
+  };
 
-  const clearPad = useCallback(() => {
+  const clearPad = () => {
     if (activePadKeyRef.current) {
       simulateKey(activePadKeyRef.current, 'up');
       activePadKeyRef.current = null;
     }
-  }, [simulateKey]);
+  };
 
   const padHandlers = {
     onPointerDown: (e: React.PointerEvent) => {
       e.preventDefault();
+      ensureVibrateUnlocked();
       (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
       updatePadFromPoint(e.clientX, e.clientY);
     },
@@ -973,12 +992,13 @@ const DonkeyKongGame = () => {
   };
 
   // Tap-only handler for jump / R (must be pressed, not slid into)
-  const tapHandlers = (key: string) => ({
+  const tapHandlers = (key: string, vibMs = 40) => ({
     onPointerDown: (e: React.PointerEvent) => {
       e.preventDefault();
+      ensureVibrateUnlocked();
+      vibrateNow(vibMs);
       (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
       simulateKey(key, 'down');
-      vibrate(35);
     },
     onPointerUp: (e: React.PointerEvent) => { e.preventDefault(); simulateKey(key, 'up'); },
     onPointerCancel: () => simulateKey(key, 'up'),
