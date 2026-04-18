@@ -64,6 +64,14 @@ const DonkeyKongGame = () => {
     winAnim: { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 },
     pendingClimb: null as null | 'up' | 'down',
     courseDir: 0 as -1 | 0 | 1,
+    // Seed-grows-vine mechanic
+    hasSeed: false,
+    seedPlanted: false,
+    topVineGrowth: 0, // 0..1, fraction of vine grown
+    topVineUnlocked: false,
+    seedPos: { x: 90, y: 160, w: 12, h: 12 }, // sits on P5 (y=176)
+    seedBob: 0,
+    sparkleTimer: 0,
   });
 
   const resetPlayer = useCallback(() => {
@@ -88,6 +96,12 @@ const DonkeyKongGame = () => {
     g.dkAnimTimer = 0; g.dkFrame = 0;
     g.princessAnimTimer = 0; g.helpTimer = 0; g.showHelp = false;
     g.winAnim = { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
+    g.hasSeed = false;
+    g.seedPlanted = false;
+    g.topVineGrowth = 0;
+    g.topVineUnlocked = false;
+    g.seedBob = 0;
+    g.sparkleTimer = 0;
     resetPlayer();
     // Spawn first rock immediately so action starts the moment the game begins
     {
