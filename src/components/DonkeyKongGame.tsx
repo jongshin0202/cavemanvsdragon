@@ -703,7 +703,7 @@ const DonkeyKongGame = () => {
         }
         ctx.restore();
       } else {
-        const dkY = 16;
+        const dkY = 84;
         const frameIdx = g.dkFrame % DRAGON_FRAMES;
         if (dragonImg && dragonImg.complete && dragonFrameW > 0) {
           ctx.drawImage(dragonImg, frameIdx * dragonFrameW, 0, dragonFrameW, dragonFrameH, dkX, dkY, dragonSize, dragonSize);
@@ -713,7 +713,7 @@ const DonkeyKongGame = () => {
       }
 
       // Princess (sprite)
-      const paulX = 235, paulY = 62;
+      const paulX = 235, paulY = 130;
       const princessImg = princessRef.current;
       const princessDrawW = 24;
       const princessDrawH = 32;
