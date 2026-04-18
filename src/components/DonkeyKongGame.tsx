@@ -1059,13 +1059,13 @@ const DonkeyKongGame = () => {
         >
           <button
             data-padkey="ArrowUp"
-            style={{ flexGrow: 0.95, flexBasis: 0 }}
-            className="w-full bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold"
+            style={{ flexGrow: 0.7, flexBasis: 0, width: '45%' }}
+            className="self-center bg-muted active:bg-primary rounded-lg text-foreground text-2xl flex items-center justify-center font-bold"
             onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowUp'); }}
             onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowUp'); }}
           >↑</button>
 
-          <div style={{ flexGrow: 1.10, flexBasis: 0 }} className="w-full flex items-stretch">
+          <div style={{ flexGrow: 1.6, flexBasis: 0 }} className="w-full flex items-stretch">
             <button
               data-padkey="ArrowLeft"
               className="flex-1 bg-muted active:bg-primary rounded-l-lg text-foreground text-3xl flex items-center justify-center font-bold border-r-2 border-background"
@@ -1082,8 +1082,8 @@ const DonkeyKongGame = () => {
 
           <button
             data-padkey="ArrowDown"
-            style={{ flexGrow: 0.95, flexBasis: 0 }}
-            className="w-full bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold"
+            style={{ flexGrow: 0.7, flexBasis: 0, width: '45%' }}
+            className="self-center bg-muted active:bg-primary rounded-lg text-foreground text-2xl flex items-center justify-center font-bold"
             onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowDown'); }}
             onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowDown'); }}
           >↓</button>
