@@ -12,6 +12,9 @@ import cavemanClimbUrl from '@/assets/caveman-climb.png';
 import cavemanWinUrl from '@/assets/caveman-win.png';
 import dragonSpriteUrl from '@/assets/dragon-sprite.png';
 import princessSpriteUrl from '@/assets/princess-sprite.png';
+import robotWalkUrl from '@/assets/robot-walk.png';
+
+const ROBOT_WALK_FRAMES = 5;
 
 // Dragon sprite sheet config (idle row: top row, 4 frames)
 const DRAGON_FRAME_W = 130;
