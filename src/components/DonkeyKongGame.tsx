@@ -208,7 +208,8 @@ const DonkeyKongGame = () => {
           wa.gorillaRotation += 0.15;
         }
         if (wa.timer > 30) wa.showKiss = true;
-        if (wa.timer > 90) wa.showCongrats = true;
+        // Wait until the jingle finishes (~66 frames) + a 2-second pause (120 frames) before showing the win screen
+        if (wa.timer > 186) wa.showCongrats = true;
       }
 
       // Handle dying state (1 second pause with flashing)
