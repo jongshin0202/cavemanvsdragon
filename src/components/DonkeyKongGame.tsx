@@ -69,13 +69,15 @@ const DonkeyKongGame = () => {
     winAnim: { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 },
     pendingClimb: null as null | 'up' | 'down',
     courseDir: 0 as -1 | 0 | 1,
-    // Seed-grows-vine mechanic
-    hasSeed: false,
-    seedPlanted: false,
-    topVineGrowth: 0, // 0..1, fraction of vine grown
+    // Kill-monkeys → key → grow topmost vine mechanic
+    monkeysKilled: 0,
+    keySpawned: false,
+    keyGrabbed: false,
+    seedPlanted: false, // (legacy name) true once key is grabbed; triggers vine grow
+    topVineGrowth: 0,
     topVineUnlocked: false,
-    seedPos: { x: 90, y: 160, w: 12, h: 12 }, // sits on P5 (y=176)
-    seedBob: 0,
+    keyPos: { x: 50, y: 158, w: 14, h: 14 }, // leftmost edge of P5 (y=176, x1=48)
+    keyBob: 0,
     sparkleTimer: 0,
   });
 
@@ -101,13 +103,14 @@ const DonkeyKongGame = () => {
     g.dkAnimTimer = 0; g.dkFrame = 0;
     g.princessAnimTimer = 0; g.helpTimer = 0; g.showHelp = false;
     g.winAnim = { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
-    g.hasSeed = false;
+    g.monkeysKilled = 0;
+    g.keySpawned = false;
+    g.keyGrabbed = false;
     g.seedPlanted = false;
-    // Defensive: ensure seedPos exists even on stale ref / hot reload
-    if (!g.seedPos) g.seedPos = { x: 90, y: 160, w: 12, h: 12 };
     g.topVineGrowth = 0;
     g.topVineUnlocked = false;
-    g.seedBob = 0;
+    if (!g.keyPos) g.keyPos = { x: 50, y: 158, w: 14, h: 14 };
+    g.keyBob = 0;
     g.sparkleTimer = 0;
     resetPlayer();
     // Spawn first rock immediately so action starts the moment the game begins
@@ -353,27 +356,26 @@ const DonkeyKongGame = () => {
           else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
         }
 
-        // === SEED PICKUP / PLANT / GROW VINE ===
-        // Pick up the seed if not yet held and not yet planted
-        if (!g.hasSeed && !g.seedPlanted) {
-          if (rectsOverlap(p, g.seedPos)) {
-            g.hasSeed = true;
-            g.score += 100; setScore(g.score);
-          }
-          // Bob animation for the un-picked seed
-          g.seedBob = (g.seedBob + 1) % 120;
+        // === KILL ALL MONKEYS → KEY APPEARS → GRAB KEY → VINE GROWS ===
+        // Spawn the key once all 4 monkeys are dead
+        if (!g.keySpawned && g.monkeysKilled >= 4) {
+          g.keySpawned = true;
+          // Place key on the leftmost edge of P5 (second-from-top platform)
+          const p5 = PLATFORMS[4];
+          const kx = p5.x1 + 4;
+          const ky = getPlatformY(p5, kx) - 16;
+          g.keyPos = { x: kx, y: ky, w: 14, h: 14 };
         }
-        // Plant the seed when player stands on P5 near the planting spot
-        if (g.hasSeed && !g.seedPlanted) {
-          const onP5 = Math.abs((p.y + p.h) - 176) < 6 && p.onGround;
-          const nearPlantX = Math.abs(playerCX - PLANT_X) < 10;
-          if (onP5 && nearPlantX) {
-            g.hasSeed = false;
-            g.seedPlanted = true;
-            g.score += 200; setScore(g.score);
+        // Pick up the key
+        if (g.keySpawned && !g.keyGrabbed) {
+          g.keyBob = (g.keyBob + 1) % 120;
+          if (g.keyPos && rectsOverlap(p, g.keyPos)) {
+            g.keyGrabbed = true;
+            g.seedPlanted = true; // triggers vine-grow animation
+            g.score += 300; setScore(g.score);
           }
         }
-        // Grow the vine after planting (~1.5s at 45fps ≈ 68 frames)
+        // Grow the vine after key grab (~1.5s at 45fps ≈ 68 frames)
         if (g.seedPlanted && g.topVineGrowth < 1) {
           g.topVineGrowth = Math.min(1, g.topVineGrowth + 1 / 68);
           g.sparkleTimer++;
@@ -406,19 +408,16 @@ const DonkeyKongGame = () => {
           }
         }
 
-        // === ROBOT SPAWNING (initial random per platform, respawn) ===
+        // === MONKEY SPAWNING (exactly 4 monkeys, one per platform P2..P5) ===
         if (!g.robotsInitialized) {
           g.robotsInitialized = true;
-          // Spawn 0-2 robots on each platform except top (index 5)
-          for (let pi = 0; pi < PLATFORMS.length - 1; pi++) {
-            const count = 1;
+          // Spawn one monkey on platforms 1..4 (skip ground P1 and top P6) → exactly 4
+          for (let pi = 1; pi <= 4; pi++) {
             const plat = PLATFORMS[pi];
-            for (let c = 0; c < count; c++) {
-              const rx = pi === 0 ? plat.x2 - 30 : plat.x1 + 30 + Math.random() * (plat.x2 - plat.x1 - 60);
-              const ry = getPlatformY(plat, rx) - 16;
-              const spd = ROBOT_SPEED * (0.6 + Math.random() * 0.8);
-              g.robots.push({ x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0, onGround: true, climbing: false, targetLadder: null, direction: pi === 0 ? -1 : (Math.random() > 0.5 ? 1 : -1), frame: 0, frameTimer: 0, speed: spd });
-            }
+            const rx = plat.x1 + 30 + Math.random() * (plat.x2 - plat.x1 - 60);
+            const ry = getPlatformY(plat, rx) - 16;
+            const spd = ROBOT_SPEED * (0.6 + Math.random() * 0.8);
+            g.robots.push({ x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0, onGround: true, climbing: false, targetLadder: null, direction: Math.random() > 0.5 ? 1 : -1, frame: 0, frameTimer: 0, speed: spd });
           }
         }
 
@@ -697,6 +696,7 @@ const DonkeyKongGame = () => {
               playRobotKillSound();
               p.vy = -4;
               g.robots.splice(i, 1);
+              g.monkeysKilled = (g.monkeysKilled || 0) + 1;
             } else {
               g.lives--; setLives(g.lives);
               if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
@@ -813,41 +813,30 @@ const DonkeyKongGame = () => {
         }
       }
 
-      // Loose watering can on P5 (drawn while not held and not yet used)
-      if (!g.hasSeed && !g.seedPlanted && g.seedPos) {
-        const sd = g.seedPos;
-        const bob = Math.sin(g.seedBob * 0.1) * 2;
-        const cx = sd.x + sd.w / 2;
-        const cy = sd.y + sd.h / 2 + bob;
-        // Soft glow
-        ctx.fillStyle = 'rgba(135, 206, 250, 0.28)';
-        ctx.beginPath(); ctx.arc(cx, cy, 10, 0, Math.PI * 2); ctx.fill();
-        // Body (rounded rectangle)
-        ctx.fillStyle = '#4FC3F7';
-        ctx.fillRect(cx - 5, cy - 3, 10, 7);
-        ctx.fillRect(cx - 4, cy - 4, 8, 1);
-        ctx.fillRect(cx - 4, cy + 4, 8, 1);
-        // Body shading
-        ctx.fillStyle = '#0288D1';
-        ctx.fillRect(cx - 5, cy + 3, 10, 1);
-        // Spout (angled tube to the right)
-        ctx.fillStyle = '#4FC3F7';
-        ctx.fillRect(cx + 5, cy - 2, 3, 2);
-        ctx.fillRect(cx + 7, cy - 3, 2, 2);
-        // Sprinkler head
-        ctx.fillStyle = '#0288D1';
-        ctx.fillRect(cx + 8, cy - 4, 2, 1);
-        // Handle (arc on top)
-        ctx.strokeStyle = '#0288D1'; ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(cx, cy - 3, 3, Math.PI, 0);
-        ctx.stroke();
+      // Key on leftmost edge of P5 (drawn after all 4 monkeys are killed, until grabbed)
+      if (g.keySpawned && !g.keyGrabbed && g.keyPos) {
+        const kp = g.keyPos;
+        const bob = Math.sin(g.keyBob * 0.12) * 2;
+        const cx = kp.x + kp.w / 2;
+        const cy = kp.y + kp.h / 2 + bob;
+        // Soft golden glow
+        ctx.fillStyle = 'rgba(255, 215, 0, 0.35)';
+        ctx.beginPath(); ctx.arc(cx, cy, 11, 0, Math.PI * 2); ctx.fill();
+        // Key bow (round head, hollow)
+        ctx.fillStyle = '#FFD700';
+        ctx.beginPath(); ctx.arc(cx - 3, cy, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#3a2f00';
+        ctx.beginPath(); ctx.arc(cx - 3, cy, 1.5, 0, Math.PI * 2); ctx.fill();
+        // Shaft
+        ctx.fillStyle = '#FFD700';
+        ctx.fillRect(cx, cy - 1, 7, 2);
+        // Teeth
+        ctx.fillRect(cx + 4, cy + 1, 1, 2);
+        ctx.fillRect(cx + 6, cy + 1, 1, 2);
         // Highlight
-        ctx.fillStyle = '#B3E5FC';
-        ctx.fillRect(cx - 3, cy - 2, 2, 1);
-        // Tiny water droplet hint
-        ctx.fillStyle = '#81D4FA';
-        ctx.fillRect(cx + 9, cy - 1, 1, 1);
+        ctx.fillStyle = '#FFF59D';
+        ctx.fillRect(cx - 4, cy - 2, 1, 1);
+        ctx.fillRect(cx + 1, cy - 1, 2, 1);
       }
 
       // Dragon boss (with win animation - flip and fall) - 2x bigger
@@ -1024,28 +1013,7 @@ const DonkeyKongGame = () => {
         else ctx.fillRect(pl.x + 5, pl.y + 5, 2, 2);
       }
 
-      // Carried watering can (drawn next to the player when they're holding it)
-      if (g.hasSeed && showPlayer) {
-        const cx = pl.x + pl.w / 2 + (pl.facing > 0 ? 8 : -8);
-        const cy = pl.y + 6;
-        const dir = pl.facing > 0 ? 1 : -1;
-        // Body
-        ctx.fillStyle = '#4FC3F7';
-        ctx.fillRect(cx - 4, cy - 2, 8, 6);
-        ctx.fillRect(cx - 3, cy - 3, 6, 1);
-        ctx.fillStyle = '#0288D1';
-        ctx.fillRect(cx - 4, cy + 3, 8, 1);
-        // Spout
-        ctx.fillStyle = '#4FC3F7';
-        ctx.fillRect(cx + 4 * dir, cy - 1, 2 * dir, 2);
-        ctx.fillRect(cx + 6 * dir, cy - 2, 1 * dir, 1);
-        // Handle
-        ctx.strokeStyle = '#0288D1'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.arc(cx, cy - 2, 2, Math.PI, 0); ctx.stroke();
-        // Highlight
-        ctx.fillStyle = '#B3E5FC';
-        ctx.fillRect(cx - 2, cy - 1, 1, 1);
-      }
+      // (Carried items removed — the key is consumed instantly on pickup.)
 
 
       ctx.fillStyle = '#4488FF';
