@@ -1118,14 +1118,14 @@ const CavemanVsDragonGame = () => {
       }
       if (g.state === 'win' && wa.showCongrats) {
         ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-        ctx.fillStyle = '#FFD700'; ctx.font = 'bold 36px var(--font-arcade)';
-        ctx.fillText('Congratulations!', CANVAS_W / 2, CANVAS_H / 2 - 50);
-        ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 32px var(--font-arcade)';
-        ctx.fillText('You Won!', CANVAS_W / 2, CANVAS_H / 2 - 10);
-        ctx.fillStyle = '#FFD700'; ctx.font = 'bold 24px var(--font-arcade)';
-        ctx.fillText(`Score: ${g.score}`, CANVAS_W / 2, CANVAS_H / 2 + 30);
-        ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 20px var(--font-arcade)';
-        ctx.fillText('Press R to restart', CANVAS_W / 2, CANVAS_H / 2 + 70);
+        ctx.fillStyle = '#FFD700'; ctx.font = 'bold 108px var(--font-arcade)';
+        ctx.fillText('Congratulations!', CANVAS_W / 2, CANVAS_H / 2 - 150);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 96px var(--font-arcade)';
+        ctx.fillText('You Won!', CANVAS_W / 2, CANVAS_H / 2 - 30);
+        ctx.fillStyle = '#FFD700'; ctx.font = 'bold 72px var(--font-arcade)';
+        ctx.fillText(`Score: ${g.score}`, CANVAS_W / 2, CANVAS_H / 2 + 90);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 60px var(--font-arcade)';
+        ctx.fillText('Press R to restart', CANVAS_W / 2, CANVAS_H / 2 + 210);
       }
       ctx.textAlign = 'start';
 
