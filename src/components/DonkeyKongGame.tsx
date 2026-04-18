@@ -469,8 +469,8 @@ const DonkeyKongGame = () => {
         g.barrelSoundTimer++;
         for (let i = g.barrels.length - 1; i >= 0; i--) {
           const b = g.barrels[i];
-          // Smooth, time-based roll animation phase (advances every frame)
-          b.rollPhase = (b.rollPhase || 0) + 1;
+          // Distance-based roll: rotate based on horizontal movement (true rolling)
+          b.rollPhase = (b.rollPhase || 0) + Math.abs(b.vx) + (b.falling ? Math.abs(b.vy) * 0.5 : 0);
           const bCenterX = b.x + b.w / 2;
           const bFeetY = b.y + b.h;
           const bPlatIdx = findPlatformIndex(bFeetY, bCenterX);
@@ -934,13 +934,21 @@ const DonkeyKongGame = () => {
       const rockFrameH = rockImg ? rockImg.naturalHeight : 0;
       for (const b of g.barrels) {
         if (rockImg && rockImg.complete && rockFrameW > 0) {
-          // Smooth animation: advance one frame every 4 game ticks regardless of speed
-          const frameIdx = Math.floor((b.rollPhase || 0) / 4) % ROCK_FRAMES;
+          // Pick a stable mid-frame from the sprite sheet (use frame 0 — looks most "round")
+          // and rotate the canvas to create true smooth rolling tied to distance traveled.
           const drawSize = (b.w + 4) * 1.5; // 50% bigger
           const cx = b.x + b.w / 2;
           const cy = b.y + b.h / 2;
-          ctx.drawImage(rockImg, frameIdx * rockFrameW, 0, rockFrameW, rockFrameH,
-            cx - drawSize / 2, cy - drawSize / 2, drawSize, drawSize);
+          const radius = drawSize / 2;
+          // Circumference-based rotation: angle = distance / radius, direction = sign(vx)
+          const dir = b.vx >= 0 ? 1 : -1;
+          const angle = ((b.rollPhase || 0) / radius) * dir;
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate(angle);
+          ctx.drawImage(rockImg, 0, 0, rockFrameW, rockFrameH,
+            -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+          ctx.restore();
         }
       }
 
