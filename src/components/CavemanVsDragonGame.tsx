@@ -4,7 +4,7 @@ import {
   PLATFORMS, LADDERS, getPlatformY, rectsOverlap, findPlatformIndex, findBestLadder,
   Barrel, Robot
 } from './game/constants';
-import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound } from './game/sounds';
+import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound } from './game/sounds';
 import cavemanWalkUrl from '@/assets/caveman-walk.png';
 import cavemanJumpUrl from '@/assets/caveman-jump.png';
 import cavemanClimbUrl from '@/assets/caveman-climb.png';
@@ -422,6 +422,7 @@ const CavemanVsDragonGame = () => {
           if (Math.abs(playerCXNow - sproutX) < 14 && Math.abs(playerFeetNow - sproutY) < 12) {
             g.seedPlanted = true; // triggers vine-grow animation
             playWaterSproutSound();
+            playVineGrowSound();
           }
         }
         // Grow the vine after watering (~1.5s at 60fps ≈ 68 frames)

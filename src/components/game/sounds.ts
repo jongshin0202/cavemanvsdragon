@@ -272,3 +272,67 @@ export function playPrincessSavedSound() {
   sparkle.start(ts);
   sparkle.stop(ts + 0.55);
 }
+
+// Magical growing-vine sound — soft creak + rising bubbly tones over ~1.1s
+export function playVineGrowSound() {
+  const ctx = getCtx();
+  const t0 = ctx.currentTime;
+  const dur = 1.1;
+
+  // Filtered pink-ish noise (organic creak/rustle)
+  const bufferSize = Math.floor(ctx.sampleRate * dur);
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  let last = 0;
+  for (let i = 0; i < bufferSize; i++) {
+    const env = Math.sin((i / bufferSize) * Math.PI);
+    const white = Math.random() * 2 - 1;
+    last = 0.92 * last + 0.08 * white; // low-passed noise
+    data[i] = last * env;
+  }
+  const noise = ctx.createBufferSource();
+  noise.buffer = buffer;
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.Q.value = 3;
+  filter.frequency.setValueAtTime(400, t0);
+  filter.frequency.exponentialRampToValueAtTime(1600, t0 + dur);
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.setValueAtTime(0.10, t0);
+  noiseGain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+  noise.connect(filter);
+  filter.connect(noiseGain);
+  noiseGain.connect(ctx.destination);
+  noise.start(t0);
+  noise.stop(t0 + dur);
+
+  // Rising bubbly arpeggio (the vine "stretching upward")
+  const notes = [220, 277, 330, 392, 466, 587, 698, 880]; // A3 → A5 ladder
+  notes.forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    const t = t0 + i * (dur / notes.length);
+    osc.frequency.setValueAtTime(freq, t);
+    osc.frequency.exponentialRampToValueAtTime(freq * 1.05, t + 0.18);
+    gain.gain.setValueAtTime(0.07, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.22);
+    osc.start(t);
+    osc.stop(t + 0.24);
+  });
+
+  // Final bright "bloom" chime
+  const chime = ctx.createOscillator();
+  const cg = ctx.createGain();
+  chime.connect(cg);
+  cg.connect(ctx.destination);
+  chime.type = 'triangle';
+  const tc = t0 + dur - 0.05;
+  chime.frequency.setValueAtTime(1318.5, tc); // E6
+  cg.gain.setValueAtTime(0.12, tc);
+  cg.gain.exponentialRampToValueAtTime(0.001, tc + 0.45);
+  chime.start(tc);
+  chime.stop(tc + 0.5);
+}
