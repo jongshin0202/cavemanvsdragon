@@ -49,7 +49,7 @@ const CavemanVsDragonGame = () => {
     barrels: [] as Barrel[],
     robots: [] as (Robot & { wanderTimer?: number; wanderDir?: number })[],
     barrelTimer: 0,
-    nextBarrelTime: 90 + Math.random() * 180,
+    nextBarrelTime: 30, // first barrel within ~0.5s
     robotSpawnTimer: 0,
     robotsInitialized: false,
     score: 0,
@@ -66,7 +66,7 @@ const CavemanVsDragonGame = () => {
     deathFlashTimer: 0,
     dying: false,
     frameCount: 0,
-    playerHasMoved: false,
+    playerHasMoved: true, // start spawning barrels and audio immediately
     barrelStartDelay: 0,
     winAnim: { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 },
     pendingClimb: null as null | 'up' | 'down',
