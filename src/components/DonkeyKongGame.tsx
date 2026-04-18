@@ -103,6 +103,8 @@ const DonkeyKongGame = () => {
     g.winAnim = { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
     g.hasSeed = false;
     g.seedPlanted = false;
+    // Defensive: ensure seedPos exists even on stale ref / hot reload
+    if (!g.seedPos) g.seedPos = { x: 90, y: 160, w: 12, h: 12 };
     g.topVineGrowth = 0;
     g.topVineUnlocked = false;
     g.seedBob = 0;
@@ -811,27 +813,41 @@ const DonkeyKongGame = () => {
         }
       }
 
-      // Loose seed on P5 (drawn while not held and not yet planted)
-      if (!g.hasSeed && !g.seedPlanted) {
+      // Loose watering can on P5 (drawn while not held and not yet used)
+      if (!g.hasSeed && !g.seedPlanted && g.seedPos) {
         const sd = g.seedPos;
         const bob = Math.sin(g.seedBob * 0.1) * 2;
         const cx = sd.x + sd.w / 2;
         const cy = sd.y + sd.h / 2 + bob;
-        // Glow
-        ctx.fillStyle = 'rgba(255, 235, 59, 0.25)';
-        ctx.beginPath(); ctx.arc(cx, cy, 9, 0, Math.PI * 2); ctx.fill();
-        // Seed body (acorn-like)
-        ctx.fillStyle = '#8D6E63';
-        ctx.beginPath(); ctx.ellipse(cx, cy + 1, 5, 6, 0, 0, Math.PI * 2); ctx.fill();
-        // Cap
-        ctx.fillStyle = '#5D4037';
-        ctx.fillRect(cx - 5, cy - 4, 10, 3);
-        // Tiny sprout on top
-        ctx.fillStyle = '#66BB6A';
-        ctx.fillRect(cx - 1, cy - 7, 2, 3);
+        // Soft glow
+        ctx.fillStyle = 'rgba(135, 206, 250, 0.28)';
+        ctx.beginPath(); ctx.arc(cx, cy, 10, 0, Math.PI * 2); ctx.fill();
+        // Body (rounded rectangle)
+        ctx.fillStyle = '#4FC3F7';
+        ctx.fillRect(cx - 5, cy - 3, 10, 7);
+        ctx.fillRect(cx - 4, cy - 4, 8, 1);
+        ctx.fillRect(cx - 4, cy + 4, 8, 1);
+        // Body shading
+        ctx.fillStyle = '#0288D1';
+        ctx.fillRect(cx - 5, cy + 3, 10, 1);
+        // Spout (angled tube to the right)
+        ctx.fillStyle = '#4FC3F7';
+        ctx.fillRect(cx + 5, cy - 2, 3, 2);
+        ctx.fillRect(cx + 7, cy - 3, 2, 2);
+        // Sprinkler head
+        ctx.fillStyle = '#0288D1';
+        ctx.fillRect(cx + 8, cy - 4, 2, 1);
+        // Handle (arc on top)
+        ctx.strokeStyle = '#0288D1'; ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(cx, cy - 3, 3, Math.PI, 0);
+        ctx.stroke();
         // Highlight
-        ctx.fillStyle = '#FFEB3B';
-        ctx.fillRect(cx - 2, cy, 1, 1);
+        ctx.fillStyle = '#B3E5FC';
+        ctx.fillRect(cx - 3, cy - 2, 2, 1);
+        // Tiny water droplet hint
+        ctx.fillStyle = '#81D4FA';
+        ctx.fillRect(cx + 9, cy - 1, 1, 1);
       }
 
       // Dragon boss (with win animation - flip and fall) - 2x bigger
@@ -1008,18 +1024,27 @@ const DonkeyKongGame = () => {
         else ctx.fillRect(pl.x + 5, pl.y + 5, 2, 2);
       }
 
-      // Carried seed (drawn next to the player when they're holding it)
+      // Carried watering can (drawn next to the player when they're holding it)
       if (g.hasSeed && showPlayer) {
-        const cx = pl.x + pl.w / 2 + (pl.facing > 0 ? 7 : -7);
+        const cx = pl.x + pl.w / 2 + (pl.facing > 0 ? 8 : -8);
         const cy = pl.y + 6;
-        ctx.fillStyle = 'rgba(255, 235, 59, 0.3)';
-        ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#8D6E63';
-        ctx.beginPath(); ctx.ellipse(cx, cy + 1, 3, 4, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#5D4037';
-        ctx.fillRect(cx - 3, cy - 3, 6, 2);
-        ctx.fillStyle = '#66BB6A';
-        ctx.fillRect(cx - 1, cy - 5, 2, 2);
+        const dir = pl.facing > 0 ? 1 : -1;
+        // Body
+        ctx.fillStyle = '#4FC3F7';
+        ctx.fillRect(cx - 4, cy - 2, 8, 6);
+        ctx.fillRect(cx - 3, cy - 3, 6, 1);
+        ctx.fillStyle = '#0288D1';
+        ctx.fillRect(cx - 4, cy + 3, 8, 1);
+        // Spout
+        ctx.fillStyle = '#4FC3F7';
+        ctx.fillRect(cx + 4 * dir, cy - 1, 2 * dir, 2);
+        ctx.fillRect(cx + 6 * dir, cy - 2, 1 * dir, 1);
+        // Handle
+        ctx.strokeStyle = '#0288D1'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(cx, cy - 2, 2, Math.PI, 0); ctx.stroke();
+        // Highlight
+        ctx.fillStyle = '#B3E5FC';
+        ctx.fillRect(cx - 2, cy - 1, 1, 1);
       }
 
 
