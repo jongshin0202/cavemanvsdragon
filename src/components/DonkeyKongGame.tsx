@@ -952,6 +952,13 @@ const DonkeyKongGame = () => {
       if (nav && typeof nav.vibrate === 'function') nav.vibrate(ms);
     } catch {}
   };
+  const lastHapticAtRef = useRef(0);
+  const pulseHaptic = (ms: number) => {
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (now - lastHapticAtRef.current < 24) return;
+    lastHapticAtRef.current = now;
+    vibrateNow(ms);
+  };
 
   // One-time vibration "unlock" on first user gesture (Chrome Android requires
   // a prior user gesture before vibration calls inside async callbacks fire).
@@ -980,7 +987,7 @@ const DonkeyKongGame = () => {
       if (activePadKeyRef.current) simulateKey(activePadKeyRef.current, 'up');
       if (next) {
         simulateKey(next, 'down');
-        vibrateNow(30);
+        pulseHaptic(30);
       }
       activePadKeyRef.current = next;
     }
@@ -991,6 +998,16 @@ const DonkeyKongGame = () => {
       simulateKey(activePadKeyRef.current, 'up');
       activePadKeyRef.current = null;
     }
+  };
+
+  const pressPadKey = (key: string) => {
+    ensureVibrateUnlocked();
+    if (activePadKeyRef.current !== key) {
+      if (activePadKeyRef.current) simulateKey(activePadKeyRef.current, 'up');
+      activePadKeyRef.current = key;
+      simulateKey(key, 'down');
+    }
+    pulseHaptic(30);
   };
 
   const padHandlers = {
@@ -1014,7 +1031,7 @@ const DonkeyKongGame = () => {
     onPointerDown: (e: React.PointerEvent) => {
       e.preventDefault();
       ensureVibrateUnlocked();
-      vibrateNow(vibMs);
+      pulseHaptic(vibMs);
       (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
       simulateKey(key, 'down');
     },
@@ -1043,29 +1060,38 @@ const DonkeyKongGame = () => {
           <button
             data-padkey="ArrowUp"
             className="w-full flex-1 bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold"
+            onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowUp'); }}
+            onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowUp'); }}
           >↑</button>
 
           <div className="w-full flex-1 flex items-stretch">
             <button
               data-padkey="ArrowLeft"
               className="flex-1 bg-muted active:bg-primary rounded-l-lg text-foreground text-3xl flex items-center justify-center font-bold border-r-2 border-background"
+              onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowLeft'); }}
+              onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowLeft'); }}
             >←</button>
             <button
               data-padkey="ArrowRight"
               className="flex-1 bg-muted active:bg-primary rounded-r-lg text-foreground text-3xl flex items-center justify-center font-bold"
+              onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowRight'); }}
+              onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowRight'); }}
             >→</button>
           </div>
 
           <button
             data-padkey="ArrowDown"
             className="w-full flex-1 bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold"
+            onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowDown'); }}
+            onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowDown'); }}
           >↓</button>
         </div>
 
         {/* R button — small, between arrows and jump, must be tapped (not slid) */}
         <button
           className="w-10 h-10 self-center rounded-full bg-accent text-accent-foreground text-sm font-bold active:scale-95 shrink-0"
-          onPointerDown={(e) => { e.preventDefault(); ensureVibrateUnlocked(); vibrateNow(40); resetGame(); }}
+          onPointerDown={(e) => { e.preventDefault(); ensureVibrateUnlocked(); pulseHaptic(40); resetGame(); }}
+          onTouchStart={(e) => { e.preventDefault(); ensureVibrateUnlocked(); pulseHaptic(40); resetGame(); }}
         >R</button>
 
         {/* JUMP button — extra-large, tap-only */}
