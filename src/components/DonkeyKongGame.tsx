@@ -971,8 +971,9 @@ const DonkeyKongGame = () => {
           style={{ imageRendering: 'pixelated' }} tabIndex={0} />
       </div>
 
-      {/* Controls area = 25% of viewport height */}
-      <div className="flex-1 min-h-0 w-full flex items-stretch justify-between gap-2 px-2 pb-2 touch-none">
+      {/* Controls — fixed compact height to maximize game area */}
+      <div className="h-[26vh] max-h-[220px] min-h-[140px] w-full flex items-stretch justify-between gap-2 px-2 py-2 touch-none shrink-0">
+
         {/* D-pad: wide L/R meeting in center, wide Up/Down stacked */}
         <div
           ref={padRef}
