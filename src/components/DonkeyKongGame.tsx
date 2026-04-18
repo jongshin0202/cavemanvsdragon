@@ -70,6 +70,7 @@ const DonkeyKongGame = () => {
     g.player = { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 };
     g.barrels = [];
     g.barrelTimer = 0;
+    g.pendingClimb = null;
   }, []);
 
   const resetGame = useCallback(() => {
