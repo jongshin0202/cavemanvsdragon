@@ -1191,33 +1191,38 @@ const DonkeyKongGame = () => {
     pulseHaptic(35);
   };
 
+  // Track active pad pointer so document-level move/up listeners follow the finger
+  // even if it slides over a child element (which would otherwise steal the events).
+  const padPointerIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const handleMove = (e: PointerEvent) => {
+      if (padPointerIdRef.current === null || e.pointerId !== padPointerIdRef.current) return;
+      e.preventDefault();
+      updatePadFromPoint(e.clientX, e.clientY);
+    };
+    const handleUp = (e: PointerEvent) => {
+      if (padPointerIdRef.current === null || e.pointerId !== padPointerIdRef.current) return;
+      padPointerIdRef.current = null;
+      clearPad();
+    };
+    document.addEventListener('pointermove', handleMove, { passive: false });
+    document.addEventListener('pointerup', handleUp);
+    document.addEventListener('pointercancel', handleUp);
+    return () => {
+      document.removeEventListener('pointermove', handleMove);
+      document.removeEventListener('pointerup', handleUp);
+      document.removeEventListener('pointercancel', handleUp);
+    };
+  }, []);
+
   const padHandlers = {
     onPointerDown: (e: React.PointerEvent) => {
       e.preventDefault();
       ensureVibrateUnlocked();
-      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+      padPointerIdRef.current = e.pointerId;
       updatePadFromPoint(e.clientX, e.clientY);
     },
-    onPointerMove: (e: React.PointerEvent) => {
-      if (e.buttons === 0 && e.pointerType === 'mouse') return;
-      updatePadFromPoint(e.clientX, e.clientY);
-    },
-    onPointerUp: (e: React.PointerEvent) => { e.preventDefault(); clearPad(); },
-    onPointerCancel: () => clearPad(),
-    onPointerLeave: (e: React.PointerEvent) => { if (e.pointerType === 'mouse' && e.buttons === 0) clearPad(); },
-    onTouchStart: (e: React.TouchEvent) => {
-      e.preventDefault();
-      ensureVibrateUnlocked();
-      const touch = e.touches[0];
-      if (touch) updatePadFromPoint(touch.clientX, touch.clientY);
-    },
-    onTouchMove: (e: React.TouchEvent) => {
-      e.preventDefault();
-      const touch = e.touches[0];
-      if (touch) updatePadFromPoint(touch.clientX, touch.clientY);
-    },
-    onTouchEnd: (e: React.TouchEvent) => { e.preventDefault(); clearPad(); },
-    onTouchCancel: () => clearPad(),
   };
 
   const tapHandlers = (key: string, vibMs = 40) => ({
