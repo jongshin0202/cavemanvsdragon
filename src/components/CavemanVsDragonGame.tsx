@@ -651,6 +651,18 @@ const CavemanVsDragonGame = () => {
             else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
             break;
           }
+          // Award 100 points the first time the player jumps over a barrel:
+          // player is airborne, on the same platform, and horizontally overlaps the barrel.
+          if (
+            !b.jumpedOver &&
+            (p.jumping || !p.onGround) &&
+            bPlatY === pPlatY &&
+            p.x + p.w > b.x && p.x < b.x + b.w &&
+            p.y + p.h < b.y + 4 // player's feet are above the barrel's top
+          ) {
+            b.jumpedOver = true;
+            g.score += 100; setScore(g.score);
+          }
         }
 
         // === UPDATE ROBOTS (always moving — random wander biased toward player) ===
