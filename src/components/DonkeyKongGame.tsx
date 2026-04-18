@@ -974,39 +974,33 @@ const DonkeyKongGame = () => {
     if (type === 'down') keysRef.current.add(key); else keysRef.current.delete(key);
   }, []);
 
-  // Slide-aware D-pad: track which button the pointer is over and only press that one
+  // Slide-aware D-pad: supports diagonal data-padkey like "ArrowUp+ArrowLeft"
   const padRef = useRef<HTMLDivElement>(null);
-  const activePadKeyRef = useRef<string | null>(null);
+  const activePadKeysRef = useRef<string[]>([]);
   const DPAD_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+  const padKeyToKeys = (raw: string | null | undefined): string[] => {
+    if (!raw) return [];
+    return raw.split('+').filter((k) => DPAD_KEYS.includes(k));
+  };
+
+  const setActiveKeys = (next: string[]) => {
+    const cur = activePadKeysRef.current;
+    cur.forEach((k) => { if (!next.includes(k)) simulateKey(k, 'up'); });
+    next.forEach((k) => { if (!cur.includes(k)) simulateKey(k, 'down'); });
+    if (next.length && next.join(',') !== cur.join(',')) pulseHaptic(30);
+    activePadKeysRef.current = next;
+  };
 
   const updatePadFromPoint = (clientX: number, clientY: number) => {
     const el = document.elementFromPoint(clientX, clientY) as HTMLElement | null;
-    const key = el?.getAttribute('data-padkey');
-    const next = key && DPAD_KEYS.includes(key) ? key : null;
-    if (activePadKeyRef.current !== next) {
-      if (activePadKeyRef.current) simulateKey(activePadKeyRef.current, 'up');
-      if (next) {
-        simulateKey(next, 'down');
-        pulseHaptic(30);
-      }
-      activePadKeyRef.current = next;
-    }
+    setActiveKeys(padKeyToKeys(el?.getAttribute('data-padkey')));
   };
 
-  const clearPad = () => {
-    if (activePadKeyRef.current) {
-      simulateKey(activePadKeyRef.current, 'up');
-      activePadKeyRef.current = null;
-    }
-  };
+  const clearPad = () => setActiveKeys([]);
 
-  const pressPadKey = (key: string) => {
+  const pressPadKey = (rawKey: string) => {
     ensureVibrateUnlocked();
-    if (activePadKeyRef.current !== key) {
-      if (activePadKeyRef.current) simulateKey(activePadKeyRef.current, 'up');
-      activePadKeyRef.current = key;
-      simulateKey(key, 'down');
-    }
+    setActiveKeys(padKeyToKeys(rawKey));
     pulseHaptic(30);
   };
 
