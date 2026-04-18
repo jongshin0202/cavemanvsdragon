@@ -956,11 +956,11 @@ const CavemanVsDragonGame = () => {
         if (wa.active && wa.showKiss) {
           ctx.fillStyle = '#FF0000'; ctx.font = '12px serif';
           ctx.fillText('❤', paulX + princessDrawW + 2, paulY + 8);
-          ctx.fillStyle = '#FF69B4'; ctx.font = '7px monospace';
-          ctx.fillText('Thank You!', paulX - 20, paulY - 6);
+          ctx.fillStyle = '#FF69B4'; ctx.font = 'bold 14px "Press Start 2P", monospace';
+          ctx.fillText('THANK YOU!', paulX - 30, paulY - 8);
         } else if (g.showHelp) {
-          ctx.fillStyle = '#FFFFFF'; ctx.font = '7px monospace';
-          ctx.fillText('Help!', paulX + 4, paulY - 6);
+          ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 14px "Press Start 2P", monospace';
+          ctx.fillText('HELP!', paulX - 4, paulY - 8);
         }
       }
 
