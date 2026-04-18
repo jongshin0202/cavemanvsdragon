@@ -204,15 +204,34 @@ const DonkeyKongGame = () => {
           }
         }
 
-        if (keys.has('ArrowUp') && nearestLadder) {
+        // "Sticky" vertical intent: if user presses up/down with no ladder available,
+        // remember the intent so we auto-mount the next ladder they walk into.
+        // This way users don't need to look at their fingers — they keep moving
+        // horizontally and climb automatically when a ladder is reached.
+        if (keys.has('ArrowUp')) {
+          (g as any).pendingClimb = 'up';
+        } else if (keys.has('ArrowDown')) {
+          (g as any).pendingClimb = 'down';
+        }
+        // Clear pending intent if user presses left/right after — but only if no vertical key held
+        if (!keys.has('ArrowUp') && !keys.has('ArrowDown') && (keys.has('ArrowLeft') || keys.has('ArrowRight'))) {
+          // keep pendingClimb so they auto-mount when they reach a ladder while walking
+        }
+
+        const wantUp = keys.has('ArrowUp') || (g as any).pendingClimb === 'up';
+        const wantDown = keys.has('ArrowDown') || (g as any).pendingClimb === 'down';
+
+        if (wantUp && nearestLadder) {
           p.climbing = true;
           p.x = nearestLadder.x + 7 - p.w / 2;
-        } else if (keys.has('ArrowDown')) {
+          (g as any).pendingClimb = null;
+        } else if (wantDown) {
           if (nearestLadder && p.y + p.h < nearestLadder.yBot - 4) {
             // Climb down ladder
             p.climbing = true;
             p.x = nearestLadder.x + 7 - p.w / 2;
-          } else if (p.onGround && !nearestLadder) {
+            (g as any).pendingClimb = null;
+          } else if (p.onGround && !nearestLadder && keys.has('ArrowDown')) {
             // Drop down from platform edge - check if near edge of current platform
             const curPlatIdx = findPlatformIndex(p.y + p.h, playerCX);
             const curPlat = PLATFORMS[curPlatIdx];
