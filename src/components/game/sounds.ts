@@ -477,7 +477,7 @@ export const playDragonRoarTracked = playDragonRoarSound;
 
 // Cute digitized girl voice screaming "HEEELP!" — bright, high-pitched
 // chiptune-style scream. Two square-wave syllables in the soprano range
-// with vibrato + a tiny "p" pop at the end. No breathy noise tail.
+// with vibrato + a tiny "p!" pop at the end.
 export function playPrincessHelpSound() {
   const ctx = getCtx();
   const t0 = ctx.currentTime;
@@ -506,26 +506,22 @@ export function playPrincessHelpSound() {
   vibAmt.connect(sqr.frequency);
   vibAmt.connect(tri.frequency);
 
-  // Bandpass for "voice" formant feel
-  const voiceFilt = ctx.createBiquadFilter();
-  voiceFilt.type = 'bandpass';
-  voiceFilt.Q.value = 2;
-  voiceFilt.frequency.value = 1500;
-
+  // Per-oscillator gains (square louder = body, triangle = sparkle)
   const sqrG = ctx.createGain();
   const triG = ctx.createGain();
-  sqrG.gain.value = 0.18;
-  triG.gain.value = 0.07;
+  sqrG.gain.value = 0.28;
+  triG.gain.value = 0.10;
 
+  // Master amp envelope — sharp scream attack, long sustain, quick fade
   const env1 = ctx.createGain();
   env1.gain.setValueAtTime(0.0001, t0);
   env1.gain.exponentialRampToValueAtTime(1.0, t0 + 0.04);
   env1.gain.setValueAtTime(1.0, t0 + dur1 - 0.08);
   env1.gain.exponentialRampToValueAtTime(0.001, t0 + dur1);
 
-  sqr.connect(sqrG); sqrG.connect(voiceFilt);
-  tri.connect(triG); triG.connect(voiceFilt);
-  voiceFilt.connect(env1);
+  // Direct path — the bandpass that was killing the fundamentals is removed
+  sqr.connect(sqrG); sqrG.connect(env1);
+  tri.connect(triG); triG.connect(env1);
   env1.connect(ctx.destination);
 
   sqr.start(t0); sqr.stop(t0 + dur1);
@@ -534,14 +530,14 @@ export function playPrincessHelpSound() {
 
   // ===== Syllable 2: "P!" — quick high pop =====
   const t2 = t0 + dur1 + 0.04;
-  const dur2 = 0.12;
+  const dur2 = 0.14;
   const pop = ctx.createOscillator();
   pop.type = 'square';
   pop.frequency.setValueAtTime(1568, t2); // G6
   pop.frequency.exponentialRampToValueAtTime(880, t2 + dur2);
   const popG = ctx.createGain();
   popG.gain.setValueAtTime(0.0001, t2);
-  popG.gain.exponentialRampToValueAtTime(0.22, t2 + 0.015);
+  popG.gain.exponentialRampToValueAtTime(0.32, t2 + 0.015);
   popG.gain.exponentialRampToValueAtTime(0.001, t2 + dur2);
   pop.connect(popG); popG.connect(ctx.destination);
   pop.start(t2); pop.stop(t2 + dur2);
