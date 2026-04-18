@@ -768,7 +768,7 @@ const DonkeyKongGame = () => {
         }
       }
 
-      // Robots (sprite-based)
+      // Robots (sprite-based) — 50% bigger
       const robotSprite = robotWalkRef.current;
       const robotReady = robotSprite && robotSprite.complete && robotSprite.naturalWidth > 0;
       for (const r of g.robots) {
@@ -776,8 +776,8 @@ const DonkeyKongGame = () => {
           const sw = robotSprite.naturalWidth / ROBOT_WALK_FRAMES;
           const sh = robotSprite.naturalHeight;
           const sx = (r.frame % ROBOT_WALK_FRAMES) * sw;
-          const drawW = 22;
-          const drawH = 22;
+          const drawW = 33;
+          const drawH = 33;
           const dx = r.x + r.w / 2 - drawW / 2;
           const dy = r.y + r.h - drawH;
           ctx.save();
