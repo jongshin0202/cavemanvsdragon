@@ -1107,6 +1107,7 @@ const DonkeyKongGame = () => {
 
   const padRef = useRef<HTMLDivElement>(null);
   const activePadKeysRef = useRef<string[]>([]);
+  const [activePadKeys, setActivePadKeysState] = useState<string[]>([]);
   const DPAD_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
   const padKeyToKeys = (raw: string | null | undefined): string[] => {
     if (!raw) return [];
@@ -1119,6 +1120,7 @@ const DonkeyKongGame = () => {
     next.forEach((k) => { if (!cur.includes(k)) simulateKey(k, 'down'); });
     if (next.length && next.join(',') !== cur.join(',')) pulseHaptic(35);
     activePadKeysRef.current = next;
+    setActivePadKeysState(next);
   };
 
   const resolvePadKeysFromPoint = (clientX: number, clientY: number): string[] => {
@@ -1222,7 +1224,7 @@ const DonkeyKongGame = () => {
           <button
             data-padkey="ArrowUp"
             style={{ flexGrow: 0.95, flexBasis: 0, width: '74%' }}
-            className="self-center bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold"
+            className={`self-center ${activePadKeys.includes('ArrowUp') ? 'bg-red-500' : 'bg-blue-500'} rounded-lg text-white text-3xl flex items-center justify-center font-bold transition-colors`}
             onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowUp'); }}
             onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowUp'); }}
           >↑</button>
@@ -1230,13 +1232,13 @@ const DonkeyKongGame = () => {
           <div style={{ flexGrow: 1.1, flexBasis: 0 }} className="w-full flex items-stretch gap-1">
             <button
               data-padkey="ArrowLeft"
-              className="flex-1 bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-end pr-4 font-bold"
+              className={`flex-1 ${activePadKeys.includes('ArrowLeft') ? 'bg-red-500' : 'bg-blue-500'} rounded-lg text-white text-3xl flex items-center justify-end pr-4 font-bold transition-colors`}
               onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowLeft'); }}
               onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowLeft'); }}
             >←</button>
             <button
               data-padkey="ArrowRight"
-              className="flex-1 bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-start pl-4 font-bold"
+              className={`flex-1 ${activePadKeys.includes('ArrowRight') ? 'bg-red-500' : 'bg-blue-500'} rounded-lg text-white text-3xl flex items-center justify-start pl-4 font-bold transition-colors`}
               onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowRight'); }}
               onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowRight'); }}
             >→</button>
@@ -1245,7 +1247,7 @@ const DonkeyKongGame = () => {
           <button
             data-padkey="ArrowDown"
             style={{ flexGrow: 0.95, flexBasis: 0, width: '74%' }}
-            className="self-center bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold"
+            className={`self-center ${activePadKeys.includes('ArrowDown') ? 'bg-red-500' : 'bg-blue-500'} rounded-lg text-white text-3xl flex items-center justify-center font-bold transition-colors`}
             onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowDown'); }}
             onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowDown'); }}
           >↓</button>
