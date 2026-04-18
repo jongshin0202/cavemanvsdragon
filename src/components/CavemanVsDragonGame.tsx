@@ -191,14 +191,17 @@ const CavemanVsDragonGame = () => {
     window.addEventListener('touchstart', handleFirstGesture, { passive: true });
 
     let animId: number;
+    let intervalId: number | null = null;
 
     let lastTime = 0;
-    const FRAME_INTERVAL = 1000 / 60; // native 60fps for smooth motion
+    const FRAME_INTERVAL = 1000 / 60; // 60fps logical step
 
     const gameLoop = (timestamp: number) => {
+      // Fixed-timestep gate: only run one full step+render per ~16.67ms.
+      // Using >= (not <) so we don't busy-skip on high-refresh monitors;
+      // we'll be re-driven by the next RAF/interval tick instead.
       const elapsed = timestamp - lastTime;
       if (elapsed < FRAME_INTERVAL) {
-        animId = requestAnimationFrame(gameLoop);
         return;
       }
       lastTime = timestamp - (elapsed % FRAME_INTERVAL);
