@@ -63,6 +63,7 @@ const DonkeyKongGame = () => {
     barrelStartDelay: 0,
     winAnim: { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 },
     pendingClimb: null as null | 'up' | 'down',
+    courseDir: 0 as -1 | 0 | 1,
   });
 
   const resetPlayer = useCallback(() => {
@@ -71,6 +72,7 @@ const DonkeyKongGame = () => {
     g.barrels = [];
     g.barrelTimer = 0;
     g.pendingClimb = null;
+    g.courseDir = 0;
   }, []);
 
   const resetGame = useCallback(() => {
@@ -212,34 +214,40 @@ const DonkeyKongGame = () => {
           }
         }
 
-        // "Sticky" vertical intent: if user presses up/down with no ladder available,
-        // remember the intent so we auto-mount the next ladder they walk into.
-        // This way users don't need to look at their fingers — they keep moving
-        // horizontally and climb automatically when a ladder is reached.
-        if (keys.has('ArrowUp')) {
+        const rawLeft = keys.has('ArrowLeft');
+        const rawRight = keys.has('ArrowRight');
+        const rawUp = keys.has('ArrowUp');
+        const rawDown = keys.has('ArrowDown');
+
+        if (rawLeft && !rawRight) g.courseDir = -1;
+        else if (rawRight && !rawLeft) g.courseDir = 1;
+        else if (!rawUp && !rawDown) g.courseDir = 0;
+
+        // Keep the last left/right course active while a held up/down input is
+        // waiting for a ladder, so players can aim without looking at controls.
+        const holdLeft = rawLeft || (!rawRight && (rawUp || rawDown) && g.courseDir === -1);
+        const holdRight = rawRight || (!rawLeft && (rawUp || rawDown) && g.courseDir === 1);
+
+        if (rawUp) {
           g.pendingClimb = 'up';
-        } else if (keys.has('ArrowDown')) {
+        } else if (rawDown) {
           g.pendingClimb = 'down';
-        }
-        // Clear pending intent if user presses left/right after — but only if no vertical key held
-        if (!keys.has('ArrowUp') && !keys.has('ArrowDown') && (keys.has('ArrowLeft') || keys.has('ArrowRight'))) {
-          // keep pendingClimb so they auto-mount when they reach a ladder while walking
+        } else {
+          g.pendingClimb = null;
         }
 
-        const wantUp = keys.has('ArrowUp') || g.pendingClimb === 'up';
-        const wantDown = keys.has('ArrowDown') || g.pendingClimb === 'down';
+        const wantUp = rawUp || g.pendingClimb === 'up';
+        const wantDown = rawDown || g.pendingClimb === 'down';
 
         if (wantUp && nearestLadder) {
           p.climbing = true;
           p.x = nearestLadder.x + 7 - p.w / 2;
-          g.pendingClimb = null;
         } else if (wantDown) {
           if (nearestLadder && p.y + p.h < nearestLadder.yBot - 4) {
             // Climb down ladder
             p.climbing = true;
             p.x = nearestLadder.x + 7 - p.w / 2;
-            g.pendingClimb = null;
-          } else if (p.onGround && !nearestLadder && keys.has('ArrowDown')) {
+          } else if (p.onGround && !nearestLadder && rawDown) {
             // Drop down from platform edge - check if near edge of current platform
             const curPlatIdx = findPlatformIndex(p.y + p.h, playerCX);
             const curPlat = PLATFORMS[curPlatIdx];
@@ -259,20 +267,24 @@ const DonkeyKongGame = () => {
           const climbingLadder = nearestLadder;
           const nearTop = climbingLadder && (p.y + p.h) < climbingLadder.yTop + 10;
           const nearBot = climbingLadder && (p.y + p.h) > climbingLadder.yBot - 6;
+          const wantsHorizontal = holdLeft || holdRight;
           
           if (!nearestLadder && !nearTop) {
             p.climbing = false;
-          } else if (nearTop && (keys.has('ArrowLeft') || keys.has('ArrowRight') || keys.has('ArrowUp'))) {
+          } else if (nearTop && (wantsHorizontal || rawUp)) {
             // Snap to top platform and dismount
             p.climbing = false;
             if (climbingLadder) p.y = climbingLadder.yTop - p.h;
-          } else if (keys.has('ArrowLeft') || keys.has('ArrowRight')) {
+          } else if (nearBot && (wantsHorizontal || rawDown)) {
+            p.climbing = false;
+            if (climbingLadder) p.y = climbingLadder.yBot - p.h;
+          } else if (wantsHorizontal && !rawUp && !rawDown) {
             p.climbing = false;
           } else {
             p.vy = 0;
-            const climbMoving = keys.has('ArrowUp') || keys.has('ArrowDown');
-            if (keys.has('ArrowUp')) p.y -= CLIMB_SPEED;
-            if (keys.has('ArrowDown')) p.y += CLIMB_SPEED;
+            const climbMoving = rawUp || rawDown;
+            if (rawUp) p.y -= CLIMB_SPEED;
+            if (rawDown) p.y += CLIMB_SPEED;
             if (climbMoving) {
               p.climbTimer++;
               if (p.climbTimer > 6) { p.climbTimer = 0; p.climbFrame = (p.climbFrame + 1) % 4; }
@@ -281,10 +293,10 @@ const DonkeyKongGame = () => {
         }
 
         if (!p.climbing) {
-          const moving = keys.has('ArrowLeft') || keys.has('ArrowRight');
+          const moving = holdLeft || holdRight;
           if (moving && !g.playerHasMoved) { g.playerHasMoved = true; g.barrelStartDelay = 22; g.barrelTimer = 0; g.nextBarrelTime = 22; }
-          if (keys.has('ArrowLeft')) { p.x -= MOVE_SPEED; p.facing = -1; }
-          if (keys.has('ArrowRight')) { p.x += MOVE_SPEED; p.facing = 1; }
+          if (holdLeft) { p.x -= MOVE_SPEED; p.facing = -1; }
+          if (holdRight) { p.x += MOVE_SPEED; p.facing = 1; }
           if (moving && p.onGround) { p.walkTimer++; if (p.walkTimer > 5) { p.walkTimer = 0; p.walkFrame = (p.walkFrame + 1) % 4; } }
           else if (!moving) { p.walkFrame = 0; p.walkTimer = 0; }
           if ((keys.has(' ')) && p.onGround) {
