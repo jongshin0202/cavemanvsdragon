@@ -394,3 +394,88 @@ export function playDragonRoarSound() {
   noise.start(t0);
   noise.stop(t0 + dur);
 }
+
+// Track last roar time so the princess "Help!" doesn't overlap it
+let lastRoarEndsAt = 0;
+const _origRoar = playDragonRoarSound;
+export function isDragonRoaringNow(): boolean {
+  const ctx = getCtx();
+  return ctx.currentTime < lastRoarEndsAt;
+}
+// Wrap roar to record when it ends (≈1.4s duration)
+export function playDragonRoarTracked() {
+  const ctx = getCtx();
+  lastRoarEndsAt = ctx.currentTime + 1.4;
+  _origRoar();
+}
+
+// Princess yelling "Help!" — short cry built from formant-shaped tones
+export function playPrincessHelpSound() {
+  const ctx = getCtx();
+  const t0 = ctx.currentTime;
+
+  // "Heeeelp!" — two-syllable rising-then-falling voice
+  // Syllable 1 (longer "heeel"): pitch rises, then quick fall
+  const v1 = ctx.createOscillator();
+  const v1Gain = ctx.createGain();
+  const v1Filt = ctx.createBiquadFilter();
+  v1Filt.type = 'bandpass';
+  v1Filt.Q.value = 6;
+  v1Filt.frequency.setValueAtTime(900, t0);
+  v1Filt.frequency.linearRampToValueAtTime(1200, t0 + 0.35);
+  v1.type = 'sawtooth';
+  v1.frequency.setValueAtTime(620, t0);
+  v1.frequency.linearRampToValueAtTime(820, t0 + 0.25);
+  v1.frequency.linearRampToValueAtTime(700, t0 + 0.4);
+  // Vibrato for vocal feel
+  const lfo1 = ctx.createOscillator();
+  const lfo1g = ctx.createGain();
+  lfo1.frequency.setValueAtTime(7, t0);
+  lfo1g.gain.setValueAtTime(20, t0);
+  lfo1.connect(lfo1g); lfo1g.connect(v1.frequency);
+  v1Gain.gain.setValueAtTime(0.0001, t0);
+  v1Gain.gain.exponentialRampToValueAtTime(0.22, t0 + 0.05);
+  v1Gain.gain.exponentialRampToValueAtTime(0.18, t0 + 0.35);
+  v1Gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.45);
+  v1.connect(v1Filt); v1Filt.connect(v1Gain); v1Gain.connect(ctx.destination);
+  v1.start(t0); lfo1.start(t0);
+  v1.stop(t0 + 0.45); lfo1.stop(t0 + 0.45);
+
+  // Syllable 2 ("p!" cutoff) — quick high chirp
+  const t2 = t0 + 0.5;
+  const v2 = ctx.createOscillator();
+  const v2Gain = ctx.createGain();
+  const v2Filt = ctx.createBiquadFilter();
+  v2Filt.type = 'bandpass';
+  v2Filt.Q.value = 8;
+  v2Filt.frequency.setValueAtTime(1500, t2);
+  v2.type = 'sawtooth';
+  v2.frequency.setValueAtTime(900, t2);
+  v2.frequency.exponentialRampToValueAtTime(550, t2 + 0.18);
+  v2Gain.gain.setValueAtTime(0.0001, t2);
+  v2Gain.gain.exponentialRampToValueAtTime(0.20, t2 + 0.03);
+  v2Gain.gain.exponentialRampToValueAtTime(0.001, t2 + 0.22);
+  v2.connect(v2Filt); v2Filt.connect(v2Gain); v2Gain.connect(ctx.destination);
+  v2.start(t2);
+  v2.stop(t2 + 0.22);
+
+  // Tiny breath of noise (consonant / sibilance)
+  const dur = 0.08;
+  const bufSize = Math.floor(ctx.sampleRate * dur);
+  const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) {
+    const env = Math.sin((i / bufSize) * Math.PI);
+    data[i] = (Math.random() * 2 - 1) * env * 0.6;
+  }
+  const noise = ctx.createBufferSource();
+  noise.buffer = buf;
+  const nf = ctx.createBiquadFilter();
+  nf.type = 'highpass'; nf.frequency.value = 2500;
+  const ng = ctx.createGain();
+  ng.gain.setValueAtTime(0.08, t2 + 0.2);
+  ng.gain.exponentialRampToValueAtTime(0.001, t2 + 0.3);
+  noise.connect(nf); nf.connect(ng); ng.connect(ctx.destination);
+  noise.start(t2 + 0.2);
+  noise.stop(t2 + 0.3);
+}
