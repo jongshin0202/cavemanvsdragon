@@ -733,7 +733,6 @@ const DonkeyKongGame = () => {
       // Player (Caveman sprite) - flash when dying (0.25s on/off = 15 frames)
       const pl = g.player;
       const showPlayer = !g.dying || Math.floor(g.deathFlashTimer / 15) % 2 === 0;
-      const sprite = spriteRef.current;
       const walkSprite = walkSpriteRef.current;
       const jumpSprite = jumpSpriteRef.current;
       const climbSprite = climbSpriteRef.current;
@@ -784,26 +783,8 @@ const DonkeyKongGame = () => {
           ctx.drawImage(walkSprite, sx, sy, sw, sh, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
         }
         ctx.restore();
-      } else if (showPlayer && sprite && sprite.complete && sprite.naturalWidth > 0) {
-        const row = pl.jumping ? 1 : 0;
-        const col = pl.jumping ? 4 : 0;
-        const sw = sprite.naturalWidth / SPRITE_COLS;
-        const sh = sprite.naturalHeight / 3;
-        const sx = col * sw;
-        const sy = row * sh;
-        const drawW = 28;
-        const drawH = 32;
-        ctx.save();
-        if (pl.facing < 0) {
-          ctx.translate(pl.x + pl.w / 2, 0);
-          ctx.scale(-1, 1);
-          ctx.drawImage(sprite, sx, sy, sw, sh, -drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
-        } else {
-          ctx.drawImage(sprite, sx, sy, sw, sh, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
-        }
-        ctx.restore();
       } else if (showPlayer) {
-        // Fallback pixel art
+        // Fallback pixel art (only if new sprites haven't loaded yet)
         ctx.fillStyle = '#FF0000'; ctx.fillRect(pl.x + 2, pl.y, 12, 4);
         ctx.fillStyle = '#FFB366'; ctx.fillRect(pl.x + 2, pl.y + 4, 12, 6);
         ctx.fillStyle = '#FF0000'; ctx.fillRect(pl.x, pl.y + 10, 16, 8);
