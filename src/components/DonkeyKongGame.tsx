@@ -14,6 +14,7 @@ import dragonAngryUrl from '@/assets/dragon-angry.png';
 import princessSpriteUrl from '@/assets/princess-sprite.png';
 import robotWalkUrl from '@/assets/robot-walk.png';
 import rockWheelUrl from '@/assets/rock-wheel.png';
+import wateringCanUrl from '@/assets/watering-can.png';
 
 const ROBOT_WALK_FRAMES = 5;
 
@@ -42,6 +43,7 @@ const DonkeyKongGame = () => {
   const princessRef = useRef<HTMLImageElement | null>(null);
   const robotWalkRef = useRef<HTMLImageElement | null>(null);
   const rockWheelRef = useRef<HTMLImageElement | null>(null);
+  const wateringCanRef = useRef<HTMLImageElement | null>(null);
   const gameRef = useRef({
     player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 },
     barrels: [] as Barrel[],
@@ -163,6 +165,10 @@ const DonkeyKongGame = () => {
     const rockImg = new Image();
     rockImg.src = rockWheelUrl;
     rockWheelRef.current = rockImg;
+
+    const canImg = new Image();
+    canImg.src = wateringCanUrl;
+    wateringCanRef.current = canImg;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       keysRef.current.add(e.key);
