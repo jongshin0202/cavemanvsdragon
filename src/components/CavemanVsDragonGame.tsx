@@ -181,6 +181,86 @@ const CavemanVsDragonGame = () => {
   useEffect(() => { initialsCursorRef.current = initialsCursor; }, [initialsCursor]);
   useEffect(() => { isMobileRef.current = isMobile; }, [isMobile]);
 
+  const gameStateRef = useRef<GameState>('playing');
+  useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
+
+  // Wire up the unified "any input" handler. Re-binds whenever dependencies change.
+  useEffect(() => {
+    anyInputHandlerRef.current = (key, _source) => {
+      const now = performance.now();
+      const gs = gameStateRef.current;
+      const g = gameRef.current;
+
+      if (gs === 'continue') {
+        if (now < continueArmedAtRef.current) return true; // still locked, swallow
+        startNextLevel();
+        return true;
+      }
+
+      if (gs === 'highscorePrompt') {
+        if (now < continueArmedAtRef.current) return true;
+        setInitials(['A', 'A', 'A']);
+        setInitialsCursor(0);
+        setGameState('enterInitials');
+        return true;
+      }
+
+      if (gs === 'gameover') {
+        if (qualifiesForTop(g.score)) {
+          // Promote to high-score prompt; swallow this input so a second press is required to advance
+          setPendingScore(g.score);
+          continueArmedAtRef.current = now + 1000;
+          setGameState('highscorePrompt');
+          return true;
+        }
+        // Not a high score: only R restarts (handled by outer keydown handler)
+        return false;
+      }
+
+      if (gs === 'enterInitials') {
+        const cursor = initialsCursorRef.current;
+        const cur = [...initialsRef.current];
+        if (key === 'ArrowUp') {
+          const code = cur[cursor].charCodeAt(0);
+          cur[cursor] = String.fromCharCode(code === 90 ? 65 : code + 1); // A-Z wrap
+          setInitials(cur);
+          return true;
+        }
+        if (key === 'ArrowDown') {
+          const code = cur[cursor].charCodeAt(0);
+          cur[cursor] = String.fromCharCode(code === 65 ? 90 : code - 1);
+          setInitials(cur);
+          return true;
+        }
+        if (key === 'ArrowLeft') {
+          setInitialsCursor(Math.max(0, cursor - 1));
+          return true;
+        }
+        if (key === 'ArrowRight') {
+          if (cursor < 2) setInitialsCursor(cursor + 1);
+          else submitHighScore();
+          return true;
+        }
+        if (key === ' ' || key === 'Enter' || key === 'r' || key === 'R') {
+          // Jump / R confirms — advance cursor or submit
+          if (cursor < 2) setInitialsCursor(cursor + 1);
+          else submitHighScore();
+          return true;
+        }
+        return true; // swallow other keys during entry
+      }
+
+      if (gs === 'leaderboard') {
+        // Only R restarts (handled by outer handler) — swallow other keys
+        if (key === 'r' || key === 'R') return false;
+        return true;
+      }
+
+      return false;
+    };
+  }, [startNextLevel, submitHighScore]);
+
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
