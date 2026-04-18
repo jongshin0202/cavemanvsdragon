@@ -250,10 +250,12 @@ const DonkeyKongGame = () => {
         else if (rawRight && !rawLeft) g.courseDir = 1;
         else if (!rawUp && !rawDown) g.courseDir = 0;
 
-        // Keep the last left/right course active while a held up/down input is
-        // waiting for a ladder, so players can aim without looking at controls.
-        const holdLeft = rawLeft || (!rawRight && (rawUp || rawDown) && g.courseDir === -1);
-        const holdRight = rawRight || (!rawLeft && (rawUp || rawDown) && g.courseDir === 1);
+        // Keep the last left/right course active only while searching for a
+        // ladder. Once we're in ladder range, Up/Down must take over fully so
+        // a slide into Up starts climbing immediately instead of dismounting.
+        const canGuideTowardLadder = !nearestLadder && !p.climbing && (rawUp || rawDown);
+        const holdLeft = rawLeft || (!rawRight && canGuideTowardLadder && g.courseDir === -1);
+        const holdRight = rawRight || (!rawLeft && canGuideTowardLadder && g.courseDir === 1);
 
         if (rawUp) {
           g.pendingClimb = 'up';
@@ -294,7 +296,7 @@ const DonkeyKongGame = () => {
           const climbingLadder = nearestLadder;
           const nearTop = climbingLadder && (p.y + p.h) < climbingLadder.yTop + 10;
           const nearBot = climbingLadder && (p.y + p.h) > climbingLadder.yBot - 6;
-          const wantsHorizontal = holdLeft || holdRight;
+          const wantsHorizontal = rawLeft || rawRight;
           
           if (!nearestLadder && !nearTop) {
             p.climbing = false;
