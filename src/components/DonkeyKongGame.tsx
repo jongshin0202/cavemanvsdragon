@@ -212,7 +212,7 @@ const DonkeyKongGame = () => {
       if (g.dying) {
         g.deathTimer++;
         g.deathFlashTimer++;
-        if (g.deathTimer >= 60) { // 3 flashes over ~1.33s at 45fps
+        if (g.deathTimer >= 108) { // 3 visible flashes (~1.8s at 60fps)
           g.dying = false;
           g.deathTimer = 0;
           g.deathFlashTimer = 0;
@@ -366,13 +366,24 @@ const DonkeyKongGame = () => {
         }
 
         // === KILL ALL MONKEYS → KEY APPEARS → GRAB KEY → VINE GROWS ===
-        // Spawn the key once all 4 monkeys are dead
+        // Spawn the watering can once all 4 monkeys are dead.
+        // Random placement: anywhere on P1–P4, OR the leftmost edge of P5.
         if (!g.keySpawned && g.monkeysKilled >= 4) {
           g.keySpawned = true;
-          // Place key on the leftmost edge of P5 (second-from-top platform)
-          const p5 = PLATFORMS[4];
-          const kx = p5.x1 + 4;
-          const ky = getPlatformY(p5, kx) - 16;
+          const choice = Math.floor(Math.random() * 5); // 0..4
+          let kx: number;
+          let kPlat: typeof PLATFORMS[number];
+          if (choice === 4) {
+            // Leftmost edge of P5 (second-from-top)
+            kPlat = PLATFORMS[4];
+            kx = kPlat.x1 + 4;
+          } else {
+            // Random spot on P1..P4
+            kPlat = PLATFORMS[choice];
+            const margin = 16;
+            kx = kPlat.x1 + margin + Math.random() * Math.max(1, (kPlat.x2 - kPlat.x1) - margin * 2);
+          }
+          const ky = getPlatformY(kPlat, kx) - 16;
           g.keyPos = { x: kx, y: ky, w: 14, h: 14 };
         }
         // Pick up the watering can
@@ -972,9 +983,10 @@ const DonkeyKongGame = () => {
         }
       }
 
-      // Player (Caveman sprite) - flash 3 times when dying (toggle every 10 frames over 60 frames)
+      // Player (Caveman sprite) - flash 3 times when dying
+      // (toggle every 18 frames over 108 frames at 60fps → 3 on/off cycles)
       const pl = g.player;
-      const showPlayer = !g.dying || Math.floor(g.deathFlashTimer / 10) % 2 === 0;
+      const showPlayer = !g.dying || Math.floor(g.deathFlashTimer / 18) % 2 === 0;
       const walkSprite = walkSpriteRef.current;
       const jumpSprite = jumpSpriteRef.current;
       const climbSprite = climbSpriteRef.current;
