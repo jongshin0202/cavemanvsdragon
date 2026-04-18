@@ -12,6 +12,9 @@ import cavemanClimbUrl from '@/assets/caveman-climb.png';
 import cavemanWinUrl from '@/assets/caveman-win.png';
 import dragonSpriteUrl from '@/assets/dragon-sprite.png';
 import princessSpriteUrl from '@/assets/princess-sprite.png';
+import robotWalkUrl from '@/assets/robot-walk.png';
+
+const ROBOT_WALK_FRAMES = 5;
 
 // Dragon sprite sheet config (idle row: top row, 4 frames)
 const DRAGON_FRAME_W = 130;
@@ -38,6 +41,7 @@ const DonkeyKongGame = () => {
   const winSpriteRef = useRef<HTMLImageElement | null>(null);
   const dragonRef = useRef<HTMLImageElement | null>(null);
   const princessRef = useRef<HTMLImageElement | null>(null);
+  const robotWalkRef = useRef<HTMLImageElement | null>(null);
   const gameRef = useRef({
     player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 },
     barrels: [] as Barrel[],
@@ -59,6 +63,8 @@ const DonkeyKongGame = () => {
     deathFlashTimer: 0,
     dying: false,
     frameCount: 0,
+    playerHasMoved: false,
+    barrelStartDelay: 0,
     winAnim: { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 },
   });
 
@@ -77,6 +83,8 @@ const DonkeyKongGame = () => {
     g.robotsInitialized = false;
     g.nextBarrelTime = 90 + Math.random() * 180;
     g.frameCount = 0;
+    g.playerHasMoved = false;
+    g.barrelStartDelay = 0;
     g.dkAnimTimer = 0; g.dkFrame = 0;
     g.princessAnimTimer = 0; g.helpTimer = 0; g.showHelp = false;
     g.winAnim = { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
@@ -117,6 +125,10 @@ const DonkeyKongGame = () => {
     const princessImg = new Image();
     princessImg.src = princessSpriteUrl;
     princessRef.current = princessImg;
+
+    const robotImg = new Image();
+    robotImg.src = robotWalkUrl;
+    robotWalkRef.current = robotImg;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       keysRef.current.add(e.key);
@@ -240,6 +252,7 @@ const DonkeyKongGame = () => {
 
         if (!p.climbing) {
           const moving = keys.has('ArrowLeft') || keys.has('ArrowRight');
+          if (moving && !g.playerHasMoved) { g.playerHasMoved = true; g.barrelStartDelay = 22; g.barrelTimer = 0; g.nextBarrelTime = 22; }
           if (keys.has('ArrowLeft')) { p.x -= MOVE_SPEED; p.facing = -1; }
           if (keys.has('ArrowRight')) { p.x += MOVE_SPEED; p.facing = 1; }
           if (moving && p.onGround) { p.walkTimer++; if (p.walkTimer > 6) { p.walkTimer = 0; p.walkFrame = (p.walkFrame + 1) % 4; } }
@@ -287,15 +300,17 @@ const DonkeyKongGame = () => {
           wa.showCongrats = false;
         }
 
-        // === BARREL SPAWNING (random intervals, random speeds) ===
-        g.barrelTimer++;
-        if (!g.nextBarrelTime) g.nextBarrelTime = 90 + Math.random() * 180;
-        if (g.barrelTimer > g.nextBarrelTime) {
-          g.barrelTimer = 0;
-          g.nextBarrelTime = 90 + Math.random() * 180; // random 90-270 frames (1.5-4.5 seconds)
-          const speed = BARREL_SPEED * (0.7 + Math.random() * 0.8);
-          g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed });
-          playBarrelRollSound();
+        // === BARREL SPAWNING (only after player first moves; first barrel ~0.5s after) ===
+        if (g.playerHasMoved) {
+          g.barrelTimer++;
+          if (!g.nextBarrelTime) g.nextBarrelTime = 90 + Math.random() * 180;
+          if (g.barrelTimer > g.nextBarrelTime) {
+            g.barrelTimer = 0;
+            g.nextBarrelTime = 90 + Math.random() * 180;
+            const speed = BARREL_SPEED * (0.7 + Math.random() * 0.8);
+            g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed });
+            playBarrelRollSound();
+          }
         }
 
         // === ROBOT SPAWNING (initial random per platform, respawn) ===
@@ -486,7 +501,7 @@ const DonkeyKongGame = () => {
           const pPlatIdx = findPlatformIndex(playerFeetY, playerCenterX);
 
           r.frameTimer++;
-          if (r.frameTimer > 15) { r.frameTimer = 0; r.frame = (r.frame + 1) % 2; }
+          if (r.frameTimer > 6) { r.frameTimer = 0; r.frame = (r.frame + 1) % ROBOT_WALK_FRAMES; }
 
           if (r.climbing) {
             r.y += r.vy;
@@ -682,30 +697,31 @@ const DonkeyKongGame = () => {
         ctx.strokeRect(b.x + 2, b.y + 2, b.w - 4, b.h - 4);
       }
 
-      // Robots
+      // Robots (sprite-based)
+      const robotSprite = robotWalkRef.current;
+      const robotReady = robotSprite && robotSprite.complete && robotSprite.naturalWidth > 0;
       for (const r of g.robots) {
-        ctx.fillStyle = '#FF4444';
-        ctx.fillRect(r.x, r.y + 4, r.w, r.h - 4);
-        ctx.fillStyle = '#CC2222';
-        ctx.fillRect(r.x + 2, r.y, r.w - 4, 6);
-        ctx.fillStyle = '#FFFF00';
-        ctx.fillRect(r.x + 3, r.y + 1, 3, 3);
-        ctx.fillRect(r.x + r.w - 6, r.y + 1, 3, 3);
-        ctx.fillStyle = '#AA1111';
-        if (r.frame === 0) {
-          ctx.fillRect(r.x + 1, r.y + r.h - 2, 4, 3);
-          ctx.fillRect(r.x + r.w - 5, r.y + r.h - 1, 4, 2);
+        if (robotReady) {
+          const sw = robotSprite.naturalWidth / ROBOT_WALK_FRAMES;
+          const sh = robotSprite.naturalHeight;
+          const sx = (r.frame % ROBOT_WALK_FRAMES) * sw;
+          const drawW = 22;
+          const drawH = 22;
+          const dx = r.x + r.w / 2 - drawW / 2;
+          const dy = r.y + r.h - drawH;
+          ctx.save();
+          if (r.direction < 0) {
+            ctx.translate(r.x + r.w / 2, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(robotSprite, sx, 0, sw, sh, -drawW / 2, dy, drawW, drawH);
+          } else {
+            ctx.drawImage(robotSprite, sx, 0, sw, sh, dx, dy, drawW, drawH);
+          }
+          ctx.restore();
         } else {
-          ctx.fillRect(r.x + 1, r.y + r.h - 1, 4, 2);
-          ctx.fillRect(r.x + r.w - 5, r.y + r.h - 2, 4, 3);
+          ctx.fillStyle = '#FF4444';
+          ctx.fillRect(r.x, r.y + 4, r.w, r.h - 4);
         }
-        ctx.strokeStyle = '#FF6666'; ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(r.x + r.w / 2, r.y);
-        ctx.lineTo(r.x + r.w / 2 + (r.frame === 0 ? 3 : -3), r.y - 5);
-        ctx.stroke();
-        ctx.fillStyle = '#FFFF00';
-        ctx.fillRect(r.x + r.w / 2 + (r.frame === 0 ? 2 : -4), r.y - 6, 3, 3);
       }
 
       // Player (Caveman sprite) - flash when dying (0.25s on/off = 15 frames)
@@ -803,23 +819,29 @@ const DonkeyKongGame = () => {
       ctx.fillText(`SCORE: ${g.score}`, 10, 20);
       ctx.fillText(`LIVES: ${'♥'.repeat(g.lives)}`, 350, 20);
 
-      // Overlays
+      // Overlays - large, centered
+      ctx.textAlign = 'center';
       if (g.state === 'gameover') {
-        ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-        ctx.fillStyle = '#FF0000'; ctx.font = '20px var(--font-arcade)';
-        ctx.fillText('GAME OVER', 120, 220);
-        ctx.fillStyle = '#FFFFFF'; ctx.font = '10px var(--font-arcade)';
-        ctx.fillText('Press R to restart', 140, 260);
+        ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.fillStyle = '#FF3030'; ctx.font = 'bold 44px var(--font-arcade)';
+        ctx.fillText('GAME OVER', CANVAS_W / 2, CANVAS_H / 2 - 30);
+        ctx.fillStyle = '#FFD700'; ctx.font = 'bold 22px var(--font-arcade)';
+        ctx.fillText(`SCORE: ${g.score}`, CANVAS_W / 2, CANVAS_H / 2 + 20);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 20px var(--font-arcade)';
+        ctx.fillText('Press R to restart', CANVAS_W / 2, CANVAS_H / 2 + 60);
       }
       if (g.state === 'win' && wa.showCongrats) {
-        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 150, CANVAS_W, 100);
-        ctx.fillStyle = '#FFD700'; ctx.font = '16px var(--font-arcade)';
-        ctx.fillText('Congratulations!', 100, 190);
-        ctx.fillText('You Won!', 160, 220);
-        ctx.fillStyle = '#FFFFFF'; ctx.font = '10px var(--font-arcade)';
-        ctx.fillText(`Score: ${g.score}`, 190, 240);
-        ctx.fillText('Press R to restart', 150, 260);
+        ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.fillStyle = '#FFD700'; ctx.font = 'bold 36px var(--font-arcade)';
+        ctx.fillText('Congratulations!', CANVAS_W / 2, CANVAS_H / 2 - 50);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 32px var(--font-arcade)';
+        ctx.fillText('You Won!', CANVAS_W / 2, CANVAS_H / 2 - 10);
+        ctx.fillStyle = '#FFD700'; ctx.font = 'bold 24px var(--font-arcade)';
+        ctx.fillText(`Score: ${g.score}`, CANVAS_W / 2, CANVAS_H / 2 + 30);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 20px var(--font-arcade)';
+        ctx.fillText('Press R to restart', CANVAS_W / 2, CANVAS_H / 2 + 70);
       }
+      ctx.textAlign = 'start';
 
       ctx.restore();
       animId = requestAnimationFrame((t) => gameLoop(t));
@@ -833,38 +855,90 @@ const DonkeyKongGame = () => {
     if (type === 'down') keysRef.current.add(key); else keysRef.current.delete(key);
   }, []);
 
-  const handleDown = useCallback((key: string) => ({
-    onTouchStart: (e: React.TouchEvent) => { e.preventDefault(); simulateKey(key, 'down'); },
-    onTouchEnd: (e: React.TouchEvent) => { e.preventDefault(); simulateKey(key, 'up'); },
-    onMouseDown: () => simulateKey(key, 'down'),
-    onMouseUp: () => simulateKey(key, 'up'),
-    onMouseLeave: () => simulateKey(key, 'up'),
-  }), [simulateKey]);
+  // Slide-aware D-pad: track which button the pointer is over and only press that one
+  const padRef = useRef<HTMLDivElement>(null);
+  const activePadKeyRef = useRef<string | null>(null);
+  const DPAD_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+
+  const updatePadFromPoint = useCallback((clientX: number, clientY: number) => {
+    const el = document.elementFromPoint(clientX, clientY) as HTMLElement | null;
+    const key = el?.getAttribute('data-padkey');
+    const next = key && DPAD_KEYS.includes(key) ? key : null;
+    if (activePadKeyRef.current !== next) {
+      if (activePadKeyRef.current) simulateKey(activePadKeyRef.current, 'up');
+      if (next) simulateKey(next, 'down');
+      activePadKeyRef.current = next;
+    }
+  }, [simulateKey]);
+
+  const clearPad = useCallback(() => {
+    if (activePadKeyRef.current) {
+      simulateKey(activePadKeyRef.current, 'up');
+      activePadKeyRef.current = null;
+    }
+  }, [simulateKey]);
+
+  const padHandlers = {
+    onPointerDown: (e: React.PointerEvent) => {
+      e.preventDefault();
+      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+      updatePadFromPoint(e.clientX, e.clientY);
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      if (e.buttons === 0 && e.pointerType === 'mouse') return;
+      updatePadFromPoint(e.clientX, e.clientY);
+    },
+    onPointerUp: (e: React.PointerEvent) => { e.preventDefault(); clearPad(); },
+    onPointerCancel: () => clearPad(),
+    onPointerLeave: (e: React.PointerEvent) => { if (e.pointerType === 'mouse' && e.buttons === 0) clearPad(); },
+  };
+
+  // Tap-only handler for jump / R (must be pressed, not slid into)
+  const tapHandlers = (key: string) => ({
+    onPointerDown: (e: React.PointerEvent) => {
+      e.preventDefault();
+      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+      simulateKey(key, 'down');
+    },
+    onPointerUp: (e: React.PointerEvent) => { e.preventDefault(); simulateKey(key, 'up'); },
+    onPointerCancel: () => simulateKey(key, 'up'),
+  });
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen gap-2 p-2 select-none">
-      <h1 className="text-accent text-sm tracking-wider">DRAGON KONG</h1>
-      <div className="border-4 border-primary rounded-sm shadow-[0_0_30px_rgba(212,42,42,0.3)]">
-        <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
-          className="block w-full max-w-[512px]" style={{ imageRendering: 'pixelated' }} tabIndex={0} />
+    <div className="flex flex-col items-center justify-between min-h-screen gap-2 p-2 select-none">
+      <div className="w-full flex-1 flex items-center justify-center">
+        <div className="border-4 border-primary rounded-sm shadow-[0_0_30px_rgba(212,42,42,0.3)] w-full max-w-[800px]">
+          <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
+            className="block w-full h-auto" style={{ imageRendering: 'pixelated', aspectRatio: `${CANVAS_W} / ${CANVAS_H}` }} tabIndex={0} />
+        </div>
       </div>
-      <div className="flex w-full max-w-[512px] justify-between items-end mt-2 touch-none">
-        <div className="grid grid-cols-3 grid-rows-3 gap-0 w-40 h-40">
+      <div className="flex w-full max-w-[800px] justify-between items-center gap-2 mt-2 touch-none">
+        <div
+          ref={padRef}
+          className="grid grid-cols-3 grid-rows-3 gap-1 w-56 h-56 touch-none"
+          {...padHandlers}
+        >
           <div />
-          <button className="bg-muted active:bg-primary rounded text-foreground text-2xl flex items-center justify-center p-4 -m-1 z-10" {...handleDown('ArrowUp')}>↑</button>
+          <button data-padkey="ArrowUp" className="bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold">↑</button>
           <div />
-          <button className="bg-muted active:bg-primary rounded text-foreground text-2xl flex items-center justify-center p-4 -m-1 z-10" {...handleDown('ArrowLeft')}>←</button>
+          <button data-padkey="ArrowLeft" className="bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold">←</button>
           <div />
-          <button className="bg-muted active:bg-primary rounded text-foreground text-2xl flex items-center justify-center p-4 -m-1 z-10" {...handleDown('ArrowRight')}>→</button>
+          <button data-padkey="ArrowRight" className="bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold">→</button>
           <div />
-          <button className="bg-muted active:bg-primary rounded text-foreground text-2xl flex items-center justify-center p-4 -m-1 z-10" {...handleDown('ArrowDown')}>↓</button>
+          <button data-padkey="ArrowDown" className="bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold">↓</button>
           <div />
         </div>
-        <div className="flex gap-3 items-center">
-          <button className="w-20 h-20 rounded-full bg-primary text-primary-foreground text-sm font-bold active:scale-95" {...handleDown(' ')}>JUMP</button>
-          <button className="w-14 h-14 rounded-full bg-accent text-accent-foreground text-xs font-bold active:scale-95"
-            onMouseDown={() => resetGame()} onTouchStart={() => resetGame()}>R</button>
-        </div>
+
+        {/* R button placed BETWEEN arrows and jump so it isn't accidentally pressed */}
+        <button
+          className="w-12 h-12 rounded-full bg-accent text-accent-foreground text-sm font-bold active:scale-95 shrink-0"
+          onPointerDown={(e) => { e.preventDefault(); resetGame(); }}
+        >R</button>
+
+        <button
+          className="w-32 h-32 rounded-full bg-primary text-primary-foreground text-xl font-bold active:scale-95 shrink-0"
+          {...tapHandlers(' ')}
+        >JUMP</button>
       </div>
     </div>
   );
