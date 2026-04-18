@@ -81,8 +81,13 @@ const DonkeyKongGame = () => {
     g.robotsInitialized = false;
     g.nextBarrelTime = 90 + Math.random() * 180;
     g.frameCount = 0;
-    g.playerHasMoved = false;
+    g.playerHasMoved = true;
     g.barrelStartDelay = 0;
+    // Spawn first rock immediately so action starts at game begin
+    {
+      const speed = BARREL_SPEED * (0.7 + Math.random() * 0.8);
+      g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed, rollPhase: 0 });
+    }
     g.dkAnimTimer = 0; g.dkFrame = 0;
     g.princessAnimTimer = 0; g.helpTimer = 0; g.showHelp = false;
     g.winAnim = { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
