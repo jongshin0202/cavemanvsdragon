@@ -4,7 +4,7 @@ import {
   PLATFORMS, LADDERS, getPlatformY, rectsOverlap, findPlatformIndex, findBestLadder,
   Barrel, Robot
 } from './game/constants';
-import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound } from './game/sounds';
+import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarSound } from './game/sounds';
 import cavemanWalkUrl from '@/assets/caveman-walk.png';
 import cavemanJumpUrl from '@/assets/caveman-jump.png';
 import cavemanClimbUrl from '@/assets/caveman-climb.png';
@@ -82,6 +82,8 @@ const CavemanVsDragonGame = () => {
     keyBob: 0,
     sparkleTimer: 0,
     invulnTimer: 0,
+    roarTimer: 0,
+    nextRoarTime: 300 + Math.floor(Math.random() * 600), // 5–15s at 60fps
   });
 
   const resetPlayer = useCallback(() => {
