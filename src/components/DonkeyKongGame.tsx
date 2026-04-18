@@ -5,21 +5,19 @@ import {
   Barrel, Robot
 } from './game/constants';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound } from './game/sounds';
-import cavemanSpriteUrl from '@/assets/caveman-sprite.png';
 import cavemanWalkUrl from '@/assets/caveman-walk.png';
 import cavemanJumpUrl from '@/assets/caveman-jump.png';
 import cavemanClimbUrl from '@/assets/caveman-climb.png';
 import cavemanWinUrl from '@/assets/caveman-win.png';
-import dragonSpriteUrl from '@/assets/dragon-sprite.png';
+import dragonFireUrl from '@/assets/dragon-fire.png';
+import dragonAngryUrl from '@/assets/dragon-angry.png';
 import princessSpriteUrl from '@/assets/princess-sprite.png';
 import robotWalkUrl from '@/assets/robot-walk.png';
 
 const ROBOT_WALK_FRAMES = 5;
 
-// Dragon sprite sheet config (idle row: top row, 4 frames)
-const DRAGON_FRAME_W = 130;
-const DRAGON_FRAME_H = 140;
-const DRAGON_FRAMES = 4; // idle frames in top row
+// Dragon sprite sheets: each has 5 frames, randomly alternated
+const DRAGON_FRAMES = 5;
 
 const LADDER_SNAP = 30;
 
@@ -34,12 +32,12 @@ const DonkeyKongGame = () => {
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
   const [gameState, setGameState] = useState<'playing' | 'gameover' | 'win'>('playing');
-  const spriteRef = useRef<HTMLImageElement | null>(null);
   const walkSpriteRef = useRef<HTMLImageElement | null>(null);
   const jumpSpriteRef = useRef<HTMLImageElement | null>(null);
   const climbSpriteRef = useRef<HTMLImageElement | null>(null);
   const winSpriteRef = useRef<HTMLImageElement | null>(null);
-  const dragonRef = useRef<HTMLImageElement | null>(null);
+  const dragonFireRef = useRef<HTMLImageElement | null>(null);
+  const dragonAngryRef = useRef<HTMLImageElement | null>(null);
   const princessRef = useRef<HTMLImageElement | null>(null);
   const robotWalkRef = useRef<HTMLImageElement | null>(null);
   const gameRef = useRef({
@@ -97,11 +95,7 @@ const DonkeyKongGame = () => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
 
-    // Load sprite
-    const spriteImg = new Image();
-    spriteImg.src = cavemanSpriteUrl;
-    spriteRef.current = spriteImg;
-
+    // Load sprites
     const walkImg = new Image();
     walkImg.src = cavemanWalkUrl;
     walkSpriteRef.current = walkImg;
@@ -118,9 +112,13 @@ const DonkeyKongGame = () => {
     winImg.src = cavemanWinUrl;
     winSpriteRef.current = winImg;
 
-    const dragonImg = new Image();
-    dragonImg.src = dragonSpriteUrl;
-    dragonRef.current = dragonImg;
+    const dragonFireImg = new Image();
+    dragonFireImg.src = dragonFireUrl;
+    dragonFireRef.current = dragonFireImg;
+
+    const dragonAngryImg = new Image();
+    dragonAngryImg.src = dragonAngryUrl;
+    dragonAngryRef.current = dragonAngryImg;
 
     const princessImg = new Image();
     princessImg.src = princessSpriteUrl;
