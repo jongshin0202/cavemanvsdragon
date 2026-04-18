@@ -899,10 +899,10 @@ const DonkeyKongGame = () => {
         }
       }
 
-      // Princess (sprite) - placed on the top vine so she's not floating
-      const princessDrawW = 24;
-      const princessDrawH = 32;
-      const paulX = 350 - princessDrawW / 2 + 7; // centered on top vine (x=350, width ~14)
+      // Princess (sprite) - placed right next to the dragon on the top platform
+      const princessDrawW = 40;
+      const princessDrawH = 48;
+      const paulX = 175;                          // just to the right of the dragon (dkX=70 + dragonSize=96 ≈ 166)
       const paulY = 112 - princessDrawH;          // feet on top platform (y=112)
       const princessImg = princessRef.current;
       if (princessImg && princessImg.complete && princessImg.naturalWidth > 0) {
@@ -923,7 +923,7 @@ const DonkeyKongGame = () => {
           ctx.fillText('Thank You!', paulX - 20, paulY - 6);
         } else if (g.showHelp) {
           ctx.fillStyle = '#FFFFFF'; ctx.font = '7px monospace';
-          ctx.fillText('Help!', paulX - 4, paulY - 6);
+          ctx.fillText('Help!', paulX + 4, paulY - 6);
         }
       }
 
