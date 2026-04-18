@@ -1,12 +1,12 @@
 export const CANVAS_W = 512;
 export const CANVAS_H = 480;
 export const TILE = 16;
-export const GRAVITY = 0.5;
+export const GRAVITY = 0.38;
 export const JUMP_FORCE = -8;
-export const MOVE_SPEED = 2.5;
-export const BARREL_SPEED = 1.2;
-export const CLIMB_SPEED = 2;
-export const ROBOT_SPEED = 0.7;
+export const MOVE_SPEED = 1.9;
+export const BARREL_SPEED = 0.9;
+export const CLIMB_SPEED = 1.5;
+export const ROBOT_SPEED = 0.55;
 
 export interface Rect { x: number; y: number; w: number; h: number }
 export interface Barrel extends Rect { vx: number; vy: number; onLadder: boolean; falling: boolean; targetLadder: number | null; speed: number; rollPhase?: number }

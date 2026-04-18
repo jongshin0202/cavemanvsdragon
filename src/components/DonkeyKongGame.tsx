@@ -144,7 +144,7 @@ const DonkeyKongGame = () => {
     let animId: number;
 
     let lastTime = 0;
-    const FRAME_INTERVAL = 1000 / 45; // ~45fps instead of 60fps = 25% slower
+    const FRAME_INTERVAL = 1000 / 60; // native 60fps for smooth motion
 
     const gameLoop = (timestamp: number) => {
       const elapsed = timestamp - lastTime;
@@ -269,7 +269,7 @@ const DonkeyKongGame = () => {
             if (keys.has('ArrowDown')) p.y += CLIMB_SPEED;
             if (climbMoving) {
               p.climbTimer++;
-              if (p.climbTimer > 4) { p.climbTimer = 0; p.climbFrame = (p.climbFrame + 1) % 4; }
+              if (p.climbTimer > 6) { p.climbTimer = 0; p.climbFrame = (p.climbFrame + 1) % 4; }
             }
           }
         }
@@ -279,7 +279,7 @@ const DonkeyKongGame = () => {
           if (moving && !g.playerHasMoved) { g.playerHasMoved = true; g.barrelStartDelay = 22; g.barrelTimer = 0; g.nextBarrelTime = 22; }
           if (keys.has('ArrowLeft')) { p.x -= MOVE_SPEED; p.facing = -1; }
           if (keys.has('ArrowRight')) { p.x += MOVE_SPEED; p.facing = 1; }
-          if (moving && p.onGround) { p.walkTimer++; if (p.walkTimer > 3) { p.walkTimer = 0; p.walkFrame = (p.walkFrame + 1) % 4; } }
+          if (moving && p.onGround) { p.walkTimer++; if (p.walkTimer > 5) { p.walkTimer = 0; p.walkFrame = (p.walkFrame + 1) % 4; } }
           else if (!moving) { p.walkFrame = 0; p.walkTimer = 0; }
           if ((keys.has(' ')) && p.onGround) {
             p.vy = -5; p.onGround = false; p.jumping = true;
@@ -301,7 +301,7 @@ const DonkeyKongGame = () => {
           // Advance jump frame animation while in air
           if (p.jumping) {
             p.jumpTimer++;
-            if (p.jumpTimer > 2 && p.jumpFrame < 4) { p.jumpTimer = 0; p.jumpFrame++; }
+            if (p.jumpTimer > 4 && p.jumpFrame < 4) { p.jumpTimer = 0; p.jumpFrame++; }
           }
         }
 
@@ -528,7 +528,7 @@ const DonkeyKongGame = () => {
 
           // Smooth, time-based animation (not position-based)
           r.frameTimer++;
-          if (r.frameTimer >= 3) { r.frameTimer = 0; r.frame = (r.frame + 1) % ROBOT_WALK_FRAMES; }
+          if (r.frameTimer >= 5) { r.frameTimer = 0; r.frame = (r.frame + 1) % ROBOT_WALK_FRAMES; }
 
           if (r.climbing) {
             r.y += r.vy;
@@ -777,7 +777,7 @@ const DonkeyKongGame = () => {
       for (const b of g.barrels) {
         if (rockImg && rockImg.complete && rockFrameW > 0) {
           // Smooth animation: advance one frame every 4 game ticks regardless of speed
-          const frameIdx = Math.floor((b.rollPhase || 0) / 2) % ROCK_FRAMES;
+          const frameIdx = Math.floor((b.rollPhase || 0) / 4) % ROCK_FRAMES;
           const drawSize = (b.w + 4) * 1.5; // 50% bigger
           const cx = b.x + b.w / 2;
           const cy = b.y + b.h / 2;
@@ -926,9 +926,24 @@ const DonkeyKongGame = () => {
     return () => { cancelAnimationFrame(animId); window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp); };
   }, [resetGame, resetPlayer]);
 
-  const vibrate = useCallback((ms = 15) => {
-    try { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(ms); } catch {}
-  }, []);
+  // Direct, synchronous vibrate — must be called inside the React event handler
+  // (some browsers gate vibrate() behind a fresh user-gesture stack frame).
+  const vibrateNow = (ms: number) => {
+    try {
+      const nav = typeof navigator !== 'undefined' ? (navigator as Navigator & { vibrate?: (p: number | number[]) => boolean }) : null;
+      if (nav && typeof nav.vibrate === 'function') nav.vibrate(ms);
+    } catch {}
+  };
+
+  // One-time vibration "unlock" on first user gesture (Chrome Android requires
+  // a prior user gesture before vibration calls inside async callbacks fire).
+  const vibrateUnlockedRef = useRef(false);
+  const ensureVibrateUnlocked = () => {
+    if (!vibrateUnlockedRef.current) {
+      vibrateUnlockedRef.current = true;
+      vibrateNow(1);
+    }
+  };
 
   const simulateKey = useCallback((key: string, type: 'down' | 'up') => {
     if (type === 'down') keysRef.current.add(key); else keysRef.current.delete(key);
@@ -939,27 +954,31 @@ const DonkeyKongGame = () => {
   const activePadKeyRef = useRef<string | null>(null);
   const DPAD_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
 
-  const updatePadFromPoint = useCallback((clientX: number, clientY: number) => {
+  const updatePadFromPoint = (clientX: number, clientY: number) => {
     const el = document.elementFromPoint(clientX, clientY) as HTMLElement | null;
     const key = el?.getAttribute('data-padkey');
     const next = key && DPAD_KEYS.includes(key) ? key : null;
     if (activePadKeyRef.current !== next) {
       if (activePadKeyRef.current) simulateKey(activePadKeyRef.current, 'up');
-      if (next) { simulateKey(next, 'down'); vibrate(25); }
+      if (next) {
+        simulateKey(next, 'down');
+        vibrateNow(30);
+      }
       activePadKeyRef.current = next;
     }
-  }, [simulateKey, vibrate]);
+  };
 
-  const clearPad = useCallback(() => {
+  const clearPad = () => {
     if (activePadKeyRef.current) {
       simulateKey(activePadKeyRef.current, 'up');
       activePadKeyRef.current = null;
     }
-  }, [simulateKey]);
+  };
 
   const padHandlers = {
     onPointerDown: (e: React.PointerEvent) => {
       e.preventDefault();
+      ensureVibrateUnlocked();
       (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
       updatePadFromPoint(e.clientX, e.clientY);
     },
@@ -973,12 +992,13 @@ const DonkeyKongGame = () => {
   };
 
   // Tap-only handler for jump / R (must be pressed, not slid into)
-  const tapHandlers = (key: string) => ({
+  const tapHandlers = (key: string, vibMs = 40) => ({
     onPointerDown: (e: React.PointerEvent) => {
       e.preventDefault();
+      ensureVibrateUnlocked();
+      vibrateNow(vibMs);
       (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
       simulateKey(key, 'down');
-      vibrate(35);
     },
     onPointerUp: (e: React.PointerEvent) => { e.preventDefault(); simulateKey(key, 'up'); },
     onPointerCancel: () => simulateKey(key, 'up'),
@@ -1027,7 +1047,7 @@ const DonkeyKongGame = () => {
         {/* R button — small, between arrows and jump, must be tapped (not slid) */}
         <button
           className="w-10 h-10 self-center rounded-full bg-accent text-accent-foreground text-sm font-bold active:scale-95 shrink-0"
-          onPointerDown={(e) => { e.preventDefault(); vibrate(25); resetGame(); }}
+          onPointerDown={(e) => { e.preventDefault(); ensureVibrateUnlocked(); vibrateNow(40); resetGame(); }}
         >R</button>
 
         {/* JUMP button — extra-large, tap-only */}
