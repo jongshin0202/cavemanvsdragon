@@ -13,6 +13,7 @@ import dragonFireUrl from '@/assets/dragon-fire.png';
 import dragonAngryUrl from '@/assets/dragon-angry.png';
 import princessSpriteUrl from '@/assets/princess-sprite.png';
 import robotWalkUrl from '@/assets/robot-walk.png';
+import rockWheelUrl from '@/assets/rock-wheel.png';
 
 const ROBOT_WALK_FRAMES = 5;
 
@@ -35,6 +36,7 @@ const DonkeyKongGame = () => {
   const dragonAngryRef = useRef<HTMLImageElement | null>(null);
   const princessRef = useRef<HTMLImageElement | null>(null);
   const robotWalkRef = useRef<HTMLImageElement | null>(null);
+  const rockWheelRef = useRef<HTMLImageElement | null>(null);
   const gameRef = useRef({
     player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 },
     barrels: [] as Barrel[],
@@ -123,6 +125,10 @@ const DonkeyKongGame = () => {
     const robotImg = new Image();
     robotImg.src = robotWalkUrl;
     robotWalkRef.current = robotImg;
+
+    const rockImg = new Image();
+    rockImg.src = rockWheelUrl;
+    rockWheelRef.current = rockImg;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       keysRef.current.add(e.key);
@@ -605,27 +611,68 @@ const DonkeyKongGame = () => {
       ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-      // Platforms
+      // Platforms - soil base with grass top
       for (const plat of PLATFORMS) {
-        ctx.fillStyle = '#D42A2A';
         for (let x = plat.x1; x < plat.x2; x += 16) {
           const y = getPlatformY(plat, x + 8);
-          ctx.fillRect(x, y, 16, 8);
-          ctx.fillStyle = '#FF6B4A';
-          ctx.fillRect(x + 2, y + 1, 5, 3);
-          ctx.fillRect(x + 9, y + 4, 5, 3);
-          ctx.fillStyle = '#D42A2A';
+          // Soil body
+          ctx.fillStyle = '#6B4226';
+          ctx.fillRect(x, y + 2, 16, 6);
+          // Soil texture flecks
+          ctx.fillStyle = '#4A2C18';
+          ctx.fillRect(x + 3, y + 4, 2, 2);
+          ctx.fillRect(x + 10, y + 5, 2, 1);
+          ctx.fillStyle = '#8B5A2B';
+          ctx.fillRect(x + 7, y + 6, 2, 1);
+          // Grass top
+          ctx.fillStyle = '#3CB043';
+          ctx.fillRect(x, y, 16, 3);
+          ctx.fillStyle = '#5BD15B';
+          ctx.fillRect(x + 1, y, 2, 1);
+          ctx.fillRect(x + 6, y, 2, 1);
+          ctx.fillRect(x + 11, y, 2, 1);
+          // Grass blades
+          ctx.fillStyle = '#2E8B33';
+          ctx.fillRect(x + 4, y - 1, 1, 1);
+          ctx.fillRect(x + 12, y - 1, 1, 1);
         }
       }
 
-      // Ladders
-      ctx.strokeStyle = '#66CCFF'; ctx.lineWidth = 2;
+      // Ladders - green caveman vines
       for (const l of LADDERS) {
+        // Two vertical vines (wavy)
+        ctx.strokeStyle = '#2E7D32'; ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.moveTo(l.x, l.yTop); ctx.lineTo(l.x, l.yBot);
-        ctx.moveTo(l.x + 14, l.yTop); ctx.lineTo(l.x + 14, l.yBot);
-        for (let y = l.yTop; y < l.yBot; y += 12) { ctx.moveTo(l.x, y); ctx.lineTo(l.x + 14, y); }
+        for (let y = l.yTop; y <= l.yBot; y += 4) {
+          const wave = Math.sin(y * 0.4) * 1.5;
+          if (y === l.yTop) ctx.moveTo(l.x + wave, y);
+          else ctx.lineTo(l.x + wave, y);
+        }
         ctx.stroke();
+        ctx.beginPath();
+        for (let y = l.yTop; y <= l.yBot; y += 4) {
+          const wave = Math.sin(y * 0.4 + 1) * 1.5;
+          if (y === l.yTop) ctx.moveTo(l.x + 14 + wave, y);
+          else ctx.lineTo(l.x + 14 + wave, y);
+        }
+        ctx.stroke();
+        // Vine highlights
+        ctx.strokeStyle = '#4CAF50'; ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(l.x - 1, l.yTop); ctx.lineTo(l.x - 1, l.yBot);
+        ctx.moveTo(l.x + 13, l.yTop); ctx.lineTo(l.x + 13, l.yBot);
+        ctx.stroke();
+        // Rungs as small twigs/leaves
+        for (let y = l.yTop + 4; y < l.yBot; y += 12) {
+          ctx.strokeStyle = '#5D4037'; ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(l.x + 1, y); ctx.lineTo(l.x + 13, y);
+          ctx.stroke();
+          // Leaf accents
+          ctx.fillStyle = '#66BB6A';
+          ctx.fillRect(l.x + 3, y - 2, 2, 2);
+          ctx.fillRect(l.x + 9, y + 1, 2, 2);
+        }
       }
 
       // Dragon boss (with win animation - flip and fall) - 2x bigger
@@ -689,11 +736,23 @@ const DonkeyKongGame = () => {
         }
       }
 
-      // Barrels
+      // Rolling rock wheels (sprite-animated, rotates as it rolls)
+      const rockImg = rockWheelRef.current;
+      const ROCK_FRAMES = 5;
+      const rockFrameW = rockImg && rockImg.naturalWidth > 0 ? rockImg.naturalWidth / ROCK_FRAMES : 0;
+      const rockFrameH = rockImg ? rockImg.naturalHeight : 0;
       for (const b of g.barrels) {
-        ctx.fillStyle = '#4488FF'; ctx.fillRect(b.x, b.y, b.w, b.h);
-        ctx.strokeStyle = '#88BBFF'; ctx.lineWidth = 1;
-        ctx.strokeRect(b.x + 2, b.y + 2, b.w - 4, b.h - 4);
+        if (rockImg && rockImg.complete && rockFrameW > 0) {
+          // Cycle frame based on horizontal position so it appears to roll
+          const frameIdx = Math.floor(Math.abs(b.x) / 6) % ROCK_FRAMES;
+          const drawSize = b.w + 4;
+          ctx.drawImage(rockImg, frameIdx * rockFrameW, 0, rockFrameW, rockFrameH,
+            b.x - 2, b.y - 2, drawSize, drawSize);
+        } else {
+          ctx.fillStyle = '#8B7355'; ctx.beginPath();
+          ctx.arc(b.x + b.w / 2, b.y + b.h / 2, b.w / 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
 
       // Robots (sprite-based)
