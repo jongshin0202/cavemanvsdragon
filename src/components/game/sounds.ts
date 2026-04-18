@@ -336,3 +336,61 @@ export function playVineGrowSound() {
   chime.start(tc);
   chime.stop(tc + 0.5);
 }
+
+// Deep dragon roar — low growling sweep + rumble + raspy tail
+export function playDragonRoarSound() {
+  const ctx = getCtx();
+  const t0 = ctx.currentTime;
+  const dur = 1.4;
+
+  // Low growling oscillator (sawtooth swept down)
+  const osc = ctx.createOscillator();
+  const oscGain = ctx.createGain();
+  const oscFilter = ctx.createBiquadFilter();
+  oscFilter.type = 'lowpass';
+  oscFilter.frequency.setValueAtTime(900, t0);
+  oscFilter.frequency.exponentialRampToValueAtTime(300, t0 + dur);
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(140, t0);
+  osc.frequency.exponentialRampToValueAtTime(55, t0 + dur);
+  // Vibrato (LFO) for grit
+  const lfo = ctx.createOscillator();
+  const lfoGain = ctx.createGain();
+  lfo.frequency.setValueAtTime(18, t0);
+  lfoGain.gain.setValueAtTime(15, t0);
+  lfo.connect(lfoGain);
+  lfoGain.connect(osc.frequency);
+  oscGain.gain.setValueAtTime(0.0001, t0);
+  oscGain.gain.exponentialRampToValueAtTime(0.28, t0 + 0.08);
+  oscGain.gain.exponentialRampToValueAtTime(0.18, t0 + dur * 0.7);
+  oscGain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+  osc.connect(oscFilter);
+  oscFilter.connect(oscGain);
+  oscGain.connect(ctx.destination);
+  osc.start(t0); lfo.start(t0);
+  osc.stop(t0 + dur); lfo.stop(t0 + dur);
+
+  // Raspy noise layer (filtered noise — adds breath/grit)
+  const bufSize = Math.floor(ctx.sampleRate * dur);
+  const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) {
+    const env = Math.sin((i / bufSize) * Math.PI);
+    data[i] = (Math.random() * 2 - 1) * env;
+  }
+  const noise = ctx.createBufferSource();
+  noise.buffer = buf;
+  const noiseFilter = ctx.createBiquadFilter();
+  noiseFilter.type = 'bandpass';
+  noiseFilter.Q.value = 1.5;
+  noiseFilter.frequency.setValueAtTime(700, t0);
+  noiseFilter.frequency.exponentialRampToValueAtTime(250, t0 + dur);
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.setValueAtTime(0.18, t0);
+  noiseGain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+  noise.connect(noiseFilter);
+  noiseFilter.connect(noiseGain);
+  noiseGain.connect(ctx.destination);
+  noise.start(t0);
+  noise.stop(t0 + dur);
+}
