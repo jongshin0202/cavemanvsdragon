@@ -366,13 +366,24 @@ const DonkeyKongGame = () => {
         }
 
         // === KILL ALL MONKEYS → KEY APPEARS → GRAB KEY → VINE GROWS ===
-        // Spawn the key once all 4 monkeys are dead
+        // Spawn the watering can once all 4 monkeys are dead.
+        // Random placement: anywhere on P1–P4, OR the leftmost edge of P5.
         if (!g.keySpawned && g.monkeysKilled >= 4) {
           g.keySpawned = true;
-          // Place key on the leftmost edge of P5 (second-from-top platform)
-          const p5 = PLATFORMS[4];
-          const kx = p5.x1 + 4;
-          const ky = getPlatformY(p5, kx) - 16;
+          const choice = Math.floor(Math.random() * 5); // 0..4
+          let kx: number;
+          let kPlat: typeof PLATFORMS[number];
+          if (choice === 4) {
+            // Leftmost edge of P5 (second-from-top)
+            kPlat = PLATFORMS[4];
+            kx = kPlat.x1 + 4;
+          } else {
+            // Random spot on P1..P4
+            kPlat = PLATFORMS[choice];
+            const margin = 16;
+            kx = kPlat.x1 + margin + Math.random() * Math.max(1, (kPlat.x2 - kPlat.x1) - margin * 2);
+          }
+          const ky = getPlatformY(kPlat, kx) - 16;
           g.keyPos = { x: kx, y: ky, w: 14, h: 14 };
         }
         // Pick up the watering can
