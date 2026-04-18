@@ -182,7 +182,7 @@ const DonkeyKongGame = () => {
       if (g.dying) {
         g.deathTimer++;
         g.deathFlashTimer++;
-        if (g.deathTimer >= 45) { // ~1 second at 45fps
+        if (g.deathTimer >= 60) { // 3 flashes over ~1.33s at 45fps
           g.dying = false;
           g.deathTimer = 0;
           g.deathFlashTimer = 0;
@@ -835,9 +835,9 @@ const DonkeyKongGame = () => {
         }
       }
 
-      // Player (Caveman sprite) - flash when dying (0.25s on/off = 15 frames)
+      // Player (Caveman sprite) - flash 3 times when dying (toggle every 10 frames over 60 frames)
       const pl = g.player;
-      const showPlayer = !g.dying || Math.floor(g.deathFlashTimer / 15) % 2 === 0;
+      const showPlayer = !g.dying || Math.floor(g.deathFlashTimer / 10) % 2 === 0;
       const walkSprite = walkSpriteRef.current;
       const jumpSprite = jumpSpriteRef.current;
       const climbSprite = climbSpriteRef.current;
