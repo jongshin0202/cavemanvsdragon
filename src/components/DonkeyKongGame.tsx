@@ -983,11 +983,11 @@ const DonkeyKongGame = () => {
 
   return (
     <div className="flex flex-col items-stretch h-screen w-screen overflow-hidden select-none bg-background">
-      {/* Game area — fills all remaining space above controls */}
-      <div className="flex-1 min-h-0 w-full flex items-stretch justify-stretch">
+      {/* Game area — preserve aspect ratio, fit within available space */}
+      <div className="flex-1 min-h-0 w-full flex items-center justify-center overflow-hidden">
         <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
-          className="block w-full h-full border-b-2 border-primary"
-          style={{ imageRendering: 'pixelated' }} tabIndex={0} />
+          className="block max-w-full max-h-full border-b-2 border-primary"
+          style={{ imageRendering: 'pixelated', aspectRatio: `${CANVAS_W} / ${CANVAS_H}` }} tabIndex={0} />
       </div>
 
       {/* Controls — fixed compact height to maximize game area */}
