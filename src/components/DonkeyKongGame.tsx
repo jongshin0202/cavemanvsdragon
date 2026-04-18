@@ -964,17 +964,16 @@ const DonkeyKongGame = () => {
 
   return (
     <div className="flex flex-col items-stretch h-screen w-screen overflow-hidden select-none bg-background">
-      {/* Game area = 75% of viewport height */}
-      <div className="flex-[3] min-h-0 flex items-center justify-center p-1">
-        <div className="border-2 border-primary rounded-sm shadow-[0_0_30px_rgba(212,42,42,0.3)] h-full"
-             style={{ aspectRatio: `${CANVAS_W} / ${CANVAS_H}` }}>
-          <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
-            className="block w-full h-full" style={{ imageRendering: 'pixelated' }} tabIndex={0} />
-        </div>
+      {/* Game area — fills all remaining space above controls */}
+      <div className="flex-1 min-h-0 w-full flex items-stretch justify-stretch">
+        <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
+          className="block w-full h-full border-b-2 border-primary"
+          style={{ imageRendering: 'pixelated' }} tabIndex={0} />
       </div>
 
-      {/* Controls area = 25% of viewport height */}
-      <div className="flex-1 min-h-0 w-full flex items-stretch justify-between gap-2 px-2 pb-2 touch-none">
+      {/* Controls — fixed compact height to maximize game area */}
+      <div className="h-[26vh] max-h-[220px] min-h-[140px] w-full flex items-stretch justify-between gap-2 px-2 py-2 touch-none shrink-0">
+
         {/* D-pad: wide L/R meeting in center, wide Up/Down stacked */}
         <div
           ref={padRef}
