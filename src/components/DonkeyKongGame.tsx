@@ -934,12 +934,15 @@ const DonkeyKongGame = () => {
       const rockFrameH = rockImg ? rockImg.naturalHeight : 0;
       for (const b of g.barrels) {
         if (rockImg && rockImg.complete && rockFrameW > 0) {
-          // Pick a stable mid-frame from the sprite sheet (use frame 0 — looks most "round")
-          // and rotate the canvas to create true smooth rolling tied to distance traveled.
-          const drawSize = (b.w + 4) * 1.5; // 50% bigger
+          // Keep the sprite's natural aspect ratio so the rock stays round (not squished).
+          // Size the rock by its diameter, then derive width from the sprite's aspect.
+          const diameter = (b.w + 4) * 1.5; // visual diameter
+          const aspect = rockFrameW / rockFrameH;
+          const drawH = diameter;
+          const drawW = diameter * aspect;
           const cx = b.x + b.w / 2;
           const cy = b.y + b.h / 2;
-          const radius = drawSize / 2;
+          const radius = diameter / 2;
           // Circumference-based rotation: angle = distance / radius, direction = sign(vx)
           const dir = b.vx >= 0 ? 1 : -1;
           const angle = ((b.rollPhase || 0) / radius) * dir;
@@ -947,7 +950,7 @@ const DonkeyKongGame = () => {
           ctx.translate(cx, cy);
           ctx.rotate(angle);
           ctx.drawImage(rockImg, 0, 0, rockFrameW, rockFrameH,
-            -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+            -drawW / 2, -drawH / 2, drawW, drawH);
           ctx.restore();
         }
       }
