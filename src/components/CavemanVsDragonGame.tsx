@@ -190,15 +190,17 @@ const CavemanVsDragonGame = () => {
     window.addEventListener('pointerdown', handleFirstGesture);
     window.addEventListener('touchstart', handleFirstGesture, { passive: true });
 
-    let animId: number;
+    let intervalId: number | null = null;
 
     let lastTime = 0;
-    const FRAME_INTERVAL = 1000 / 60; // native 60fps for smooth motion
+    const FRAME_INTERVAL = 1000 / 60; // 60fps logical step
 
     const gameLoop = (timestamp: number) => {
+      // Fixed-timestep gate: only run one full step+render per ~16.67ms.
+      // Using >= (not <) so we don't busy-skip on high-refresh monitors;
+      // we'll be re-driven by the next RAF/interval tick instead.
       const elapsed = timestamp - lastTime;
       if (elapsed < FRAME_INTERVAL) {
-        animId = requestAnimationFrame(gameLoop);
         return;
       }
       lastTime = timestamp - (elapsed % FRAME_INTERVAL);
@@ -1116,12 +1118,18 @@ const CavemanVsDragonGame = () => {
       ctx.textAlign = 'start';
 
       ctx.restore();
-      animId = requestAnimationFrame((t) => gameLoop(t));
     };
 
-    animId = requestAnimationFrame((t) => gameLoop(t));
+    // Drive the loop with setInterval at 60Hz instead of RAF so we get a
+    // consistent cadence on high-refresh-rate monitors (120/144Hz). RAF
+    // would fire 2-3x per logical frame and cause perceived stutter when
+    // the throttle skipped frames.
+    intervalId = window.setInterval(() => {
+      gameLoop(performance.now());
+    }, FRAME_INTERVAL);
+
     return () => {
-      cancelAnimationFrame(animId);
+      if (intervalId !== null) clearInterval(intervalId);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('pointerdown', handleFirstGesture);
