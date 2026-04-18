@@ -874,12 +874,6 @@ const DonkeyKongGame = () => {
         const drawW = 22, drawH = 18;
         if (canImg && canImg.complete && canImg.naturalWidth > 0) {
           ctx.drawImage(canImg, cx - drawW / 2, cy - drawH / 2, drawW, drawH);
-        } else {
-          // Fallback can shape
-          ctx.fillStyle = '#90CAF9';
-          ctx.fillRect(cx - 5, cy - 4, 10, 8);
-          ctx.fillStyle = '#64B5F6';
-          ctx.fillRect(cx + 5, cy - 2, 5, 2);
         }
       }
 
@@ -927,17 +921,6 @@ const DonkeyKongGame = () => {
             ctx.fillText('Help!', paulX - 4, paulY - 6);
           }
         }
-      } else {
-        // Fallback
-        ctx.fillStyle = '#FF69B4'; ctx.fillRect(paulX, paulY, 12, 20);
-        ctx.fillStyle = '#FFD700'; ctx.fillRect(paulX + 2, paulY - 6, 8, 8);
-        if (wa.active && wa.showKiss) {
-          ctx.fillStyle = '#FF0000'; ctx.font = '12px serif';
-          ctx.fillText('❤', paulX + 14, paulY + 4);
-        } else {
-          ctx.fillStyle = '#FF69B4'; ctx.font = '8px var(--font-arcade)';
-          ctx.fillText('HELP!', paulX - 8, paulY - 10);
-        }
       }
 
       // Rolling rock wheels (sprite-animated, rotates as it rolls)
@@ -954,10 +937,6 @@ const DonkeyKongGame = () => {
           const cy = b.y + b.h / 2;
           ctx.drawImage(rockImg, frameIdx * rockFrameW, 0, rockFrameW, rockFrameH,
             cx - drawSize / 2, cy - drawSize / 2, drawSize, drawSize);
-        } else {
-          ctx.fillStyle = '#8B7355'; ctx.beginPath();
-          ctx.arc(b.x + b.w / 2, b.y + b.h / 2, b.w / 2, 0, Math.PI * 2);
-          ctx.fill();
         }
       }
 
@@ -982,9 +961,6 @@ const DonkeyKongGame = () => {
             ctx.drawImage(robotSprite, sx, 0, sw, sh, dx, dy, drawW, drawH);
           }
           ctx.restore();
-        } else {
-          ctx.fillStyle = '#FF4444';
-          ctx.fillRect(r.x, r.y + 4, r.w, r.h - 4);
         }
       }
 
@@ -1045,15 +1021,6 @@ const DonkeyKongGame = () => {
           ctx.drawImage(walkSprite, sx, sy, sw, sh, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
         }
         ctx.restore();
-      } else if (showPlayer) {
-        // Fallback pixel art (only if new sprites haven't loaded yet)
-        ctx.fillStyle = '#FF0000'; ctx.fillRect(pl.x + 2, pl.y, 12, 4);
-        ctx.fillStyle = '#FFB366'; ctx.fillRect(pl.x + 2, pl.y + 4, 12, 6);
-        ctx.fillStyle = '#FF0000'; ctx.fillRect(pl.x, pl.y + 10, 16, 8);
-        ctx.fillStyle = '#3366FF'; ctx.fillRect(pl.x + 2, pl.y + 18, 12, 6);
-        ctx.fillStyle = '#000';
-        if (pl.facing > 0) ctx.fillRect(pl.x + 9, pl.y + 5, 2, 2);
-        else ctx.fillRect(pl.x + 5, pl.y + 5, 2, 2);
       }
 
       // Carried watering can floats above the player until they water the sprout.
@@ -1064,9 +1031,6 @@ const DonkeyKongGame = () => {
         const drawW = 20, drawH = 16;
         if (canImg && canImg.complete && canImg.naturalWidth > 0) {
           ctx.drawImage(canImg, cx - drawW / 2, cy - drawH / 2, drawW, drawH);
-        } else {
-          ctx.fillStyle = '#90CAF9';
-          ctx.fillRect(cx - 5, cy - 4, 10, 8);
         }
       }
 
@@ -1081,11 +1045,6 @@ const DonkeyKongGame = () => {
         const sy = 88;
         if (stackRock && stackRock.complete && stackFrameW > 0) {
           ctx.drawImage(stackRock, 0, 0, stackFrameW, stackFrameH, sx, sy, stackSize, stackSize);
-        } else {
-          ctx.fillStyle = '#8B7355';
-          ctx.beginPath();
-          ctx.arc(sx + stackSize / 2, sy + stackSize / 2, stackSize / 2, 0, Math.PI * 2);
-          ctx.fill();
         }
       }
 
