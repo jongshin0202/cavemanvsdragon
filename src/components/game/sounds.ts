@@ -220,3 +220,55 @@ export function playGenieAppearSound() {
   chime.start(tc);
   chime.stop(tc + 0.55);
 }
+
+// Cheerful "princess saved" fanfare — distinct from the genie jingle.
+// Major triad fanfare with a celebratory final chord.
+export function playPrincessSavedSound() {
+  const ctx = getCtx();
+  const t0 = ctx.currentTime;
+
+  // Quick rising fanfare melody (G major): G5 B5 D6 G6
+  const melody = [783.99, 987.77, 1174.66, 1567.98];
+  melody.forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'square';
+    const t = t0 + i * 0.11;
+    osc.frequency.setValueAtTime(freq, t);
+    gain.gain.setValueAtTime(0.13, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.18);
+    osc.start(t);
+    osc.stop(t + 0.2);
+  });
+
+  // Final celebratory G-major chord (G5 + B5 + D6) held briefly
+  const chordT = t0 + 0.55;
+  const chord = [783.99, 987.77, 1174.66];
+  chord.forEach((freq) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(freq, chordT);
+    gain.gain.setValueAtTime(0.10, chordT);
+    gain.gain.exponentialRampToValueAtTime(0.01, chordT + 0.55);
+    osc.start(chordT);
+    osc.stop(chordT + 0.6);
+  });
+
+  // Sparkle on top
+  const sparkle = ctx.createOscillator();
+  const sparkleGain = ctx.createGain();
+  sparkle.connect(sparkleGain);
+  sparkleGain.connect(ctx.destination);
+  sparkle.type = 'sine';
+  const ts = t0 + 0.55;
+  sparkle.frequency.setValueAtTime(2349.32, ts); // D7
+  sparkleGain.gain.setValueAtTime(0.10, ts);
+  sparkleGain.gain.exponentialRampToValueAtTime(0.001, ts + 0.5);
+  sparkle.start(ts);
+  sparkle.stop(ts + 0.55);
+}

@@ -4,7 +4,7 @@ import {
   PLATFORMS, LADDERS, getPlatformY, rectsOverlap, findPlatformIndex, findBestLadder,
   Barrel, Robot
 } from './game/constants';
-import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound } from './game/sounds';
+import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound } from './game/sounds';
 import cavemanWalkUrl from '@/assets/caveman-walk.png';
 import cavemanJumpUrl from '@/assets/caveman-jump.png';
 import cavemanClimbUrl from '@/assets/caveman-climb.png';
@@ -425,7 +425,7 @@ const DonkeyKongGame = () => {
         const paulX = 175, paulY = 64;
         if (rectsOverlap(p, { x: paulX, y: paulY, w: 40, h: 48 })) {
           g.state = 'win'; setGameState('win');
-          g.score += 1000; setScore(g.score); playWinSound();
+          g.score += 1000; setScore(g.score); playWinSound(); playPrincessSavedSound();
           wa.active = true;
           wa.timer = 0;
           wa.gorillaY = 76;
@@ -1244,8 +1244,8 @@ const DonkeyKongGame = () => {
         />
       </div>
 
-      {/* Controls — fixed compact height to maximize game area */}
-      <div className="h-[26vh] max-h-[220px] min-h-[140px] w-full flex items-stretch justify-between gap-2 px-2 py-2 touch-none shrink-0">
+      {/* Controls — hidden on desktop (md+); use keyboard arrows + space instead */}
+      <div className="md:hidden h-[26vh] max-h-[220px] min-h-[140px] w-full flex items-stretch justify-between gap-2 px-2 py-2 touch-none shrink-0">
 
         {/* Locked D-pad shape: box-style arrows only, wide Up/Down, L/R centered and slightly taller */}
         <div
