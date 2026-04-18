@@ -787,12 +787,12 @@ const DonkeyKongGame = () => {
           const fullH = tv.yBot - tv.yTop; // 64
           const grownTop = tv.yBot - fullH * g.topVineGrowth;
           drawVine(tv.x, grownTop, tv.yBot);
-          // Sparkles while growing
+          // Water droplets while the vine grows
           if (g.topVineGrowth < 1) {
-            for (let i = 0; i < 4; i++) {
-              const sx = tv.x + 7 + Math.cos(g.sparkleTimer * 0.15 + i) * 8;
-              const sy = grownTop + Math.sin(g.sparkleTimer * 0.2 + i) * 4;
-              ctx.fillStyle = ['#FFEB3B', '#FFFFFF', '#8BC34A', '#FFEB3B'][i];
+            for (let i = 0; i < 5; i++) {
+              const sx = tv.x + 7 + Math.cos(g.sparkleTimer * 0.18 + i * 1.3) * 7;
+              const sy = grownTop - 4 + ((g.sparkleTimer * 0.6 + i * 5) % 18);
+              ctx.fillStyle = ['#4FC3F7', '#B3E5FC', '#81D4FA', '#FFFFFF', '#4FC3F7'][i];
               ctx.fillRect(sx, sy, 2, 2);
             }
           }
