@@ -229,6 +229,9 @@ const CavemanVsDragonGame = () => {
       unlockAudio();
       keysRef.current.add(e.key);
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
+      // Route input through the unified handler. It returns true if it consumed the key.
+      const consumed = anyInputHandlerRef.current?.(e.key, 'keyboard');
+      if (consumed) { e.preventDefault(); return; }
       if (e.key === 'r' || e.key === 'R' || e.code === 'KeyR') { e.preventDefault(); resetGame(); }
     };
     const handleKeyUp = (e: KeyboardEvent) => keysRef.current.delete(e.key);
