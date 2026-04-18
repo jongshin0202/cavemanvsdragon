@@ -4,7 +4,7 @@ import {
   PLATFORMS, LADDERS, getPlatformY, rectsOverlap, findPlatformIndex, findBestLadder,
   Barrel, Robot
 } from './game/constants';
-import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound } from './game/sounds';
+import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound } from './game/sounds';
 import cavemanWalkUrl from '@/assets/caveman-walk.png';
 import cavemanJumpUrl from '@/assets/caveman-jump.png';
 import cavemanClimbUrl from '@/assets/caveman-climb.png';
@@ -373,6 +373,9 @@ const DonkeyKongGame = () => {
             g.keyGrabbed = true;
             g.seedPlanted = true; // triggers vine-grow animation
             g.score += 300; setScore(g.score);
+            playKeyGrabSound();
+            // Watering / sprout sound right as the vine starts to grow
+            playWaterSproutSound();
           }
         }
         // Grow the vine after key grab (~1.5s at 45fps ≈ 68 frames)
@@ -1016,10 +1019,24 @@ const DonkeyKongGame = () => {
       // (Carried items removed — the key is consumed instantly on pickup.)
 
 
-      ctx.fillStyle = '#4488FF';
-      for (let i = 0; i < 3; i++) {
-        ctx.fillRect(60, 90 + i * 16, 14, 14);
-        ctx.strokeStyle = '#88BBFF'; ctx.strokeRect(62, 92 + i * 16, 10, 10);
+      // Stack of 3 rock wheels (frame 1) on the left of the dragon
+      {
+        const stackRock = rockWheelRef.current;
+        const stackFrameW = stackRock && stackRock.naturalWidth > 0 ? stackRock.naturalWidth / 5 : 0;
+        const stackFrameH = stackRock ? stackRock.naturalHeight : 0;
+        const stackSize = 18;
+        for (let i = 0; i < 3; i++) {
+          const sx = 60;
+          const sy = 88 + i * (stackSize + 2);
+          if (stackRock && stackRock.complete && stackFrameW > 0) {
+            ctx.drawImage(stackRock, 0, 0, stackFrameW, stackFrameH, sx, sy, stackSize, stackSize);
+          } else {
+            ctx.fillStyle = '#8B7355';
+            ctx.beginPath();
+            ctx.arc(sx + stackSize / 2, sy + stackSize / 2, stackSize / 2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
       }
 
       // HUD
