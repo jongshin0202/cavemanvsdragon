@@ -20,7 +20,7 @@ const ROBOT_WALK_FRAMES = 5;
 // Dragon sprite sheets: each has 5 frames, randomly alternated
 const DRAGON_FRAMES = 5;
 
-const LADDER_SNAP = 30;
+const LADDER_SNAP = 36;
 
 // Index of the topmost vine (P5 → Top). Hidden until the player plants the seed.
 const TOP_VINE_IDX = 8;
@@ -1019,23 +1019,21 @@ const DonkeyKongGame = () => {
       // (Carried items removed — the key is consumed instantly on pickup.)
 
 
-      // Stack of 3 rock wheels (frame 1) on the left of the dragon
+      // Single rock wheel (frame 1) on the left of the dragon
       {
         const stackRock = rockWheelRef.current;
         const stackFrameW = stackRock && stackRock.naturalWidth > 0 ? stackRock.naturalWidth / 5 : 0;
         const stackFrameH = stackRock ? stackRock.naturalHeight : 0;
         const stackSize = 18;
-        for (let i = 0; i < 3; i++) {
-          const sx = 60;
-          const sy = 88 + i * (stackSize + 2);
-          if (stackRock && stackRock.complete && stackFrameW > 0) {
-            ctx.drawImage(stackRock, 0, 0, stackFrameW, stackFrameH, sx, sy, stackSize, stackSize);
-          } else {
-            ctx.fillStyle = '#8B7355';
-            ctx.beginPath();
-            ctx.arc(sx + stackSize / 2, sy + stackSize / 2, stackSize / 2, 0, Math.PI * 2);
-            ctx.fill();
-          }
+        const sx = 60;
+        const sy = 88;
+        if (stackRock && stackRock.complete && stackFrameW > 0) {
+          ctx.drawImage(stackRock, 0, 0, stackFrameW, stackFrameH, sx, sy, stackSize, stackSize);
+        } else {
+          ctx.fillStyle = '#8B7355';
+          ctx.beginPath();
+          ctx.arc(sx + stackSize / 2, sy + stackSize / 2, stackSize / 2, 0, Math.PI * 2);
+          ctx.fill();
         }
       }
 
@@ -1123,9 +1121,27 @@ const DonkeyKongGame = () => {
     activePadKeysRef.current = next;
   };
 
+  const resolvePadKeysFromPoint = (clientX: number, clientY: number): string[] => {
+    const pad = padRef.current;
+    if (!pad) return [];
+    const rect = pad.getBoundingClientRect();
+    const margin = 14;
+    if (clientX < rect.left - margin || clientX > rect.right + margin || clientY < rect.top - margin || clientY > rect.bottom + margin) {
+      return [];
+    }
+
+    const localX = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const localY = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+
+    // Make slide controls forgiving: the full top band is Up, full bottom band is Down,
+    // middle band splits left/right. This avoids losing input in visual gaps while sliding.
+    if (localY <= 0.32) return ['ArrowUp'];
+    if (localY >= 0.68) return ['ArrowDown'];
+    return [localX < 0.5 ? 'ArrowLeft' : 'ArrowRight'];
+  };
+
   const updatePadFromPoint = (clientX: number, clientY: number) => {
-    const el = document.elementFromPoint(clientX, clientY) as HTMLElement | null;
-    setActiveKeys(padKeyToKeys(el?.getAttribute('data-padkey')));
+    setActiveKeys(resolvePadKeysFromPoint(clientX, clientY));
   };
 
   const clearPad = () => setActiveKeys([]);
