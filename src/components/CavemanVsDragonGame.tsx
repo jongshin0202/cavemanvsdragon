@@ -1108,13 +1108,14 @@ const CavemanVsDragonGame = () => {
       // Overlays - large, centered
       ctx.textAlign = 'center';
       if (g.state === 'gameover') {
-        ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-        ctx.fillStyle = '#FF3030'; ctx.font = 'bold 44px var(--font-arcade)';
-        ctx.fillText('GAME OVER', CANVAS_W / 2, CANVAS_H / 2 - 30);
-        ctx.fillStyle = '#FFD700'; ctx.font = 'bold 22px var(--font-arcade)';
+        ctx.fillStyle = 'rgba(0,0,0,0.9)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        const arcade = '"Press Start 2P", monospace';
+        ctx.fillStyle = '#FF3030'; ctx.font = `bold 52px ${arcade}`;
+        ctx.fillText('GAME OVER', CANVAS_W / 2, CANVAS_H / 2 - 50);
+        ctx.fillStyle = '#FFD700'; ctx.font = `bold 34px ${arcade}`;
         ctx.fillText(`SCORE: ${g.score}`, CANVAS_W / 2, CANVAS_H / 2 + 20);
-        ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 20px var(--font-arcade)';
-        ctx.fillText('Press R to restart', CANVAS_W / 2, CANVAS_H / 2 + 60);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 22px ${arcade}`;
+        ctx.fillText('PRESS R TO RESTART', CANVAS_W / 2, CANVAS_H / 2 + 80);
       }
       if (g.state === 'win' && wa.showCongrats) {
         ctx.fillStyle = 'rgba(0,0,0,0.9)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
