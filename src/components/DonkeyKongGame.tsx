@@ -240,10 +240,11 @@ const DonkeyKongGame = () => {
           }
         }
 
-        const rawLeft = keys.has('ArrowLeft');
-        const rawRight = keys.has('ArrowRight');
-        const rawUp = keys.has('ArrowUp');
-        const rawDown = keys.has('ArrowDown');
+        const padKeys = activePadKeysRef.current;
+        const rawLeft = keys.has('ArrowLeft') || padKeys.includes('ArrowLeft');
+        const rawRight = keys.has('ArrowRight') || padKeys.includes('ArrowRight');
+        const rawUp = keys.has('ArrowUp') || padKeys.includes('ArrowUp');
+        const rawDown = keys.has('ArrowDown') || padKeys.includes('ArrowDown');
 
         if (rawLeft && !rawRight) g.courseDir = -1;
         else if (rawRight && !rawLeft) g.courseDir = 1;
@@ -582,8 +583,10 @@ const DonkeyKongGame = () => {
             continue;
           }
 
-          // Collision with player
-          if (rectsOverlap(p, b)) {
+          // Collision with player only if on the same platform
+          const bPlatY = findPlatformIndex(b.y + b.h, b.x + b.w / 2);
+          const pPlatY = findPlatformIndex(p.y + p.h, p.x + p.w / 2);
+          if (rectsOverlap(p, b) && bPlatY === pPlatY) {
             g.lives--; setLives(g.lives);
             if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
             else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
@@ -693,7 +696,7 @@ const DonkeyKongGame = () => {
 
           const rPlatY = findPlatformIndex(r.y + r.h, r.x + r.w / 2);
           const pPlatY = findPlatformIndex(p.y + p.h, p.x + p.w / 2);
-          if (rectsOverlap(p, r) && (rPlatY === pPlatY || p.onGround)) {
+          if (rectsOverlap(p, r) && rPlatY === pPlatY) {
             if (p.vy > 0 && p.y + p.h <= r.y + r.h * 0.6) {
               g.score += 200; setScore(g.score);
               playRobotKillSound();
@@ -806,13 +809,19 @@ const DonkeyKongGame = () => {
           const sy = tv.yBot - 2;
           // Mound
           ctx.fillStyle = '#5D4037';
-          ctx.fillRect(sx - 4, sy - 2, 8, 3);
-          // Tiny sprout
+          ctx.fillRect(sx - 7, sy - 3, 14, 5);
+          ctx.fillStyle = 'rgba(102, 187, 106, 0.22)';
+          ctx.beginPath();
+          ctx.arc(sx, sy - 7, 8, 0, Math.PI * 2);
+          ctx.fill();
+          // Bigger sprout hint
           ctx.fillStyle = '#66BB6A';
-          ctx.fillRect(sx - 1, sy - 5, 2, 4);
+          ctx.fillRect(sx - 2, sy - 10, 4, 8);
           ctx.fillStyle = '#4CAF50';
-          ctx.fillRect(sx - 3, sy - 5, 2, 2);
-          ctx.fillRect(sx + 1, sy - 6, 2, 2);
+          ctx.fillRect(sx - 6, sy - 10, 4, 4);
+          ctx.fillRect(sx + 2, sy - 12, 4, 4);
+          ctx.fillRect(sx - 4, sy - 14, 3, 3);
+          ctx.fillRect(sx + 1, sy - 15, 3, 3);
         }
       }
 
