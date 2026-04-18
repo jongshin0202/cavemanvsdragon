@@ -501,7 +501,7 @@ const DonkeyKongGame = () => {
           const pPlatIdx = findPlatformIndex(playerFeetY, playerCenterX);
 
           r.frameTimer++;
-          if (r.frameTimer > 15) { r.frameTimer = 0; r.frame = (r.frame + 1) % 2; }
+          if (r.frameTimer > 6) { r.frameTimer = 0; r.frame = (r.frame + 1) % ROBOT_WALK_FRAMES; }
 
           if (r.climbing) {
             r.y += r.vy;
