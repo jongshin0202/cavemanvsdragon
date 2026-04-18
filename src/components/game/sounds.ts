@@ -6,6 +6,12 @@ function getCtx(): AudioContext {
   return audioCtx;
 }
 
+// Call after a user gesture to unlock audio (browsers block autoplay otherwise).
+export function unlockAudio() {
+  const ctx = getCtx();
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+}
+
 export function playJumpSound() {
   const ctx = getCtx();
   const osc = ctx.createOscillator();
