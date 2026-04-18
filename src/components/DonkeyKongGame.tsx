@@ -179,8 +179,6 @@ const DonkeyKongGame = () => {
       if (g.dkAnimTimer > 20) {
         g.dkAnimTimer = 0;
         g.dkFrame = (g.dkFrame + 1) % DRAGON_FRAMES;
-        // When a cycle completes, randomly pick which sheet to play next
-        if (g.dkFrame === 0) g.dkSheet = Math.random() < 0.5 ? 0 : 1;
       }
       g.helpTimer++;
       if (g.helpTimer > 120) { g.helpTimer = 0; g.showHelp = !g.showHelp; }
@@ -633,7 +631,7 @@ const DonkeyKongGame = () => {
       // Dragon boss (with win animation - flip and fall) - 2x bigger
       const dkX = 70;
       const dragonSize = 96;
-      const dragonImg = g.dkSheet === 0 ? dragonFireRef.current : dragonAngryRef.current;
+      const dragonImg = dragonAngryRef.current;
       const dragonFrameW = dragonImg && dragonImg.naturalWidth > 0 ? dragonImg.naturalWidth / DRAGON_FRAMES : 0;
       const dragonFrameH = dragonImg ? dragonImg.naturalHeight : 0;
       if (wa.active) {
