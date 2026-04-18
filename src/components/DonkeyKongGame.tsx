@@ -224,7 +224,9 @@ const DonkeyKongGame = () => {
         const playerCX = p.x + p.w / 2;
         let nearestLadder: (typeof LADDERS)[number] | null = null;
         let nearestLadderDist = Infinity;
-        for (const l of LADDERS) {
+        for (let li = 0; li < LADDERS.length; li++) {
+          if (li === TOP_VINE_IDX && !g.topVineUnlocked) continue;
+          const l = LADDERS[li];
           const ladderCX = l.x + 7;
           const dist = Math.abs(playerCX - ladderCX);
           if (dist < LADDER_SNAP && p.y + p.h > l.yTop - 8 && p.y + p.h <= l.yBot + 16 && dist < nearestLadderDist) {
@@ -349,6 +351,33 @@ const DonkeyKongGame = () => {
           else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
         }
 
+        // === SEED PICKUP / PLANT / GROW VINE ===
+        // Pick up the seed if not yet held and not yet planted
+        if (!g.hasSeed && !g.seedPlanted) {
+          if (rectsOverlap(p, g.seedPos)) {
+            g.hasSeed = true;
+            g.score += 100; setScore(g.score);
+          }
+          // Bob animation for the un-picked seed
+          g.seedBob = (g.seedBob + 1) % 120;
+        }
+        // Plant the seed when player stands on P5 near the planting spot
+        if (g.hasSeed && !g.seedPlanted) {
+          const onP5 = Math.abs((p.y + p.h) - 176) < 6 && p.onGround;
+          const nearPlantX = Math.abs(playerCX - PLANT_X) < 10;
+          if (onP5 && nearPlantX) {
+            g.hasSeed = false;
+            g.seedPlanted = true;
+            g.score += 200; setScore(g.score);
+          }
+        }
+        // Grow the vine after planting (~1.5s at 45fps ≈ 68 frames)
+        if (g.seedPlanted && g.topVineGrowth < 1) {
+          g.topVineGrowth = Math.min(1, g.topVineGrowth + 1 / 68);
+          g.sparkleTimer++;
+          if (g.topVineGrowth >= 1) g.topVineUnlocked = true;
+        }
+
         // Win condition - touch the girl
         const paulX = 240, paulY = 72;
         if (rectsOverlap(p, { x: paulX, y: paulY, w: 12, h: 20 })) {
@@ -457,6 +486,7 @@ const DonkeyKongGame = () => {
             // Check for ladders going DOWN only (barrels never go up)
             let tookLadder = false;
             for (let li = 0; li < LADDERS.length; li++) {
+              if (li === TOP_VINE_IDX && !g.topVineUnlocked) continue;
               const l = LADDERS[li];
               const ladderCenterX = l.x + 7;
 
@@ -474,6 +504,7 @@ const DonkeyKongGame = () => {
               
               // Find all ladders on this platform going down
               const laddersOnPlat = LADDERS.filter((ll, lli) => {
+                if (lli === TOP_VINE_IDX && !g.topVineUnlocked) return false;
                 const tpi = PLATFORMS.findIndex(pl => Math.abs(pl.y - ll.yTop) < 12);
                 return tpi === bPlatIdx;
               });
@@ -599,6 +630,7 @@ const DonkeyKongGame = () => {
             let climbChoice: { ladderIdx: number; climbVy: number; score: number } | null = null;
             const continueScore = scoreToPlayer(rCenterX + r.wanderDir * r.speed * 30, rFeetY);
             for (let li = 0; li < LADDERS.length; li++) {
+              if (li === TOP_VINE_IDX && !g.topVineUnlocked) continue;
               const l = LADDERS[li];
               const ladderCenterX = l.x + 7;
               if (Math.abs(rCenterX - ladderCenterX) > r.speed + 4) continue;
@@ -708,41 +740,98 @@ const DonkeyKongGame = () => {
         }
       }
 
-      // Ladders - green caveman vines
-      for (const l of LADDERS) {
-        // Two vertical vines (wavy)
+      // Ladders - green caveman vines (skip top vine; rendered separately based on growth)
+      const drawVine = (lx: number, lyTop: number, lyBot: number) => {
         ctx.strokeStyle = '#2E7D32'; ctx.lineWidth = 3;
         ctx.beginPath();
-        for (let y = l.yTop; y <= l.yBot; y += 4) {
+        for (let y = lyTop; y <= lyBot; y += 4) {
           const wave = Math.sin(y * 0.4) * 1.5;
-          if (y === l.yTop) ctx.moveTo(l.x + wave, y);
-          else ctx.lineTo(l.x + wave, y);
+          if (y === lyTop) ctx.moveTo(lx + wave, y);
+          else ctx.lineTo(lx + wave, y);
         }
         ctx.stroke();
         ctx.beginPath();
-        for (let y = l.yTop; y <= l.yBot; y += 4) {
+        for (let y = lyTop; y <= lyBot; y += 4) {
           const wave = Math.sin(y * 0.4 + 1) * 1.5;
-          if (y === l.yTop) ctx.moveTo(l.x + 14 + wave, y);
-          else ctx.lineTo(l.x + 14 + wave, y);
+          if (y === lyTop) ctx.moveTo(lx + 14 + wave, y);
+          else ctx.lineTo(lx + 14 + wave, y);
         }
         ctx.stroke();
-        // Vine highlights
         ctx.strokeStyle = '#4CAF50'; ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(l.x - 1, l.yTop); ctx.lineTo(l.x - 1, l.yBot);
-        ctx.moveTo(l.x + 13, l.yTop); ctx.lineTo(l.x + 13, l.yBot);
+        ctx.moveTo(lx - 1, lyTop); ctx.lineTo(lx - 1, lyBot);
+        ctx.moveTo(lx + 13, lyTop); ctx.lineTo(lx + 13, lyBot);
         ctx.stroke();
-        // Rungs as small twigs/leaves
-        for (let y = l.yTop + 4; y < l.yBot; y += 12) {
+        for (let y = lyTop + 4; y < lyBot; y += 12) {
           ctx.strokeStyle = '#5D4037'; ctx.lineWidth = 2;
           ctx.beginPath();
-          ctx.moveTo(l.x + 1, y); ctx.lineTo(l.x + 13, y);
+          ctx.moveTo(lx + 1, y); ctx.lineTo(lx + 13, y);
           ctx.stroke();
-          // Leaf accents
           ctx.fillStyle = '#66BB6A';
-          ctx.fillRect(l.x + 3, y - 2, 2, 2);
-          ctx.fillRect(l.x + 9, y + 1, 2, 2);
+          ctx.fillRect(lx + 3, y - 2, 2, 2);
+          ctx.fillRect(lx + 9, y + 1, 2, 2);
         }
+      };
+      for (let li = 0; li < LADDERS.length; li++) {
+        if (li === TOP_VINE_IDX) continue; // top vine drawn below based on growth
+        const l = LADDERS[li];
+        drawVine(l.x, l.yTop, l.yBot);
+      }
+
+      // Topmost vine — animated growth from sprout up to top platform
+      {
+        const tv = LADDERS[TOP_VINE_IDX];
+        if (g.seedPlanted && g.topVineGrowth > 0) {
+          const fullH = tv.yBot - tv.yTop; // 64
+          const grownTop = tv.yBot - fullH * g.topVineGrowth;
+          drawVine(tv.x, grownTop, tv.yBot);
+          // Sparkles while growing
+          if (g.topVineGrowth < 1) {
+            for (let i = 0; i < 4; i++) {
+              const sx = tv.x + 7 + Math.cos(g.sparkleTimer * 0.15 + i) * 8;
+              const sy = grownTop + Math.sin(g.sparkleTimer * 0.2 + i) * 4;
+              ctx.fillStyle = ['#FFEB3B', '#FFFFFF', '#8BC34A', '#FFEB3B'][i];
+              ctx.fillRect(sx, sy, 2, 2);
+            }
+          }
+        }
+        // Sprout/seed marker at the planting spot when not yet planted
+        if (!g.seedPlanted) {
+          const sx = tv.x + 7;
+          const sy = tv.yBot - 2;
+          // Mound
+          ctx.fillStyle = '#5D4037';
+          ctx.fillRect(sx - 4, sy - 2, 8, 3);
+          // Tiny sprout
+          ctx.fillStyle = '#66BB6A';
+          ctx.fillRect(sx - 1, sy - 5, 2, 4);
+          ctx.fillStyle = '#4CAF50';
+          ctx.fillRect(sx - 3, sy - 5, 2, 2);
+          ctx.fillRect(sx + 1, sy - 6, 2, 2);
+        }
+      }
+
+      // Loose seed on P5 (drawn while not held and not yet planted)
+      if (!g.hasSeed && !g.seedPlanted) {
+        const sd = g.seedPos;
+        const bob = Math.sin(g.seedBob * 0.1) * 2;
+        const cx = sd.x + sd.w / 2;
+        const cy = sd.y + sd.h / 2 + bob;
+        // Glow
+        ctx.fillStyle = 'rgba(255, 235, 59, 0.25)';
+        ctx.beginPath(); ctx.arc(cx, cy, 9, 0, Math.PI * 2); ctx.fill();
+        // Seed body (acorn-like)
+        ctx.fillStyle = '#8D6E63';
+        ctx.beginPath(); ctx.ellipse(cx, cy + 1, 5, 6, 0, 0, Math.PI * 2); ctx.fill();
+        // Cap
+        ctx.fillStyle = '#5D4037';
+        ctx.fillRect(cx - 5, cy - 4, 10, 3);
+        // Tiny sprout on top
+        ctx.fillStyle = '#66BB6A';
+        ctx.fillRect(cx - 1, cy - 7, 2, 3);
+        // Highlight
+        ctx.fillStyle = '#FFEB3B';
+        ctx.fillRect(cx - 2, cy, 1, 1);
       }
 
       // Dragon boss (with win animation - flip and fall) - 2x bigger
