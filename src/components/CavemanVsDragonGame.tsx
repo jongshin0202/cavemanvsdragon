@@ -54,6 +54,12 @@ const CavemanVsDragonGame = () => {
   const robotWalkRef = useRef<HTMLImageElement | null>(null);
   const rockWheelRef = useRef<HTMLImageElement | null>(null);
   const wateringCanRef = useRef<HTMLImageElement | null>(null);
+  // Refs mirroring React state so the canvas render loop (inside an effect)
+  // can read the current values without re-running the effect.
+  const scoresRef = useRef<LeaderboardEntry[]>(scores);
+  const initialsRef = useRef<string[]>(initials);
+  const initialsCursorRef = useRef<number>(0);
+  const isMobileRef = useRef<boolean>(false);
   const gameRef = useRef({
     player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 },
     barrels: [] as Barrel[],
