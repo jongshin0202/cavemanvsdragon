@@ -1136,7 +1136,13 @@ const CavemanVsDragonGame = () => {
     };
 
     animId = requestAnimationFrame((t) => gameLoop(t));
-    return () => { cancelAnimationFrame(animId); window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp); };
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('pointerdown', handleFirstGesture);
+      window.removeEventListener('touchstart', handleFirstGesture);
+    };
   }, [resetGame, resetPlayer]);
 
   // Direct, synchronous vibrate — Android is more reliable with a cleared pattern
