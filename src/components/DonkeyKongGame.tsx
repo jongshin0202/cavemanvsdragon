@@ -912,27 +912,46 @@ const DonkeyKongGame = () => {
     if (type === 'down') keysRef.current.add(key); else keysRef.current.delete(key);
   }, []);
 
-  // Slide-aware D-pad: track which button the pointer is over and only press that one
+  // Slide-aware D-pad: keep horizontal "course" active when finger slides to Up/Down.
+  // Track horizontal (Left/Right) and vertical (Up/Down) axes independently so the
+  // player can keep walking sideways while attempting to climb — if no ladder is
+  // present, Up/Down is a no-op in the game loop and the horizontal motion continues.
   const padRef = useRef<HTMLDivElement>(null);
-  const activePadKeyRef = useRef<string | null>(null);
+  const activeHorizRef = useRef<string | null>(null); // 'ArrowLeft' | 'ArrowRight' | null
+  const activeVertRef = useRef<string | null>(null);  // 'ArrowUp' | 'ArrowDown' | null
   const DPAD_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
 
   const updatePadFromPoint = useCallback((clientX: number, clientY: number) => {
     const el = document.elementFromPoint(clientX, clientY) as HTMLElement | null;
     const key = el?.getAttribute('data-padkey');
-    const next = key && DPAD_KEYS.includes(key) ? key : null;
-    if (activePadKeyRef.current !== next) {
-      if (activePadKeyRef.current) simulateKey(activePadKeyRef.current, 'up');
-      if (next) { simulateKey(next, 'down'); vibrate(15); }
-      activePadKeyRef.current = next;
+    if (!key || !DPAD_KEYS.includes(key)) return; // outside pad — keep current course
+
+    if (key === 'ArrowLeft' || key === 'ArrowRight') {
+      if (activeHorizRef.current !== key) {
+        if (activeHorizRef.current) simulateKey(activeHorizRef.current, 'up');
+        simulateKey(key, 'down');
+        activeHorizRef.current = key;
+        vibrate(15);
+      }
+      // Releasing vertical when finger clearly on horizontal row
+      if (activeVertRef.current) {
+        simulateKey(activeVertRef.current, 'up');
+        activeVertRef.current = null;
+      }
+    } else {
+      // ArrowUp / ArrowDown — preserve horizontal course
+      if (activeVertRef.current !== key) {
+        if (activeVertRef.current) simulateKey(activeVertRef.current, 'up');
+        simulateKey(key, 'down');
+        activeVertRef.current = key;
+        vibrate(15);
+      }
     }
   }, [simulateKey, vibrate]);
 
   const clearPad = useCallback(() => {
-    if (activePadKeyRef.current) {
-      simulateKey(activePadKeyRef.current, 'up');
-      activePadKeyRef.current = null;
-    }
+    if (activeHorizRef.current) { simulateKey(activeHorizRef.current, 'up'); activeHorizRef.current = null; }
+    if (activeVertRef.current) { simulateKey(activeVertRef.current, 'up'); activeVertRef.current = null; }
   }, [simulateKey]);
 
   const padHandlers = {
