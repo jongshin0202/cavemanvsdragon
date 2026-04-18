@@ -144,7 +144,7 @@ const DonkeyKongGame = () => {
     let animId: number;
 
     let lastTime = 0;
-    const FRAME_INTERVAL = 1000 / 45; // ~45fps instead of 60fps = 25% slower
+    const FRAME_INTERVAL = 1000 / 60; // native 60fps for smooth motion
 
     const gameLoop = (timestamp: number) => {
       const elapsed = timestamp - lastTime;
