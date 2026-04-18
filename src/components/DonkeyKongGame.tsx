@@ -904,6 +904,10 @@ const DonkeyKongGame = () => {
     return () => { cancelAnimationFrame(animId); window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp); };
   }, [resetGame, resetPlayer]);
 
+  const vibrate = useCallback((ms = 15) => {
+    try { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(ms); } catch {}
+  }, []);
+
   const simulateKey = useCallback((key: string, type: 'down' | 'up') => {
     if (type === 'down') keysRef.current.add(key); else keysRef.current.delete(key);
   }, []);
@@ -919,10 +923,10 @@ const DonkeyKongGame = () => {
     const next = key && DPAD_KEYS.includes(key) ? key : null;
     if (activePadKeyRef.current !== next) {
       if (activePadKeyRef.current) simulateKey(activePadKeyRef.current, 'up');
-      if (next) simulateKey(next, 'down');
+      if (next) { simulateKey(next, 'down'); vibrate(15); }
       activePadKeyRef.current = next;
     }
-  }, [simulateKey]);
+  }, [simulateKey, vibrate]);
 
   const clearPad = useCallback(() => {
     if (activePadKeyRef.current) {
@@ -952,44 +956,62 @@ const DonkeyKongGame = () => {
       e.preventDefault();
       (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
       simulateKey(key, 'down');
+      vibrate(20);
     },
     onPointerUp: (e: React.PointerEvent) => { e.preventDefault(); simulateKey(key, 'up'); },
     onPointerCancel: () => simulateKey(key, 'up'),
   });
 
   return (
-    <div className="flex flex-col items-center justify-between min-h-screen gap-2 p-2 select-none">
-      <div className="w-full flex-1 flex items-center justify-center">
-        <div className="border-4 border-primary rounded-sm shadow-[0_0_30px_rgba(212,42,42,0.3)] w-full max-w-[800px]">
+    <div className="flex flex-col items-stretch h-screen w-screen overflow-hidden select-none bg-background">
+      {/* Game area = 75% of viewport height */}
+      <div className="flex-[3] min-h-0 flex items-center justify-center p-1">
+        <div className="border-2 border-primary rounded-sm shadow-[0_0_30px_rgba(212,42,42,0.3)] h-full"
+             style={{ aspectRatio: `${CANVAS_W} / ${CANVAS_H}` }}>
           <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
-            className="block w-full h-auto" style={{ imageRendering: 'pixelated', aspectRatio: `${CANVAS_W} / ${CANVAS_H}` }} tabIndex={0} />
+            className="block w-full h-full" style={{ imageRendering: 'pixelated' }} tabIndex={0} />
         </div>
       </div>
-      <div className="flex w-full max-w-[800px] justify-between items-center gap-2 mt-2 touch-none">
+
+      {/* Controls area = 25% of viewport height */}
+      <div className="flex-1 min-h-0 w-full flex items-stretch justify-between gap-2 px-2 pb-2 touch-none">
+        {/* D-pad: wide L/R meeting in center, wide Up/Down stacked */}
         <div
           ref={padRef}
-          className="grid grid-cols-3 grid-rows-3 gap-1 w-56 h-56 touch-none"
+          className="flex flex-col flex-1 h-full touch-none gap-1"
           {...padHandlers}
         >
-          <div />
-          <button data-padkey="ArrowUp" className="bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold">↑</button>
-          <div />
-          <button data-padkey="ArrowLeft" className="bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold">←</button>
-          <div />
-          <button data-padkey="ArrowRight" className="bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold">→</button>
-          <div />
-          <button data-padkey="ArrowDown" className="bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold">↓</button>
-          <div />
+          <button
+            data-padkey="ArrowUp"
+            className="w-full flex-1 bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold"
+          >↑</button>
+
+          <div className="w-full flex-1 flex items-stretch">
+            <button
+              data-padkey="ArrowLeft"
+              className="flex-1 bg-muted active:bg-primary rounded-l-lg text-foreground text-3xl flex items-center justify-center font-bold border-r-2 border-background"
+            >←</button>
+            <button
+              data-padkey="ArrowRight"
+              className="flex-1 bg-muted active:bg-primary rounded-r-lg text-foreground text-3xl flex items-center justify-center font-bold"
+            >→</button>
+          </div>
+
+          <button
+            data-padkey="ArrowDown"
+            className="w-full flex-1 bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold"
+          >↓</button>
         </div>
 
-        {/* R button placed BETWEEN arrows and jump so it isn't accidentally pressed */}
+        {/* R button — small, between arrows and jump, must be tapped (not slid) */}
         <button
-          className="w-12 h-12 rounded-full bg-accent text-accent-foreground text-sm font-bold active:scale-95 shrink-0"
-          onPointerDown={(e) => { e.preventDefault(); resetGame(); }}
+          className="w-10 h-10 self-center rounded-full bg-accent text-accent-foreground text-sm font-bold active:scale-95 shrink-0"
+          onPointerDown={(e) => { e.preventDefault(); vibrate(25); resetGame(); }}
         >R</button>
 
+        {/* JUMP button — extra-large, tap-only */}
         <button
-          className="w-32 h-32 rounded-full bg-primary text-primary-foreground text-xl font-bold active:scale-95 shrink-0"
+          className="h-full aspect-square rounded-full bg-primary text-primary-foreground text-2xl font-bold active:scale-95 shrink-0"
           {...tapHandlers(' ')}
         >JUMP</button>
       </div>
