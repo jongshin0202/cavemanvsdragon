@@ -418,7 +418,7 @@ const CavemanVsDragonGame = () => {
           g.keyBob = (g.keyBob + 1) % 120;
           if (g.keyPos && rectsOverlap(p, g.keyPos)) {
             g.keyGrabbed = true;
-            g.score += 300; setScore(g.score);
+            g.score += 200; setScore(g.score);
             playKeyGrabSound();
           }
         }
@@ -447,7 +447,7 @@ const CavemanVsDragonGame = () => {
         const paulX = 175, paulY = 64;
         if (rectsOverlap(p, { x: paulX, y: paulY, w: 40, h: 48 })) {
           g.state = 'win'; setGameState('win');
-          g.score += 1000; setScore(g.score); playWinSound(); playPrincessSavedSound();
+          g.score += 2000 + g.lives * 1000; setScore(g.score); playWinSound(); playPrincessSavedSound();
           wa.active = true;
           wa.timer = 0;
           wa.gorillaY = 76;
@@ -769,7 +769,7 @@ const CavemanVsDragonGame = () => {
           const pPlatY = findPlatformIndex(p.y + p.h, p.x + p.w / 2);
           if (rectsOverlap(p, r) && rPlatY === pPlatY) {
             if (p.vy > 0 && p.y + p.h <= r.y + r.h * 0.6) {
-              g.score += 200; setScore(g.score);
+              g.score += 300; setScore(g.score);
               playRobotKillSound();
               p.vy = -4;
               g.robots.splice(i, 1);
@@ -1119,13 +1119,13 @@ const CavemanVsDragonGame = () => {
       if (g.state === 'win' && wa.showCongrats) {
         ctx.fillStyle = 'rgba(0,0,0,0.9)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
         const arcade = '"Press Start 2P", monospace';
-        ctx.fillStyle = '#FFD700'; ctx.font = `bold 28px ${arcade}`;
+        ctx.fillStyle = '#FFD700'; ctx.font = `bold 40px ${arcade}`;
         ctx.fillText('CONGRATS!', CANVAS_W / 2, CANVAS_H / 2 - 110);
-        ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 36px ${arcade}`;
+        ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 52px ${arcade}`;
         ctx.fillText('YOU WON!', CANVAS_W / 2, CANVAS_H / 2 - 50);
-        ctx.fillStyle = '#FFD700'; ctx.font = `bold 24px ${arcade}`;
+        ctx.fillStyle = '#FFD700'; ctx.font = `bold 34px ${arcade}`;
         ctx.fillText(`SCORE: ${g.score}`, CANVAS_W / 2, CANVAS_H / 2 + 20);
-        ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 16px ${arcade}`;
+        ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 22px ${arcade}`;
         ctx.fillText('PRESS R TO RESTART', CANVAS_W / 2, CANVAS_H / 2 + 80);
       }
       ctx.textAlign = 'start';
