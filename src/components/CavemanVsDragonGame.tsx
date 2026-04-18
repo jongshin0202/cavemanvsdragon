@@ -181,7 +181,7 @@ const CavemanVsDragonGame = () => {
       unlockAudio();
       keysRef.current.add(e.key);
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
-      if (e.key === 'r' || e.key === 'R') resetGame();
+      if (e.key === 'r' || e.key === 'R' || e.code === 'KeyR') { e.preventDefault(); resetGame(); }
     };
     const handleKeyUp = (e: KeyboardEvent) => keysRef.current.delete(e.key);
     const handleFirstGesture = () => { unlockAudio(); };
@@ -1101,9 +1101,12 @@ const CavemanVsDragonGame = () => {
       }
 
       // HUD
-      ctx.fillStyle = '#FFFFFF'; ctx.font = '10px var(--font-arcade)';
-      ctx.fillText(`SCORE: ${g.score}`, 10, 20);
-      ctx.fillText(`LIVES: ${'♥'.repeat(g.lives)}`, 350, 20);
+      ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 18px "Press Start 2P", monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(`SCORE: ${g.score}`, 10, 28);
+      ctx.textAlign = 'right';
+      ctx.fillText(`LIVES: ${'♥'.repeat(g.lives)}`, CANVAS_W - 10, 28);
+      ctx.textAlign = 'left';
 
       // Overlays - large, centered
       ctx.textAlign = 'center';
