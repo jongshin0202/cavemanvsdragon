@@ -105,7 +105,7 @@ const CavemanVsDragonGame = () => {
     g.robots = [];
     g.robotSpawnTimer = 0;
     g.robotsInitialized = false;
-    g.nextBarrelTime = 60 + Math.random() * 120;
+    g.nextBarrelTime = 69 + Math.random() * 138;
     g.frameCount = 0;
     g.playerHasMoved = true;
     g.barrelStartDelay = 0;
@@ -459,10 +459,10 @@ const CavemanVsDragonGame = () => {
         // === BARREL SPAWNING (only after player first moves; first barrel ~0.5s after) ===
         if (g.playerHasMoved) {
           g.barrelTimer++;
-          if (!g.nextBarrelTime) g.nextBarrelTime = 90 + Math.random() * 180;
+          if (!g.nextBarrelTime) g.nextBarrelTime = 104 + Math.random() * 207;
           if (g.barrelTimer > g.nextBarrelTime) {
             g.barrelTimer = 0;
-            g.nextBarrelTime = 90 + Math.random() * 180;
+            g.nextBarrelTime = 104 + Math.random() * 207;
             const speed = BARREL_SPEED * (0.7 + Math.random() * 0.8);
             g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed, rollPhase: 0 });
             playBarrelRollSound();
