@@ -1107,6 +1107,7 @@ const DonkeyKongGame = () => {
 
   const padRef = useRef<HTMLDivElement>(null);
   const activePadKeysRef = useRef<string[]>([]);
+  const [activePadKeys, setActivePadKeysState] = useState<string[]>([]);
   const DPAD_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
   const padKeyToKeys = (raw: string | null | undefined): string[] => {
     if (!raw) return [];
@@ -1119,6 +1120,7 @@ const DonkeyKongGame = () => {
     next.forEach((k) => { if (!cur.includes(k)) simulateKey(k, 'down'); });
     if (next.length && next.join(',') !== cur.join(',')) pulseHaptic(35);
     activePadKeysRef.current = next;
+    setActivePadKeysState(next);
   };
 
   const resolvePadKeysFromPoint = (clientX: number, clientY: number): string[] => {
