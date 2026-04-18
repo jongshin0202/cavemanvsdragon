@@ -30,12 +30,20 @@ const TOP_VINE_IDX = 8;
 // Where the seed must be planted (base of the topmost vine, on platform P5)
 const PLANT_X = 357; // matches LADDERS[8].x + 7
 
+type GameState = 'playing' | 'gameover' | 'win' | 'continue' | 'enterInitials' | 'leaderboard';
+
 const CavemanVsDragonGame = () => {
+  const isMobile = useIsMobile();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const keysRef = useRef<Set<string>>(new Set());
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
-  const [gameState, setGameState] = useState<'playing' | 'gameover' | 'win'>('playing');
+  const [gameState, setGameState] = useState<GameState>('playing');
+  const [scores, setScores] = useState<LeaderboardEntry[]>(() => loadScores());
+  const [initials, setInitials] = useState<string[]>(['A', 'A', 'A']);
+  const [initialsCursor, setInitialsCursor] = useState(0);
+  const [pendingScore, setPendingScore] = useState(0);
+  const continueArmedAtRef = useRef(0); // ms timestamp when input is allowed
   const walkSpriteRef = useRef<HTMLImageElement | null>(null);
   const jumpSpriteRef = useRef<HTMLImageElement | null>(null);
   const climbSpriteRef = useRef<HTMLImageElement | null>(null);
