@@ -899,27 +899,31 @@ const DonkeyKongGame = () => {
         }
       }
 
-      // Princess (sprite)
-      const paulX = 235, paulY = 62;
-      const princessImg = princessRef.current;
+      // Princess (sprite) - placed on the top vine so she's not floating
       const princessDrawW = 24;
       const princessDrawH = 32;
+      const paulX = 350 - princessDrawW / 2 + 7; // centered on top vine (x=350, width ~14)
+      const paulY = 112 - princessDrawH;          // feet on top platform (y=112)
+      const princessImg = princessRef.current;
       if (princessImg && princessImg.complete && princessImg.naturalWidth > 0) {
-        // Use first idle frame only - no alternation to avoid flashing
-        const pFrameW = princessImg.naturalWidth / 7;
-        const pFrameH = princessImg.naturalHeight / 3;
+        // New sprite: 5 frames in a single row
+        const PRINCESS_FRAMES = 5;
+        const pFrameW = princessImg.naturalWidth / PRINCESS_FRAMES;
+        const pFrameH = princessImg.naturalHeight;
+        // Pick frame: kiss → frame 0; otherwise alternate between idle (0) and "help" (2)
+        let frameIdx = 0;
+        if (!(wa.active && wa.showKiss)) {
+          frameIdx = g.showHelp ? 2 : 0;
+        }
+        ctx.drawImage(princessImg, frameIdx * pFrameW, 0, pFrameW, pFrameH, paulX, paulY, princessDrawW, princessDrawH);
         if (wa.active && wa.showKiss) {
-          ctx.drawImage(princessImg, 0, 0, pFrameW, pFrameH, paulX, paulY, princessDrawW, princessDrawH);
           ctx.fillStyle = '#FF0000'; ctx.font = '12px serif';
           ctx.fillText('❤', paulX + princessDrawW + 2, paulY + 8);
           ctx.fillStyle = '#FF69B4'; ctx.font = '7px monospace';
           ctx.fillText('Thank You!', paulX - 20, paulY - 6);
-        } else {
-          ctx.drawImage(princessImg, 0, 0, pFrameW, pFrameH, paulX, paulY, princessDrawW, princessDrawH);
-          if (g.showHelp) {
-            ctx.fillStyle = '#FFFFFF'; ctx.font = '7px monospace';
-            ctx.fillText('Help!', paulX - 4, paulY - 6);
-          }
+        } else if (g.showHelp) {
+          ctx.fillStyle = '#FFFFFF'; ctx.font = '7px monospace';
+          ctx.fillText('Help!', paulX - 4, paulY - 6);
         }
       }
 
