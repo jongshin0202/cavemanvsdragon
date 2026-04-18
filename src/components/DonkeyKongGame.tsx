@@ -843,30 +843,28 @@ const DonkeyKongGame = () => {
         }
       }
 
-      // Key on leftmost edge of P5 (drawn after all 4 monkeys are killed, until grabbed)
+      // Watering can on leftmost edge of P5 (drawn after all 4 monkeys
+      // are killed, until grabbed). When grabbed, the player carries it
+      // over their head until they reach the sprout.
       if (g.keySpawned && !g.keyGrabbed && g.keyPos) {
         const kp = g.keyPos;
         const bob = Math.sin(g.keyBob * 0.12) * 2;
         const cx = kp.x + kp.w / 2;
         const cy = kp.y + kp.h / 2 + bob;
-        // Soft golden glow
-        ctx.fillStyle = 'rgba(255, 215, 0, 0.35)';
-        ctx.beginPath(); ctx.arc(cx, cy, 11, 0, Math.PI * 2); ctx.fill();
-        // Key bow (round head, hollow)
-        ctx.fillStyle = '#FFD700';
-        ctx.beginPath(); ctx.arc(cx - 3, cy, 4, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#3a2f00';
-        ctx.beginPath(); ctx.arc(cx - 3, cy, 1.5, 0, Math.PI * 2); ctx.fill();
-        // Shaft
-        ctx.fillStyle = '#FFD700';
-        ctx.fillRect(cx, cy - 1, 7, 2);
-        // Teeth
-        ctx.fillRect(cx + 4, cy + 1, 1, 2);
-        ctx.fillRect(cx + 6, cy + 1, 1, 2);
-        // Highlight
-        ctx.fillStyle = '#FFF59D';
-        ctx.fillRect(cx - 4, cy - 2, 1, 1);
-        ctx.fillRect(cx + 1, cy - 1, 2, 1);
+        // Soft blue glow
+        ctx.fillStyle = 'rgba(79, 195, 247, 0.35)';
+        ctx.beginPath(); ctx.arc(cx, cy, 12, 0, Math.PI * 2); ctx.fill();
+        const canImg = wateringCanRef.current;
+        const drawW = 22, drawH = 18;
+        if (canImg && canImg.complete && canImg.naturalWidth > 0) {
+          ctx.drawImage(canImg, cx - drawW / 2, cy - drawH / 2, drawW, drawH);
+        } else {
+          // Fallback can shape
+          ctx.fillStyle = '#90CAF9';
+          ctx.fillRect(cx - 5, cy - 4, 10, 8);
+          ctx.fillStyle = '#64B5F6';
+          ctx.fillRect(cx + 5, cy - 2, 5, 2);
+        }
       }
 
       // Dragon boss (with win animation - flip and fall) - 2x bigger
