@@ -1263,36 +1263,30 @@ const DonkeyKongGame = () => {
           className="flex flex-1 h-full touch-none flex-col gap-1"
           {...padHandlers}
         >
-          <button
+          <div
             data-padkey="ArrowUp"
-            style={{ flexGrow: 0.95, flexBasis: 0, width: '74%' }}
-            className={`self-center ${activePadKeys.includes('ArrowUp') ? 'bg-red-500' : 'bg-blue-500'} rounded-lg text-white text-3xl flex items-center justify-center font-bold transition-colors`}
-            onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowUp'); }}
-            onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowUp'); }}
-          >↑</button>
+            style={{ flexGrow: 0.95, flexBasis: 0, width: '74%', pointerEvents: 'none' }}
+            className={`self-center ${activePadKeys.includes('ArrowUp') ? 'bg-red-500' : 'bg-blue-500'} rounded-lg text-white text-3xl flex items-center justify-center font-bold transition-colors select-none`}
+          >↑</div>
 
           <div style={{ flexGrow: 1.1, flexBasis: 0 }} className="w-full flex items-stretch gap-1">
-            <button
+            <div
               data-padkey="ArrowLeft"
-              className={`flex-1 ${activePadKeys.includes('ArrowLeft') ? 'bg-red-500' : 'bg-blue-500'} rounded-lg text-white text-3xl flex items-center justify-end pr-4 font-bold transition-colors`}
-              onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowLeft'); }}
-              onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowLeft'); }}
-            >←</button>
-            <button
+              style={{ pointerEvents: 'none' }}
+              className={`flex-1 ${activePadKeys.includes('ArrowLeft') ? 'bg-red-500' : 'bg-blue-500'} rounded-lg text-white text-3xl flex items-center justify-end pr-4 font-bold transition-colors select-none`}
+            >←</div>
+            <div
               data-padkey="ArrowRight"
-              className={`flex-1 ${activePadKeys.includes('ArrowRight') ? 'bg-red-500' : 'bg-blue-500'} rounded-lg text-white text-3xl flex items-center justify-start pl-4 font-bold transition-colors`}
-              onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowRight'); }}
-              onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowRight'); }}
-            >→</button>
+              style={{ pointerEvents: 'none' }}
+              className={`flex-1 ${activePadKeys.includes('ArrowRight') ? 'bg-red-500' : 'bg-blue-500'} rounded-lg text-white text-3xl flex items-center justify-start pl-4 font-bold transition-colors select-none`}
+            >→</div>
           </div>
 
-          <button
+          <div
             data-padkey="ArrowDown"
-            style={{ flexGrow: 0.95, flexBasis: 0, width: '74%' }}
-            className={`self-center ${activePadKeys.includes('ArrowDown') ? 'bg-red-500' : 'bg-blue-500'} rounded-lg text-white text-3xl flex items-center justify-center font-bold transition-colors`}
-            onPointerDown={(e) => { e.preventDefault(); pressPadKey('ArrowDown'); }}
-            onTouchStart={(e) => { e.preventDefault(); pressPadKey('ArrowDown'); }}
-          >↓</button>
+            style={{ flexGrow: 0.95, flexBasis: 0, width: '74%', pointerEvents: 'none' }}
+            className={`self-center ${activePadKeys.includes('ArrowDown') ? 'bg-red-500' : 'bg-blue-500'} rounded-lg text-white text-3xl flex items-center justify-center font-bold transition-colors select-none`}
+          >↓</div>
         </div>
 
         {/* R button — small, between arrows and jump, must be tapped (not slid) */}
