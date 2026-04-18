@@ -38,7 +38,7 @@ const DonkeyKongGame = () => {
   const robotWalkRef = useRef<HTMLImageElement | null>(null);
   const rockWheelRef = useRef<HTMLImageElement | null>(null);
   const gameRef = useRef({
-    player: { x: 80, y: 668, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 },
+    player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 },
     barrels: [] as Barrel[],
     robots: [] as (Robot & { wanderTimer?: number; wanderDir?: number })[],
     barrelTimer: 0,
@@ -61,12 +61,12 @@ const DonkeyKongGame = () => {
     frameCount: 0,
     playerHasMoved: false,
     barrelStartDelay: 0,
-    winAnim: { active: false, gorillaY: 144, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 },
+    winAnim: { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 },
   });
 
   const resetPlayer = useCallback(() => {
     const g = gameRef.current;
-    g.player = { x: 80, y: 668, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 };
+    g.player = { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 };
     g.barrels = [];
     g.barrelTimer = 0;
   }, []);
@@ -83,7 +83,7 @@ const DonkeyKongGame = () => {
     g.barrelStartDelay = 0;
     g.dkAnimTimer = 0; g.dkFrame = 0;
     g.princessAnimTimer = 0; g.helpTimer = 0; g.showHelp = false;
-    g.winAnim = { active: false, gorillaY: 144, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
+    g.winAnim = { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
     resetPlayer();
     setScore(0); setLives(3); setGameState('playing');
   }, [resetPlayer]);
@@ -156,7 +156,7 @@ const DonkeyKongGame = () => {
       const keys = keysRef.current;
       const p = g.player;
 
-      const wa = g.winAnim || { active: false, gorillaY: 144, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
+      const wa = g.winAnim || { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
       if (!g.winAnim) g.winAnim = wa;
       if (wa.active) {
         wa.timer++;
@@ -297,7 +297,7 @@ const DonkeyKongGame = () => {
           g.score += 1000; setScore(g.score); playWinSound();
           wa.active = true;
           wa.timer = 0;
-          wa.gorillaY = 144;
+          wa.gorillaY = 76;
           wa.gorillaRotation = 0;
           wa.showKiss = false;
           wa.showCongrats = false;
@@ -703,7 +703,7 @@ const DonkeyKongGame = () => {
         }
         ctx.restore();
       } else {
-        const dkY = 84;
+        const dkY = 16;
         const frameIdx = g.dkFrame % DRAGON_FRAMES;
         if (dragonImg && dragonImg.complete && dragonFrameW > 0) {
           ctx.drawImage(dragonImg, frameIdx * dragonFrameW, 0, dragonFrameW, dragonFrameH, dkX, dkY, dragonSize, dragonSize);
@@ -713,7 +713,7 @@ const DonkeyKongGame = () => {
       }
 
       // Princess (sprite)
-      const paulX = 235, paulY = 130;
+      const paulX = 235, paulY = 62;
       const princessImg = princessRef.current;
       const princessDrawW = 24;
       const princessDrawH = 32;
@@ -912,46 +912,27 @@ const DonkeyKongGame = () => {
     if (type === 'down') keysRef.current.add(key); else keysRef.current.delete(key);
   }, []);
 
-  // Slide-aware D-pad: keep horizontal "course" active when finger slides to Up/Down.
-  // Track horizontal (Left/Right) and vertical (Up/Down) axes independently so the
-  // player can keep walking sideways while attempting to climb — if no ladder is
-  // present, Up/Down is a no-op in the game loop and the horizontal motion continues.
+  // Slide-aware D-pad: track which button the pointer is over and only press that one
   const padRef = useRef<HTMLDivElement>(null);
-  const activeHorizRef = useRef<string | null>(null); // 'ArrowLeft' | 'ArrowRight' | null
-  const activeVertRef = useRef<string | null>(null);  // 'ArrowUp' | 'ArrowDown' | null
+  const activePadKeyRef = useRef<string | null>(null);
   const DPAD_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
 
   const updatePadFromPoint = useCallback((clientX: number, clientY: number) => {
     const el = document.elementFromPoint(clientX, clientY) as HTMLElement | null;
     const key = el?.getAttribute('data-padkey');
-    if (!key || !DPAD_KEYS.includes(key)) return; // outside pad — keep current course
-
-    if (key === 'ArrowLeft' || key === 'ArrowRight') {
-      if (activeHorizRef.current !== key) {
-        if (activeHorizRef.current) simulateKey(activeHorizRef.current, 'up');
-        simulateKey(key, 'down');
-        activeHorizRef.current = key;
-        vibrate(15);
-      }
-      // Releasing vertical when finger clearly on horizontal row
-      if (activeVertRef.current) {
-        simulateKey(activeVertRef.current, 'up');
-        activeVertRef.current = null;
-      }
-    } else {
-      // ArrowUp / ArrowDown — preserve horizontal course
-      if (activeVertRef.current !== key) {
-        if (activeVertRef.current) simulateKey(activeVertRef.current, 'up');
-        simulateKey(key, 'down');
-        activeVertRef.current = key;
-        vibrate(15);
-      }
+    const next = key && DPAD_KEYS.includes(key) ? key : null;
+    if (activePadKeyRef.current !== next) {
+      if (activePadKeyRef.current) simulateKey(activePadKeyRef.current, 'up');
+      if (next) { simulateKey(next, 'down'); vibrate(15); }
+      activePadKeyRef.current = next;
     }
   }, [simulateKey, vibrate]);
 
   const clearPad = useCallback(() => {
-    if (activeHorizRef.current) { simulateKey(activeHorizRef.current, 'up'); activeHorizRef.current = null; }
-    if (activeVertRef.current) { simulateKey(activeVertRef.current, 'up'); activeVertRef.current = null; }
+    if (activePadKeyRef.current) {
+      simulateKey(activePadKeyRef.current, 'up');
+      activePadKeyRef.current = null;
+    }
   }, [simulateKey]);
 
   const padHandlers = {
@@ -983,11 +964,11 @@ const DonkeyKongGame = () => {
 
   return (
     <div className="flex flex-col items-stretch h-screen w-screen overflow-hidden select-none bg-background">
-      {/* Game area — preserve aspect ratio, fit within available space */}
-      <div className="flex-1 min-h-0 w-full flex items-center justify-center overflow-hidden">
+      {/* Game area — fills all remaining space above controls */}
+      <div className="flex-1 min-h-0 w-full flex items-stretch justify-stretch">
         <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
-          className="block max-w-full max-h-full border-b-2 border-primary"
-          style={{ imageRendering: 'pixelated', aspectRatio: `${CANVAS_W} / ${CANVAS_H}` }} tabIndex={0} />
+          className="block w-full h-full border-b-2 border-primary"
+          style={{ imageRendering: 'pixelated' }} tabIndex={0} />
       </div>
 
       {/* Controls — fixed compact height to maximize game area */}
