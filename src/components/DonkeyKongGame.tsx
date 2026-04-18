@@ -754,11 +754,13 @@ const DonkeyKongGame = () => {
       const rockFrameH = rockImg ? rockImg.naturalHeight : 0;
       for (const b of g.barrels) {
         if (rockImg && rockImg.complete && rockFrameW > 0) {
-          // Cycle frame based on horizontal position so it appears to roll
-          const frameIdx = Math.floor(Math.abs(b.x) / 6) % ROCK_FRAMES;
-          const drawSize = b.w + 4;
+          // Smooth animation: advance one frame every 4 game ticks regardless of speed
+          const frameIdx = Math.floor((b.rollPhase || 0) / 4) % ROCK_FRAMES;
+          const drawSize = (b.w + 4) * 1.5; // 50% bigger
+          const cx = b.x + b.w / 2;
+          const cy = b.y + b.h / 2;
           ctx.drawImage(rockImg, frameIdx * rockFrameW, 0, rockFrameW, rockFrameH,
-            b.x - 2, b.y - 2, drawSize, drawSize);
+            cx - drawSize / 2, cy - drawSize / 2, drawSize, drawSize);
         } else {
           ctx.fillStyle = '#8B7355'; ctx.beginPath();
           ctx.arc(b.x + b.w / 2, b.y + b.h / 2, b.w / 2, 0, Math.PI * 2);
