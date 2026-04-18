@@ -40,7 +40,7 @@ const DonkeyKongGame = () => {
   const gameRef = useRef({
     player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 },
     barrels: [] as Barrel[],
-    robots: [] as Robot[],
+    robots: [] as (Robot & { wanderTimer?: number; wanderDir?: number })[],
     barrelTimer: 0,
     nextBarrelTime: 90 + Math.random() * 180,
     robotSpawnTimer: 0,
@@ -311,7 +311,7 @@ const DonkeyKongGame = () => {
             g.barrelTimer = 0;
             g.nextBarrelTime = 90 + Math.random() * 180;
             const speed = BARREL_SPEED * (0.7 + Math.random() * 0.8);
-            g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed });
+            g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed, rollPhase: 0 });
             playBarrelRollSound();
           }
         }
@@ -342,6 +342,8 @@ const DonkeyKongGame = () => {
         g.barrelSoundTimer++;
         for (let i = g.barrels.length - 1; i >= 0; i--) {
           const b = g.barrels[i];
+          // Smooth, time-based roll animation phase (advances every frame)
+          b.rollPhase = (b.rollPhase || 0) + 1;
           const bCenterX = b.x + b.w / 2;
           const bFeetY = b.y + b.h;
           const bPlatIdx = findPlatformIndex(bFeetY, bCenterX);
@@ -495,21 +497,20 @@ const DonkeyKongGame = () => {
           }
         }
 
-        // === UPDATE ROBOTS (always moving, decide at ladders) ===
+        // === UPDATE ROBOTS (always moving — random wander biased toward player) ===
         for (let i = g.robots.length - 1; i >= 0; i--) {
           const r = g.robots[i];
           const rCenterX = r.x + r.w / 2;
           const rFeetY = r.y + r.h;
           const rPlatIdx = findPlatformIndex(rFeetY, rCenterX);
-          const pPlatIdx = findPlatformIndex(playerFeetY, playerCenterX);
 
+          // Smooth, time-based animation (not position-based)
           r.frameTimer++;
-          if (r.frameTimer > 6) { r.frameTimer = 0; r.frame = (r.frame + 1) % ROBOT_WALK_FRAMES; }
+          if (r.frameTimer >= 5) { r.frameTimer = 0; r.frame = (r.frame + 1) % ROBOT_WALK_FRAMES; }
 
           if (r.climbing) {
             r.y += r.vy;
             r.vx = 0;
-
             if (r.targetLadder !== null) {
               const l = LADDERS[r.targetLadder];
               if (r.vy < 0 && r.y + r.h <= l.yTop + 2) {
@@ -523,27 +524,33 @@ const DonkeyKongGame = () => {
               r.vy = 0; r.climbing = false;
             }
           } else {
-            const desiredDirection = playerCenterX >= rCenterX ? 1 : -1;
-            const continueScore = scoreToPlayer(rCenterX + desiredDirection * r.speed, rFeetY);
-            let climbChoice: { ladderIdx: number; climbVy: number; score: number } | null = null;
+            // Wander timer: pick a new random direction occasionally,
+            // biased toward player so movement is gradual + natural.
+            if (r.wanderTimer === undefined) r.wanderTimer = 0;
+            if (r.wanderDir === undefined) r.wanderDir = r.direction || 1;
+            r.wanderTimer--;
+            if (r.wanderTimer <= 0) {
+              r.wanderTimer = 30 + Math.floor(Math.random() * 60); // 0.7-2s at 45fps
+              const towardPlayer = playerCenterX >= rCenterX ? 1 : -1;
+              // 70% bias toward player, 30% random — never stop
+              r.wanderDir = Math.random() < 0.7 ? towardPlayer : (Math.random() < 0.5 ? 1 : -1);
+            }
 
+            // Consider climbing if a ladder is right here AND it gets us closer
+            let climbChoice: { ladderIdx: number; climbVy: number; score: number } | null = null;
+            const continueScore = scoreToPlayer(rCenterX + r.wanderDir * r.speed * 30, rFeetY);
             for (let li = 0; li < LADDERS.length; li++) {
               const l = LADDERS[li];
               const ladderCenterX = l.x + 7;
               if (Math.abs(rCenterX - ladderCenterX) > r.speed + 4) continue;
-
               const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
               const botPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 12);
-
-              // Climb UP: robot is on botPlatIdx, player is higher (lower index)
               if (botPlatIdx === rPlatIdx && topPlatIdx >= 0 && topPlatIdx < rPlatIdx) {
                 const scoreUp = scoreToPlayer(ladderCenterX, l.yTop);
                 if (scoreUp < continueScore && (!climbChoice || scoreUp < climbChoice.score)) {
                   climbChoice = { ladderIdx: li, climbVy: -r.speed, score: scoreUp };
                 }
               }
-
-              // Climb DOWN: robot is on topPlatIdx, player is lower (higher index)
               if (topPlatIdx === rPlatIdx && botPlatIdx >= 0 && botPlatIdx > rPlatIdx) {
                 const scoreDown = scoreToPlayer(ladderCenterX, l.yBot);
                 if (scoreDown < continueScore && (!climbChoice || scoreDown < climbChoice.score)) {
@@ -552,7 +559,7 @@ const DonkeyKongGame = () => {
               }
             }
 
-            if (climbChoice) {
+            if (climbChoice && Math.random() < 0.6) {
               const l = LADDERS[climbChoice.ladderIdx];
               r.climbing = true;
               r.targetLadder = climbChoice.ladderIdx;
@@ -560,8 +567,8 @@ const DonkeyKongGame = () => {
               r.vy = climbChoice.climbVy;
               r.x = l.x + (16 - r.w) / 2;
             } else {
-              // Always move - patrol back and forth, prefer chasing player
-              r.direction = desiredDirection;
+              // Always moving — never stop, even if aligned with player
+              r.direction = r.wanderDir;
               r.vx = r.direction * r.speed;
               r.x += r.vx;
               r.vy += GRAVITY;
@@ -577,21 +584,25 @@ const DonkeyKongGame = () => {
                 }
               }
 
+              // Bounce off walls / platform edges so it keeps moving
+              const curPlat = PLATFORMS[rPlatIdx];
+              if (curPlat) {
+                if (r.x <= curPlat.x1 + 2) { r.wanderDir = 1; r.x = curPlat.x1 + 2; }
+                else if (r.x + r.w >= curPlat.x2 - 2) { r.wanderDir = -1; r.x = curPlat.x2 - r.w - 2; }
+              }
               r.x = Math.max(0, Math.min(CANVAS_W - r.w, r.x));
             }
           }
 
           if (r.y > CANVAS_H + 20) { g.robots.splice(i, 1); continue; }
 
-          // Only check collision if robot is on same platform as player (not platform above while jumping)
           const rPlatY = findPlatformIndex(r.y + r.h, r.x + r.w / 2);
           const pPlatY = findPlatformIndex(p.y + p.h, p.x + p.w / 2);
           if (rectsOverlap(p, r) && (rPlatY === pPlatY || p.onGround)) {
-            // Stomp kill: player is falling and feet are above robot's mid-point
             if (p.vy > 0 && p.y + p.h <= r.y + r.h * 0.6) {
               g.score += 200; setScore(g.score);
               playRobotKillSound();
-              p.vy = -4; // bounce up after stomp
+              p.vy = -4;
               g.robots.splice(i, 1);
             } else {
               g.lives--; setLives(g.lives);
@@ -743,11 +754,13 @@ const DonkeyKongGame = () => {
       const rockFrameH = rockImg ? rockImg.naturalHeight : 0;
       for (const b of g.barrels) {
         if (rockImg && rockImg.complete && rockFrameW > 0) {
-          // Cycle frame based on horizontal position so it appears to roll
-          const frameIdx = Math.floor(Math.abs(b.x) / 6) % ROCK_FRAMES;
-          const drawSize = b.w + 4;
+          // Smooth animation: advance one frame every 4 game ticks regardless of speed
+          const frameIdx = Math.floor((b.rollPhase || 0) / 4) % ROCK_FRAMES;
+          const drawSize = (b.w + 4) * 1.5; // 50% bigger
+          const cx = b.x + b.w / 2;
+          const cy = b.y + b.h / 2;
           ctx.drawImage(rockImg, frameIdx * rockFrameW, 0, rockFrameW, rockFrameH,
-            b.x - 2, b.y - 2, drawSize, drawSize);
+            cx - drawSize / 2, cy - drawSize / 2, drawSize, drawSize);
         } else {
           ctx.fillStyle = '#8B7355'; ctx.beginPath();
           ctx.arc(b.x + b.w / 2, b.y + b.h / 2, b.w / 2, 0, Math.PI * 2);
@@ -755,7 +768,7 @@ const DonkeyKongGame = () => {
         }
       }
 
-      // Robots (sprite-based)
+      // Robots (sprite-based) — 50% bigger
       const robotSprite = robotWalkRef.current;
       const robotReady = robotSprite && robotSprite.complete && robotSprite.naturalWidth > 0;
       for (const r of g.robots) {
@@ -763,8 +776,8 @@ const DonkeyKongGame = () => {
           const sw = robotSprite.naturalWidth / ROBOT_WALK_FRAMES;
           const sh = robotSprite.naturalHeight;
           const sx = (r.frame % ROBOT_WALK_FRAMES) * sw;
-          const drawW = 22;
-          const drawH = 22;
+          const drawW = 33;
+          const drawH = 33;
           const dx = r.x + r.w / 2 - drawW / 2;
           const dy = r.y + r.h - drawH;
           ctx.save();
@@ -793,23 +806,24 @@ const DonkeyKongGame = () => {
       const useClimb = !useWin && pl.climbing && climbSprite && climbSprite.complete && climbSprite.naturalWidth > 0;
       const useJump = !useWin && !pl.climbing && pl.jumping && jumpSprite && jumpSprite.complete && jumpSprite.naturalWidth > 0;
       const useWalk = !useWin && !pl.climbing && !pl.jumping && walkSprite && walkSprite.complete && walkSprite.naturalWidth > 0;
+      // Player sprites — 50% bigger
       if (showPlayer && useWin) {
-        const drawW = 32;
-        const drawH = 36;
+        const drawW = 48;
+        const drawH = 54;
         ctx.drawImage(winSprite, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
       } else if (showPlayer && useClimb) {
         const sw = climbSprite.naturalWidth / 4;
         const sh = climbSprite.naturalHeight;
         const sx = pl.climbFrame * sw;
-        const drawW = 28;
-        const drawH = 32;
+        const drawW = 42;
+        const drawH = 48;
         ctx.drawImage(climbSprite, sx, 0, sw, sh, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
       } else if (showPlayer && useJump) {
         const sw = jumpSprite.naturalWidth / 5;
         const sh = jumpSprite.naturalHeight;
         const sx = Math.min(pl.jumpFrame, 4) * sw;
-        const drawW = 28;
-        const drawH = 32;
+        const drawW = 42;
+        const drawH = 48;
         ctx.save();
         if (pl.facing < 0) {
           ctx.translate(pl.x + pl.w / 2, 0);
@@ -824,8 +838,8 @@ const DonkeyKongGame = () => {
         const sh = walkSprite.naturalHeight;
         const sx = pl.walkFrame * sw;
         const sy = 0;
-        const drawW = 28;
-        const drawH = 32;
+        const drawW = 42;
+        const drawH = 48;
         ctx.save();
         if (pl.facing < 0) {
           ctx.translate(pl.x + pl.w / 2, 0);
@@ -890,6 +904,10 @@ const DonkeyKongGame = () => {
     return () => { cancelAnimationFrame(animId); window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp); };
   }, [resetGame, resetPlayer]);
 
+  const vibrate = useCallback((ms = 15) => {
+    try { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(ms); } catch {}
+  }, []);
+
   const simulateKey = useCallback((key: string, type: 'down' | 'up') => {
     if (type === 'down') keysRef.current.add(key); else keysRef.current.delete(key);
   }, []);
@@ -905,10 +923,10 @@ const DonkeyKongGame = () => {
     const next = key && DPAD_KEYS.includes(key) ? key : null;
     if (activePadKeyRef.current !== next) {
       if (activePadKeyRef.current) simulateKey(activePadKeyRef.current, 'up');
-      if (next) simulateKey(next, 'down');
+      if (next) { simulateKey(next, 'down'); vibrate(15); }
       activePadKeyRef.current = next;
     }
-  }, [simulateKey]);
+  }, [simulateKey, vibrate]);
 
   const clearPad = useCallback(() => {
     if (activePadKeyRef.current) {
@@ -938,44 +956,62 @@ const DonkeyKongGame = () => {
       e.preventDefault();
       (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
       simulateKey(key, 'down');
+      vibrate(20);
     },
     onPointerUp: (e: React.PointerEvent) => { e.preventDefault(); simulateKey(key, 'up'); },
     onPointerCancel: () => simulateKey(key, 'up'),
   });
 
   return (
-    <div className="flex flex-col items-center justify-between min-h-screen gap-2 p-2 select-none">
-      <div className="w-full flex-1 flex items-center justify-center">
-        <div className="border-4 border-primary rounded-sm shadow-[0_0_30px_rgba(212,42,42,0.3)] w-full max-w-[800px]">
+    <div className="flex flex-col items-stretch h-screen w-screen overflow-hidden select-none bg-background">
+      {/* Game area = 75% of viewport height */}
+      <div className="flex-[3] min-h-0 flex items-center justify-center p-1">
+        <div className="border-2 border-primary rounded-sm shadow-[0_0_30px_rgba(212,42,42,0.3)] h-full"
+             style={{ aspectRatio: `${CANVAS_W} / ${CANVAS_H}` }}>
           <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
-            className="block w-full h-auto" style={{ imageRendering: 'pixelated', aspectRatio: `${CANVAS_W} / ${CANVAS_H}` }} tabIndex={0} />
+            className="block w-full h-full" style={{ imageRendering: 'pixelated' }} tabIndex={0} />
         </div>
       </div>
-      <div className="flex w-full max-w-[800px] justify-between items-center gap-2 mt-2 touch-none">
+
+      {/* Controls area = 25% of viewport height */}
+      <div className="flex-1 min-h-0 w-full flex items-stretch justify-between gap-2 px-2 pb-2 touch-none">
+        {/* D-pad: wide L/R meeting in center, wide Up/Down stacked */}
         <div
           ref={padRef}
-          className="grid grid-cols-3 grid-rows-3 gap-1 w-56 h-56 touch-none"
+          className="flex flex-col flex-1 h-full touch-none gap-1"
           {...padHandlers}
         >
-          <div />
-          <button data-padkey="ArrowUp" className="bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold">↑</button>
-          <div />
-          <button data-padkey="ArrowLeft" className="bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold">←</button>
-          <div />
-          <button data-padkey="ArrowRight" className="bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold">→</button>
-          <div />
-          <button data-padkey="ArrowDown" className="bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold">↓</button>
-          <div />
+          <button
+            data-padkey="ArrowUp"
+            className="w-full flex-1 bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold"
+          >↑</button>
+
+          <div className="w-full flex-1 flex items-stretch">
+            <button
+              data-padkey="ArrowLeft"
+              className="flex-1 bg-muted active:bg-primary rounded-l-lg text-foreground text-3xl flex items-center justify-center font-bold border-r-2 border-background"
+            >←</button>
+            <button
+              data-padkey="ArrowRight"
+              className="flex-1 bg-muted active:bg-primary rounded-r-lg text-foreground text-3xl flex items-center justify-center font-bold"
+            >→</button>
+          </div>
+
+          <button
+            data-padkey="ArrowDown"
+            className="w-full flex-1 bg-muted active:bg-primary rounded-lg text-foreground text-3xl flex items-center justify-center font-bold"
+          >↓</button>
         </div>
 
-        {/* R button placed BETWEEN arrows and jump so it isn't accidentally pressed */}
+        {/* R button — small, between arrows and jump, must be tapped (not slid) */}
         <button
-          className="w-12 h-12 rounded-full bg-accent text-accent-foreground text-sm font-bold active:scale-95 shrink-0"
-          onPointerDown={(e) => { e.preventDefault(); resetGame(); }}
+          className="w-10 h-10 self-center rounded-full bg-accent text-accent-foreground text-sm font-bold active:scale-95 shrink-0"
+          onPointerDown={(e) => { e.preventDefault(); vibrate(25); resetGame(); }}
         >R</button>
 
+        {/* JUMP button — extra-large, tap-only */}
         <button
-          className="w-32 h-32 rounded-full bg-primary text-primary-foreground text-xl font-bold active:scale-95 shrink-0"
+          className="h-full aspect-square rounded-full bg-primary text-primary-foreground text-2xl font-bold active:scale-95 shrink-0"
           {...tapHandlers(' ')}
         >JUMP</button>
       </div>
