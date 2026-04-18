@@ -1130,7 +1130,6 @@ const CavemanVsDragonGame = () => {
 
     return () => {
       if (intervalId !== null) clearInterval(intervalId);
-      cancelAnimationFrame(animId);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('pointerdown', handleFirstGesture);
