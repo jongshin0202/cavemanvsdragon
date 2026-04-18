@@ -1119,11 +1119,18 @@ const CavemanVsDragonGame = () => {
       ctx.textAlign = 'start';
 
       ctx.restore();
-      animId = requestAnimationFrame((t) => gameLoop(t));
     };
 
-    animId = requestAnimationFrame((t) => gameLoop(t));
+    // Drive the loop with setInterval at 60Hz instead of RAF so we get a
+    // consistent cadence on high-refresh-rate monitors (120/144Hz). RAF
+    // would fire 2-3x per logical frame and cause perceived stutter when
+    // the throttle skipped frames.
+    intervalId = window.setInterval(() => {
+      gameLoop(performance.now());
+    }, FRAME_INTERVAL);
+
     return () => {
+      if (intervalId !== null) clearInterval(intervalId);
       cancelAnimationFrame(animId);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
