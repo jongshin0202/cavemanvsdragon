@@ -535,9 +535,10 @@ const CavemanVsDragonGame = () => {
         }
 
         // === KILL ALL MONKEYS → KEY APPEARS → GRAB KEY → VINE GROWS ===
-        // Spawn the watering can once all 4 monkeys are dead.
+        // Spawn the watering can once all monkeys for this round are dead.
         // Random placement: anywhere on P1–P4, OR the leftmost edge of P5.
-        if (!g.keySpawned && g.monkeysKilled >= 4) {
+        const monkeyTarget = getRoundDifficulty(g.round).monkeyCount;
+        if (!g.keySpawned && g.monkeysKilled >= monkeyTarget) {
           g.keySpawned = true;
           const choice = Math.floor(Math.random() * 5); // 0..4
           let kx: number;
