@@ -8,6 +8,51 @@ export const BARREL_SPEED = 0.9;
 export const CLIMB_SPEED = 1.5;
 export const ROBOT_SPEED = 0.55;
 
+// ============================================================
+// DIFFICULTY (per-round scaling)
+// ------------------------------------------------------------
+// Round 1 = "much easier than current" (~50% of previous values).
+// Each completed round → +10% harder (gentle ramp).
+// Monkey count: starts at base, +1 every 2 rounds (cap at 6).
+// Tweak these constants to rebalance.
+// ============================================================
+export const DIFFICULTY = {
+  // Round 1 baseline (≈50% of pre-difficulty values)
+  base: {
+    barrelSpawnMin: 208,        // frames (was 104) → ~3.5s
+    barrelSpawnRange: 414,      // frames (was 207) → up to ~10.4s total
+    barrelSpeedMul: 0.5,        // multiplier on BARREL_SPEED (was ~1.0)
+    barrelSpeedJitter: 0.4,     // random extra (0..jitter) added to mul
+    monkeyCount: 2,             // monkeys spawned (was 4)
+    monkeySpeedMul: 0.5,        // multiplier on ROBOT_SPEED (was ~1.0)
+    monkeySpeedJitter: 0.4,
+  },
+  // +10% harder per round: spawn intervals shrink, speeds grow.
+  scalePerRound: 0.10,
+  // Monkey count grows +1 every N rounds, capped.
+  monkeyCountEveryNRounds: 2,
+  monkeyCountCap: 6,
+};
+
+export function getRoundDifficulty(round: number) {
+  const r = Math.max(1, round);
+  const steps = r - 1;
+  const harder = 1 + DIFFICULTY.scalePerRound * steps; // >=1
+  const easier = 1 / harder;                            // shrink intervals
+  const b = DIFFICULTY.base;
+  const extraMonkeys = Math.floor(steps / DIFFICULTY.monkeyCountEveryNRounds);
+  return {
+    round: r,
+    barrelSpawnMin: Math.max(20, b.barrelSpawnMin * easier),
+    barrelSpawnRange: Math.max(20, b.barrelSpawnRange * easier),
+    barrelSpeedMul: b.barrelSpeedMul * harder,
+    barrelSpeedJitter: b.barrelSpeedJitter,
+    monkeyCount: Math.min(DIFFICULTY.monkeyCountCap, b.monkeyCount + extraMonkeys),
+    monkeySpeedMul: b.monkeySpeedMul * harder,
+    monkeySpeedJitter: b.monkeySpeedJitter,
+  };
+}
+
 export interface Rect { x: number; y: number; w: number; h: number }
 export interface Barrel extends Rect { vx: number; vy: number; onLadder: boolean; falling: boolean; targetLadder: number | null; speed: number; rollPhase?: number; jumpedOver?: boolean }
 export interface Robot extends Rect { vx: number; vy: number; onGround: boolean; climbing: boolean; targetLadder: number | null; direction: number; frame: number; frameTimer: number; speed: number }
