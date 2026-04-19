@@ -1553,7 +1553,7 @@ const CavemanVsDragonGame = () => {
       </div>
 
       {/* Controls — hidden on desktop (md+); use keyboard arrows + space instead */}
-      <div className="md:hidden h-[26vh] max-h-[220px] min-h-[140px] w-full flex items-stretch justify-between gap-2 px-2 py-2 touch-none shrink-0">
+      <div className="md:hidden h-[22vh] max-h-[200px] min-h-[130px] w-full flex items-stretch justify-between gap-2 px-2 py-2 touch-none shrink-0 overflow-hidden">
 
         {/* Locked D-pad shape: box-style arrows only, wide Up/Down, L/R centered and slightly taller */}
         <div
@@ -1607,9 +1607,9 @@ const CavemanVsDragonGame = () => {
           }}
         >R</button>
 
-        {/* JUMP button — extra-large, tap-only */}
+        {/* JUMP button — large but capped so it never overflows the screen */}
         <button
-          className="h-full aspect-square rounded-full bg-primary text-primary-foreground text-2xl font-bold active:scale-95 shrink-0"
+          className="h-full aspect-square max-h-full max-w-[40vw] rounded-full bg-primary text-primary-foreground text-2xl font-bold active:scale-95 shrink-0"
           {...tapHandlers(' ', 45)}
         >JUMP</button>
       </div>
