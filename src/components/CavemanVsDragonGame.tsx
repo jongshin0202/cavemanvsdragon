@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import {
-  CANVAS_W, CANVAS_H, GRAVITY, JUMP_FORCE, MOVE_SPEED, BARREL_SPEED, CLIMB_SPEED, ROBOT_SPEED,
+  CANVAS_W, CANVAS_H, GRAVITY, JUMP_FORCE, MOVE_SPEED, BARREL_SPEED, CLIMB_SPEED, ROBOT_SPEED, getRoundDifficulty,
   PLATFORMS, LADDERS, getPlatformY, rectsOverlap, findPlatformIndex, findBestLadder,
   Barrel, Robot
 } from './game/constants';
@@ -72,6 +72,7 @@ const CavemanVsDragonGame = () => {
     robotsInitialized: false,
     score: 0,
     lives: 3,
+    round: 1,
     state: 'playing' as string,
     dkFrame: 0,
     dkAnimTimer: 0,
@@ -143,7 +144,8 @@ const CavemanVsDragonGame = () => {
     resetPlayer();
     // Spawn first rock immediately so action starts the moment the level begins
     {
-      const speed = BARREL_SPEED * (0.7 + Math.random() * 0.8);
+      const d = getRoundDifficulty(g.round);
+      const speed = BARREL_SPEED * (d.barrelSpeedMul + Math.random() * d.barrelSpeedJitter);
       g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed, rollPhase: 0 });
       playBarrelRollSound();
     }
@@ -152,14 +154,16 @@ const CavemanVsDragonGame = () => {
 
   const resetGame = useCallback(() => {
     const g = gameRef.current;
-    g.score = 0; g.lives = 3;
+    g.score = 0; g.lives = 3; g.round = 1;
     setScore(0); setLives(3);
     resetLevel();
   }, [resetLevel]);
 
   // Start the next level — for now (only one level), restart the same layout
-  // while preserving score and lives.
+  // with increased difficulty (next round) while preserving score and lives.
   const startNextLevel = useCallback(() => {
+    const g = gameRef.current;
+    g.round += 1;
     resetLevel();
   }, [resetLevel]);
 
@@ -597,26 +601,29 @@ const CavemanVsDragonGame = () => {
 
         // === BARREL SPAWNING (only after player first moves; first barrel ~0.5s after) ===
         if (g.playerHasMoved) {
+          const d = getRoundDifficulty(g.round);
           g.barrelTimer++;
-          if (!g.nextBarrelTime) g.nextBarrelTime = 104 + Math.random() * 207;
+          if (!g.nextBarrelTime) g.nextBarrelTime = d.barrelSpawnMin + Math.random() * d.barrelSpawnRange;
           if (g.barrelTimer > g.nextBarrelTime) {
             g.barrelTimer = 0;
-            g.nextBarrelTime = 104 + Math.random() * 207;
-            const speed = BARREL_SPEED * (0.7 + Math.random() * 0.8);
+            g.nextBarrelTime = d.barrelSpawnMin + Math.random() * d.barrelSpawnRange;
+            const speed = BARREL_SPEED * (d.barrelSpeedMul + Math.random() * d.barrelSpeedJitter);
             g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed, rollPhase: 0 });
             playBarrelRollSound();
           }
         }
 
-        // === MONKEY SPAWNING (exactly 4 monkeys, one per platform P2..P5) ===
+        // === MONKEY SPAWNING (count scales with round, distributed across P2..P5) ===
         if (!g.robotsInitialized) {
           g.robotsInitialized = true;
-          // Spawn one monkey on platforms 1..4 (skip ground P1 and top P6) → exactly 4
-          for (let pi = 1; pi <= 4; pi++) {
+          const d = getRoundDifficulty(g.round);
+          const platSlots = [1, 2, 3, 4]; // P2..P5
+          for (let m = 0; m < d.monkeyCount; m++) {
+            const pi = platSlots[m % platSlots.length];
             const plat = PLATFORMS[pi];
             const rx = plat.x1 + 30 + Math.random() * (plat.x2 - plat.x1 - 60);
             const ry = getPlatformY(plat, rx) - 16;
-            const spd = ROBOT_SPEED * (0.6 + Math.random() * 0.8);
+            const spd = ROBOT_SPEED * (d.monkeySpeedMul + Math.random() * d.monkeySpeedJitter);
             g.robots.push({ x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0, onGround: true, climbing: false, targetLadder: null, direction: Math.random() > 0.5 ? 1 : -1, frame: 0, frameTimer: 0, speed: spd });
           }
         }
