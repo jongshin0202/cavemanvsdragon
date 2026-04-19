@@ -619,8 +619,12 @@ const CavemanVsDragonGame = () => {
           g.robotsInitialized = true;
           const d = getRoundDifficulty(g.round);
           const platSlots = [1, 2, 3, 4]; // P2..P5
+          // If fewer than 2 monkeys, randomize which platform they spawn on.
+          const useRandomPlat = d.monkeyCount < 2;
           for (let m = 0; m < d.monkeyCount; m++) {
-            const pi = platSlots[m % platSlots.length];
+            const pi = useRandomPlat
+              ? platSlots[Math.floor(Math.random() * platSlots.length)]
+              : platSlots[m % platSlots.length];
             const plat = PLATFORMS[pi];
             const rx = plat.x1 + 30 + Math.random() * (plat.x2 - plat.x1 - 60);
             const ry = getPlatformY(plat, rx) - 16;
