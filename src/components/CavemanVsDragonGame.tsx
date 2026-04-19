@@ -1553,7 +1553,7 @@ const CavemanVsDragonGame = () => {
       </div>
 
       {/* Controls — hidden on desktop (md+); use keyboard arrows + space instead */}
-      <div className="md:hidden h-[26vh] max-h-[220px] min-h-[140px] w-full flex items-stretch justify-between gap-2 px-2 py-2 touch-none shrink-0">
+      <div className="md:hidden h-[22vh] max-h-[200px] min-h-[130px] w-full flex items-stretch justify-between gap-2 px-2 py-2 touch-none shrink-0 overflow-hidden">
 
         {/* Locked D-pad shape: box-style arrows only, wide Up/Down, L/R centered and slightly taller */}
         <div
