@@ -1249,27 +1249,117 @@ const CavemanVsDragonGame = () => {
 
       // Overlays - large, centered
       ctx.textAlign = 'center';
+      const arcade = '"Press Start 2P", monospace';
+      const continuePrompt = isMobileRef.current ? 'PRESS ANY BUTTON' : 'PRESS ANY KEY';
+
       if (g.state === 'gameover') {
         ctx.fillStyle = 'rgba(0,0,0,0.9)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-        const arcade = '"Press Start 2P", monospace';
         ctx.fillStyle = '#FF3030'; ctx.font = `bold 52px ${arcade}`;
         ctx.fillText('GAME OVER', CANVAS_W / 2, CANVAS_H / 2 - 50);
         ctx.fillStyle = '#FFD700'; ctx.font = `bold 34px ${arcade}`;
         ctx.fillText(`SCORE: ${g.score}`, CANVAS_W / 2, CANVAS_H / 2 + 20);
         ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 22px ${arcade}`;
-        ctx.fillText('PRESS R TO RESTART', CANVAS_W / 2, CANVAS_H / 2 + 80);
+        if (qualifiesForTop(g.score, scoresRef.current)) {
+          ctx.fillText(continuePrompt, CANVAS_W / 2, CANVAS_H / 2 + 80);
+          ctx.fillText('TO CONTINUE', CANVAS_W / 2, CANVAS_H / 2 + 110);
+        } else {
+          ctx.fillText('PRESS R TO RESTART', CANVAS_W / 2, CANVAS_H / 2 + 80);
+        }
+      }
+      if (g.state === 'highscorePrompt') {
+        ctx.fillStyle = 'rgba(0,0,0,0.92)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.fillStyle = '#FFD700'; ctx.font = `bold 32px ${arcade}`;
+        ctx.fillText('NEW HIGH SCORE!', CANVAS_W / 2, CANVAS_H / 2 - 80);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 28px ${arcade}`;
+        ctx.fillText(`SCORE: ${g.score}`, CANVAS_W / 2, CANVAS_H / 2 - 20);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 20px ${arcade}`;
+        ctx.fillText(continuePrompt, CANVAS_W / 2, CANVAS_H / 2 + 50);
+        ctx.fillText('TO CONTINUE', CANVAS_W / 2, CANVAS_H / 2 + 78);
       }
       if (g.state === 'win' && wa.showCongrats) {
         ctx.fillStyle = 'rgba(0,0,0,0.9)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-        const arcade = '"Press Start 2P", monospace';
         ctx.fillStyle = '#FFD700'; ctx.font = `bold 40px ${arcade}`;
         ctx.fillText('CONGRATS!', CANVAS_W / 2, CANVAS_H / 2 - 110);
         ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 52px ${arcade}`;
         ctx.fillText('YOU WON!', CANVAS_W / 2, CANVAS_H / 2 - 50);
         ctx.fillStyle = '#FFD700'; ctx.font = `bold 34px ${arcade}`;
         ctx.fillText(`SCORE: ${g.score}`, CANVAS_W / 2, CANVAS_H / 2 + 20);
+      }
+      if (g.state === 'continue') {
+        ctx.fillStyle = 'rgba(0,0,0,0.9)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.fillStyle = '#FFD700'; ctx.font = `bold 40px ${arcade}`;
+        ctx.fillText('LEVEL CLEAR!', CANVAS_W / 2, CANVAS_H / 2 - 90);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 28px ${arcade}`;
+        ctx.fillText(`SCORE: ${g.score}`, CANVAS_W / 2, CANVAS_H / 2 - 30);
+        ctx.fillText(`LIVES: ${g.lives}`, CANVAS_W / 2, CANVAS_H / 2 + 10);
         ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 22px ${arcade}`;
-        ctx.fillText('PRESS R TO RESTART', CANVAS_W / 2, CANVAS_H / 2 + 80);
+        ctx.fillText(continuePrompt, CANVAS_W / 2, CANVAS_H / 2 + 70);
+        ctx.fillText('TO CONTINUE', CANVAS_W / 2, CANVAS_H / 2 + 100);
+      }
+      if (g.state === 'enterInitials') {
+        ctx.fillStyle = 'rgba(0,0,0,0.95)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.fillStyle = '#FFD700'; ctx.font = `bold 26px ${arcade}`;
+        ctx.fillText('ENTER YOUR INITIALS', CANVAS_W / 2, 100);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 22px ${arcade}`;
+        ctx.fillText(`SCORE: ${pendingScore}`, CANVAS_W / 2, 150);
+
+        const letters = initialsRef.current;
+        const cursor = initialsCursorRef.current;
+        const spacing = 60;
+        const startX = CANVAS_W / 2 - spacing;
+        const letterY = 250;
+        ctx.font = `bold 56px ${arcade}`;
+        for (let i = 0; i < 3; i++) {
+          const x = startX + i * spacing;
+          ctx.fillStyle = i === cursor ? '#FFD700' : '#FFFFFF';
+          ctx.fillText(letters[i], x, letterY);
+          if (i === cursor) {
+            ctx.fillStyle = '#FFD700';
+            ctx.font = `bold 16px ${arcade}`;
+            ctx.fillText('▲', x, letterY - 56);
+            ctx.fillText('▼', x, letterY + 28);
+            ctx.font = `bold 56px ${arcade}`;
+          }
+        }
+        ctx.font = `bold 14px ${arcade}`;
+        ctx.fillStyle = '#AAAAAA';
+        ctx.fillText('UP/DOWN: CHANGE   LEFT/RIGHT: MOVE', CANVAS_W / 2, 340);
+        ctx.fillText(isMobileRef.current ? 'JUMP/R: CONFIRM' : 'SPACE/ENTER: CONFIRM', CANVAS_W / 2, 365);
+      }
+      if (g.state === 'leaderboard') {
+        ctx.fillStyle = 'rgba(0,0,0,0.95)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.fillStyle = '#FFD700'; ctx.font = `bold 24px ${arcade}`;
+        ctx.fillText('TOP 10 SCORES', CANVAS_W / 2, 50);
+
+        const list = scoresRef.current;
+        ctx.font = `bold 12px ${arcade}`;
+        ctx.textAlign = 'left';
+        const colRank = 30, colInit = 90, colScore = 180, colDate = 290;
+        ctx.fillStyle = '#888888';
+        ctx.fillText('#', colRank, 85);
+        ctx.fillText('NAME', colInit, 85);
+        ctx.fillText('SCORE', colScore, 85);
+        ctx.fillText('DATE', colDate, 85);
+        for (let i = 0; i < MAX_ENTRIES; i++) {
+          const e = list[i];
+          const y = 110 + i * 28;
+          const isMine = e && e.score === pendingScore && e.initials === initialsRef.current.join('');
+          ctx.fillStyle = isMine ? '#FFD700' : '#FFFFFF';
+          ctx.fillText(`${i + 1}.`, colRank, y);
+          if (e) {
+            ctx.fillText(e.initials, colInit, y);
+            ctx.fillText(String(e.score), colScore, y);
+            ctx.fillText(formatDate(e.date), colDate, y);
+          } else {
+            ctx.fillStyle = '#444444';
+            ctx.fillText('---', colInit, y);
+            ctx.fillText('---', colScore, y);
+            ctx.fillText('---', colDate, y);
+          }
+        }
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 18px ${arcade}`;
+        ctx.fillText('PRESS R TO RESTART', CANVAS_W / 2, CANVAS_H - 25);
       }
       ctx.textAlign = 'start';
 
