@@ -5,6 +5,8 @@ import {
   Barrel, Robot
 } from './game/constants';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarTracked, playPrincessHelpSound, isDragonRoaringNow, unlockAudio } from './game/sounds';
+import { loadScores, qualifiesForTop, insertScore, formatDate, MAX_ENTRIES, type LeaderboardEntry } from './game/leaderboard';
+import { useIsMobile } from '@/hooks/use-mobile';
 import cavemanWalkUrl from '@/assets/caveman-walk.png';
 import cavemanJumpUrl from '@/assets/caveman-jump.png';
 import cavemanClimbUrl from '@/assets/caveman-climb.png';
@@ -28,12 +30,20 @@ const TOP_VINE_IDX = 8;
 // Where the seed must be planted (base of the topmost vine, on platform P5)
 const PLANT_X = 357; // matches LADDERS[8].x + 7
 
+type GameState = 'playing' | 'gameover' | 'win' | 'continue' | 'highscorePrompt' | 'enterInitials' | 'leaderboard';
+
 const CavemanVsDragonGame = () => {
+  const isMobile = useIsMobile();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const keysRef = useRef<Set<string>>(new Set());
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
-  const [gameState, setGameState] = useState<'playing' | 'gameover' | 'win'>('playing');
+  const [gameState, setGameState] = useState<GameState>('playing');
+  const [scores, setScores] = useState<LeaderboardEntry[]>(() => loadScores());
+  const [initials, setInitials] = useState<string[]>(['A', 'A', 'A']);
+  const [initialsCursor, setInitialsCursor] = useState(0);
+  const [pendingScore, setPendingScore] = useState(0);
+  const continueArmedAtRef = useRef(0); // ms timestamp when input is allowed
   const walkSpriteRef = useRef<HTMLImageElement | null>(null);
   const jumpSpriteRef = useRef<HTMLImageElement | null>(null);
   const climbSpriteRef = useRef<HTMLImageElement | null>(null);
@@ -44,6 +54,14 @@ const CavemanVsDragonGame = () => {
   const robotWalkRef = useRef<HTMLImageElement | null>(null);
   const rockWheelRef = useRef<HTMLImageElement | null>(null);
   const wateringCanRef = useRef<HTMLImageElement | null>(null);
+  // Refs mirroring React state so the canvas render loop (inside an effect)
+  // can read the current values without re-running the effect.
+  const scoresRef = useRef<LeaderboardEntry[]>(scores);
+  const initialsRef = useRef<string[]>(initials);
+  const initialsCursorRef = useRef<number>(0);
+  const isMobileRef = useRef<boolean>(false);
+  // Returns true if the input was consumed (i.e., used to advance a menu/screen).
+  const anyInputHandlerRef = useRef<((key: string, source: 'keyboard' | 'pad') => boolean) | null>(null);
   const gameRef = useRef({
     player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 },
     barrels: [] as Barrel[],
@@ -99,9 +117,10 @@ const CavemanVsDragonGame = () => {
     g.invulnTimer = 120; // ~2s at 60fps
   }, []);
 
-  const resetGame = useCallback(() => {
+  // Resets the level only (for next level / death respawn). Preserves score & lives.
+  const resetLevel = useCallback(() => {
     const g = gameRef.current;
-    g.score = 0; g.lives = 3; g.state = 'playing'; g.dying = false; g.deathTimer = 0; g.deathFlashTimer = 0;
+    g.state = 'playing'; g.dying = false; g.deathTimer = 0; g.deathFlashTimer = 0;
     g.robots = [];
     g.robotSpawnTimer = 0;
     g.robotsInitialized = false;
@@ -122,14 +141,125 @@ const CavemanVsDragonGame = () => {
     g.keyBob = 0;
     g.sparkleTimer = 0;
     resetPlayer();
-    // Spawn first rock immediately so action starts the moment the game begins
+    // Spawn first rock immediately so action starts the moment the level begins
     {
       const speed = BARREL_SPEED * (0.7 + Math.random() * 0.8);
       g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed, rollPhase: 0 });
       playBarrelRollSound();
     }
-    setScore(0); setLives(3); setGameState('playing');
+    setGameState('playing');
   }, [resetPlayer]);
+
+  const resetGame = useCallback(() => {
+    const g = gameRef.current;
+    g.score = 0; g.lives = 3;
+    setScore(0); setLives(3);
+    resetLevel();
+  }, [resetLevel]);
+
+  // Start the next level — for now (only one level), restart the same layout
+  // while preserving score and lives.
+  const startNextLevel = useCallback(() => {
+    resetLevel();
+  }, [resetLevel]);
+
+  // Submit a high score and move to the leaderboard view
+  const submitHighScore = useCallback(() => {
+    const entry: LeaderboardEntry = {
+      initials: initialsRef.current.join('').toUpperCase().padEnd(3, 'A').slice(0, 3),
+      score: pendingScore,
+      date: new Date().toISOString(),
+    };
+    const next = insertScore(entry);
+    setScores(next);
+    setGameState('leaderboard');
+  }, [pendingScore]);
+
+  // Keep refs in sync with state for the canvas render loop
+  useEffect(() => { scoresRef.current = scores; }, [scores]);
+  useEffect(() => { initialsRef.current = initials; }, [initials]);
+  useEffect(() => { initialsCursorRef.current = initialsCursor; }, [initialsCursor]);
+  useEffect(() => { isMobileRef.current = isMobile; }, [isMobile]);
+
+  const gameStateRef = useRef<GameState>('playing');
+  useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
+
+  // Wire up the unified "any input" handler. Re-binds whenever dependencies change.
+  useEffect(() => {
+    anyInputHandlerRef.current = (key, _source) => {
+      const now = performance.now();
+      const gs = gameStateRef.current;
+      const g = gameRef.current;
+
+      if (gs === 'continue') {
+        if (now < continueArmedAtRef.current) return true; // still locked, swallow
+        startNextLevel();
+        return true;
+      }
+
+      if (gs === 'highscorePrompt') {
+        if (now < continueArmedAtRef.current) return true;
+        setInitials(['A', 'A', 'A']);
+        setInitialsCursor(0);
+        setGameState('enterInitials');
+        return true;
+      }
+
+      if (gs === 'gameover') {
+        if (qualifiesForTop(g.score)) {
+          // Promote to high-score prompt; swallow this input so a second press is required to advance
+          setPendingScore(g.score);
+          continueArmedAtRef.current = now + 1000;
+          setGameState('highscorePrompt');
+          return true;
+        }
+        // Not a high score: only R restarts (handled by outer keydown handler)
+        return false;
+      }
+
+      if (gs === 'enterInitials') {
+        const cursor = initialsCursorRef.current;
+        const cur = [...initialsRef.current];
+        if (key === 'ArrowUp') {
+          const code = cur[cursor].charCodeAt(0);
+          cur[cursor] = String.fromCharCode(code === 90 ? 65 : code + 1); // A-Z wrap
+          setInitials(cur);
+          return true;
+        }
+        if (key === 'ArrowDown') {
+          const code = cur[cursor].charCodeAt(0);
+          cur[cursor] = String.fromCharCode(code === 65 ? 90 : code - 1);
+          setInitials(cur);
+          return true;
+        }
+        if (key === 'ArrowLeft') {
+          setInitialsCursor(Math.max(0, cursor - 1));
+          return true;
+        }
+        if (key === 'ArrowRight') {
+          if (cursor < 2) setInitialsCursor(cursor + 1);
+          else submitHighScore();
+          return true;
+        }
+        if (key === ' ' || key === 'Enter' || key === 'r' || key === 'R') {
+          // Jump / R confirms — advance cursor or submit
+          if (cursor < 2) setInitialsCursor(cursor + 1);
+          else submitHighScore();
+          return true;
+        }
+        return true; // swallow other keys during entry
+      }
+
+      if (gs === 'leaderboard') {
+        // Only R restarts (handled by outer handler) — swallow other keys
+        if (key === 'r' || key === 'R') return false;
+        return true;
+      }
+
+      return false;
+    };
+  }, [startNextLevel, submitHighScore]);
+
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -181,6 +311,9 @@ const CavemanVsDragonGame = () => {
       unlockAudio();
       keysRef.current.add(e.key);
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
+      // Route input through the unified handler. It returns true if it consumed the key.
+      const consumed = anyInputHandlerRef.current?.(e.key, 'keyboard');
+      if (consumed) { e.preventDefault(); return; }
       if (e.key === 'r' || e.key === 'R' || e.code === 'KeyR') { e.preventDefault(); resetGame(); }
     };
     const handleKeyUp = (e: KeyboardEvent) => keysRef.current.delete(e.key);
@@ -220,6 +353,12 @@ const CavemanVsDragonGame = () => {
         if (wa.timer > 30) wa.showKiss = true;
         // Wait until the jingle finishes (~66 frames) + a 2-second pause (120 frames) before showing the win screen
         if (wa.timer > 186) wa.showCongrats = true;
+        // After Congrats has been visible ~1.5s, switch to "press any button to continue"
+        if (wa.timer > 186 + 90 && g.state === 'win') {
+          g.state = 'continue';
+          setGameState('continue');
+          continueArmedAtRef.current = performance.now() + 1000; // 1s input lock
+        }
       }
 
       // Handle dying state (1 second pause with flashing)
@@ -1110,27 +1249,117 @@ const CavemanVsDragonGame = () => {
 
       // Overlays - large, centered
       ctx.textAlign = 'center';
-      if (g.state === 'gameover') {
+      const arcade = '"Press Start 2P", monospace';
+      const continuePrompt = isMobileRef.current ? 'PRESS ANY BUTTON' : 'PRESS ANY KEY';
+
+      if (gameStateRef.current === 'gameover') {
         ctx.fillStyle = 'rgba(0,0,0,0.9)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-        const arcade = '"Press Start 2P", monospace';
         ctx.fillStyle = '#FF3030'; ctx.font = `bold 52px ${arcade}`;
         ctx.fillText('GAME OVER', CANVAS_W / 2, CANVAS_H / 2 - 50);
         ctx.fillStyle = '#FFD700'; ctx.font = `bold 34px ${arcade}`;
         ctx.fillText(`SCORE: ${g.score}`, CANVAS_W / 2, CANVAS_H / 2 + 20);
         ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 22px ${arcade}`;
-        ctx.fillText('PRESS R TO RESTART', CANVAS_W / 2, CANVAS_H / 2 + 80);
+        if (qualifiesForTop(g.score, scoresRef.current)) {
+          ctx.fillText(continuePrompt, CANVAS_W / 2, CANVAS_H / 2 + 80);
+          ctx.fillText('TO CONTINUE', CANVAS_W / 2, CANVAS_H / 2 + 110);
+        } else {
+          ctx.fillText('PRESS R TO RESTART', CANVAS_W / 2, CANVAS_H / 2 + 80);
+        }
+      }
+      if (gameStateRef.current === 'highscorePrompt') {
+        ctx.fillStyle = 'rgba(0,0,0,0.92)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.fillStyle = '#FFD700'; ctx.font = `bold 32px ${arcade}`;
+        ctx.fillText('NEW HIGH SCORE!', CANVAS_W / 2, CANVAS_H / 2 - 80);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 28px ${arcade}`;
+        ctx.fillText(`SCORE: ${g.score}`, CANVAS_W / 2, CANVAS_H / 2 - 20);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 20px ${arcade}`;
+        ctx.fillText(continuePrompt, CANVAS_W / 2, CANVAS_H / 2 + 50);
+        ctx.fillText('TO CONTINUE', CANVAS_W / 2, CANVAS_H / 2 + 78);
       }
       if (g.state === 'win' && wa.showCongrats) {
         ctx.fillStyle = 'rgba(0,0,0,0.9)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-        const arcade = '"Press Start 2P", monospace';
         ctx.fillStyle = '#FFD700'; ctx.font = `bold 40px ${arcade}`;
         ctx.fillText('CONGRATS!', CANVAS_W / 2, CANVAS_H / 2 - 110);
         ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 52px ${arcade}`;
         ctx.fillText('YOU WON!', CANVAS_W / 2, CANVAS_H / 2 - 50);
         ctx.fillStyle = '#FFD700'; ctx.font = `bold 34px ${arcade}`;
         ctx.fillText(`SCORE: ${g.score}`, CANVAS_W / 2, CANVAS_H / 2 + 20);
+      }
+      if (gameStateRef.current === 'continue') {
+        ctx.fillStyle = 'rgba(0,0,0,0.9)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.fillStyle = '#FFD700'; ctx.font = `bold 40px ${arcade}`;
+        ctx.fillText('LEVEL CLEAR!', CANVAS_W / 2, CANVAS_H / 2 - 90);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 28px ${arcade}`;
+        ctx.fillText(`SCORE: ${g.score}`, CANVAS_W / 2, CANVAS_H / 2 - 30);
+        ctx.fillText(`LIVES: ${g.lives}`, CANVAS_W / 2, CANVAS_H / 2 + 10);
         ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 22px ${arcade}`;
-        ctx.fillText('PRESS R TO RESTART', CANVAS_W / 2, CANVAS_H / 2 + 80);
+        ctx.fillText(continuePrompt, CANVAS_W / 2, CANVAS_H / 2 + 70);
+        ctx.fillText('TO CONTINUE', CANVAS_W / 2, CANVAS_H / 2 + 100);
+      }
+      if (gameStateRef.current === 'enterInitials') {
+        ctx.fillStyle = 'rgba(0,0,0,0.95)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.fillStyle = '#FFD700'; ctx.font = `bold 26px ${arcade}`;
+        ctx.fillText('ENTER YOUR INITIALS', CANVAS_W / 2, 100);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 22px ${arcade}`;
+        ctx.fillText(`SCORE: ${pendingScore}`, CANVAS_W / 2, 150);
+
+        const letters = initialsRef.current;
+        const cursor = initialsCursorRef.current;
+        const spacing = 60;
+        const startX = CANVAS_W / 2 - spacing;
+        const letterY = 250;
+        ctx.font = `bold 56px ${arcade}`;
+        for (let i = 0; i < 3; i++) {
+          const x = startX + i * spacing;
+          ctx.fillStyle = i === cursor ? '#FFD700' : '#FFFFFF';
+          ctx.fillText(letters[i], x, letterY);
+          if (i === cursor) {
+            ctx.fillStyle = '#FFD700';
+            ctx.font = `bold 16px ${arcade}`;
+            ctx.fillText('▲', x, letterY - 56);
+            ctx.fillText('▼', x, letterY + 28);
+            ctx.font = `bold 56px ${arcade}`;
+          }
+        }
+        ctx.font = `bold 14px ${arcade}`;
+        ctx.fillStyle = '#AAAAAA';
+        ctx.fillText('UP/DOWN: CHANGE   LEFT/RIGHT: MOVE', CANVAS_W / 2, 340);
+        ctx.fillText(isMobileRef.current ? 'JUMP/R: CONFIRM' : 'SPACE/ENTER: CONFIRM', CANVAS_W / 2, 365);
+      }
+      if (gameStateRef.current === 'leaderboard') {
+        ctx.fillStyle = 'rgba(0,0,0,0.95)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.fillStyle = '#FFD700'; ctx.font = `bold 24px ${arcade}`;
+        ctx.fillText('TOP 10 SCORES', CANVAS_W / 2, 50);
+
+        const list = scoresRef.current;
+        ctx.font = `bold 12px ${arcade}`;
+        ctx.textAlign = 'left';
+        const colRank = 30, colInit = 90, colScore = 180, colDate = 290;
+        ctx.fillStyle = '#888888';
+        ctx.fillText('#', colRank, 85);
+        ctx.fillText('NAME', colInit, 85);
+        ctx.fillText('SCORE', colScore, 85);
+        ctx.fillText('DATE', colDate, 85);
+        for (let i = 0; i < MAX_ENTRIES; i++) {
+          const e = list[i];
+          const y = 110 + i * 28;
+          const isMine = e && e.score === pendingScore && e.initials === initialsRef.current.join('');
+          ctx.fillStyle = isMine ? '#FFD700' : '#FFFFFF';
+          ctx.fillText(`${i + 1}.`, colRank, y);
+          if (e) {
+            ctx.fillText(e.initials, colInit, y);
+            ctx.fillText(String(e.score), colScore, y);
+            ctx.fillText(formatDate(e.date), colDate, y);
+          } else {
+            ctx.fillStyle = '#444444';
+            ctx.fillText('---', colInit, y);
+            ctx.fillText('---', colScore, y);
+            ctx.fillText('---', colDate, y);
+          }
+        }
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 18px ${arcade}`;
+        ctx.fillText('PRESS R TO RESTART', CANVAS_W / 2, CANVAS_H - 25);
       }
       ctx.textAlign = 'start';
 
@@ -1182,7 +1411,13 @@ const CavemanVsDragonGame = () => {
   };
 
   const simulateKey = useCallback((key: string, type: 'down' | 'up') => {
-    if (type === 'down') keysRef.current.add(key); else keysRef.current.delete(key);
+    if (type === 'down') {
+      keysRef.current.add(key);
+      // Route mobile pad presses through the unified menu input handler too.
+      anyInputHandlerRef.current?.(key, 'pad');
+    } else {
+      keysRef.current.delete(key);
+    }
   }, []);
 
   const padRef = useRef<HTMLDivElement>(null);
@@ -1340,8 +1575,21 @@ const CavemanVsDragonGame = () => {
         {/* R button — small, between arrows and jump, must be tapped (not slid) */}
         <button
           className="w-10 h-10 self-center rounded-full bg-accent text-accent-foreground text-sm font-bold active:scale-95 shrink-0"
-          onPointerDown={(e) => { e.preventDefault(); ensureVibrateUnlocked(); pulseHaptic(45); resetGame(); }}
-          onTouchStart={(e) => { e.preventDefault(); ensureVibrateUnlocked(); pulseHaptic(45); resetGame(); }}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            ensureVibrateUnlocked();
+            pulseHaptic(45);
+            // During menu/transition states, R acts as "any button" via the handler.
+            const consumed = anyInputHandlerRef.current?.('r', 'pad');
+            if (!consumed) resetGame();
+          }}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            ensureVibrateUnlocked();
+            pulseHaptic(45);
+            const consumed = anyInputHandlerRef.current?.('r', 'pad');
+            if (!consumed) resetGame();
+          }}
         >R</button>
 
         {/* JUMP button — extra-large, tap-only */}
