@@ -1539,9 +1539,9 @@ const CavemanVsDragonGame = () => {
   });
 
   return (
-    <div className="flex flex-col items-stretch h-screen w-screen overflow-hidden select-none bg-background">
+    <div className="flex h-[100dvh] min-h-[100dvh] w-full flex-col overflow-hidden select-none bg-background">
       {/* Game area — fills all remaining space above controls */}
-      <div className="flex-1 min-h-0 w-full flex items-center justify-center bg-black">
+      <div className="flex min-h-0 w-full flex-1 items-center justify-center bg-black">
         <canvas
           ref={canvasRef}
           width={CANVAS_W}
@@ -1553,65 +1553,66 @@ const CavemanVsDragonGame = () => {
       </div>
 
       {/* Controls — hidden on desktop (md+); use keyboard arrows + space instead */}
-      <div className="md:hidden h-[22vh] max-h-[200px] min-h-[130px] w-full flex items-stretch justify-between gap-2 px-2 py-2 touch-none shrink-0 overflow-hidden">
-
-        {/* Locked D-pad shape: box-style arrows only, wide Up/Down, L/R centered and slightly taller */}
-        <div
-          ref={padRef}
-          className="flex flex-1 h-full touch-none flex-col gap-1"
-          {...padHandlers}
-        >
+      <div className="md:hidden w-full shrink-0 overflow-hidden px-2 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] touch-none">
+        <div className="grid h-[152px] w-full grid-cols-[minmax(0,1fr)_3rem_minmax(7.5rem,38vw)] items-stretch gap-2">
+          {/* Locked D-pad shape: box-style arrows only, wide Up/Down, L/R centered and slightly taller */}
           <div
-            data-padkey="ArrowUp"
-            style={{ flexGrow: 0.95, flexBasis: 0, width: '74%', pointerEvents: 'none' }}
-            className={`self-center ${activePadKeys.includes('ArrowUp') ? 'bg-red-500' : 'bg-blue-500'} rounded-lg text-white text-3xl flex items-center justify-center font-bold transition-colors select-none`}
-          >↑</div>
+            ref={padRef}
+            className="flex h-full min-w-0 touch-none flex-col gap-1"
+            {...padHandlers}
+          >
+            <div
+              data-padkey="ArrowUp"
+              style={{ flexGrow: 0.95, flexBasis: 0, width: '74%', pointerEvents: 'none' }}
+              className={`self-center ${activePadKeys.includes('ArrowUp') ? 'bg-red-500' : 'bg-blue-500'} rounded-lg text-white text-3xl flex items-center justify-center font-bold transition-colors select-none`}
+            >↑</div>
 
-          <div style={{ flexGrow: 1.1, flexBasis: 0 }} className="w-full flex items-stretch gap-1">
+            <div style={{ flexGrow: 1.1, flexBasis: 0 }} className="w-full flex items-stretch gap-1 min-w-0">
+              <div
+                data-padkey="ArrowLeft"
+                style={{ pointerEvents: 'none' }}
+                className={`flex-1 ${activePadKeys.includes('ArrowLeft') ? 'bg-red-500' : 'bg-blue-500'} rounded-lg text-white text-3xl flex items-center justify-end pr-4 font-bold transition-colors select-none`}
+              >←</div>
+              <div
+                data-padkey="ArrowRight"
+                style={{ pointerEvents: 'none' }}
+                className={`flex-1 ${activePadKeys.includes('ArrowRight') ? 'bg-red-500' : 'bg-blue-500'} rounded-lg text-white text-3xl flex items-center justify-start pl-4 font-bold transition-colors select-none`}
+              >→</div>
+            </div>
+
             <div
-              data-padkey="ArrowLeft"
-              style={{ pointerEvents: 'none' }}
-              className={`flex-1 ${activePadKeys.includes('ArrowLeft') ? 'bg-red-500' : 'bg-blue-500'} rounded-lg text-white text-3xl flex items-center justify-end pr-4 font-bold transition-colors select-none`}
-            >←</div>
-            <div
-              data-padkey="ArrowRight"
-              style={{ pointerEvents: 'none' }}
-              className={`flex-1 ${activePadKeys.includes('ArrowRight') ? 'bg-red-500' : 'bg-blue-500'} rounded-lg text-white text-3xl flex items-center justify-start pl-4 font-bold transition-colors select-none`}
-            >→</div>
+              data-padkey="ArrowDown"
+              style={{ flexGrow: 0.95, flexBasis: 0, width: '74%', pointerEvents: 'none' }}
+              className={`self-center ${activePadKeys.includes('ArrowDown') ? 'bg-red-500' : 'bg-blue-500'} rounded-lg text-white text-3xl flex items-center justify-center font-bold transition-colors select-none`}
+            >↓</div>
           </div>
 
-          <div
-            data-padkey="ArrowDown"
-            style={{ flexGrow: 0.95, flexBasis: 0, width: '74%', pointerEvents: 'none' }}
-            className={`self-center ${activePadKeys.includes('ArrowDown') ? 'bg-red-500' : 'bg-blue-500'} rounded-lg text-white text-3xl flex items-center justify-center font-bold transition-colors select-none`}
-          >↓</div>
+          {/* R button — small, between arrows and jump, must be tapped (not slid) */}
+          <button
+            className="w-12 h-12 self-center rounded-full bg-accent text-accent-foreground text-sm font-bold active:scale-95 shrink-0"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              ensureVibrateUnlocked();
+              pulseHaptic(45);
+              // During menu/transition states, R acts as "any button" via the handler.
+              const consumed = anyInputHandlerRef.current?.('r', 'pad');
+              if (!consumed) resetGame();
+            }}
+            onTouchStart={(e) => {
+              e.preventDefault();
+              ensureVibrateUnlocked();
+              pulseHaptic(45);
+              const consumed = anyInputHandlerRef.current?.('r', 'pad');
+              if (!consumed) resetGame();
+            }}
+          >R</button>
+
+          {/* JUMP button — large but constrained so controls always fit */}
+          <button
+            className="h-full w-full min-w-0 rounded-full bg-primary text-primary-foreground text-2xl font-bold active:scale-95"
+            {...tapHandlers(' ', 45)}
+          >JUMP</button>
         </div>
-
-        {/* R button — small, between arrows and jump, must be tapped (not slid) */}
-        <button
-          className="w-10 h-10 self-center rounded-full bg-accent text-accent-foreground text-sm font-bold active:scale-95 shrink-0"
-          onPointerDown={(e) => {
-            e.preventDefault();
-            ensureVibrateUnlocked();
-            pulseHaptic(45);
-            // During menu/transition states, R acts as "any button" via the handler.
-            const consumed = anyInputHandlerRef.current?.('r', 'pad');
-            if (!consumed) resetGame();
-          }}
-          onTouchStart={(e) => {
-            e.preventDefault();
-            ensureVibrateUnlocked();
-            pulseHaptic(45);
-            const consumed = anyInputHandlerRef.current?.('r', 'pad');
-            if (!consumed) resetGame();
-          }}
-        >R</button>
-
-        {/* JUMP button — large but capped so it never overflows the screen */}
-        <button
-          className="h-full aspect-square max-h-full max-w-[40vw] rounded-full bg-primary text-primary-foreground text-2xl font-bold active:scale-95 shrink-0"
-          {...tapHandlers(' ', 45)}
-        >JUMP</button>
       </div>
     </div>
   );
