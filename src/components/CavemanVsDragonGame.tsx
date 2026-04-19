@@ -1607,9 +1607,9 @@ const CavemanVsDragonGame = () => {
           }}
         >R</button>
 
-        {/* JUMP button — extra-large, tap-only */}
+        {/* JUMP button — large but capped so it never overflows the screen */}
         <button
-          className="h-full aspect-square rounded-full bg-primary text-primary-foreground text-2xl font-bold active:scale-95 shrink-0"
+          className="h-full aspect-square max-h-full max-w-[40vw] rounded-full bg-primary text-primary-foreground text-2xl font-bold active:scale-95 shrink-0"
           {...tapHandlers(' ', 45)}
         >JUMP</button>
       </div>
