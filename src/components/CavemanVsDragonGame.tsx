@@ -1252,7 +1252,7 @@ const CavemanVsDragonGame = () => {
       const arcade = '"Press Start 2P", monospace';
       const continuePrompt = isMobileRef.current ? 'PRESS ANY BUTTON' : 'PRESS ANY KEY';
 
-      if (g.state === 'gameover') {
+      if (gameStateRef.current === 'gameover') {
         ctx.fillStyle = 'rgba(0,0,0,0.9)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
         ctx.fillStyle = '#FF3030'; ctx.font = `bold 52px ${arcade}`;
         ctx.fillText('GAME OVER', CANVAS_W / 2, CANVAS_H / 2 - 50);
@@ -1266,7 +1266,7 @@ const CavemanVsDragonGame = () => {
           ctx.fillText('PRESS R TO RESTART', CANVAS_W / 2, CANVAS_H / 2 + 80);
         }
       }
-      if (g.state === 'highscorePrompt') {
+      if (gameStateRef.current === 'highscorePrompt') {
         ctx.fillStyle = 'rgba(0,0,0,0.92)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
         ctx.fillStyle = '#FFD700'; ctx.font = `bold 32px ${arcade}`;
         ctx.fillText('NEW HIGH SCORE!', CANVAS_W / 2, CANVAS_H / 2 - 80);
@@ -1285,7 +1285,7 @@ const CavemanVsDragonGame = () => {
         ctx.fillStyle = '#FFD700'; ctx.font = `bold 34px ${arcade}`;
         ctx.fillText(`SCORE: ${g.score}`, CANVAS_W / 2, CANVAS_H / 2 + 20);
       }
-      if (g.state === 'continue') {
+      if (gameStateRef.current === 'continue') {
         ctx.fillStyle = 'rgba(0,0,0,0.9)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
         ctx.fillStyle = '#FFD700'; ctx.font = `bold 40px ${arcade}`;
         ctx.fillText('LEVEL CLEAR!', CANVAS_W / 2, CANVAS_H / 2 - 90);
@@ -1296,7 +1296,7 @@ const CavemanVsDragonGame = () => {
         ctx.fillText(continuePrompt, CANVAS_W / 2, CANVAS_H / 2 + 70);
         ctx.fillText('TO CONTINUE', CANVAS_W / 2, CANVAS_H / 2 + 100);
       }
-      if (g.state === 'enterInitials') {
+      if (gameStateRef.current === 'enterInitials') {
         ctx.fillStyle = 'rgba(0,0,0,0.95)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
         ctx.fillStyle = '#FFD700'; ctx.font = `bold 26px ${arcade}`;
         ctx.fillText('ENTER YOUR INITIALS', CANVAS_W / 2, 100);
@@ -1326,7 +1326,7 @@ const CavemanVsDragonGame = () => {
         ctx.fillText('UP/DOWN: CHANGE   LEFT/RIGHT: MOVE', CANVAS_W / 2, 340);
         ctx.fillText(isMobileRef.current ? 'JUMP/R: CONFIRM' : 'SPACE/ENTER: CONFIRM', CANVAS_W / 2, 365);
       }
-      if (g.state === 'leaderboard') {
+      if (gameStateRef.current === 'leaderboard') {
         ctx.fillStyle = 'rgba(0,0,0,0.95)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
         ctx.fillStyle = '#FFD700'; ctx.font = `bold 24px ${arcade}`;
         ctx.fillText('TOP 10 SCORES', CANVAS_W / 2, 50);
