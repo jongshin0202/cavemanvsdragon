@@ -1485,8 +1485,21 @@ const CavemanVsDragonGame = () => {
         {/* R button — small, between arrows and jump, must be tapped (not slid) */}
         <button
           className="w-10 h-10 self-center rounded-full bg-accent text-accent-foreground text-sm font-bold active:scale-95 shrink-0"
-          onPointerDown={(e) => { e.preventDefault(); ensureVibrateUnlocked(); pulseHaptic(45); resetGame(); }}
-          onTouchStart={(e) => { e.preventDefault(); ensureVibrateUnlocked(); pulseHaptic(45); resetGame(); }}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            ensureVibrateUnlocked();
+            pulseHaptic(45);
+            // During menu/transition states, R acts as "any button" via the handler.
+            const consumed = anyInputHandlerRef.current?.('r', 'pad');
+            if (!consumed) resetGame();
+          }}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            ensureVibrateUnlocked();
+            pulseHaptic(45);
+            const consumed = anyInputHandlerRef.current?.('r', 'pad');
+            if (!consumed) resetGame();
+          }}
         >R</button>
 
         {/* JUMP button — extra-large, tap-only */}
