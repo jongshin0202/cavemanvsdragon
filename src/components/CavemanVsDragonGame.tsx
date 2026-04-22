@@ -186,7 +186,7 @@ const CavemanVsDragonGame = () => {
   useEffect(() => { initialsCursorRef.current = initialsCursor; }, [initialsCursor]);
   useEffect(() => { isMobileRef.current = isMobile; }, [isMobile]);
 
-  const gameStateRef = useRef<GameState>('playing');
+  const gameStateRef = useRef<GameState>('intro');
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
 
   // Wire up the unified "any input" handler. Re-binds whenever dependencies change.
