@@ -190,6 +190,26 @@ const CavemanVsDragonGame = () => {
   const gameStateRef = useRef<GameState>('intro');
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
 
+  // Auto-return to intro screen after 5s of inactivity on terminal screens
+  // (gameover without high score, or after viewing the leaderboard).
+  useEffect(() => {
+    if (gameState !== 'gameover' && gameState !== 'leaderboard') return;
+    let timer = window.setTimeout(() => setGameState('intro'), 5000);
+    const reset = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => setGameState('intro'), 5000);
+    };
+    window.addEventListener('keydown', reset);
+    window.addEventListener('pointerdown', reset);
+    window.addEventListener('touchstart', reset, { passive: true });
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('keydown', reset);
+      window.removeEventListener('pointerdown', reset);
+      window.removeEventListener('touchstart', reset);
+    };
+  }, [gameState]);
+
   // Wire up the unified "any input" handler. Re-binds whenever dependencies change.
   useEffect(() => {
     anyInputHandlerRef.current = (key, _source) => {
