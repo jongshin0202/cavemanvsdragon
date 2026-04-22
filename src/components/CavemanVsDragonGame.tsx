@@ -1623,7 +1623,7 @@ const CavemanVsDragonGame = () => {
                 {isMobile ? 'Tap Anywhere to Start' : 'Press R to Start'}
               </div>
               <div
-                className="text-center font-caveman"
+                className="flex items-center justify-center gap-3 text-center font-caveman"
                 style={{
                   fontSize: 'clamp(0.85rem, 2.4vw, 1.4rem)',
                   color: 'hsl(var(--foreground))',
@@ -1631,22 +1631,18 @@ const CavemanVsDragonGame = () => {
                   letterSpacing: '0.08em',
                 }}
               >
-                © Team2Go, 2016
+                <span>© Team2Go, 2026</span>
+                <img
+                  src={team2goLogoUrl}
+                  alt="Team2Go logo"
+                  className="object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+                  style={{
+                    width: 'clamp(40px, 7vw, 64px)',
+                    height: 'clamp(40px, 7vw, 64px)',
+                  }}
+                />
               </div>
             </div>
-
-            {/* Team2Go logo, bottom-right corner — borderless, lifted to align with prompt */}
-            <img
-              src={team2goLogoUrl}
-              alt="Team2Go logo"
-              className="pointer-events-none absolute z-10 object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
-              style={{
-                right: 'clamp(0.75rem, 2.5vw, 1.5rem)',
-                bottom: 'clamp(5%, 9%, 12%)',
-                width: 'clamp(56px, 11vw, 96px)',
-                height: 'clamp(56px, 11vw, 96px)',
-              }}
-            />
           </button>
         )}
       </div>
