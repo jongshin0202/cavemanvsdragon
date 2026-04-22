@@ -269,7 +269,7 @@ const CavemanVsDragonGame = () => {
 
       return false;
     };
-  }, [startNextLevel, submitHighScore]);
+  }, [startNextLevel, submitHighScore, resetGame]);
 
 
   useEffect(() => {
