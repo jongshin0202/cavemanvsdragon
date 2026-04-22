@@ -74,7 +74,7 @@ const CavemanVsDragonGame = () => {
     score: 0,
     lives: 3,
     round: 1,
-    state: 'playing' as string,
+    state: 'intro' as string,
     dkFrame: 0,
     dkAnimTimer: 0,
     dkSheet: 0 as 0 | 1, // 0 = fire, 1 = angry
