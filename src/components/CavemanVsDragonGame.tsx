@@ -1611,41 +1611,42 @@ const CavemanVsDragonGame = () => {
             </div>
 
             {/* Footer prompt */}
-            <div className="relative z-10 mb-[7%] flex w-full flex-col items-center gap-2 px-4">
+            <div className="relative z-10 mb-[7%] flex w-full flex-col items-center gap-3 px-4">
               <div
                 className="intro-blink text-center font-caveman"
                 style={{
-                  fontSize: 'clamp(0.85rem, 2.6vw, 1.5rem)',
+                  fontSize: 'clamp(1.25rem, 4.2vw, 2.4rem)',
                   color: 'hsl(var(--accent))',
-                  textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
+                  textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
                 }}
               >
                 {isMobile ? 'Tap Anywhere to Start' : 'Press R to Start'}
               </div>
               <div
-                className="text-center"
+                className="text-center font-caveman"
                 style={{
-                  fontFamily: 'var(--font-arcade)',
-                  fontSize: 'clamp(0.5rem, 1.4vw, 0.75rem)',
-                  color: 'hsl(var(--foreground) / 0.85)',
-                  textShadow: '1px 1px 0 #000',
+                  fontSize: 'clamp(0.85rem, 2.4vw, 1.4rem)',
+                  color: 'hsl(var(--foreground))',
+                  textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
+                  letterSpacing: '0.08em',
                 }}
               >
-                © Team2Go 2016
+                © Team2Go, 2016
               </div>
             </div>
 
-            {/* Team2Go logo, bottom-right corner */}
-            <div
-              className="pointer-events-none absolute bottom-2 right-2 z-10 flex items-center justify-center rounded-md border-2 border-accent bg-background/80 p-1.5 shadow-lg"
-              style={{ width: 'clamp(40px, 8vw, 64px)', height: 'clamp(40px, 8vw, 64px)' }}
-            >
-              <img
-                src={team2goLogoUrl}
-                alt="Team2Go logo"
-                className="h-full w-full object-contain"
-              />
-            </div>
+            {/* Team2Go logo, bottom-right corner — borderless, lifted to align with prompt */}
+            <img
+              src={team2goLogoUrl}
+              alt="Team2Go logo"
+              className="pointer-events-none absolute z-10 object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+              style={{
+                right: 'clamp(0.75rem, 2.5vw, 1.5rem)',
+                bottom: 'clamp(5%, 9%, 12%)',
+                width: 'clamp(56px, 11vw, 96px)',
+                height: 'clamp(56px, 11vw, 96px)',
+              }}
+            />
           </button>
         )}
       </div>
