@@ -1581,34 +1581,8 @@ const CavemanVsDragonGame = () => {
             <div className="pointer-events-none absolute inset-x-0 top-0 h-2/5 bg-gradient-to-b from-black/70 via-black/40 to-transparent" />
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
 
-            {/* Title */}
-            <div className="relative z-10 mt-[6%] flex w-full flex-col items-center px-4">
-              <h1
-                className="intro-title font-caveman text-center leading-[0.95]"
-                style={{
-                  fontSize: 'clamp(2rem, 9vw, 5.5rem)',
-                  color: 'hsl(var(--accent))',
-                  textShadow:
-                    '3px 3px 0 hsl(var(--primary)), 6px 6px 0 #000, -2px -2px 0 #2a0e00',
-                  WebkitTextStroke: '2px #1a0700',
-                }}
-              >
-                Caveman
-                <span
-                  className="block font-caveman"
-                  style={{
-                    fontSize: 'clamp(1rem, 3.5vw, 2rem)',
-                    color: 'hsl(var(--foreground))',
-                    textShadow: '2px 2px 0 #000',
-                    WebkitTextStroke: '1px #1a0700',
-                    margin: '0.15em 0',
-                  }}
-                >
-                  VS
-                </span>
-                Dragon
-              </h1>
-            </div>
+            {/* Title is baked into the background image */}
+            <div className="relative z-10" />
 
             {/* Footer prompt */}
             <div className="relative z-10 mb-[7%] flex w-full flex-col items-center gap-3 px-4">
