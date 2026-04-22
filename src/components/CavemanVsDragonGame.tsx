@@ -196,6 +196,12 @@ const CavemanVsDragonGame = () => {
       const gs = gameStateRef.current;
       const g = gameRef.current;
 
+      if (gs === 'intro') {
+        // Any key/tap starts the game from the intro screen
+        resetGame();
+        return true;
+      }
+
       if (gs === 'continue') {
         if (now < continueArmedAtRef.current) return true; // still locked, swallow
         startNextLevel();
