@@ -18,6 +18,7 @@ import robotWalkUrl from '@/assets/robot-walk.png';
 import rockWheelUrl from '@/assets/rock-wheel.png';
 import wateringCanUrl from '@/assets/watering-can.png';
 import introBackgroundUrl from '@/assets/intro-background.jpg';
+import team2goLogoUrl from '@/assets/team2go-logo.png';
 
 const ROBOT_WALK_FRAMES = 5;
 
@@ -1626,12 +1627,24 @@ const CavemanVsDragonGame = () => {
                 style={{
                   fontFamily: 'var(--font-arcade)',
                   fontSize: 'clamp(0.5rem, 1.4vw, 0.75rem)',
-                  color: 'hsl(var(--foreground) / 0.75)',
+                  color: 'hsl(var(--foreground) / 0.85)',
                   textShadow: '1px 1px 0 #000',
                 }}
               >
-                © ARCADE 198X · INSERT COIN
+                © Team2Go 2016
               </div>
+            </div>
+
+            {/* Team2Go logo, bottom-right corner */}
+            <div
+              className="pointer-events-none absolute bottom-2 right-2 z-10 flex items-center justify-center rounded-md border-2 border-accent bg-background/80 p-1.5 shadow-lg"
+              style={{ width: 'clamp(40px, 8vw, 64px)', height: 'clamp(40px, 8vw, 64px)' }}
+            >
+              <img
+                src={team2goLogoUrl}
+                alt="Team2Go logo"
+                className="h-full w-full object-contain"
+              />
             </div>
           </button>
         )}
