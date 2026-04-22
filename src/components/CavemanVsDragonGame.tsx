@@ -17,6 +17,7 @@ import princessSpriteUrl from '@/assets/princess-sprite.png';
 import robotWalkUrl from '@/assets/robot-walk.png';
 import rockWheelUrl from '@/assets/rock-wheel.png';
 import wateringCanUrl from '@/assets/watering-can.png';
+import introBackgroundUrl from '@/assets/intro-background.jpg';
 
 const ROBOT_WALK_FRAMES = 5;
 
@@ -30,7 +31,7 @@ const TOP_VINE_IDX = 8;
 // Where the seed must be planted (base of the topmost vine, on platform P5)
 const PLANT_X = 357; // matches LADDERS[8].x + 7
 
-type GameState = 'playing' | 'gameover' | 'win' | 'continue' | 'highscorePrompt' | 'enterInitials' | 'leaderboard';
+type GameState = 'intro' | 'playing' | 'gameover' | 'win' | 'continue' | 'highscorePrompt' | 'enterInitials' | 'leaderboard';
 
 const CavemanVsDragonGame = () => {
   const isMobile = useIsMobile();
@@ -38,7 +39,7 @@ const CavemanVsDragonGame = () => {
   const keysRef = useRef<Set<string>>(new Set());
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
-  const [gameState, setGameState] = useState<GameState>('playing');
+  const [gameState, setGameState] = useState<GameState>('intro');
   const [scores, setScores] = useState<LeaderboardEntry[]>(() => loadScores());
   const [initials, setInitials] = useState<string[]>(['A', 'A', 'A']);
   const [initialsCursor, setInitialsCursor] = useState(0);
@@ -73,7 +74,7 @@ const CavemanVsDragonGame = () => {
     score: 0,
     lives: 3,
     round: 1,
-    state: 'playing' as string,
+    state: 'intro' as string,
     dkFrame: 0,
     dkAnimTimer: 0,
     dkSheet: 0 as 0 | 1, // 0 = fire, 1 = angry
@@ -185,7 +186,7 @@ const CavemanVsDragonGame = () => {
   useEffect(() => { initialsCursorRef.current = initialsCursor; }, [initialsCursor]);
   useEffect(() => { isMobileRef.current = isMobile; }, [isMobile]);
 
-  const gameStateRef = useRef<GameState>('playing');
+  const gameStateRef = useRef<GameState>('intro');
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
 
   // Wire up the unified "any input" handler. Re-binds whenever dependencies change.
@@ -194,6 +195,12 @@ const CavemanVsDragonGame = () => {
       const now = performance.now();
       const gs = gameStateRef.current;
       const g = gameRef.current;
+
+      if (gs === 'intro') {
+        // Any key/tap starts the game from the intro screen
+        resetGame();
+        return true;
+      }
 
       if (gs === 'continue') {
         if (now < continueArmedAtRef.current) return true; // still locked, swallow
@@ -262,7 +269,7 @@ const CavemanVsDragonGame = () => {
 
       return false;
     };
-  }, [startNextLevel, submitHighScore]);
+  }, [startNextLevel, submitHighScore, resetGame]);
 
 
   useEffect(() => {
@@ -1541,7 +1548,7 @@ const CavemanVsDragonGame = () => {
   return (
     <div className="flex h-[100dvh] min-h-[100dvh] w-full flex-col overflow-hidden select-none bg-background">
       {/* Game area — fills all remaining space above controls */}
-      <div className="flex min-h-0 w-full flex-1 items-center justify-center bg-black">
+      <div className="relative flex min-h-0 w-full flex-1 items-center justify-center bg-black">
         <canvas
           ref={canvasRef}
           width={CANVAS_W}
@@ -1550,6 +1557,84 @@ const CavemanVsDragonGame = () => {
           style={{ imageRendering: 'pixelated', aspectRatio: `${CANVAS_W} / ${CANVAS_H}` }}
           tabIndex={0}
         />
+
+        {/* Arcade-style intro / title screen overlay */}
+        {gameState === 'intro' && (
+          <button
+            type="button"
+            aria-label="Start game"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              unlockAudio();
+              resetGame();
+            }}
+            className="absolute inset-0 flex flex-col items-center justify-between overflow-hidden focus:outline-none"
+            style={{
+              backgroundImage: `url(${introBackgroundUrl})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              imageRendering: 'pixelated',
+            }}
+          >
+            {/* Darken middle band for title legibility */}
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-2/5 bg-gradient-to-b from-black/70 via-black/40 to-transparent" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+
+            {/* Title */}
+            <div className="relative z-10 mt-[6%] flex w-full flex-col items-center px-4">
+              <h1
+                className="intro-title font-caveman text-center leading-[0.95]"
+                style={{
+                  fontSize: 'clamp(2rem, 9vw, 5.5rem)',
+                  color: 'hsl(var(--accent))',
+                  textShadow:
+                    '3px 3px 0 hsl(var(--primary)), 6px 6px 0 #000, -2px -2px 0 #2a0e00',
+                  WebkitTextStroke: '2px #1a0700',
+                }}
+              >
+                Caveman
+                <span
+                  className="block font-caveman"
+                  style={{
+                    fontSize: 'clamp(1rem, 3.5vw, 2rem)',
+                    color: 'hsl(var(--foreground))',
+                    textShadow: '2px 2px 0 #000',
+                    WebkitTextStroke: '1px #1a0700',
+                    margin: '0.15em 0',
+                  }}
+                >
+                  VS
+                </span>
+                Dragon
+              </h1>
+            </div>
+
+            {/* Footer prompt */}
+            <div className="relative z-10 mb-[7%] flex w-full flex-col items-center gap-2 px-4">
+              <div
+                className="intro-blink text-center font-caveman"
+                style={{
+                  fontSize: 'clamp(0.85rem, 2.6vw, 1.5rem)',
+                  color: 'hsl(var(--accent))',
+                  textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
+                }}
+              >
+                {isMobile ? 'Tap Anywhere to Start' : 'Press R to Start'}
+              </div>
+              <div
+                className="text-center"
+                style={{
+                  fontFamily: 'var(--font-arcade)',
+                  fontSize: 'clamp(0.5rem, 1.4vw, 0.75rem)',
+                  color: 'hsl(var(--foreground) / 0.75)',
+                  textShadow: '1px 1px 0 #000',
+                }}
+              >
+                © ARCADE 198X · INSERT COIN
+              </div>
+            </div>
+          </button>
+        )}
       </div>
 
       {/* Controls — hidden on desktop (md+); use keyboard arrows + space instead */}
