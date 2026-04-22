@@ -17,6 +17,7 @@ import princessSpriteUrl from '@/assets/princess-sprite.png';
 import robotWalkUrl from '@/assets/robot-walk.png';
 import rockWheelUrl from '@/assets/rock-wheel.png';
 import wateringCanUrl from '@/assets/watering-can.png';
+import introBackgroundUrl from '@/assets/intro-background.jpg';
 
 const ROBOT_WALK_FRAMES = 5;
 
