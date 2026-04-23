@@ -8,6 +8,114 @@ export const BARREL_SPEED = 0.9;
 export const CLIMB_SPEED = 1.5;
 export const ROBOT_SPEED = 0.55;
 
+// ============================================================
+// DIFFICULTY (per-round scaling)
+// ------------------------------------------------------------
+// Round 1 = "much easier than current" (~50% of previous values).
+// Each completed round → +10% harder (gentle ramp).
+// Monkey count: starts at base, +1 every 2 rounds (cap at 6).
+// Tweak these constants to rebalance.
+// ============================================================
+export const DIFFICULTY = {
+  // Round 1 baseline
+  base: {
+    barrelSpawnMin: 208,        // frames → ~3.5s
+    barrelSpawnRange: 414,      // frames → up to ~10.4s total
+    barrelSpeedMul: 0.5,        // multiplier on BARREL_SPEED
+    barrelSpeedJitter: 0.4,     // random extra (0..jitter) added to mul
+    monkeyCount: 2,             // round-1 monkey count
+    monkeySpeedMul: 0.5,        // multiplier on ROBOT_SPEED
+    monkeySpeedJitter: 0.4,
+  },
+  // Monkey count: +1 per finished round, distributed across P2..P5.
+  // Caps at 5 per platform (20 total).
+  monkeyPlatforms: 4,
+  monkeyPerPlatformCap: 5,
+  monkeyTotalCap: 20,           // 4 platforms × 5
+  // Wheel speed: +10% per finished round until monkey cap is reached,
+  // then +20% per finished round afterward.
+  barrelSpeedScalePerRound: 0.10,
+  barrelSpeedScalePerRoundAfterCap: 0.20,
+  // Wheel spawn frequency: unchanged until monkey cap is reached,
+  // then spawn intervals shrink by 10% per finished round.
+  barrelSpawnScalePerRoundAfterCap: 0.10,
+  // Monkey speed continues to scale gently each round.
+  monkeySpeedScalePerRound: 0.10,
+};
+
+// Round at which the monkey count cap (20) is first reached.
+// Start at 2 monkeys (round 1) and add 1 per round → 20 monkeys at round 19.
+export const MONKEY_CAP_ROUND =
+  DIFFICULTY.monkeyTotalCap - DIFFICULTY.base.monkeyCount + 1; // = 19
+
+export function getRoundDifficulty(round: number) {
+  const r = Math.max(1, round);
+  const steps = r - 1;
+
+  // Wheel speed: +10% per round up to cap, then +20% per round after.
+  const stepsBeforeCap = Math.min(steps, MONKEY_CAP_ROUND - 1);
+  const stepsAfterCap = Math.max(0, steps - (MONKEY_CAP_ROUND - 1));
+  const barrelSpeedFactor =
+    1 +
+    DIFFICULTY.barrelSpeedScalePerRound * stepsBeforeCap +
+    DIFFICULTY.barrelSpeedScalePerRoundAfterCap * stepsAfterCap;
+
+  // Wheel spawn frequency: only ramps after monkey cap is reached.
+  const spawnHarder = 1 + DIFFICULTY.barrelSpawnScalePerRoundAfterCap * stepsAfterCap;
+  const spawnEasier = 1 / spawnHarder;
+
+  const monkeyHarder = 1 + DIFFICULTY.monkeySpeedScalePerRound * steps;
+
+  const b = DIFFICULTY.base;
+  const monkeyCount = Math.min(
+    DIFFICULTY.monkeyTotalCap,
+    b.monkeyCount + steps,
+  );
+
+  return {
+    round: r,
+    barrelSpawnMin: Math.max(20, b.barrelSpawnMin * spawnEasier),
+    barrelSpawnRange: Math.max(20, b.barrelSpawnRange * spawnEasier),
+    barrelSpeedMul: b.barrelSpeedMul * barrelSpeedFactor,
+    barrelSpeedJitter: b.barrelSpeedJitter,
+    monkeyCount,
+    monkeySpeedMul: b.monkeySpeedMul * monkeyHarder,
+    monkeySpeedJitter: b.monkeySpeedJitter,
+  };
+}
+
+// Build per-platform monkey distribution for P2..P5 (indices 1..4 in PLATFORMS).
+// Starts at [1,1,0,0] (round 1, total=2). Each subsequent round adds 1 monkey
+// to a random platform that currently has the minimum count, until every
+// platform has 5 (total 20). After that, distribution stays at [5,5,5,5].
+export function buildMonkeyDistribution(round: number): number[] {
+  const slots = DIFFICULTY.monkeyPlatforms;
+  const counts = new Array<number>(slots).fill(0);
+  const total = Math.min(
+    DIFFICULTY.monkeyTotalCap,
+    DIFFICULTY.base.monkeyCount + Math.max(0, round - 1),
+  );
+  for (let added = 0; added < total; added++) {
+    // Find platforms with the minimum count that still have capacity.
+    let min = Infinity;
+    for (let i = 0; i < slots; i++) {
+      if (counts[i] < DIFFICULTY.monkeyPerPlatformCap && counts[i] < min) {
+        min = counts[i];
+      }
+    }
+    const candidates: number[] = [];
+    for (let i = 0; i < slots; i++) {
+      if (counts[i] === min && counts[i] < DIFFICULTY.monkeyPerPlatformCap) {
+        candidates.push(i);
+      }
+    }
+    if (candidates.length === 0) break;
+    const pick = candidates[Math.floor(Math.random() * candidates.length)];
+    counts[pick]++;
+  }
+  return counts;
+}
+
 export interface Rect { x: number; y: number; w: number; h: number }
 export interface Barrel extends Rect { vx: number; vy: number; onLadder: boolean; falling: boolean; targetLadder: number | null; speed: number; rollPhase?: number; jumpedOver?: boolean }
 export interface Robot extends Rect { vx: number; vy: number; onGround: boolean; climbing: boolean; targetLadder: number | null; direction: number; frame: number; frameTimer: number; speed: number }

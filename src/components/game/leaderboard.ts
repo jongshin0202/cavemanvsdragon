@@ -1,11 +1,14 @@
 export interface LeaderboardEntry {
-  initials: string; // 3 uppercase letters
+  // Display name, up to 10 chars (A-Z, 0-9, space). Older saves may have only `initials`.
+  name?: string;
+  initials: string; // legacy 3-letter initials; kept for backward compat + canvas fallback
   score: number;
   date: string; // ISO
+  level?: number; // last level reached (optional for backward compat)
 }
 
 const STORAGE_KEY = 'cavemanVsDragon.topScores.v1';
-export const MAX_ENTRIES = 10;
+export const MAX_ENTRIES = 20;
 
 export function loadScores(): LeaderboardEntry[] {
   try {
@@ -15,10 +18,20 @@ export function loadScores(): LeaderboardEntry[] {
     if (!Array.isArray(parsed)) return [];
     return parsed
       .filter((e) => e && typeof e.initials === 'string' && typeof e.score === 'number' && typeof e.date === 'string')
+      .map((e) => ({
+        ...e,
+        name: typeof e.name === 'string' ? e.name : undefined,
+        level: typeof e.level === 'number' ? e.level : undefined,
+      }))
       .slice(0, MAX_ENTRIES);
   } catch {
     return [];
   }
+}
+
+// Convenience: best display string for an entry (name preferred, else initials)
+export function entryDisplayName(e: LeaderboardEntry): string {
+  return (e.name && e.name.trim()) || e.initials || '---';
 }
 
 export function saveScores(entries: LeaderboardEntry[]): void {
@@ -39,6 +52,15 @@ export function insertScore(entry: LeaderboardEntry, scores: LeaderboardEntry[] 
   const next = [...scores, entry].sort((a, b) => b.score - a.score).slice(0, MAX_ENTRIES);
   saveScores(next);
   return next;
+}
+
+// Wipe the local leaderboard (does NOT touch the global/cloud leaderboard).
+export function clearLocalScores(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // ignore
+  }
 }
 
 export function formatDate(iso: string): string {
