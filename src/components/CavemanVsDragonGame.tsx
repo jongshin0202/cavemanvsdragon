@@ -1779,7 +1779,8 @@ const CavemanVsDragonGame = () => {
         )}
       </div>
 
-      {/* Controls — hidden on desktop (md+); use keyboard arrows + space instead */}
+      {/* Controls — hidden on desktop (md+); also hidden on mobile during intro/attract screens */}
+      {!(gameState === 'intro' || gameState === 'attractLeaderboard' || gameState === 'attractControls') && (
       <div className="md:hidden w-full shrink-0 overflow-hidden px-2 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] touch-none">
         <div className="grid h-[152px] w-full grid-cols-[minmax(0,1fr)_3rem_minmax(7.5rem,38vw)] items-stretch gap-2">
           {/* Locked D-pad shape: box-style arrows only, wide Up/Down, L/R centered and slightly taller */}
@@ -1841,6 +1842,7 @@ const CavemanVsDragonGame = () => {
           >JUMP</button>
         </div>
       </div>
+      )}
     </div>
   );
 };
