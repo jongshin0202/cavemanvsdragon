@@ -751,42 +751,58 @@ const CavemanVsDragonGame = () => {
               b.vx = (curPlat && (curPlat.slope || 0) < 0) ? -b.speed : b.speed;
             }
 
-            // Pick the best vine to drop from based on the player's platform slope.
-            // Rule (per design):
-            //   - Player on a platform whose LEFT side is HIGHER than the right (slope > 0,
-            //     wheel rolls right after landing): drop at the vine on the closest LEFT
-            //     side of the player so the wheel rolls right toward him.
-            //   - Player on a platform whose LEFT side is LOWER than the right (slope < 0,
-            //     wheel rolls left after landing): drop at the vine on the closest RIGHT
-            //     side of the player so the wheel rolls left toward him.
-            // Only vines whose top is on the wheel's current platform AND whose bottom is
-            // on the player's platform are eligible. If none qualifies, the wheel keeps
-            // rolling and may fall off the edge.
+            // Vine-drop selection.
+            // - If the player IS on the platform directly below the wheel, use the
+            //   slope rule so the wheel rolls toward him after landing:
+            //     * landing platform tilts down-right (slope > 0): drop at the closest
+            //       vine on the LEFT side of the player.
+            //     * landing platform tilts down-left  (slope < 0): drop at the closest
+            //       vine on the RIGHT side of the player.
+            // - Otherwise (player isn't on the platform right below), just drop at the
+            //   vine on this platform that is NEAREST to the wheel.
             let tookLadder = false;
             const playerPlatIdx = findPlatformIndex(playerFeetY, playerCenterX);
-            const playerPlat = PLATFORMS[playerPlatIdx];
-            const landingRollDir = playerPlat && (playerPlat.slope || 0) < 0 ? -1 : 1; // +1 = rolls right, -1 = rolls left
-            const wantLeftOfPlayer = landingRollDir > 0; // need vine to the LEFT of player
+            const platformBelowIdx = bPlatIdx + 1; // platforms are ordered top→bottom in PLATFORMS? Actually bottom→top: P1=index 0 = ground. So "below" means lower index.
+            // PLATFORMS[0] is ground (lowest visually = highest y), and indices increase upward.
+            // The platform directly below the wheel's current platform is therefore bPlatIdx - 1.
+            const directlyBelowIdx = bPlatIdx - 1;
+            const playerIsDirectlyBelow = playerPlatIdx === directlyBelowIdx;
 
-            // Find best eligible vine
             let bestLi = -1;
             let bestDist = Infinity;
-            for (let li = 0; li < LADDERS.length; li++) {
-              if (li === TOP_VINE_IDX && !g.topVineUnlocked) continue;
-              const l = LADDERS[li];
-              const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
-              const botPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 12);
-              if (topPlatIdx !== bPlatIdx) continue;
-              if (botPlatIdx !== playerPlatIdx) continue; // only vines that land on player's platform
 
-              const ladderCenterX = l.x + 7;
-              if (wantLeftOfPlayer) {
-                if (ladderCenterX > playerCenterX) continue; // must be left of player
-                const d = playerCenterX - ladderCenterX;
-                if (d < bestDist) { bestDist = d; bestLi = li; }
-              } else {
-                if (ladderCenterX < playerCenterX) continue; // must be right of player
-                const d = ladderCenterX - playerCenterX;
+            if (playerIsDirectlyBelow) {
+              const landingPlat = PLATFORMS[directlyBelowIdx];
+              const landingRollDir = landingPlat && (landingPlat.slope || 0) < 0 ? -1 : 1;
+              const wantLeftOfPlayer = landingRollDir > 0;
+              for (let li = 0; li < LADDERS.length; li++) {
+                if (li === TOP_VINE_IDX && !g.topVineUnlocked) continue;
+                const l = LADDERS[li];
+                const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
+                const botPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 12);
+                if (topPlatIdx !== bPlatIdx) continue;
+                if (botPlatIdx !== directlyBelowIdx) continue;
+                const ladderCenterX = l.x + 7;
+                if (wantLeftOfPlayer) {
+                  if (ladderCenterX > playerCenterX) continue;
+                  const d = playerCenterX - ladderCenterX;
+                  if (d < bestDist) { bestDist = d; bestLi = li; }
+                } else {
+                  if (ladderCenterX < playerCenterX) continue;
+                  const d = ladderCenterX - playerCenterX;
+                  if (d < bestDist) { bestDist = d; bestLi = li; }
+                }
+              }
+            } else {
+              // Player not on the platform directly below — drop at the vine on this
+              // platform nearest to the wheel.
+              for (let li = 0; li < LADDERS.length; li++) {
+                if (li === TOP_VINE_IDX && !g.topVineUnlocked) continue;
+                const l = LADDERS[li];
+                const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
+                if (topPlatIdx !== bPlatIdx) continue;
+                const ladderCenterX = l.x + 7;
+                const d = Math.abs(ladderCenterX - bCenterX);
                 if (d < bestDist) { bestDist = d; bestLi = li; }
               }
             }
