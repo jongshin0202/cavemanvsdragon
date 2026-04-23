@@ -277,6 +277,7 @@ const CavemanVsDragonGame = () => {
 
   // Keep refs in sync with state for the canvas render loop
   useEffect(() => { scoresRef.current = scores; }, [scores]);
+  useEffect(() => { globalScoresRef.current = globalScores; }, [globalScores]);
   useEffect(() => { nameInputRef.current = nameInput; }, [nameInput]);
   useEffect(() => { nameErrorRef.current = nameError; }, [nameError]);
   useEffect(() => { isMobileRef.current = isMobile; }, [isMobile]);
