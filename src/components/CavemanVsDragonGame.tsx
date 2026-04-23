@@ -328,8 +328,15 @@ const CavemanVsDragonGame = () => {
 
   // Re-check when the user lands on the global leaderboard view, so the list
   // they see reflects any other players' submissions since launch.
+  // EXCEPTION: if we just inserted our own row, skip this probe — we already
+  // hold the canonical row from the insert response, and probing too soon
+  // can race the server-side commit and overwrite it.
   useEffect(() => {
     if (gameState !== 'globalLeaderboard' && gameState !== 'attractGlobalLeaderboard') return;
+    if (justSubmittedSkipProbe.current) {
+      justSubmittedSkipProbe.current = false;
+      return;
+    }
     checkAndRefresh()
       .then((rows) => setGlobalScores(rows))
       .catch(() => { /* logged in module */ });
