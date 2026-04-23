@@ -237,8 +237,8 @@ const CavemanVsDragonGame = () => {
       const gs = gameStateRef.current;
       const g = gameRef.current;
 
-      if (gs === 'intro') {
-        // Any key/tap starts the game from the intro screen
+      if (gs === 'intro' || gs === 'attractLeaderboard' || gs === 'attractControls') {
+        // Any key/tap starts the game from the intro/attract screens
         resetGame();
         return true;
       }
