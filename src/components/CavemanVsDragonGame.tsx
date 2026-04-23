@@ -1878,99 +1878,34 @@ const CavemanVsDragonGame = () => {
           </button>
         )}
 
-        {/* Attract: Top 10 leaderboard over the intro background */}
-        {gameState === 'attractLeaderboard' && (
-          <button
-            type="button"
-            aria-label="Start game"
-            onPointerDown={(e) => { e.preventDefault(); unlockAudio(); resetGame(); }}
-            className="absolute inset-0 flex flex-col items-center overflow-hidden focus:outline-none bg-black"
-            style={{
-              backgroundImage: `url(${introBackgroundUrl})`,
-              backgroundSize: 'contain',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
-              imageRendering: 'pixelated',
-            }}
-          >
-            <div className="pointer-events-none absolute inset-0 bg-black/70" />
-            <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-4 px-6 py-8">
-              <h2
-                className="font-caveman text-center"
-                style={{
-                  fontSize: 'clamp(1.4rem, 5vw, 2.8rem)',
-                  color: 'hsl(var(--accent))',
-                  textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
-                }}
-              >
-                Top {MAX_ENTRIES}
-              </h2>
-              <ol
-                className="flex w-full max-w-md flex-col font-caveman"
-                style={{
-                  fontSize: 'clamp(0.55rem, 1.7vw, 0.85rem)',
-                  color: 'hsl(var(--foreground))',
-                  textShadow: '2px 2px 0 #000',
-                  lineHeight: 1.15,
-                }}
-              >
-                <li
-                  className="flex items-center justify-between gap-2 border-b-2 border-accent px-2 py-1 text-accent"
-                  aria-hidden="true"
-                >
-                  <span className="w-6">#</span>
-                  <span className="flex-1 tracking-widest">NAME</span>
-                  <span className="w-16 text-right">SCORE</span>
-                  <span className="w-8 text-right">LV</span>
-                </li>
-                {Array.from({ length: MAX_ENTRIES }).map((_, i) => {
-                  const e = scores[i];
-                  const display = e ? entryDisplayName(e) : '---';
-                  return (
-                    <li key={i} className="flex items-center justify-between gap-2 border-b border-accent/20 px-2 py-[2px]">
-                      <span className="w-6 text-accent">{(i + 1).toString().padStart(2, '0')}</span>
-                      <span className="flex-1 truncate tracking-wider">{display}</span>
-                      <span className="w-16 text-right">{e ? e.score.toString().padStart(6, '0') : '------'}</span>
-                      <span className="w-8 text-right text-accent">{e && e.level != null ? `L${e.level}` : '--'}</span>
-                    </li>
-                  );
-                })}
-              </ol>
-            </div>
-            {/* Footer prompt — same position as intro screen */}
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 mb-[7%] flex w-full flex-col items-center gap-3 px-4">
-              <div
-                className="intro-blink text-center font-caveman"
-                style={{
-                  fontSize: 'clamp(1.25rem, 4.2vw, 2.4rem)',
-                  color: 'hsl(var(--accent))',
-                  textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
-                }}
-              >
-                {isMobile ? 'Tap Anywhere to Start' : 'Press R to Start'}
-              </div>
-              <div
-                className="flex items-center justify-center gap-3 text-center font-caveman"
-                style={{
-                  fontSize: 'clamp(0.85rem, 2.4vw, 1.4rem)',
-                  color: 'hsl(var(--foreground))',
-                  textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
-                  letterSpacing: '0.08em',
-                }}
-              >
-                <span>© Team2Go, 2026</span>
-                <img
-                  src={team2goLogoUrl}
-                  alt="Team2Go logo"
-                  className="object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
-                  style={{
-                    width: 'clamp(40px, 7vw, 64px)',
-                    height: 'clamp(40px, 7vw, 64px)',
-                  }}
-                />
-              </div>
-            </div>
-          </button>
+        {/* Attract: LOCAL leaderboard (your own device only) */}
+        {gameState === 'attractLocalLeaderboard' && (
+          <AttractLeaderboardScreen
+            kind="local"
+            isMobile={isMobile}
+            scores={scores}
+            globalScores={globalScores}
+            globalLoading={globalLoading}
+            onStart={() => { unlockAudio(); resetGame(); }}
+            onRequestClearLocal={() => setConfirmClearOpen(true)}
+            background={introBackgroundUrl}
+            logo={team2goLogoUrl}
+          />
+        )}
+
+        {/* Attract: GLOBAL leaderboard (everyone, via Lovable Cloud) */}
+        {gameState === 'attractGlobalLeaderboard' && (
+          <AttractLeaderboardScreen
+            kind="global"
+            isMobile={isMobile}
+            scores={scores}
+            globalScores={globalScores}
+            globalLoading={globalLoading}
+            onStart={() => { unlockAudio(); resetGame(); }}
+            onRequestClearLocal={() => setConfirmClearOpen(true)}
+            background={introBackgroundUrl}
+            logo={team2goLogoUrl}
+          />
         )}
 
         {/* Attract: How to play (PC only) */}
