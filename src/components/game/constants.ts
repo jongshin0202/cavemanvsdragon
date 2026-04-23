@@ -29,6 +29,9 @@ export const DIFFICULTY = {
   },
   // +10% harder per round: spawn intervals shrink, speeds grow.
   scalePerRound: 0.10,
+  // Rock-wheel rolling speed ramps a bit faster than the rest (+10% extra
+  // on top of scalePerRound, so ~20% per round).
+  barrelSpeedScalePerRound: 0.20,
   // Monkey count grows +1 every N rounds, capped.
   monkeyCountEveryNRounds: 2,
   monkeyCountCap: 6,
@@ -39,13 +42,14 @@ export function getRoundDifficulty(round: number) {
   const steps = r - 1;
   const harder = 1 + DIFFICULTY.scalePerRound * steps; // >=1
   const easier = 1 / harder;                            // shrink intervals
+  const barrelHarder = 1 + DIFFICULTY.barrelSpeedScalePerRound * steps; // faster wheels
   const b = DIFFICULTY.base;
   const extraMonkeys = Math.floor(steps / DIFFICULTY.monkeyCountEveryNRounds);
   return {
     round: r,
     barrelSpawnMin: Math.max(20, b.barrelSpawnMin * easier),
     barrelSpawnRange: Math.max(20, b.barrelSpawnRange * easier),
-    barrelSpeedMul: b.barrelSpeedMul * harder,
+    barrelSpeedMul: b.barrelSpeedMul * barrelHarder,
     barrelSpeedJitter: b.barrelSpeedJitter,
     monkeyCount: Math.min(DIFFICULTY.monkeyCountCap, b.monkeyCount + extraMonkeys),
     monkeySpeedMul: b.monkeySpeedMul * harder,
