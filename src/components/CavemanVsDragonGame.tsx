@@ -553,7 +553,17 @@ const CavemanVsDragonGame = () => {
       if (consumed) { e.preventDefault(); return; }
       if (e.key === 'r' || e.key === 'R' || e.code === 'KeyR') { e.preventDefault(); resetGame(); }
     };
-    const handleKeyUp = (e: KeyboardEvent) => keysRef.current.delete(e.key);
+    const handleKeyUp = (e: KeyboardEvent) => {
+      keysRef.current.delete(e.key);
+      // Releasing C cancels the pending hold-to-clear timer.
+      if (e.key === 'c' || e.key === 'C') {
+        if (cHoldTimerRef.current !== null) {
+          window.clearTimeout(cHoldTimerRef.current);
+          cHoldTimerRef.current = null;
+        }
+        cHoldFiredRef.current = false;
+      }
+    };
     const handleFirstGesture = () => { unlockAudio(); };
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
