@@ -222,8 +222,9 @@ const CavemanVsDragonGame = () => {
     playLevelIntro(nextRound, () => resetLevel());
   }, [resetLevel, playLevelIntro]);
 
-  // Submit a high score and move to the leaderboard view
-  const submitHighScore = useCallback(() => {
+  // Submit a high score: writes to LOCAL always, and to GLOBAL if it qualifies
+  // for the global top 20. Then routes to the appropriate post-game view.
+  const submitHighScore = useCallback(async () => {
     const raw = nameInputRef.current;
     const v = validateName(raw);
     if (!v.ok) {
@@ -239,10 +240,38 @@ const CavemanVsDragonGame = () => {
       date: new Date().toISOString(),
       level: pendingLevel,
     };
+    // 1) Always write to local
     const next = insertScore(entry);
     setScores(next);
     setNameError('');
-    setGameState('leaderboard');
+
+    // 2) If it qualifies globally, write to the cloud and show GLOBAL view.
+    //    Otherwise, show LOCAL view.
+    if (justSubmittedGlobal.current) {
+      // Optimistically merge into the displayed list, then refresh from server.
+      const optimistic: GlobalEntry = {
+        name: cleanName,
+        score: pendingScore,
+        level: pendingLevel,
+        created_at: new Date().toISOString(),
+      };
+      setGlobalScores((prev) => {
+        const merged = [...prev, optimistic]
+          .sort((a, b) => b.score - a.score || (a.created_at || '').localeCompare(b.created_at || ''))
+          .slice(0, MAX_ENTRIES);
+        return merged;
+      });
+      setGameState('globalLeaderboard');
+      // Fire-and-forget; refresh after server confirms.
+      submitGlobalScore({ name: cleanName, score: pendingScore, level: pendingLevel })
+        .then(async () => {
+          const fresh = await fetchGlobalTop();
+          setGlobalScores(fresh);
+        })
+        .catch(() => {/* network errors already logged */});
+    } else {
+      setGameState('leaderboard');
+    }
   }, [pendingScore, pendingLevel]);
 
   // Keep refs in sync with state for the canvas render loop
@@ -250,6 +279,22 @@ const CavemanVsDragonGame = () => {
   useEffect(() => { nameInputRef.current = nameInput; }, [nameInput]);
   useEffect(() => { nameErrorRef.current = nameError; }, [nameError]);
   useEffect(() => { isMobileRef.current = isMobile; }, [isMobile]);
+
+  // Initial fetch of the global leaderboard (and a refresh whenever we land
+  // on a screen that displays it).
+  useEffect(() => {
+    let cancelled = false;
+    const shouldFetch =
+      gameState === 'intro' ||
+      gameState === 'attractGlobalLeaderboard' ||
+      gameState === 'globalLeaderboard';
+    if (!shouldFetch) return;
+    setGlobalLoading(true);
+    fetchGlobalTop()
+      .then((rows) => { if (!cancelled) setGlobalScores(rows); })
+      .finally(() => { if (!cancelled) setGlobalLoading(false); });
+    return () => { cancelled = true; };
+  }, [gameState]);
 
   // Clear any pending level-intro timers on unmount
   useEffect(() => () => {
