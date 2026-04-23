@@ -787,6 +787,18 @@ const CavemanVsDragonGame = () => {
                 continue; // skip this ladder entirely, let barrel fall off edge
               }
 
+              // Per-ladder gating: don't take a ladder the player is "behind" relative
+              // to the platform's downhill drop direction. Specifically, if the platform
+              // drops off the right edge and the player is LEFT of this ladder, skip it
+              // so the barrel keeps rolling past it (and either takes a later ladder or
+              // falls off the right edge). Mirror logic for left-dropping platforms.
+              if (dropEdgeIsRight && playerCenterX < ladderCenterX) {
+                continue;
+              }
+              if (dropEdgeIsLeft && playerCenterX > ladderCenterX) {
+                continue;
+              }
+
               // Score: is taking this ladder down closer to the player?
               const ladderBottomY = l.yBot;
               const ladderScore = scoreToPlayer(ladderCenterX, ladderBottomY);
