@@ -5,7 +5,8 @@ import {
   Barrel, Robot
 } from './game/constants';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarTracked, playPrincessHelpSound, isDragonRoaringNow, unlockAudio } from './game/sounds';
-import { loadScores, qualifiesForTop, insertScore, formatDate, MAX_ENTRIES, type LeaderboardEntry } from './game/leaderboard';
+import { loadScores, qualifiesForTop, insertScore, formatDate, entryDisplayName, MAX_ENTRIES, type LeaderboardEntry } from './game/leaderboard';
+import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
 import { useIsMobile } from '@/hooks/use-mobile';
 import cavemanWalkUrl from '@/assets/caveman-walk.png';
 import cavemanJumpUrl from '@/assets/caveman-jump.png';
@@ -32,7 +33,7 @@ const TOP_VINE_IDX = 8;
 // Where the seed must be planted (base of the topmost vine, on platform P5)
 const PLANT_X = 357; // matches LADDERS[8].x + 7
 
-type GameState = 'intro' | 'playing' | 'gameover' | 'win' | 'continue' | 'highscorePrompt' | 'enterInitials' | 'leaderboard' | 'attractLeaderboard' | 'attractControls';
+type GameState = 'intro' | 'playing' | 'gameover' | 'win' | 'continue' | 'highscorePrompt' | 'enterName' | 'leaderboard' | 'attractLeaderboard' | 'attractControls';
 
 const CavemanVsDragonGame = () => {
   const isMobile = useIsMobile();
@@ -42,8 +43,8 @@ const CavemanVsDragonGame = () => {
   const [lives, setLives] = useState(3);
   const [gameState, setGameState] = useState<GameState>('intro');
   const [scores, setScores] = useState<LeaderboardEntry[]>(() => loadScores());
-  const [initials, setInitials] = useState<string[]>(['A', 'A', 'A']);
-  const [initialsCursor, setInitialsCursor] = useState(0);
+  const [nameInput, setNameInput] = useState<string>('');
+  const [nameError, setNameError] = useState<string>('');
   const [pendingScore, setPendingScore] = useState(0);
   const [pendingLevel, setPendingLevel] = useState(1);
   // Level intro overlay: 'level' shows "Level N" for 3s, then 'black' for 0.5s, then null.
@@ -64,8 +65,9 @@ const CavemanVsDragonGame = () => {
   // Refs mirroring React state so the canvas render loop (inside an effect)
   // can read the current values without re-running the effect.
   const scoresRef = useRef<LeaderboardEntry[]>(scores);
-  const initialsRef = useRef<string[]>(initials);
-  const initialsCursorRef = useRef<number>(0);
+  const nameInputRef = useRef<string>('');
+  const nameErrorRef = useRef<string>('');
+  const nameFieldRef = useRef<HTMLInputElement | null>(null);
   const isMobileRef = useRef<boolean>(false);
   // Returns true if the input was consumed (i.e., used to advance a menu/screen).
   const anyInputHandlerRef = useRef<((key: string, source: 'keyboard' | 'pad') => boolean) | null>(null);
@@ -193,21 +195,31 @@ const CavemanVsDragonGame = () => {
 
   // Submit a high score and move to the leaderboard view
   const submitHighScore = useCallback(() => {
+    const raw = nameInputRef.current;
+    const v = validateName(raw);
+    if (!v.ok) {
+      setNameError(v.error || 'INVALID NAME');
+      return;
+    }
+    const cleanName = raw.trim().slice(0, NAME_MAX_LENGTH);
     const entry: LeaderboardEntry = {
-      initials: initialsRef.current.join('').toUpperCase().padEnd(3, 'A').slice(0, 3),
+      name: cleanName,
+      // Keep initials for backward compat (first 3 chars uppercased)
+      initials: cleanName.replace(/\s+/g, '').toUpperCase().padEnd(3, 'A').slice(0, 3),
       score: pendingScore,
       date: new Date().toISOString(),
       level: pendingLevel,
     };
     const next = insertScore(entry);
     setScores(next);
+    setNameError('');
     setGameState('leaderboard');
   }, [pendingScore, pendingLevel]);
 
   // Keep refs in sync with state for the canvas render loop
   useEffect(() => { scoresRef.current = scores; }, [scores]);
-  useEffect(() => { initialsRef.current = initials; }, [initials]);
-  useEffect(() => { initialsCursorRef.current = initialsCursor; }, [initialsCursor]);
+  useEffect(() => { nameInputRef.current = nameInput; }, [nameInput]);
+  useEffect(() => { nameErrorRef.current = nameError; }, [nameError]);
   useEffect(() => { isMobileRef.current = isMobile; }, [isMobile]);
 
   // Clear any pending level-intro timers on unmount
@@ -280,9 +292,11 @@ const CavemanVsDragonGame = () => {
 
       if (gs === 'highscorePrompt') {
         if (now < continueArmedAtRef.current) return true;
-        setInitials(['A', 'A', 'A']);
-        setInitialsCursor(0);
-        setGameState('enterInitials');
+        setNameInput('');
+        setNameError('');
+        setGameState('enterName');
+        // Focus the hidden input on the next tick so mobile soft keyboard pops up
+        setTimeout(() => nameFieldRef.current?.focus(), 0);
         return true;
       }
 
@@ -299,37 +313,15 @@ const CavemanVsDragonGame = () => {
         return false;
       }
 
-      if (gs === 'enterInitials') {
-        const cursor = initialsCursorRef.current;
-        const cur = [...initialsRef.current];
-        if (key === 'ArrowUp') {
-          const code = cur[cursor].charCodeAt(0);
-          cur[cursor] = String.fromCharCode(code === 90 ? 65 : code + 1); // A-Z wrap
-          setInitials(cur);
+      if (gs === 'enterName') {
+        // The hidden <input> handles typing via React onChange; here we only
+        // catch Enter (submit). Everything else is swallowed so it doesn't
+        // bleed into the game.
+        if (key === 'Enter') {
+          submitHighScore();
           return true;
         }
-        if (key === 'ArrowDown') {
-          const code = cur[cursor].charCodeAt(0);
-          cur[cursor] = String.fromCharCode(code === 65 ? 90 : code - 1);
-          setInitials(cur);
-          return true;
-        }
-        if (key === 'ArrowLeft') {
-          setInitialsCursor(Math.max(0, cursor - 1));
-          return true;
-        }
-        if (key === 'ArrowRight') {
-          if (cursor < 2) setInitialsCursor(cursor + 1);
-          else submitHighScore();
-          return true;
-        }
-        if (key === ' ' || key === 'Enter' || key === 'r' || key === 'R') {
-          // Jump / R confirms — advance cursor or submit
-          if (cursor < 2) setInitialsCursor(cursor + 1);
-          else submitHighScore();
-          return true;
-        }
-        return true; // swallow other keys during entry
+        return true; // swallow other keys during entry (typing handled by input element)
       }
 
       if (gs === 'leaderboard') {
@@ -391,6 +383,11 @@ const CavemanVsDragonGame = () => {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       unlockAudio();
+      // When the user is typing into the name input, let the input handle the
+      // key natively (we still listen for Enter inside the input's own onKeyDown).
+      if (e.target === nameFieldRef.current) {
+        return;
+      }
       keysRef.current.add(e.key);
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
       // Route input through the unified handler. It returns true if it consumed the key.
@@ -1414,73 +1411,87 @@ const CavemanVsDragonGame = () => {
         ctx.fillText(continuePrompt, CANVAS_W / 2, CANVAS_H / 2 + 70);
         ctx.fillText('TO CONTINUE', CANVAS_W / 2, CANVAS_H / 2 + 100);
       }
-      if (gameStateRef.current === 'enterInitials') {
+      if (gameStateRef.current === 'enterName') {
         ctx.fillStyle = 'rgba(0,0,0,0.95)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
         ctx.fillStyle = '#FFD700'; ctx.font = `bold 26px ${arcade}`;
-        ctx.fillText('ENTER YOUR INITIALS', CANVAS_W / 2, 100);
+        ctx.fillText('ENTER YOUR NAME', CANVAS_W / 2, 90);
         ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 22px ${arcade}`;
-        ctx.fillText(`SCORE: ${pendingScore}`, CANVAS_W / 2, 150);
+        ctx.fillText(`SCORE: ${pendingScore}`, CANVAS_W / 2, 140);
 
-        const letters = initialsRef.current;
-        const cursor = initialsCursorRef.current;
-        const spacing = 60;
-        const startX = CANVAS_W / 2 - spacing;
-        const letterY = 250;
-        ctx.font = `bold 56px ${arcade}`;
-        for (let i = 0; i < 3; i++) {
-          const x = startX + i * spacing;
-          ctx.fillStyle = i === cursor ? '#FFD700' : '#FFFFFF';
-          ctx.fillText(letters[i], x, letterY);
-          if (i === cursor) {
-            ctx.fillStyle = '#FFD700';
-            ctx.font = `bold 16px ${arcade}`;
-            ctx.fillText('▲', x, letterY - 56);
-            ctx.fillText('▼', x, letterY + 28);
-            ctx.font = `bold 56px ${arcade}`;
-          }
+        // Name field box (visual representation of the typed name)
+        const boxW = 380, boxH = 64;
+        const boxX = (CANVAS_W - boxW) / 2;
+        const boxY = 200;
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        ctx.fillRect(boxX, boxY, boxW, boxH);
+        ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 3;
+        ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+        const typed = nameInputRef.current;
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = `bold 28px ${arcade}`;
+        ctx.textAlign = 'center';
+        const display = typed.length === 0 ? '_' : typed;
+        ctx.fillText(display, CANVAS_W / 2, boxY + boxH / 2 + 10);
+
+        // Char counter
+        ctx.font = `bold 12px ${arcade}`;
+        ctx.fillStyle = '#888888';
+        ctx.fillText(`${typed.length}/${NAME_MAX_LENGTH}`, CANVAS_W / 2, boxY + boxH + 22);
+
+        // Error message
+        if (nameErrorRef.current) {
+          ctx.fillStyle = '#FF5050';
+          ctx.font = `bold 14px ${arcade}`;
+          ctx.fillText(nameErrorRef.current, CANVAS_W / 2, boxY + boxH + 50);
         }
-        ctx.font = `bold 14px ${arcade}`;
+
+        // Hints
+        ctx.font = `bold 12px ${arcade}`;
         ctx.fillStyle = '#AAAAAA';
-        ctx.fillText('UP/DOWN: CHANGE   LEFT/RIGHT: MOVE', CANVAS_W / 2, 340);
-        ctx.fillText(isMobileRef.current ? 'JUMP/R: CONFIRM' : 'SPACE/ENTER: CONFIRM', CANVAS_W / 2, 365);
+        ctx.fillText('A-Z, 0-9, SPACE   MAX 10 CHARS', CANVAS_W / 2, CANVAS_H - 60);
+        ctx.fillText(isMobileRef.current ? 'TAP FIELD ABOVE TO TYPE' : 'PRESS ENTER TO SUBMIT', CANVAS_W / 2, CANVAS_H - 38);
       }
       if (gameStateRef.current === 'leaderboard') {
         ctx.fillStyle = 'rgba(0,0,0,0.95)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-        ctx.fillStyle = '#FFD700'; ctx.font = `bold 24px ${arcade}`;
-        ctx.fillText('TOP 10 SCORES', CANVAS_W / 2, 50);
+        ctx.fillStyle = '#FFD700'; ctx.font = `bold 20px ${arcade}`;
+        ctx.fillText(`TOP ${MAX_ENTRIES} SCORES`, CANVAS_W / 2, 30);
 
         const list = scoresRef.current;
-        ctx.font = `bold 12px ${arcade}`;
+        ctx.font = `bold 10px ${arcade}`;
         ctx.textAlign = 'left';
-        const colRank = 30, colInit = 80, colScore = 160, colLevel = 250, colDate = 320;
-        ctx.fillStyle = '#888888';
-        ctx.fillText('#', colRank, 85);
-        ctx.fillText('NAME', colInit, 85);
-        ctx.fillText('SCORE', colScore, 85);
-        ctx.fillText('LV', colLevel, 85);
-        ctx.fillText('DATE', colDate, 85);
+        const colRank = 14, colName = 44, colScore = 230, colLevel = 320, colDate = 360;
+        ctx.fillStyle = '#FFD700';
+        ctx.fillText('#', colRank, 55);
+        ctx.fillText('NAME', colName, 55);
+        ctx.fillText('SCORE', colScore, 55);
+        ctx.fillText('LV', colLevel, 55);
+        ctx.fillText('DATE', colDate, 55);
+        const rowH = 19;
+        const startY = 72;
         for (let i = 0; i < MAX_ENTRIES; i++) {
           const e = list[i];
-          const y = 110 + i * 28;
-          const isMine = e && e.score === pendingScore && e.initials === initialsRef.current.join('');
+          const y = startY + i * rowH;
+          const isMine = e && e.score === pendingScore && (e.name === nameInputRef.current.trim() || e.name === nameInputRef.current);
           ctx.fillStyle = isMine ? '#FFD700' : '#FFFFFF';
           ctx.fillText(`${i + 1}.`, colRank, y);
           if (e) {
-            ctx.fillText(e.initials, colInit, y);
+            const display = (e.name && e.name.trim()) || e.initials;
+            ctx.fillText(display.slice(0, 10), colName, y);
             ctx.fillText(String(e.score), colScore, y);
             ctx.fillText(e.level != null ? String(e.level) : '-', colLevel, y);
-            ctx.fillText(formatDate(e.date), colDate, y);
+            ctx.fillText(formatDate(e.date).slice(0, 10), colDate, y);
           } else {
             ctx.fillStyle = '#444444';
-            ctx.fillText('---', colInit, y);
+            ctx.fillText('---', colName, y);
             ctx.fillText('---', colScore, y);
             ctx.fillText('-', colLevel, y);
             ctx.fillText('---', colDate, y);
           }
         }
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 18px ${arcade}`;
-        ctx.fillText('PRESS R TO RESTART', CANVAS_W / 2, CANVAS_H - 25);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 14px ${arcade}`;
+        ctx.fillText('PRESS R TO RESTART', CANVAS_W / 2, CANVAS_H - 12);
       }
       ctx.textAlign = 'start';
 
@@ -1662,6 +1673,38 @@ const CavemanVsDragonGame = () => {
           tabIndex={0}
         />
 
+        {/* Hidden text input — surfaces the OS soft keyboard during name entry.
+            Positioned over the on-canvas name field, kept visually transparent
+            so the canvas-rendered name is what the user sees. */}
+        {gameState === 'enterName' && (
+          <input
+            ref={nameFieldRef}
+            type="text"
+            value={nameInput}
+            onChange={(e) => {
+              const filtered = e.target.value
+                .replace(/[^A-Za-z0-9 ]/g, '')
+                .slice(0, NAME_MAX_LENGTH);
+              setNameInput(filtered);
+              if (nameError) setNameError('');
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                submitHighScore();
+              }
+            }}
+            autoFocus
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            maxLength={NAME_MAX_LENGTH}
+            aria-label="Enter your name (up to 10 characters)"
+            placeholder=""
+            className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[14%] bg-transparent text-transparent caret-transparent border-0 outline-none focus:outline-none p-0 m-0 text-center"
+            style={{ WebkitAppearance: 'none', appearance: 'none' }}
+          />
+        )}
         {/* Arcade-style intro / title screen overlay */}
         {gameState === 'intro' && (
           <button
@@ -1749,33 +1792,35 @@ const CavemanVsDragonGame = () => {
                   textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
                 }}
               >
-                Top 10
+                Top {MAX_ENTRIES}
               </h2>
               <ol
-                className="flex w-full max-w-md flex-col gap-1 font-caveman"
+                className="flex w-full max-w-md flex-col font-caveman"
                 style={{
-                  fontSize: 'clamp(0.7rem, 2.2vw, 1.1rem)',
+                  fontSize: 'clamp(0.55rem, 1.7vw, 0.85rem)',
                   color: 'hsl(var(--foreground))',
                   textShadow: '2px 2px 0 #000',
+                  lineHeight: 1.15,
                 }}
               >
                 <li
-                  className="flex items-center justify-between gap-3 border-b-2 border-accent px-2 py-1 text-accent"
+                  className="flex items-center justify-between gap-2 border-b-2 border-accent px-2 py-1 text-accent"
                   aria-hidden="true"
                 >
                   <span className="w-6">#</span>
-                  <span className="flex-1 text-center tracking-widest">NAME</span>
-                  <span className="w-20 text-right">SCORE</span>
-                  <span className="w-12 text-right">LV</span>
+                  <span className="flex-1 tracking-widest">NAME</span>
+                  <span className="w-16 text-right">SCORE</span>
+                  <span className="w-8 text-right">LV</span>
                 </li>
                 {Array.from({ length: MAX_ENTRIES }).map((_, i) => {
                   const e = scores[i];
+                  const display = e ? entryDisplayName(e) : '---';
                   return (
-                    <li key={i} className="flex items-center justify-between gap-3 border-b border-accent/30 px-2 py-1">
+                    <li key={i} className="flex items-center justify-between gap-2 border-b border-accent/20 px-2 py-[2px]">
                       <span className="w-6 text-accent">{(i + 1).toString().padStart(2, '0')}</span>
-                      <span className="flex-1 text-center tracking-widest">{e ? e.initials : '---'}</span>
-                      <span className="w-20 text-right">{e ? e.score.toString().padStart(6, '0') : '------'}</span>
-                      <span className="w-12 text-right text-accent">{e && e.level != null ? `L${e.level}` : '--'}</span>
+                      <span className="flex-1 truncate tracking-wider">{display}</span>
+                      <span className="w-16 text-right">{e ? e.score.toString().padStart(6, '0') : '------'}</span>
+                      <span className="w-8 text-right text-accent">{e && e.level != null ? `L${e.level}` : '--'}</span>
                     </li>
                   );
                 })}
