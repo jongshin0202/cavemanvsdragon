@@ -383,6 +383,11 @@ const CavemanVsDragonGame = () => {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       unlockAudio();
+      // When the user is typing into the name input, let the input handle the
+      // key natively (we still listen for Enter inside the input's own onKeyDown).
+      if (e.target === nameFieldRef.current) {
+        return;
+      }
       keysRef.current.add(e.key);
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
       // Route input through the unified handler. It returns true if it consumed the key.
