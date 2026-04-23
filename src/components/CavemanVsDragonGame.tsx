@@ -415,7 +415,25 @@ const CavemanVsDragonGame = () => {
         gs === 'attractGlobalLeaderboard' ||
         gs === 'attractControls'
       ) {
-        // Any key/tap starts the game from the intro/attract screens
+        // PC: on the local-leaderboard attract screen, holding C for 10s
+        // opens the "clear local leaderboard" confirmation. Don't start a
+        // new game while C is being held.
+        if (
+          _source === 'keyboard' &&
+          gs === 'attractLocalLeaderboard' &&
+          (key === 'c' || key === 'C')
+        ) {
+          if (cHoldTimerRef.current === null && !cHoldFiredRef.current) {
+            cHoldFiredRef.current = false;
+            cHoldTimerRef.current = window.setTimeout(() => {
+              cHoldFiredRef.current = true;
+              cHoldTimerRef.current = null;
+              setConfirmClearOpen(true);
+            }, 10_000);
+          }
+          return true; // swallow C — don't start the game
+        }
+        // Any other key/tap starts the game from the intro/attract screens
         resetGame();
         return true;
       }
