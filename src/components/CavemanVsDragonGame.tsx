@@ -1594,11 +1594,13 @@ const CavemanVsDragonGame = () => {
           ref={canvasRef}
           width={CANVAS_W}
           height={CANVAS_H}
-          className="block border-b-2 border-primary max-h-full max-w-full h-auto w-auto"
+          className="block border-b-2 border-primary"
           style={{
             imageRendering: 'pixelated',
             aspectRatio: `${CANVAS_W} / ${CANVAS_H}`,
-            height: '100%',
+            maxHeight: '100%',
+            maxWidth: '100%',
+            height: 'auto',
             width: 'auto',
           }}
           tabIndex={0}
