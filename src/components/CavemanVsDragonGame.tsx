@@ -1492,7 +1492,7 @@ const CavemanVsDragonGame = () => {
       ctx.textAlign = 'right';
       ctx.fillText(`LIVES: ${'♥'.repeat(g.lives)}`, CANVAS_W - 10, 28);
       ctx.textAlign = 'center';
-      const topScore = scoresRef.current[0]?.score ?? 0;
+      const topScore = globalScoresRef.current[0]?.score ?? 0;
       ctx.fillText(`HI: ${topScore}`, CANVAS_W / 2, 28);
       ctx.textAlign = 'left';
 
