@@ -1714,12 +1714,15 @@ const CavemanVsDragonGame = () => {
                   );
                 })}
               </ol>
+            </div>
+            {/* Footer prompt — same position as intro screen */}
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 mb-[7%] flex w-full flex-col items-center gap-3 px-4">
               <div
-                className="intro-blink mt-2 text-center font-caveman"
+                className="intro-blink text-center font-caveman"
                 style={{
-                  fontSize: 'clamp(0.9rem, 2.8vw, 1.4rem)',
+                  fontSize: 'clamp(1.25rem, 4.2vw, 2.4rem)',
                   color: 'hsl(var(--accent))',
-                  textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
+                  textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
                 }}
               >
                 {isMobile ? 'Tap Anywhere to Start' : 'Press R to Start'}
