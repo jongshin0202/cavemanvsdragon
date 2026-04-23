@@ -669,22 +669,25 @@ const CavemanVsDragonGame = () => {
           }
         }
 
-        // === MONKEY SPAWNING (count scales with round, distributed across P2..P5) ===
+        // === MONKEY SPAWNING ===
+        // Distribution across P2..P5 grows by +1 per finished round, added to a
+        // random platform with the current minimum count, until each platform
+        // has 5 (20 monkeys total). After that the distribution stays at 5/5/5/5.
         if (!g.robotsInitialized) {
           g.robotsInitialized = true;
           const d = getRoundDifficulty(g.round);
           const platSlots = [1, 2, 3, 4]; // P2..P5
-          // If fewer than 2 monkeys, randomize which platform they spawn on.
-          const useRandomPlat = d.monkeyCount < 2;
-          for (let m = 0; m < d.monkeyCount; m++) {
-            const pi = useRandomPlat
-              ? platSlots[Math.floor(Math.random() * platSlots.length)]
-              : platSlots[m % platSlots.length];
+          const distribution = buildMonkeyDistribution(g.round);
+          for (let s = 0; s < platSlots.length; s++) {
+            const pi = platSlots[s];
             const plat = PLATFORMS[pi];
-            const rx = plat.x1 + 30 + Math.random() * (plat.x2 - plat.x1 - 60);
-            const ry = getPlatformY(plat, rx) - 16;
-            const spd = ROBOT_SPEED * (d.monkeySpeedMul + Math.random() * d.monkeySpeedJitter);
-            g.robots.push({ x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0, onGround: true, climbing: false, targetLadder: null, direction: Math.random() > 0.5 ? 1 : -1, frame: 0, frameTimer: 0, speed: spd });
+            const count = distribution[s] || 0;
+            for (let m = 0; m < count; m++) {
+              const rx = plat.x1 + 30 + Math.random() * (plat.x2 - plat.x1 - 60);
+              const ry = getPlatformY(plat, rx) - 16;
+              const spd = ROBOT_SPEED * (d.monkeySpeedMul + Math.random() * d.monkeySpeedJitter);
+              g.robots.push({ x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0, onGround: true, climbing: false, targetLadder: null, direction: Math.random() > 0.5 ? 1 : -1, frame: 0, frameTimer: 0, speed: spd });
+            }
           }
         }
 
