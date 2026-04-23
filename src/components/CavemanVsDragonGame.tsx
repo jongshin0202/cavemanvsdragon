@@ -45,6 +45,10 @@ const CavemanVsDragonGame = () => {
   const [initials, setInitials] = useState<string[]>(['A', 'A', 'A']);
   const [initialsCursor, setInitialsCursor] = useState(0);
   const [pendingScore, setPendingScore] = useState(0);
+  // Level intro overlay: 'level' shows "Level N" for 3s, then 'black' for 0.5s, then null.
+  const [levelIntro, setLevelIntro] = useState<null | 'level' | 'black'>(null);
+  const [levelIntroNumber, setLevelIntroNumber] = useState(1);
+  const levelIntroTimersRef = useRef<number[]>([]);
   const continueArmedAtRef = useRef(0); // ms timestamp when input is allowed
   const walkSpriteRef = useRef<HTMLImageElement | null>(null);
   const jumpSpriteRef = useRef<HTMLImageElement | null>(null);
