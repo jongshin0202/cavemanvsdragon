@@ -254,7 +254,8 @@ const CavemanVsDragonGame = () => {
     // 2) If it qualifies globally, write to the cloud and show GLOBAL view.
     //    Otherwise, show LOCAL view.
     if (justSubmittedGlobal.current) {
-      // Optimistically merge into the displayed list.
+      // Anonymous usage stats: count this as a global-leaderboard hit.
+      recordGlobalHit();
       // The realtime subscription + cache layer also merges the canonical row
       // when it arrives — no extra fetch needed here.
       const optimistic: GlobalEntry = {
