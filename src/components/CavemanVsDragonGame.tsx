@@ -180,6 +180,7 @@ const CavemanVsDragonGame = () => {
     g.princessAnimTimer = 0; g.helpTimer = 0; g.showHelp = false;
     g.winAnim = { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
     g.monkeysKilled = 0;
+    g.comboKills = 0;
     g.keySpawned = false;
     g.keyGrabbed = false;
     g.seedPlanted = false;
