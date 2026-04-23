@@ -211,6 +211,9 @@ const CavemanVsDragonGame = () => {
     g.score = 0; g.lives = 3; g.round = 1;
     setScore(0); setLives(3);
     setGameState('playing');
+    // Anonymous usage stats: count this as a launch (round 1 implicit).
+    recordRound();
+    recordLaunchAndMaybeFlush().catch(() => { /* logged in module */ });
     playLevelIntro(1, () => resetLevel());
   }, [resetLevel, playLevelIntro]);
 
@@ -221,6 +224,7 @@ const CavemanVsDragonGame = () => {
     g.round += 1;
     const nextRound = g.round;
     setGameState('playing');
+    recordRound();
     playLevelIntro(nextRound, () => resetLevel());
   }, [resetLevel, playLevelIntro]);
 
