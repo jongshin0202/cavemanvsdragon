@@ -762,16 +762,20 @@ const CavemanVsDragonGame = () => {
             //   vine on this platform that is NEAREST to the wheel.
             let tookLadder = false;
             const playerPlatIdx = findPlatformIndex(playerFeetY, playerCenterX);
-            const platformBelowIdx = bPlatIdx + 1; // platforms are ordered top→bottom in PLATFORMS? Actually bottom→top: P1=index 0 = ground. So "below" means lower index.
-            // PLATFORMS[0] is ground (lowest visually = highest y), and indices increase upward.
-            // The platform directly below the wheel's current platform is therefore bPlatIdx - 1.
+            // PLATFORMS[0] is ground (highest y); index increases UPWARD.
+            // The platform directly below the wheel is therefore bPlatIdx - 1.
             const directlyBelowIdx = bPlatIdx - 1;
+            const playerOnSamePlatform = playerPlatIdx === bPlatIdx;
             const playerIsDirectlyBelow = playerPlatIdx === directlyBelowIdx;
 
             let bestLi = -1;
             let bestDist = Infinity;
 
-            if (playerIsDirectlyBelow) {
+            // If the wheel is on the same platform as the player, never take a vine —
+            // just keep rolling so it can hit him directly.
+            if (playerOnSamePlatform) {
+              // skip vine selection entirely
+            } else if (playerIsDirectlyBelow) {
               const landingPlat = PLATFORMS[directlyBelowIdx];
               const landingRollDir = landingPlat && (landingPlat.slope || 0) < 0 ? -1 : 1;
               const wantLeftOfPlayer = landingRollDir > 0;
