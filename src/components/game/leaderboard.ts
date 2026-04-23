@@ -16,6 +16,7 @@ export function loadScores(): LeaderboardEntry[] {
     if (!Array.isArray(parsed)) return [];
     return parsed
       .filter((e) => e && typeof e.initials === 'string' && typeof e.score === 'number' && typeof e.date === 'string')
+      .map((e) => ({ ...e, level: typeof e.level === 'number' ? e.level : undefined }))
       .slice(0, MAX_ENTRIES);
   } catch {
     return [];
