@@ -1537,7 +1537,7 @@ const CavemanVsDragonGame = () => {
       if (gameStateRef.current === 'continue') {
         ctx.fillStyle = 'rgba(0,0,0,0.9)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
         ctx.fillStyle = '#FFD700'; ctx.font = `bold 40px ${arcade}`;
-        ctx.fillText(`LEVEL ${g.level} CLEAR!`, CANVAS_W / 2, CANVAS_H / 2 - 90);
+        ctx.fillText(`LEVEL ${g.round} CLEAR!`, CANVAS_W / 2, CANVAS_H / 2 - 90);
         ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 28px ${arcade}`;
         ctx.fillText(`SCORE: ${g.score}`, CANVAS_W / 2, CANVAS_H / 2 - 30);
         ctx.fillText(`LIVES: ${g.lives}`, CANVAS_W / 2, CANVAS_H / 2 + 10);
