@@ -54,6 +54,15 @@ export function insertScore(entry: LeaderboardEntry, scores: LeaderboardEntry[] 
   return next;
 }
 
+// Wipe the local leaderboard (does NOT touch the global/cloud leaderboard).
+export function clearLocalScores(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 export function formatDate(iso: string): string {
   try {
     const d = new Date(iso);
