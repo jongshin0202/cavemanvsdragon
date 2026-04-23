@@ -1575,9 +1575,12 @@ const CavemanVsDragonGame = () => {
           >↓</div>
         </div>
 
-        {/* R button — small, between arrows and jump, must be tapped (not slid) */}
+        {/* R button — only visible at game over (press R to restart) */}
         <button
           className="w-10 h-10 self-center rounded-full bg-accent text-accent-foreground text-sm font-bold active:scale-95 shrink-0"
+          style={{ visibility: gameState === 'gameover' ? 'visible' : 'hidden' }}
+          aria-hidden={gameState !== 'gameover'}
+          tabIndex={gameState === 'gameover' ? 0 : -1}
           onPointerDown={(e) => {
             e.preventDefault();
             ensureVibrateUnlocked();
