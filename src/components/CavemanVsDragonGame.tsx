@@ -1161,11 +1161,9 @@ const CavemanVsDragonGame = () => {
             if (p.vy > 0 && p.y + p.h <= r.y + r.h * 0.6) {
               const n = (g.comboKills || 0) + 1;
               g.comboKills = n;
-              // Spec: for N kills in one jump, total awarded = 300 * N.
-              // The Nth kill earns the linear delta = 300 * N - 300 * (N-1) = 300,
-              // i.e. each additional monkey is just worth its base 300.
-              // (User chose linear, not squared.)
-              g.score += 300; setScore(g.score);
+              // Combo: the Nth monkey killed in one jump is worth 300 * N
+              // (1st = 300, 2nd = 600, 3rd = 900, …). Linear in N, not squared.
+              g.score += 300 * n; setScore(g.score);
               playRobotKillSound();
               p.vy = -4;
               g.robots.splice(i, 1);
