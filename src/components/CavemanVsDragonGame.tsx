@@ -1161,15 +1161,11 @@ const CavemanVsDragonGame = () => {
             if (p.vy > 0 && p.y + p.h <= r.y + r.h * 0.6) {
               const n = (g.comboKills || 0) + 1;
               g.comboKills = n;
-              // For N kills in one jump, total awarded = 300 * N.
-              // Per-kill delta = 300 * (N - (N-1)) ... no — total grows with N,
-              // so the Nth kill's delta = 300 * N - 300 * (N-1) = 300.
-              // But spec is "multiply the score earned by N", so total = 300 * N
-              // means the Nth kill simply adds 300 + retroactive bump for previous kills.
-              // Per-kill delta = 300*N - 300*(N-1) = 300 baseline + 300*(N-1) retro bump on prior kill = 300 + 300 = 600 on 2nd, etc.
-              // Cleanest: delta = 300 (this kill) + 300 * (n - 1) (retro bump for the previous (n-1) kills, each gaining +300 once).
-              const delta = 300 + 300 * (n - 1);
-              g.score += delta; setScore(g.score);
+              // Spec: for N kills in one jump, total awarded = 300 * N.
+              // The Nth kill earns the linear delta = 300 * N - 300 * (N-1) = 300,
+              // i.e. each additional monkey is just worth its base 300.
+              // (User chose linear, not squared.)
+              g.score += 300; setScore(g.score);
               playRobotKillSound();
               p.vy = -4;
               g.robots.splice(i, 1);
