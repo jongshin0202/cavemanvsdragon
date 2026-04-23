@@ -6,7 +6,7 @@ import {
 } from './game/constants';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarTracked, playPrincessHelpSound, isDragonRoaringNow, unlockAudio } from './game/sounds';
 import { loadScores, qualifiesForTop, insertScore, clearLocalScores, formatDate, entryDisplayName, MAX_ENTRIES, type LeaderboardEntry } from './game/leaderboard';
-import { fetchGlobalTop, qualifiesForGlobal, submitGlobalScore, type GlobalEntry } from './game/globalLeaderboard';
+import { fetchGlobalTop, qualifiesForGlobal, submitGlobalScore, subscribeGlobal, getCachedGlobal, type GlobalEntry } from './game/globalLeaderboard';
 import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
@@ -249,7 +249,9 @@ const CavemanVsDragonGame = () => {
     // 2) If it qualifies globally, write to the cloud and show GLOBAL view.
     //    Otherwise, show LOCAL view.
     if (justSubmittedGlobal.current) {
-      // Optimistically merge into the displayed list, then refresh from server.
+      // Optimistically merge into the displayed list.
+      // The realtime subscription + cache layer also merges the canonical row
+      // when it arrives — no extra fetch needed here.
       const optimistic: GlobalEntry = {
         name: cleanName,
         score: pendingScore,
@@ -263,13 +265,9 @@ const CavemanVsDragonGame = () => {
         return merged;
       });
       setGameState('globalLeaderboard');
-      // Fire-and-forget; refresh after server confirms.
+      // Fire-and-forget cloud write; cache + subscribers updated inside.
       submitGlobalScore({ name: cleanName, score: pendingScore, level: pendingLevel })
-        .then(async () => {
-          const fresh = await fetchGlobalTop();
-          setGlobalScores(fresh);
-        })
-        .catch(() => {/* network errors already logged */});
+        .catch(() => { /* network errors already logged */ });
     } else {
       setGameState('leaderboard');
     }
@@ -282,21 +280,22 @@ const CavemanVsDragonGame = () => {
   useEffect(() => { nameErrorRef.current = nameError; }, [nameError]);
   useEffect(() => { isMobileRef.current = isMobile; }, [isMobile]);
 
-  // Initial fetch of the global leaderboard (and a refresh whenever we land
-  // on a screen that displays it).
+  // Global leaderboard: one-time setup. We:
+  //   1) Seed instantly from localStorage cache (zero network).
+  //   2) Subscribe to realtime INSERTs — pushes update us, no polling.
+  //      The subscription auto-pauses while the tab is hidden and resumes
+  //      (with a single fresh fetch) on visibility.
+  //   3) Do exactly ONE conditional fetch on mount: only if the cache is
+  //      stale (>60s old). All subsequent freshness comes from realtime.
   useEffect(() => {
-    let cancelled = false;
-    const shouldFetch =
-      gameState === 'intro' ||
-      gameState === 'attractGlobalLeaderboard' ||
-      gameState === 'globalLeaderboard';
-    if (!shouldFetch) return;
+    setGlobalScores(getCachedGlobal());
     setGlobalLoading(true);
     fetchGlobalTop()
-      .then((rows) => { if (!cancelled) setGlobalScores(rows); })
-      .finally(() => { if (!cancelled) setGlobalLoading(false); });
-    return () => { cancelled = true; };
-  }, [gameState]);
+      .then((rows) => setGlobalScores(rows))
+      .finally(() => setGlobalLoading(false));
+    const unsub = subscribeGlobal((rows) => setGlobalScores(rows));
+    return () => unsub();
+  }, []);
 
   // Clear any pending level-intro timers on unmount
   useEffect(() => () => {
