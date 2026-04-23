@@ -94,6 +94,7 @@ const CavemanVsDragonGame = () => {
   // Refs mirroring React state so the canvas render loop (inside an effect)
   // can read the current values without re-running the effect.
   const scoresRef = useRef<LeaderboardEntry[]>(scores);
+  const globalScoresRef = useRef<GlobalEntry[]>([]);
   const nameInputRef = useRef<string>('');
   const nameErrorRef = useRef<string>('');
   const nameFieldRef = useRef<HTMLInputElement | null>(null);
