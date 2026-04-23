@@ -1574,7 +1574,11 @@ const CavemanVsDragonGame = () => {
         ctx.fillStyle = '#FFD700'; ctx.font = `bold 34px ${arcade}`;
         ctx.fillText(`SCORE: ${g.score}`, CANVAS_W / 2, CANVAS_H / 2 + 20);
       }
-      if (gameStateRef.current === 'continue') {
+      // Use g.state alongside the React ref so we don't get a 1-frame flash of
+      // the bare game scene when transitioning from 'win' (CONGRATS) → 'continue'
+      // (LEVEL CLEAR), since g.state mutates immediately while gameStateRef.current
+      // only updates on the next React commit.
+      if (gameStateRef.current === 'continue' || g.state === 'continue') {
         ctx.fillStyle = 'rgba(0,0,0,0.9)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
         ctx.fillStyle = '#FFD700'; ctx.font = `bold 40px ${arcade}`;
         ctx.fillText(`LEVEL ${g.round} CLEAR!`, CANVAS_W / 2, CANVAS_H / 2 - 90);
