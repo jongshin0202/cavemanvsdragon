@@ -6,7 +6,7 @@ import {
 } from './game/constants';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarTracked, playPrincessHelpSound, isDragonRoaringNow, unlockAudio } from './game/sounds';
 import { loadScores, qualifiesForTop, insertScore, clearLocalScores, formatDate, entryDisplayName, MAX_ENTRIES, type LeaderboardEntry } from './game/leaderboard';
-import { fetchGlobalTop, qualifiesForGlobal, submitGlobalScore, subscribeGlobal, getCachedGlobal, type GlobalEntry } from './game/globalLeaderboard';
+import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal, type GlobalEntry } from './game/globalLeaderboard';
 import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
@@ -280,22 +280,29 @@ const CavemanVsDragonGame = () => {
   useEffect(() => { nameErrorRef.current = nameError; }, [nameError]);
   useEffect(() => { isMobileRef.current = isMobile; }, [isMobile]);
 
-  // Global leaderboard: one-time setup. We:
+  // Global leaderboard: check-on-demand strategy.
   //   1) Seed instantly from localStorage cache (zero network).
-  //   2) Subscribe to realtime INSERTs — pushes update us, no polling.
-  //      The subscription auto-pauses while the tab is hidden and resumes
-  //      (with a single fresh fetch) on visibility.
-  //   3) Do exactly ONE conditional fetch on mount: only if the cache is
-  //      stale (>60s old). All subsequent freshness comes from realtime.
+  //   2) On mount (game launch) run ONE tiny "did anything change?" probe.
+  //      If the server signature matches our cache → no extra reads.
+  //      If it differs → pull the fresh top N once.
+  //   3) We also re-run the same probe whenever the user enters the
+  //      GLOBAL leaderboard view with a fresh submission (see effect below).
   useEffect(() => {
     setGlobalScores(getCachedGlobal());
     setGlobalLoading(true);
-    fetchGlobalTop()
+    checkAndRefresh()
       .then((rows) => setGlobalScores(rows))
       .finally(() => setGlobalLoading(false));
-    const unsub = subscribeGlobal((rows) => setGlobalScores(rows));
-    return () => unsub();
   }, []);
+
+  // Re-check when the user lands on the global leaderboard view, so the list
+  // they see reflects any other players' submissions since launch.
+  useEffect(() => {
+    if (gameState !== 'globalLeaderboard' && gameState !== 'attractGlobalLeaderboard') return;
+    checkAndRefresh()
+      .then((rows) => setGlobalScores(rows))
+      .catch(() => { /* logged in module */ });
+  }, [gameState]);
 
   // Clear any pending level-intro timers on unmount
   useEffect(() => () => {

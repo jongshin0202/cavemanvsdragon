@@ -1,21 +1,27 @@
 // Global leaderboard backed by Lovable Cloud (Supabase).
 // Shared across ALL platforms (web preview, Vercel, APK, mobile, PC).
 //
-// Cost-optimization strategy:
-//   1. localStorage cache with a freshness TTL (default 60s) so repeat
-//      mounts/screens reuse the in-memory list instead of refetching.
-//   2. Single shared in-memory cache + subscriber list — multiple components
-//      asking for the leaderboard share one network call.
-//   3. A Realtime subscription on `global_leaderboard` replaces polling:
-//      whenever any device anywhere inserts a new score, every connected
-//      client receives the row and merges it locally. Zero extra reads.
-//   4. The realtime channel is started lazily (first subscriber) and torn
-//      down when the page is hidden, then restarted on visibility — so
-//      backgrounded tabs/apps don't keep an open WebSocket.
-//   5. After a local insert we OPTIMISTICALLY merge the row and skip the
-//      refetch. Realtime echoes the canonical row shortly after.
+// Cost-optimization strategy ("check on demand"):
+//   We do NOT keep an open WebSocket and we do NOT poll. Instead the cache
+//   is refreshed at exactly two moments:
+//
+//     1. On game launch (component mount)  → checkAndRefresh()
+//     2. When the user enters the GLOBAL leaderboard view with a fresh
+//        submission of their own                  → checkAndRefresh()
+//
+//   Each check is a tiny "did anything change?" probe:
+//     SELECT created_at FROM global_leaderboard
+//       ORDER BY created_at DESC LIMIT 1
+//     + a HEAD-style count.
+//   That is one row + one count, ~tens of bytes. If the (count, latest)
+//   signature matches what we have cached, we return the cached list and
+//   make ZERO additional reads. Only when the signature differs do we
+//   pull the full top-N.
+//
+//   Result: an idle device that opens the game costs ~1 small probe per
+//   launch; a device that submits a score costs 1 probe + 1 insert + at
+//   most 1 full fetch.
 import { supabase } from '@/integrations/supabase/client';
-import type { RealtimeChannel } from '@supabase/supabase-js';
 import { MAX_ENTRIES } from './leaderboard';
 
 export interface GlobalEntry {
@@ -26,24 +32,17 @@ export interface GlobalEntry {
   created_at?: string;
 }
 
-const CACHE_KEY = 'cavemanVsDragon.globalTop.v1';
-const CACHE_TTL_MS = 60_000; // refetch at most once per minute
+const CACHE_KEY = 'cavemanVsDragon.globalTop.v2';
 
 interface CachedShape {
-  fetchedAt: number;
+  // Signature describing the server state at the time of the last full fetch.
+  // If a probe returns the same signature, the cache is still authoritative.
+  signature: { count: number; latest: string | null };
   rows: GlobalEntry[];
 }
 
 // In-memory cache (shared across all callers in this tab).
 let memCache: CachedShape | null = null;
-// Subscribers that want to be notified when the leaderboard changes
-// (realtime insert, refetch, or optimistic merge).
-const subscribers = new Set<(rows: GlobalEntry[]) => void>();
-
-// Realtime channel state (lazy + visibility-aware)
-let channel: RealtimeChannel | null = null;
-let channelRefcount = 0;
-let visibilityHooked = false;
 
 // ---------- Cache helpers ----------
 
@@ -53,7 +52,14 @@ function loadCacheFromStorage(): CachedShape | null {
     const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as CachedShape;
-    if (!parsed || !Array.isArray(parsed.rows) || typeof parsed.fetchedAt !== 'number') return null;
+    if (
+      !parsed ||
+      !Array.isArray(parsed.rows) ||
+      !parsed.signature ||
+      typeof parsed.signature.count !== 'number'
+    ) {
+      return null;
+    }
     memCache = parsed;
     return parsed;
   } catch {
@@ -61,19 +67,13 @@ function loadCacheFromStorage(): CachedShape | null {
   }
 }
 
-function saveCache(rows: GlobalEntry[]): void {
-  memCache = { fetchedAt: Date.now(), rows };
+function saveCache(rows: GlobalEntry[], signature: CachedShape['signature']): void {
+  memCache = { signature, rows };
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify(memCache));
   } catch {
     // ignore quota / privacy errors
   }
-  for (const cb of subscribers) cb(rows);
-}
-
-function isFresh(c: CachedShape | null): boolean {
-  if (!c) return false;
-  return Date.now() - c.fetchedAt < CACHE_TTL_MS;
 }
 
 // Sort + clamp a list to top N, deduping by id when present.
@@ -100,17 +100,36 @@ export function getCachedGlobal(): GlobalEntry[] {
   return c ? c.rows : [];
 }
 
-// Fetch the top N global scores. Reuses cache while fresh; otherwise hits
-// the server once. Pass `force = true` to bypass the TTL (rarely needed —
-// realtime keeps us in sync).
-export async function fetchGlobalTop(
-  limit: number = MAX_ENTRIES,
-  force: boolean = false,
-): Promise<GlobalEntry[]> {
-  const cached = loadCacheFromStorage();
-  if (!force && isFresh(cached)) {
-    return cached!.rows;
+// Tiny probe: returns the current (count, latest created_at) signature from
+// the server. ~tens of bytes per call.
+async function fetchSignature(): Promise<CachedShape['signature'] | null> {
+  // `head: true` + `count: 'exact'` returns ONLY the count, no rows.
+  const countPromise = supabase
+    .from('global_leaderboard')
+    .select('id', { count: 'exact', head: true });
+  const latestPromise = supabase
+    .from('global_leaderboard')
+    .select('created_at')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const [countRes, latestRes] = await Promise.all([countPromise, latestPromise]);
+  if (countRes.error) {
+    console.error('[globalLeaderboard] signature count failed:', countRes.error.message);
+    return null;
   }
+  if (latestRes.error) {
+    console.error('[globalLeaderboard] signature latest failed:', latestRes.error.message);
+    return null;
+  }
+  return {
+    count: countRes.count ?? 0,
+    latest: (latestRes.data?.created_at as string | undefined) ?? null,
+  };
+}
+
+// Full pull of the top N. Used only when the signature says something changed.
+async function fetchTop(limit: number = MAX_ENTRIES): Promise<GlobalEntry[] | null> {
   const { data, error } = await supabase
     .from('global_leaderboard')
     .select('id, name, score, level, created_at')
@@ -119,11 +138,37 @@ export async function fetchGlobalTop(
     .limit(limit);
   if (error) {
     console.error('[globalLeaderboard] fetch failed:', error.message);
-    // Fall back to whatever we have cached so the UI still shows something.
+    return null;
+  }
+  return (data || []) as GlobalEntry[];
+}
+
+// Check the server's signature against our cache. If unchanged, return the
+// cached rows (zero extra reads). If changed (or no cache), pull the top N.
+//
+// Returns the rows that should now be displayed. On any network failure we
+// fall back to whatever we have cached so the UI still renders.
+export async function checkAndRefresh(
+  limit: number = MAX_ENTRIES,
+): Promise<GlobalEntry[]> {
+  const cached = loadCacheFromStorage();
+  const sig = await fetchSignature();
+  if (!sig) {
     return cached ? cached.rows : [];
   }
-  const rows = (data || []) as GlobalEntry[];
-  saveCache(rows);
+  if (
+    cached &&
+    cached.signature.count === sig.count &&
+    cached.signature.latest === sig.latest
+  ) {
+    // Server confirms nothing changed — reuse cache, no further reads.
+    return cached.rows;
+  }
+  const rows = await fetchTop(limit);
+  if (!rows) {
+    return cached ? cached.rows : [];
+  }
+  saveCache(rows, sig);
   return rows;
 }
 
@@ -135,8 +180,8 @@ export function qualifiesForGlobal(score: number, list: GlobalEntry[]): boolean 
 }
 
 // Submit a new entry to the global leaderboard.
-// On success, optimistically merges the row into the cache and notifies
-// subscribers. Realtime will echo the canonical row shortly after.
+// On success, optimistically merges the row into the cache. The next
+// `checkAndRefresh` call will reconcile with the canonical server state.
 export async function submitGlobalScore(entry: {
   name: string;
   score: number;
@@ -156,79 +201,13 @@ export async function submitGlobalScore(entry: {
     return null;
   }
   const row = data as GlobalEntry;
-  mergeRow(row);
-  return row;
-}
-
-// Merge a single row into the cache (used by realtime + optimistic submit).
-function mergeRow(row: GlobalEntry): void {
-  const current = loadCacheFromStorage()?.rows ?? [];
-  const merged = topN([row, ...current]);
-  saveCache(merged);
-}
-
-// ---------- Subscribe + Realtime ----------
-
-function ensureChannel(): void {
-  if (channel) return;
-  channel = supabase
-    .channel('global_leaderboard_changes')
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'global_leaderboard' },
-      (payload) => {
-        const row = payload.new as GlobalEntry;
-        if (row && typeof row.score === 'number' && typeof row.name === 'string') {
-          // Only bother merging if the new row could plausibly be in the top N.
-          const current = loadCacheFromStorage()?.rows ?? [];
-          if (current.length < MAX_ENTRIES || row.score > current[current.length - 1].score) {
-            mergeRow(row);
-          }
-        }
-      },
-    )
-    .subscribe();
-}
-
-function teardownChannel(): void {
-  if (!channel) return;
-  supabase.removeChannel(channel);
-  channel = null;
-}
-
-function hookVisibilityOnce(): void {
-  if (visibilityHooked || typeof document === 'undefined') return;
-  visibilityHooked = true;
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-      // Tear down the WebSocket so background tabs / minimised apps cost nothing.
-      teardownChannel();
-    } else if (channelRefcount > 0) {
-      // Returning to foreground: re-open and pull a fresh snapshot once
-      // (in case we missed inserts while offline).
-      ensureChannel();
-      fetchGlobalTop(MAX_ENTRIES, true).catch(() => { /* logged in fetch */ });
-    }
+  // Optimistic merge — invalidates the signature so the next probe will
+  // pull the canonical top N.
+  const current = loadCacheFromStorage();
+  const merged = topN([row, ...(current?.rows ?? [])]);
+  saveCache(merged, {
+    count: (current?.signature.count ?? 0) + 1,
+    latest: row.created_at ?? new Date().toISOString(),
   });
-}
-
-// Subscribe to leaderboard updates. The callback fires whenever the cached
-// list changes (refetch, optimistic insert, or realtime echo).
-// Returns an unsubscribe function. The realtime channel is started on the
-// first subscriber and torn down when the last one unsubscribes.
-export function subscribeGlobal(cb: (rows: GlobalEntry[]) => void): () => void {
-  subscribers.add(cb);
-  channelRefcount += 1;
-  hookVisibilityOnce();
-  if (typeof document === 'undefined' || document.visibilityState !== 'hidden') {
-    ensureChannel();
-  }
-  // Push current cache immediately so the caller has something to render.
-  const cached = loadCacheFromStorage();
-  if (cached) cb(cached.rows);
-  return () => {
-    subscribers.delete(cb);
-    channelRefcount = Math.max(0, channelRefcount - 1);
-    if (channelRefcount === 0) teardownChannel();
-  };
+  return row;
 }
