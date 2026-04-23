@@ -2,6 +2,7 @@ export interface LeaderboardEntry {
   initials: string; // 3 uppercase letters
   score: number;
   date: string; // ISO
+  level?: number; // last level reached (optional for backward compat)
 }
 
 const STORAGE_KEY = 'cavemanVsDragon.topScores.v1';
