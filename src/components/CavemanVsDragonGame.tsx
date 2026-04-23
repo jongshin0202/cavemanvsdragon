@@ -158,20 +158,37 @@ const CavemanVsDragonGame = () => {
     setGameState('playing');
   }, [resetPlayer]);
 
+  // Plays the "Level N" intro (3s) → black (0.5s) → then runs onDone.
+  const playLevelIntro = useCallback((levelNumber: number, onDone: () => void) => {
+    levelIntroTimersRef.current.forEach((id) => window.clearTimeout(id));
+    levelIntroTimersRef.current = [];
+    setLevelIntroNumber(levelNumber);
+    setLevelIntro('level');
+    const t1 = window.setTimeout(() => setLevelIntro('black'), 3000);
+    const t2 = window.setTimeout(() => {
+      setLevelIntro(null);
+      onDone();
+    }, 3500);
+    levelIntroTimersRef.current.push(t1, t2);
+  }, []);
+
   const resetGame = useCallback(() => {
     const g = gameRef.current;
     g.score = 0; g.lives = 3; g.round = 1;
     setScore(0); setLives(3);
-    resetLevel();
-  }, [resetLevel]);
+    setGameState('playing');
+    playLevelIntro(1, () => resetLevel());
+  }, [resetLevel, playLevelIntro]);
 
   // Start the next level — for now (only one level), restart the same layout
   // with increased difficulty (next round) while preserving score and lives.
   const startNextLevel = useCallback(() => {
     const g = gameRef.current;
     g.round += 1;
-    resetLevel();
-  }, [resetLevel]);
+    const nextRound = g.round;
+    setGameState('playing');
+    playLevelIntro(nextRound, () => resetLevel());
+  }, [resetLevel, playLevelIntro]);
 
   // Submit a high score and move to the leaderboard view
   const submitHighScore = useCallback(() => {
