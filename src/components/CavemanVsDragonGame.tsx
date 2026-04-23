@@ -197,11 +197,12 @@ const CavemanVsDragonGame = () => {
       initials: initialsRef.current.join('').toUpperCase().padEnd(3, 'A').slice(0, 3),
       score: pendingScore,
       date: new Date().toISOString(),
+      level: pendingLevel,
     };
     const next = insertScore(entry);
     setScores(next);
     setGameState('leaderboard');
-  }, [pendingScore]);
+  }, [pendingScore, pendingLevel]);
 
   // Keep refs in sync with state for the canvas render loop
   useEffect(() => { scoresRef.current = scores; }, [scores]);
