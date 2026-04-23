@@ -1590,16 +1590,22 @@ const CavemanVsDragonGame = () => {
     <div className="flex h-[100dvh] min-h-[100dvh] w-full flex-col overflow-hidden select-none bg-background">
       {/* Game area — fills all remaining space above controls */}
       <div className="relative flex min-h-0 w-full flex-1 items-center justify-center bg-black">
+        {/* Sized stage matching canvas aspect ratio so overlays align with the canvas */}
+        <div
+          className="relative block max-h-full max-w-full"
+          style={{
+            aspectRatio: `${CANVAS_W} / ${CANVAS_H}`,
+            height: '100%',
+            width: 'auto',
+          }}
+        >
         <canvas
           ref={canvasRef}
           width={CANVAS_W}
           height={CANVAS_H}
-          className="block border-b-2 border-primary max-h-full max-w-full h-auto w-auto"
+          className="block border-b-2 border-primary h-full w-full"
           style={{
             imageRendering: 'pixelated',
-            aspectRatio: `${CANVAS_W} / ${CANVAS_H}`,
-            height: '100%',
-            width: 'auto',
           }}
           tabIndex={0}
         />
