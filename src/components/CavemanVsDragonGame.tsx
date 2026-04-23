@@ -137,6 +137,8 @@ const CavemanVsDragonGame = () => {
     courseDir: 0 as -1 | 0 | 1,
     // Kill-monkeys → key → grow topmost vine mechanic
     monkeysKilled: 0,
+    // Combo: monkeys killed during the current airborne phase (resets on jump start / landing).
+    comboKills: 0,
     keySpawned: false,
     keyGrabbed: false,
     seedPlanted: false, // (legacy name) true once key is grabbed; triggers vine grow
