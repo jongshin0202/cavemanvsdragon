@@ -308,7 +308,7 @@ const CavemanVsDragonGame = () => {
   // Auto-return to intro screen after 5s of inactivity on terminal screens
   // (gameover without high score, or after viewing the leaderboard post-game).
   useEffect(() => {
-    if (gameState !== 'gameover' && gameState !== 'leaderboard') return;
+    if (gameState !== 'gameover' && gameState !== 'leaderboard' && gameState !== 'globalLeaderboard') return;
     let timer = window.setTimeout(() => setGameState('intro'), 5000);
     const reset = () => {
       window.clearTimeout(timer);
@@ -325,20 +325,25 @@ const CavemanVsDragonGame = () => {
     };
   }, [gameState]);
 
-  // Attract-mode idle cycle on the title screen:
-  //   intro --(5s idle)--> attractLeaderboard
-  //   attractLeaderboard --(10s idle, PC only)--> attractControls
-  //   attractLeaderboard --(10s idle, mobile)--> intro
-  //   attractControls --(10s idle)--> intro
+  // Attract-mode idle cycle on the title screen.
+  //   PC:     intro → attractControls → attractLocalLeaderboard → attractGlobalLeaderboard → intro …
+  //   Mobile: intro → attractLocalLeaderboard → attractGlobalLeaderboard → intro …
   useEffect(() => {
     let nextState: GameState | null = null;
     let delay = 0;
-    if (gameState === 'intro') { nextState = 'attractLeaderboard'; delay = 5000; }
-    else if (gameState === 'attractLeaderboard') {
-      nextState = isMobile ? 'intro' : 'attractControls';
+    if (gameState === 'intro') {
+      nextState = isMobile ? 'attractLocalLeaderboard' : 'attractControls';
+      delay = 5000;
+    } else if (gameState === 'attractControls') {
+      nextState = 'attractLocalLeaderboard';
+      delay = 10000;
+    } else if (gameState === 'attractLocalLeaderboard') {
+      nextState = 'attractGlobalLeaderboard';
+      delay = 10000;
+    } else if (gameState === 'attractGlobalLeaderboard') {
+      nextState = 'intro';
       delay = 10000;
     }
-    else if (gameState === 'attractControls') { nextState = 'intro'; delay = 10000; }
     if (!nextState) return;
     const target = nextState;
     const timer = window.setTimeout(() => setGameState(target), delay);
@@ -352,7 +357,12 @@ const CavemanVsDragonGame = () => {
       const gs = gameStateRef.current;
       const g = gameRef.current;
 
-      if (gs === 'intro' || gs === 'attractLeaderboard' || gs === 'attractControls') {
+      if (
+        gs === 'intro' ||
+        gs === 'attractLocalLeaderboard' ||
+        gs === 'attractGlobalLeaderboard' ||
+        gs === 'attractControls'
+      ) {
         // Any key/tap starts the game from the intro/attract screens
         resetGame();
         return true;
@@ -379,6 +389,10 @@ const CavemanVsDragonGame = () => {
           // Promote to high-score prompt; swallow this input so a second press is required to advance
           setPendingScore(g.score);
           setPendingLevel(g.round);
+          // Decide now whether this also makes the global top, so we know
+          // which leaderboard to display after name entry. Use the latest
+          // global list we have cached.
+          justSubmittedGlobal.current = qualifiesForGlobal(g.score, globalScores);
           continueArmedAtRef.current = now + 1000;
           setGameState('highscorePrompt');
           return true;
@@ -398,7 +412,7 @@ const CavemanVsDragonGame = () => {
         return true; // swallow other keys during entry (typing handled by input element)
       }
 
-      if (gs === 'leaderboard') {
+      if (gs === 'leaderboard' || gs === 'globalLeaderboard') {
         // Only R restarts (handled by outer handler) — swallow other keys
         if (key === 'r' || key === 'R') return false;
         return true;
@@ -406,7 +420,7 @@ const CavemanVsDragonGame = () => {
 
       return false;
     };
-  }, [startNextLevel, submitHighScore, resetGame]);
+  }, [startNextLevel, submitHighScore, resetGame, globalScores]);
 
 
   useEffect(() => {
