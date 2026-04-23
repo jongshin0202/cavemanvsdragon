@@ -1766,6 +1766,7 @@ const CavemanVsDragonGame = () => {
                       <span className="w-6 text-accent">{(i + 1).toString().padStart(2, '0')}</span>
                       <span className="flex-1 text-center tracking-widest">{e ? e.initials : '---'}</span>
                       <span className="w-20 text-right">{e ? e.score.toString().padStart(6, '0') : '------'}</span>
+                      <span className="w-12 text-right text-accent">{e && e.level != null ? `L${e.level}` : '--'}</span>
                     </li>
                   );
                 })}
