@@ -44,7 +44,19 @@ const TOP_VINE_IDX = 8;
 // Where the seed must be planted (base of the topmost vine, on platform P5)
 const PLANT_X = 357; // matches LADDERS[8].x + 7
 
-type GameState = 'intro' | 'playing' | 'gameover' | 'win' | 'continue' | 'highscorePrompt' | 'enterName' | 'leaderboard' | 'attractLeaderboard' | 'attractControls';
+type GameState =
+  | 'intro'
+  | 'playing'
+  | 'gameover'
+  | 'win'
+  | 'continue'
+  | 'highscorePrompt'
+  | 'enterName'
+  | 'leaderboard'        // post-game LOCAL leaderboard (only-local qualifier)
+  | 'globalLeaderboard'  // post-game GLOBAL leaderboard (global qualifier)
+  | 'attractLocalLeaderboard'
+  | 'attractGlobalLeaderboard'
+  | 'attractControls';
 
 const CavemanVsDragonGame = () => {
   const isMobile = useIsMobile();
