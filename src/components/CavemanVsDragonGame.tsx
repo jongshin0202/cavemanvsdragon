@@ -107,6 +107,9 @@ const CavemanVsDragonGame = () => {
   const isMobileRef = useRef<boolean>(false);
   // Returns true if the input was consumed (i.e., used to advance a menu/screen).
   const anyInputHandlerRef = useRef<((key: string, source: 'keyboard' | 'pad') => boolean) | null>(null);
+  // PC: hold-C-for-10s on the local-leaderboard attract screen to clear it.
+  const cHoldTimerRef = useRef<number | null>(null);
+  const cHoldFiredRef = useRef<boolean>(false);
   const gameRef = useRef({
     player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 },
     barrels: [] as Barrel[],
@@ -412,7 +415,25 @@ const CavemanVsDragonGame = () => {
         gs === 'attractGlobalLeaderboard' ||
         gs === 'attractControls'
       ) {
-        // Any key/tap starts the game from the intro/attract screens
+        // PC: on the local-leaderboard attract screen, holding C for 10s
+        // opens the "clear local leaderboard" confirmation. Don't start a
+        // new game while C is being held.
+        if (
+          _source === 'keyboard' &&
+          gs === 'attractLocalLeaderboard' &&
+          (key === 'c' || key === 'C')
+        ) {
+          if (cHoldTimerRef.current === null && !cHoldFiredRef.current) {
+            cHoldFiredRef.current = false;
+            cHoldTimerRef.current = window.setTimeout(() => {
+              cHoldFiredRef.current = true;
+              cHoldTimerRef.current = null;
+              setConfirmClearOpen(true);
+            }, 10_000);
+          }
+          return true; // swallow C — don't start the game
+        }
+        // Any other key/tap starts the game from the intro/attract screens
         resetGame();
         return true;
       }
@@ -532,7 +553,17 @@ const CavemanVsDragonGame = () => {
       if (consumed) { e.preventDefault(); return; }
       if (e.key === 'r' || e.key === 'R' || e.code === 'KeyR') { e.preventDefault(); resetGame(); }
     };
-    const handleKeyUp = (e: KeyboardEvent) => keysRef.current.delete(e.key);
+    const handleKeyUp = (e: KeyboardEvent) => {
+      keysRef.current.delete(e.key);
+      // Releasing C cancels the pending hold-to-clear timer.
+      if (e.key === 'c' || e.key === 'C') {
+        if (cHoldTimerRef.current !== null) {
+          window.clearTimeout(cHoldTimerRef.current);
+          cHoldTimerRef.current = null;
+        }
+        cHoldFiredRef.current = false;
+      }
+    };
     const handleFirstGesture = () => { unlockAudio(); };
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
@@ -1161,9 +1192,9 @@ const CavemanVsDragonGame = () => {
             if (p.vy > 0 && p.y + p.h <= r.y + r.h * 0.6) {
               const n = (g.comboKills || 0) + 1;
               g.comboKills = n;
-              // For N kills in one jump, total awarded = 300 * N^2.
-              // Per-kill delta = 300 * (N^2 - (N-1)^2) = 300 * (2N - 1).
-              g.score += 300 * (2 * n - 1); setScore(g.score);
+              // Combo: the Nth monkey killed in one jump is worth 300 * N
+              // (1st = 300, 2nd = 600, 3rd = 900, …). Linear in N, not squared.
+              g.score += 300 * n; setScore(g.score);
               playRobotKillSound();
               p.vy = -4;
               g.robots.splice(i, 1);
@@ -2285,8 +2316,8 @@ const AttractLeaderboardScreen = ({
           </div>
         )}
 
-        {/* Local-only hint about clearing via long-press (mobile only) */}
-        {kind === 'local' && isMobile && (
+        {/* Local-only hint about clearing — long-press on mobile, hold C on PC */}
+        {kind === 'local' && (
           <div
             className="mt-1 max-w-md px-2 text-center font-caveman opacity-80"
             style={{
@@ -2296,7 +2327,9 @@ const AttractLeaderboardScreen = ({
               lineHeight: 1.2,
             }}
           >
-            On phone: press &amp; hold anywhere for 10s to clear the local leaderboard.
+            {isMobile
+              ? 'On phone: press & hold anywhere for 10s to clear the local leaderboard.'
+              : 'On PC: press & hold C for 10s to clear the local leaderboard.'}
           </div>
         )}
       </div>
