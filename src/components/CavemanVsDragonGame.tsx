@@ -1843,6 +1843,7 @@ const CavemanVsDragonGame = () => {
           >JUMP</button>
         </div>
       </div>
+      )}
     </div>
   );
 };
