@@ -2103,25 +2103,29 @@ const CavemanVsDragonGame = () => {
             >↓</div>
           </div>
 
-          {/* R button — small, between arrows and jump, must be tapped (not slid) */}
-          <button
-            className="w-12 h-12 self-center rounded-full bg-accent text-accent-foreground text-sm font-bold active:scale-95 shrink-0"
-            onPointerDown={(e) => {
-              e.preventDefault();
-              ensureVibrateUnlocked();
-              pulseHaptic(45);
-              // During menu/transition states, R acts as "any button" via the handler.
-              const consumed = anyInputHandlerRef.current?.('r', 'pad');
-              if (!consumed) resetGame();
-            }}
-            onTouchStart={(e) => {
-              e.preventDefault();
-              ensureVibrateUnlocked();
-              pulseHaptic(45);
-              const consumed = anyInputHandlerRef.current?.('r', 'pad');
-              if (!consumed) resetGame();
-            }}
-          >R</button>
+          {/* R button — only shown on screens prompting "PRESS R TO RESTART".
+              Slot stays in the grid so D-pad and JUMP keep their positions. */}
+          {(gameState === 'gameover' || gameState === 'leaderboard' || gameState === 'globalLeaderboard') ? (
+            <button
+              className="w-12 h-12 self-center rounded-full bg-accent text-accent-foreground text-sm font-bold active:scale-95 shrink-0"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                ensureVibrateUnlocked();
+                pulseHaptic(45);
+                const consumed = anyInputHandlerRef.current?.('r', 'pad');
+                if (!consumed) resetGame();
+              }}
+              onTouchStart={(e) => {
+                e.preventDefault();
+                ensureVibrateUnlocked();
+                pulseHaptic(45);
+                const consumed = anyInputHandlerRef.current?.('r', 'pad');
+                if (!consumed) resetGame();
+              }}
+            >R</button>
+          ) : (
+            <div className="w-12 h-12 self-center shrink-0" aria-hidden="true" />
+          )}
 
           {/* JUMP button — large but constrained so controls always fit */}
           <button
