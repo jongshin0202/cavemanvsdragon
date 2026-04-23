@@ -787,16 +787,18 @@ const CavemanVsDragonGame = () => {
                 continue; // skip this ladder entirely, let barrel fall off edge
               }
 
-              // Skip this vine if dropping here would move the barrel AWAY from the player.
-              // i.e., player is "upstream" of the vine relative to the roll direction.
-              // The barrel should continue rolling and re-evaluate at the next vine
-              // (or fall off the edge if there isn't one).
+              // Skip this vine if the player is still on the "upstream" side of it
+              // relative to the barrel's roll direction. Use the player's full body
+              // bounds here so the barrel doesn't drop just because the player's center
+              // barely crossed the vine.
               const rollDir = Math.sign(b.vx);
-              if (rollDir > 0 && playerCenterX < ladderCenterX) {
-                continue; // rolling right, player is to the left → skip
+              const playerLeft = p.x;
+              const playerRight = p.x + p.w;
+              if (rollDir > 0 && playerRight <= ladderCenterX + 1) {
+                continue; // rolling right, player is still left of this vine
               }
-              if (rollDir < 0 && playerCenterX > ladderCenterX) {
-                continue; // rolling left, player is to the right → skip
+              if (rollDir < 0 && playerLeft >= ladderCenterX - 1) {
+                continue; // rolling left, player is still right of this vine
               }
 
               // Score: is taking this ladder down closer to the player?
