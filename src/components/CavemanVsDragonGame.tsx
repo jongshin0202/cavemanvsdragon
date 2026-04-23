@@ -1406,73 +1406,87 @@ const CavemanVsDragonGame = () => {
         ctx.fillText(continuePrompt, CANVAS_W / 2, CANVAS_H / 2 + 70);
         ctx.fillText('TO CONTINUE', CANVAS_W / 2, CANVAS_H / 2 + 100);
       }
-      if (gameStateRef.current === 'enterInitials') {
+      if (gameStateRef.current === 'enterName') {
         ctx.fillStyle = 'rgba(0,0,0,0.95)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
         ctx.fillStyle = '#FFD700'; ctx.font = `bold 26px ${arcade}`;
-        ctx.fillText('ENTER YOUR INITIALS', CANVAS_W / 2, 100);
+        ctx.fillText('ENTER YOUR NAME', CANVAS_W / 2, 90);
         ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 22px ${arcade}`;
-        ctx.fillText(`SCORE: ${pendingScore}`, CANVAS_W / 2, 150);
+        ctx.fillText(`SCORE: ${pendingScore}`, CANVAS_W / 2, 140);
 
-        const letters = initialsRef.current;
-        const cursor = initialsCursorRef.current;
-        const spacing = 60;
-        const startX = CANVAS_W / 2 - spacing;
-        const letterY = 250;
-        ctx.font = `bold 56px ${arcade}`;
-        for (let i = 0; i < 3; i++) {
-          const x = startX + i * spacing;
-          ctx.fillStyle = i === cursor ? '#FFD700' : '#FFFFFF';
-          ctx.fillText(letters[i], x, letterY);
-          if (i === cursor) {
-            ctx.fillStyle = '#FFD700';
-            ctx.font = `bold 16px ${arcade}`;
-            ctx.fillText('▲', x, letterY - 56);
-            ctx.fillText('▼', x, letterY + 28);
-            ctx.font = `bold 56px ${arcade}`;
-          }
+        // Name field box (visual representation of the typed name)
+        const boxW = 380, boxH = 64;
+        const boxX = (CANVAS_W - boxW) / 2;
+        const boxY = 200;
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        ctx.fillRect(boxX, boxY, boxW, boxH);
+        ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 3;
+        ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+        const typed = nameInputRef.current;
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = `bold 28px ${arcade}`;
+        ctx.textAlign = 'center';
+        const display = typed.length === 0 ? '_' : typed;
+        ctx.fillText(display, CANVAS_W / 2, boxY + boxH / 2 + 10);
+
+        // Char counter
+        ctx.font = `bold 12px ${arcade}`;
+        ctx.fillStyle = '#888888';
+        ctx.fillText(`${typed.length}/${NAME_MAX_LENGTH}`, CANVAS_W / 2, boxY + boxH + 22);
+
+        // Error message
+        if (nameErrorRef.current) {
+          ctx.fillStyle = '#FF5050';
+          ctx.font = `bold 14px ${arcade}`;
+          ctx.fillText(nameErrorRef.current, CANVAS_W / 2, boxY + boxH + 50);
         }
-        ctx.font = `bold 14px ${arcade}`;
+
+        // Hints
+        ctx.font = `bold 12px ${arcade}`;
         ctx.fillStyle = '#AAAAAA';
-        ctx.fillText('UP/DOWN: CHANGE   LEFT/RIGHT: MOVE', CANVAS_W / 2, 340);
-        ctx.fillText(isMobileRef.current ? 'JUMP/R: CONFIRM' : 'SPACE/ENTER: CONFIRM', CANVAS_W / 2, 365);
+        ctx.fillText('A-Z, 0-9, SPACE   MAX 10 CHARS', CANVAS_W / 2, CANVAS_H - 60);
+        ctx.fillText(isMobileRef.current ? 'TAP FIELD ABOVE TO TYPE' : 'PRESS ENTER TO SUBMIT', CANVAS_W / 2, CANVAS_H - 38);
       }
       if (gameStateRef.current === 'leaderboard') {
         ctx.fillStyle = 'rgba(0,0,0,0.95)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-        ctx.fillStyle = '#FFD700'; ctx.font = `bold 24px ${arcade}`;
-        ctx.fillText('TOP 10 SCORES', CANVAS_W / 2, 50);
+        ctx.fillStyle = '#FFD700'; ctx.font = `bold 20px ${arcade}`;
+        ctx.fillText(`TOP ${MAX_ENTRIES} SCORES`, CANVAS_W / 2, 30);
 
         const list = scoresRef.current;
-        ctx.font = `bold 12px ${arcade}`;
+        ctx.font = `bold 10px ${arcade}`;
         ctx.textAlign = 'left';
-        const colRank = 30, colInit = 80, colScore = 160, colLevel = 250, colDate = 320;
-        ctx.fillStyle = '#888888';
-        ctx.fillText('#', colRank, 85);
-        ctx.fillText('NAME', colInit, 85);
-        ctx.fillText('SCORE', colScore, 85);
-        ctx.fillText('LV', colLevel, 85);
-        ctx.fillText('DATE', colDate, 85);
+        const colRank = 14, colName = 44, colScore = 230, colLevel = 320, colDate = 360;
+        ctx.fillStyle = '#FFD700';
+        ctx.fillText('#', colRank, 55);
+        ctx.fillText('NAME', colName, 55);
+        ctx.fillText('SCORE', colScore, 55);
+        ctx.fillText('LV', colLevel, 55);
+        ctx.fillText('DATE', colDate, 55);
+        const rowH = 19;
+        const startY = 72;
         for (let i = 0; i < MAX_ENTRIES; i++) {
           const e = list[i];
-          const y = 110 + i * 28;
-          const isMine = e && e.score === pendingScore && e.initials === initialsRef.current.join('');
+          const y = startY + i * rowH;
+          const isMine = e && e.score === pendingScore && (e.name === nameInputRef.current.trim() || e.name === nameInputRef.current);
           ctx.fillStyle = isMine ? '#FFD700' : '#FFFFFF';
           ctx.fillText(`${i + 1}.`, colRank, y);
           if (e) {
-            ctx.fillText(e.initials, colInit, y);
+            const display = (e.name && e.name.trim()) || e.initials;
+            ctx.fillText(display.slice(0, 10), colName, y);
             ctx.fillText(String(e.score), colScore, y);
             ctx.fillText(e.level != null ? String(e.level) : '-', colLevel, y);
-            ctx.fillText(formatDate(e.date), colDate, y);
+            ctx.fillText(formatDate(e.date).slice(0, 10), colDate, y);
           } else {
             ctx.fillStyle = '#444444';
-            ctx.fillText('---', colInit, y);
+            ctx.fillText('---', colName, y);
             ctx.fillText('---', colScore, y);
             ctx.fillText('-', colLevel, y);
             ctx.fillText('---', colDate, y);
           }
         }
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 18px ${arcade}`;
-        ctx.fillText('PRESS R TO RESTART', CANVAS_W / 2, CANVAS_H - 25);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 14px ${arcade}`;
+        ctx.fillText('PRESS R TO RESTART', CANVAS_W / 2, CANVAS_H - 12);
       }
       ctx.textAlign = 'start';
 
