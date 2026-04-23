@@ -756,30 +756,32 @@ const CavemanVsDragonGame = () => {
               // Only consider ladders where top matches current platform (going down)
               const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
               if (topPlatIdx !== bPlatIdx) continue;
+              const botPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 12);
 
               // Check if player is beyond all ladders on this platform toward the drop edge
               // If so, skip the ladder and let barrel fall off the edge
               const curPlat = PLATFORMS[bPlatIdx];
               const dropEdgeIsLeft = curPlat && curPlat.x1 > 0;
               const dropEdgeIsRight = curPlat && curPlat.x2 < CANVAS_W;
-              
+
               // Find all ladders on this platform going down
               const laddersOnPlat = LADDERS.filter((ll, lli) => {
                 if (lli === TOP_VINE_IDX && !g.topVineUnlocked) return false;
                 const tpi = PLATFORMS.findIndex(pl => Math.abs(pl.y - ll.yTop) < 12);
                 return tpi === bPlatIdx;
               });
-              
+
               const allLadderXs = laddersOnPlat.map(ll => ll.x + 7);
               const minLadderX = Math.min(...allLadderXs);
               const maxLadderX = Math.max(...allLadderXs);
-              
-              // If player is left of leftmost ladder and there's a drop edge on left, skip ALL ladders
+              const playerLeft = p.x;
+              const playerRight = p.x + p.w;
+
               let playerBeyondLadders = false;
-              if (dropEdgeIsLeft && playerCenterX < minLadderX) {
+              if (dropEdgeIsLeft && playerRight <= minLadderX + 1) {
                 playerBeyondLadders = true;
               }
-              if (dropEdgeIsRight && playerCenterX > maxLadderX) {
+              if (dropEdgeIsRight && playerLeft >= maxLadderX - 1) {
                 playerBeyondLadders = true;
               }
 
@@ -787,13 +789,25 @@ const CavemanVsDragonGame = () => {
                 continue; // skip this ladder entirely, let barrel fall off edge
               }
 
+              // If the player is on the landing platform, never take a vine that would
+              // immediately make the wheel roll away from the player after dropping.
+              if (botPlatIdx >= 0) {
+                const landingPlat = PLATFORMS[botPlatIdx];
+                const landingRollDir = (landingPlat?.slope || 0) < 0 ? -1 : 1;
+                const playerPlatIdx = findPlatformIndex(playerFeetY, playerCenterX);
+                if (playerPlatIdx === botPlatIdx) {
+                  if (landingRollDir > 0 && playerRight <= ladderCenterX + 1) {
+                    continue; // would land and roll right away from player
+                  }
+                  if (landingRollDir < 0 && playerLeft >= ladderCenterX - 1) {
+                    continue; // would land and roll left away from player
+                  }
+                }
+              }
+
               // Skip this vine if the player is still on the "upstream" side of it
-              // relative to the barrel's roll direction. Use the player's full body
-              // bounds here so the barrel doesn't drop just because the player's center
-              // barely crossed the vine.
+              // relative to the barrel's current roll direction.
               const rollDir = Math.sign(b.vx);
-              const playerLeft = p.x;
-              const playerRight = p.x + p.w;
               if (rollDir > 0 && playerRight <= ladderCenterX + 1) {
                 continue; // rolling right, player is still left of this vine
               }
