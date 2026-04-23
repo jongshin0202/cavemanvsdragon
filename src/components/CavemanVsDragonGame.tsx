@@ -5,7 +5,8 @@ import {
   Barrel, Robot
 } from './game/constants';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarTracked, playPrincessHelpSound, isDragonRoaringNow, unlockAudio } from './game/sounds';
-import { loadScores, qualifiesForTop, insertScore, formatDate, MAX_ENTRIES, type LeaderboardEntry } from './game/leaderboard';
+import { loadScores, qualifiesForTop, insertScore, formatDate, entryDisplayName, MAX_ENTRIES, type LeaderboardEntry } from './game/leaderboard';
+import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
 import { useIsMobile } from '@/hooks/use-mobile';
 import cavemanWalkUrl from '@/assets/caveman-walk.png';
 import cavemanJumpUrl from '@/assets/caveman-jump.png';
@@ -32,7 +33,7 @@ const TOP_VINE_IDX = 8;
 // Where the seed must be planted (base of the topmost vine, on platform P5)
 const PLANT_X = 357; // matches LADDERS[8].x + 7
 
-type GameState = 'intro' | 'playing' | 'gameover' | 'win' | 'continue' | 'highscorePrompt' | 'enterInitials' | 'leaderboard' | 'attractLeaderboard' | 'attractControls';
+type GameState = 'intro' | 'playing' | 'gameover' | 'win' | 'continue' | 'highscorePrompt' | 'enterName' | 'leaderboard' | 'attractLeaderboard' | 'attractControls';
 
 const CavemanVsDragonGame = () => {
   const isMobile = useIsMobile();
@@ -42,8 +43,8 @@ const CavemanVsDragonGame = () => {
   const [lives, setLives] = useState(3);
   const [gameState, setGameState] = useState<GameState>('intro');
   const [scores, setScores] = useState<LeaderboardEntry[]>(() => loadScores());
-  const [initials, setInitials] = useState<string[]>(['A', 'A', 'A']);
-  const [initialsCursor, setInitialsCursor] = useState(0);
+  const [nameInput, setNameInput] = useState<string>('');
+  const [nameError, setNameError] = useState<string>('');
   const [pendingScore, setPendingScore] = useState(0);
   const [pendingLevel, setPendingLevel] = useState(1);
   // Level intro overlay: 'level' shows "Level N" for 3s, then 'black' for 0.5s, then null.
@@ -64,8 +65,9 @@ const CavemanVsDragonGame = () => {
   // Refs mirroring React state so the canvas render loop (inside an effect)
   // can read the current values without re-running the effect.
   const scoresRef = useRef<LeaderboardEntry[]>(scores);
-  const initialsRef = useRef<string[]>(initials);
-  const initialsCursorRef = useRef<number>(0);
+  const nameInputRef = useRef<string>('');
+  const nameErrorRef = useRef<string>('');
+  const nameFieldRef = useRef<HTMLInputElement | null>(null);
   const isMobileRef = useRef<boolean>(false);
   // Returns true if the input was consumed (i.e., used to advance a menu/screen).
   const anyInputHandlerRef = useRef<((key: string, source: 'keyboard' | 'pad') => boolean) | null>(null);
