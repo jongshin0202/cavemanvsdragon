@@ -32,7 +32,7 @@ const TOP_VINE_IDX = 8;
 // Where the seed must be planted (base of the topmost vine, on platform P5)
 const PLANT_X = 357; // matches LADDERS[8].x + 7
 
-type GameState = 'intro' | 'playing' | 'gameover' | 'win' | 'continue' | 'highscorePrompt' | 'enterInitials' | 'leaderboard';
+type GameState = 'intro' | 'playing' | 'gameover' | 'win' | 'continue' | 'highscorePrompt' | 'enterInitials' | 'leaderboard' | 'attractLeaderboard' | 'attractControls';
 
 const CavemanVsDragonGame = () => {
   const isMobile = useIsMobile();
@@ -191,7 +191,7 @@ const CavemanVsDragonGame = () => {
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
 
   // Auto-return to intro screen after 5s of inactivity on terminal screens
-  // (gameover without high score, or after viewing the leaderboard).
+  // (gameover without high score, or after viewing the leaderboard post-game).
   useEffect(() => {
     if (gameState !== 'gameover' && gameState !== 'leaderboard') return;
     let timer = window.setTimeout(() => setGameState('intro'), 5000);
@@ -210,6 +210,26 @@ const CavemanVsDragonGame = () => {
     };
   }, [gameState]);
 
+  // Attract-mode idle cycle on the title screen:
+  //   intro --(5s idle)--> attractLeaderboard
+  //   attractLeaderboard --(10s idle, PC only)--> attractControls
+  //   attractLeaderboard --(10s idle, mobile)--> intro
+  //   attractControls --(10s idle)--> intro
+  useEffect(() => {
+    let nextState: GameState | null = null;
+    let delay = 0;
+    if (gameState === 'intro') { nextState = 'attractLeaderboard'; delay = 5000; }
+    else if (gameState === 'attractLeaderboard') {
+      nextState = isMobile ? 'intro' : 'attractControls';
+      delay = 10000;
+    }
+    else if (gameState === 'attractControls') { nextState = 'intro'; delay = 10000; }
+    if (!nextState) return;
+    const target = nextState;
+    const timer = window.setTimeout(() => setGameState(target), delay);
+    return () => window.clearTimeout(timer);
+  }, [gameState, isMobile]);
+
   // Wire up the unified "any input" handler. Re-binds whenever dependencies change.
   useEffect(() => {
     anyInputHandlerRef.current = (key, _source) => {
@@ -217,8 +237,8 @@ const CavemanVsDragonGame = () => {
       const gs = gameStateRef.current;
       const g = gameRef.current;
 
-      if (gs === 'intro') {
-        // Any key/tap starts the game from the intro screen
+      if (gs === 'intro' || gs === 'attractLeaderboard' || gs === 'attractControls') {
+        // Any key/tap starts the game from the intro/attract screens
         resetGame();
         return true;
       }
@@ -1635,6 +1655,119 @@ const CavemanVsDragonGame = () => {
                     height: 'clamp(40px, 7vw, 64px)',
                   }}
                 />
+              </div>
+            </div>
+          </button>
+        )}
+
+        {/* Attract: Top 10 leaderboard over the intro background */}
+        {gameState === 'attractLeaderboard' && (
+          <button
+            type="button"
+            aria-label="Start game"
+            onPointerDown={(e) => { e.preventDefault(); unlockAudio(); resetGame(); }}
+            className="absolute inset-0 flex flex-col items-center overflow-hidden focus:outline-none"
+            style={{
+              backgroundImage: `url(${introBackgroundUrl})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              imageRendering: 'pixelated',
+            }}
+          >
+            <div className="pointer-events-none absolute inset-0 bg-black/70" />
+            <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-4 px-6 py-8">
+              <h2
+                className="font-caveman text-center"
+                style={{
+                  fontSize: 'clamp(1.4rem, 5vw, 2.8rem)',
+                  color: 'hsl(var(--accent))',
+                  textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
+                }}
+              >
+                Top 10
+              </h2>
+              <ol
+                className="flex w-full max-w-md flex-col gap-1 font-caveman"
+                style={{
+                  fontSize: 'clamp(0.7rem, 2.2vw, 1.1rem)',
+                  color: 'hsl(var(--foreground))',
+                  textShadow: '2px 2px 0 #000',
+                }}
+              >
+                {Array.from({ length: MAX_ENTRIES }).map((_, i) => {
+                  const e = scores[i];
+                  return (
+                    <li key={i} className="flex items-center justify-between gap-3 border-b border-accent/30 px-2 py-1">
+                      <span className="w-6 text-accent">{(i + 1).toString().padStart(2, '0')}</span>
+                      <span className="flex-1 text-center tracking-widest">{e ? e.initials : '---'}</span>
+                      <span className="w-20 text-right">{e ? e.score.toString().padStart(6, '0') : '------'}</span>
+                    </li>
+                  );
+                })}
+              </ol>
+              <div
+                className="intro-blink mt-2 text-center font-caveman"
+                style={{
+                  fontSize: 'clamp(0.9rem, 2.8vw, 1.4rem)',
+                  color: 'hsl(var(--accent))',
+                  textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
+                }}
+              >
+                {isMobile ? 'Tap Anywhere to Start' : 'Press R to Start'}
+              </div>
+            </div>
+          </button>
+        )}
+
+        {/* Attract: How to play (PC only) */}
+        {gameState === 'attractControls' && (
+          <button
+            type="button"
+            aria-label="Start game"
+            onPointerDown={(e) => { e.preventDefault(); unlockAudio(); resetGame(); }}
+            className="absolute inset-0 flex flex-col items-center overflow-hidden focus:outline-none"
+            style={{
+              backgroundImage: `url(${introBackgroundUrl})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              imageRendering: 'pixelated',
+            }}
+          >
+            <div className="pointer-events-none absolute inset-0 bg-black/75" />
+            <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-6 px-6">
+              <h2
+                className="font-caveman text-center"
+                style={{
+                  fontSize: 'clamp(1.4rem, 5vw, 2.8rem)',
+                  color: 'hsl(var(--accent))',
+                  textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
+                }}
+              >
+                How to Play
+              </h2>
+              <ul
+                className="flex w-full max-w-md flex-col gap-3 font-caveman"
+                style={{
+                  fontSize: 'clamp(0.85rem, 2.6vw, 1.25rem)',
+                  color: 'hsl(var(--foreground))',
+                  textShadow: '2px 2px 0 #000',
+                }}
+              >
+                <li className="flex items-center justify-between gap-4 border-b border-accent/30 pb-1"><span className="text-accent">↑ Up Arrow</span><span>Climb Up</span></li>
+                <li className="flex items-center justify-between gap-4 border-b border-accent/30 pb-1"><span className="text-accent">↓ Down Arrow</span><span>Climb Down</span></li>
+                <li className="flex items-center justify-between gap-4 border-b border-accent/30 pb-1"><span className="text-accent">← Left Arrow</span><span>Move Left</span></li>
+                <li className="flex items-center justify-between gap-4 border-b border-accent/30 pb-1"><span className="text-accent">→ Right Arrow</span><span>Move Right</span></li>
+                <li className="flex items-center justify-between gap-4 border-b border-accent/30 pb-1"><span className="text-accent">Space</span><span>Jump</span></li>
+              </ul>
+              <div
+                className="intro-blink mt-2 text-center font-caveman"
+                style={{
+                  fontSize: 'clamp(0.9rem, 2.8vw, 1.4rem)',
+                  color: 'hsl(var(--accent))',
+                  textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
+                }}
+              >
+                Press R to Start
               </div>
             </div>
           </button>
