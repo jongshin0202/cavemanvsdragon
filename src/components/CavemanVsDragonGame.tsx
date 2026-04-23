@@ -1668,6 +1668,38 @@ const CavemanVsDragonGame = () => {
           tabIndex={0}
         />
 
+        {/* Hidden text input — surfaces the OS soft keyboard during name entry.
+            Positioned over the on-canvas name field, kept visually transparent
+            so the canvas-rendered name is what the user sees. */}
+        {gameState === 'enterName' && (
+          <input
+            ref={nameFieldRef}
+            type="text"
+            value={nameInput}
+            onChange={(e) => {
+              const filtered = e.target.value
+                .replace(/[^A-Za-z0-9 ]/g, '')
+                .slice(0, NAME_MAX_LENGTH);
+              setNameInput(filtered);
+              if (nameError) setNameError('');
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                submitHighScore();
+              }
+            }}
+            autoFocus
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            maxLength={NAME_MAX_LENGTH}
+            aria-label="Enter your name (up to 10 characters)"
+            placeholder=""
+            className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[14%] bg-transparent text-transparent caret-transparent border-0 outline-none focus:outline-none p-0 m-0 text-center"
+            style={{ WebkitAppearance: 'none', appearance: 'none' }}
+          />
+        )}
         {/* Arcade-style intro / title screen overlay */}
         {gameState === 'intro' && (
           <button
