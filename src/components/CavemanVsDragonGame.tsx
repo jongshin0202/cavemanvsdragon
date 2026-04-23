@@ -5,9 +5,20 @@ import {
   Barrel, Robot
 } from './game/constants';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarTracked, playPrincessHelpSound, isDragonRoaringNow, unlockAudio } from './game/sounds';
-import { loadScores, qualifiesForTop, insertScore, formatDate, entryDisplayName, MAX_ENTRIES, type LeaderboardEntry } from './game/leaderboard';
+import { loadScores, qualifiesForTop, insertScore, clearLocalScores, formatDate, entryDisplayName, MAX_ENTRIES, type LeaderboardEntry } from './game/leaderboard';
+import { fetchGlobalTop, qualifiesForGlobal, submitGlobalScore, type GlobalEntry } from './game/globalLeaderboard';
 import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
 import { useIsMobile } from '@/hooks/use-mobile';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import cavemanWalkUrl from '@/assets/caveman-walk.png';
 import cavemanJumpUrl from '@/assets/caveman-jump.png';
 import cavemanClimbUrl from '@/assets/caveman-climb.png';
@@ -33,7 +44,19 @@ const TOP_VINE_IDX = 8;
 // Where the seed must be planted (base of the topmost vine, on platform P5)
 const PLANT_X = 357; // matches LADDERS[8].x + 7
 
-type GameState = 'intro' | 'playing' | 'gameover' | 'win' | 'continue' | 'highscorePrompt' | 'enterName' | 'leaderboard' | 'attractLeaderboard' | 'attractControls';
+type GameState =
+  | 'intro'
+  | 'playing'
+  | 'gameover'
+  | 'win'
+  | 'continue'
+  | 'highscorePrompt'
+  | 'enterName'
+  | 'leaderboard'        // post-game LOCAL leaderboard (only-local qualifier)
+  | 'globalLeaderboard'  // post-game GLOBAL leaderboard (global qualifier)
+  | 'attractLocalLeaderboard'
+  | 'attractGlobalLeaderboard'
+  | 'attractControls';
 
 const CavemanVsDragonGame = () => {
   const isMobile = useIsMobile();
@@ -43,6 +66,12 @@ const CavemanVsDragonGame = () => {
   const [lives, setLives] = useState(3);
   const [gameState, setGameState] = useState<GameState>('intro');
   const [scores, setScores] = useState<LeaderboardEntry[]>(() => loadScores());
+  const [globalScores, setGlobalScores] = useState<GlobalEntry[]>([]);
+  const [globalLoading, setGlobalLoading] = useState<boolean>(false);
+  const [confirmClearOpen, setConfirmClearOpen] = useState<boolean>(false);
+  // Whether the just-submitted score also made the global top — drives which
+  // post-game leaderboard we show after name entry.
+  const justSubmittedGlobal = useRef<boolean>(false);
   const [nameInput, setNameInput] = useState<string>('');
   const [nameError, setNameError] = useState<string>('');
   const [pendingScore, setPendingScore] = useState(0);
@@ -65,6 +94,7 @@ const CavemanVsDragonGame = () => {
   // Refs mirroring React state so the canvas render loop (inside an effect)
   // can read the current values without re-running the effect.
   const scoresRef = useRef<LeaderboardEntry[]>(scores);
+  const globalScoresRef = useRef<GlobalEntry[]>([]);
   const nameInputRef = useRef<string>('');
   const nameErrorRef = useRef<string>('');
   const nameFieldRef = useRef<HTMLInputElement | null>(null);
@@ -193,8 +223,9 @@ const CavemanVsDragonGame = () => {
     playLevelIntro(nextRound, () => resetLevel());
   }, [resetLevel, playLevelIntro]);
 
-  // Submit a high score and move to the leaderboard view
-  const submitHighScore = useCallback(() => {
+  // Submit a high score: writes to LOCAL always, and to GLOBAL if it qualifies
+  // for the global top 20. Then routes to the appropriate post-game view.
+  const submitHighScore = useCallback(async () => {
     const raw = nameInputRef.current;
     const v = validateName(raw);
     if (!v.ok) {
@@ -210,17 +241,62 @@ const CavemanVsDragonGame = () => {
       date: new Date().toISOString(),
       level: pendingLevel,
     };
+    // 1) Always write to local
     const next = insertScore(entry);
     setScores(next);
     setNameError('');
-    setGameState('leaderboard');
+
+    // 2) If it qualifies globally, write to the cloud and show GLOBAL view.
+    //    Otherwise, show LOCAL view.
+    if (justSubmittedGlobal.current) {
+      // Optimistically merge into the displayed list, then refresh from server.
+      const optimistic: GlobalEntry = {
+        name: cleanName,
+        score: pendingScore,
+        level: pendingLevel,
+        created_at: new Date().toISOString(),
+      };
+      setGlobalScores((prev) => {
+        const merged = [...prev, optimistic]
+          .sort((a, b) => b.score - a.score || (a.created_at || '').localeCompare(b.created_at || ''))
+          .slice(0, MAX_ENTRIES);
+        return merged;
+      });
+      setGameState('globalLeaderboard');
+      // Fire-and-forget; refresh after server confirms.
+      submitGlobalScore({ name: cleanName, score: pendingScore, level: pendingLevel })
+        .then(async () => {
+          const fresh = await fetchGlobalTop();
+          setGlobalScores(fresh);
+        })
+        .catch(() => {/* network errors already logged */});
+    } else {
+      setGameState('leaderboard');
+    }
   }, [pendingScore, pendingLevel]);
 
   // Keep refs in sync with state for the canvas render loop
   useEffect(() => { scoresRef.current = scores; }, [scores]);
+  useEffect(() => { globalScoresRef.current = globalScores; }, [globalScores]);
   useEffect(() => { nameInputRef.current = nameInput; }, [nameInput]);
   useEffect(() => { nameErrorRef.current = nameError; }, [nameError]);
   useEffect(() => { isMobileRef.current = isMobile; }, [isMobile]);
+
+  // Initial fetch of the global leaderboard (and a refresh whenever we land
+  // on a screen that displays it).
+  useEffect(() => {
+    let cancelled = false;
+    const shouldFetch =
+      gameState === 'intro' ||
+      gameState === 'attractGlobalLeaderboard' ||
+      gameState === 'globalLeaderboard';
+    if (!shouldFetch) return;
+    setGlobalLoading(true);
+    fetchGlobalTop()
+      .then((rows) => { if (!cancelled) setGlobalScores(rows); })
+      .finally(() => { if (!cancelled) setGlobalLoading(false); });
+    return () => { cancelled = true; };
+  }, [gameState]);
 
   // Clear any pending level-intro timers on unmount
   useEffect(() => () => {
@@ -234,7 +310,7 @@ const CavemanVsDragonGame = () => {
   // Auto-return to intro screen after 5s of inactivity on terminal screens
   // (gameover without high score, or after viewing the leaderboard post-game).
   useEffect(() => {
-    if (gameState !== 'gameover' && gameState !== 'leaderboard') return;
+    if (gameState !== 'gameover' && gameState !== 'leaderboard' && gameState !== 'globalLeaderboard') return;
     let timer = window.setTimeout(() => setGameState('intro'), 5000);
     const reset = () => {
       window.clearTimeout(timer);
@@ -251,20 +327,25 @@ const CavemanVsDragonGame = () => {
     };
   }, [gameState]);
 
-  // Attract-mode idle cycle on the title screen:
-  //   intro --(5s idle)--> attractLeaderboard
-  //   attractLeaderboard --(10s idle, PC only)--> attractControls
-  //   attractLeaderboard --(10s idle, mobile)--> intro
-  //   attractControls --(10s idle)--> intro
+  // Attract-mode idle cycle on the title screen.
+  //   PC:     intro → attractControls → attractLocalLeaderboard → attractGlobalLeaderboard → intro …
+  //   Mobile: intro → attractLocalLeaderboard → attractGlobalLeaderboard → intro …
   useEffect(() => {
     let nextState: GameState | null = null;
     let delay = 0;
-    if (gameState === 'intro') { nextState = 'attractLeaderboard'; delay = 5000; }
-    else if (gameState === 'attractLeaderboard') {
-      nextState = isMobile ? 'intro' : 'attractControls';
+    if (gameState === 'intro') {
+      nextState = isMobile ? 'attractLocalLeaderboard' : 'attractControls';
+      delay = 5000;
+    } else if (gameState === 'attractControls') {
+      nextState = 'attractLocalLeaderboard';
+      delay = 10000;
+    } else if (gameState === 'attractLocalLeaderboard') {
+      nextState = 'attractGlobalLeaderboard';
+      delay = 10000;
+    } else if (gameState === 'attractGlobalLeaderboard') {
+      nextState = 'intro';
       delay = 10000;
     }
-    else if (gameState === 'attractControls') { nextState = 'intro'; delay = 10000; }
     if (!nextState) return;
     const target = nextState;
     const timer = window.setTimeout(() => setGameState(target), delay);
@@ -278,7 +359,12 @@ const CavemanVsDragonGame = () => {
       const gs = gameStateRef.current;
       const g = gameRef.current;
 
-      if (gs === 'intro' || gs === 'attractLeaderboard' || gs === 'attractControls') {
+      if (
+        gs === 'intro' ||
+        gs === 'attractLocalLeaderboard' ||
+        gs === 'attractGlobalLeaderboard' ||
+        gs === 'attractControls'
+      ) {
         // Any key/tap starts the game from the intro/attract screens
         resetGame();
         return true;
@@ -305,6 +391,10 @@ const CavemanVsDragonGame = () => {
           // Promote to high-score prompt; swallow this input so a second press is required to advance
           setPendingScore(g.score);
           setPendingLevel(g.round);
+          // Decide now whether this also makes the global top, so we know
+          // which leaderboard to display after name entry. Use the latest
+          // global list we have cached.
+          justSubmittedGlobal.current = qualifiesForGlobal(g.score, globalScores);
           continueArmedAtRef.current = now + 1000;
           setGameState('highscorePrompt');
           return true;
@@ -324,7 +414,7 @@ const CavemanVsDragonGame = () => {
         return true; // swallow other keys during entry (typing handled by input element)
       }
 
-      if (gs === 'leaderboard') {
+      if (gs === 'leaderboard' || gs === 'globalLeaderboard') {
         // Only R restarts (handled by outer handler) — swallow other keys
         if (key === 'r' || key === 'R') return false;
         return true;
@@ -332,7 +422,7 @@ const CavemanVsDragonGame = () => {
 
       return false;
     };
-  }, [startNextLevel, submitHighScore, resetGame]);
+  }, [startNextLevel, submitHighScore, resetGame, globalScores]);
 
 
   useEffect(() => {
@@ -1452,12 +1542,12 @@ const CavemanVsDragonGame = () => {
         ctx.fillText('A-Z, 0-9, SPACE   MAX 10 CHARS', CANVAS_W / 2, CANVAS_H - 60);
         ctx.fillText(isMobileRef.current ? 'TAP FIELD ABOVE TO TYPE' : 'PRESS ENTER TO SUBMIT', CANVAS_W / 2, CANVAS_H - 38);
       }
-      if (gameStateRef.current === 'leaderboard') {
+      if (gameStateRef.current === 'leaderboard' || gameStateRef.current === 'globalLeaderboard') {
+        const isGlobal = gameStateRef.current === 'globalLeaderboard';
         ctx.fillStyle = 'rgba(0,0,0,0.95)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
         ctx.fillStyle = '#FFD700'; ctx.font = `bold 20px ${arcade}`;
-        ctx.fillText(`TOP ${MAX_ENTRIES} SCORES`, CANVAS_W / 2, 30);
+        ctx.fillText(isGlobal ? `GLOBAL TOP ${MAX_ENTRIES}` : `LOCAL TOP ${MAX_ENTRIES}`, CANVAS_W / 2, 30);
 
-        const list = scoresRef.current;
         ctx.font = `bold 10px ${arcade}`;
         ctx.textAlign = 'left';
         const colRank = 14, colName = 44, colScore = 230, colLevel = 320, colDate = 360;
@@ -1469,24 +1559,45 @@ const CavemanVsDragonGame = () => {
         ctx.fillText('DATE', colDate, 55);
         const rowH = 19;
         const startY = 72;
+        const typedName = nameInputRef.current.trim();
         for (let i = 0; i < MAX_ENTRIES; i++) {
-          const e = list[i];
           const y = startY + i * rowH;
-          const isMine = e && e.score === pendingScore && (e.name === nameInputRef.current.trim() || e.name === nameInputRef.current);
-          ctx.fillStyle = isMine ? '#FFD700' : '#FFFFFF';
           ctx.fillText(`${i + 1}.`, colRank, y);
-          if (e) {
-            const display = (e.name && e.name.trim()) || e.initials;
-            ctx.fillText(display.slice(0, 10), colName, y);
-            ctx.fillText(String(e.score), colScore, y);
-            ctx.fillText(e.level != null ? String(e.level) : '-', colLevel, y);
-            ctx.fillText(formatDate(e.date).slice(0, 10), colDate, y);
+          if (isGlobal) {
+            const e = globalScoresRef.current[i];
+            const isMine = e && e.score === pendingScore && e.name === typedName;
+            ctx.fillStyle = isMine ? '#FFD700' : '#FFFFFF';
+            ctx.fillText(`${i + 1}.`, colRank, y);
+            if (e) {
+              ctx.fillText((e.name || '---').slice(0, 10), colName, y);
+              ctx.fillText(String(e.score), colScore, y);
+              ctx.fillText(e.level != null ? String(e.level) : '-', colLevel, y);
+              ctx.fillText(e.created_at ? formatDate(e.created_at).slice(0, 10) : '---', colDate, y);
+            } else {
+              ctx.fillStyle = '#444444';
+              ctx.fillText('---', colName, y);
+              ctx.fillText('---', colScore, y);
+              ctx.fillText('-', colLevel, y);
+              ctx.fillText('---', colDate, y);
+            }
           } else {
-            ctx.fillStyle = '#444444';
-            ctx.fillText('---', colName, y);
-            ctx.fillText('---', colScore, y);
-            ctx.fillText('-', colLevel, y);
-            ctx.fillText('---', colDate, y);
+            const e = scoresRef.current[i];
+            const isMine = e && e.score === pendingScore && (e.name === typedName || e.name === nameInputRef.current);
+            ctx.fillStyle = isMine ? '#FFD700' : '#FFFFFF';
+            ctx.fillText(`${i + 1}.`, colRank, y);
+            if (e) {
+              const display = (e.name && e.name.trim()) || e.initials;
+              ctx.fillText(display.slice(0, 10), colName, y);
+              ctx.fillText(String(e.score), colScore, y);
+              ctx.fillText(e.level != null ? String(e.level) : '-', colLevel, y);
+              ctx.fillText(formatDate(e.date).slice(0, 10), colDate, y);
+            } else {
+              ctx.fillStyle = '#444444';
+              ctx.fillText('---', colName, y);
+              ctx.fillText('---', colScore, y);
+              ctx.fillText('-', colLevel, y);
+              ctx.fillText('---', colDate, y);
+            }
           }
         }
         ctx.textAlign = 'center';
@@ -1767,99 +1878,34 @@ const CavemanVsDragonGame = () => {
           </button>
         )}
 
-        {/* Attract: Top 10 leaderboard over the intro background */}
-        {gameState === 'attractLeaderboard' && (
-          <button
-            type="button"
-            aria-label="Start game"
-            onPointerDown={(e) => { e.preventDefault(); unlockAudio(); resetGame(); }}
-            className="absolute inset-0 flex flex-col items-center overflow-hidden focus:outline-none bg-black"
-            style={{
-              backgroundImage: `url(${introBackgroundUrl})`,
-              backgroundSize: 'contain',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
-              imageRendering: 'pixelated',
-            }}
-          >
-            <div className="pointer-events-none absolute inset-0 bg-black/70" />
-            <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-4 px-6 py-8">
-              <h2
-                className="font-caveman text-center"
-                style={{
-                  fontSize: 'clamp(1.4rem, 5vw, 2.8rem)',
-                  color: 'hsl(var(--accent))',
-                  textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
-                }}
-              >
-                Top {MAX_ENTRIES}
-              </h2>
-              <ol
-                className="flex w-full max-w-md flex-col font-caveman"
-                style={{
-                  fontSize: 'clamp(0.55rem, 1.7vw, 0.85rem)',
-                  color: 'hsl(var(--foreground))',
-                  textShadow: '2px 2px 0 #000',
-                  lineHeight: 1.15,
-                }}
-              >
-                <li
-                  className="flex items-center justify-between gap-2 border-b-2 border-accent px-2 py-1 text-accent"
-                  aria-hidden="true"
-                >
-                  <span className="w-6">#</span>
-                  <span className="flex-1 tracking-widest">NAME</span>
-                  <span className="w-16 text-right">SCORE</span>
-                  <span className="w-8 text-right">LV</span>
-                </li>
-                {Array.from({ length: MAX_ENTRIES }).map((_, i) => {
-                  const e = scores[i];
-                  const display = e ? entryDisplayName(e) : '---';
-                  return (
-                    <li key={i} className="flex items-center justify-between gap-2 border-b border-accent/20 px-2 py-[2px]">
-                      <span className="w-6 text-accent">{(i + 1).toString().padStart(2, '0')}</span>
-                      <span className="flex-1 truncate tracking-wider">{display}</span>
-                      <span className="w-16 text-right">{e ? e.score.toString().padStart(6, '0') : '------'}</span>
-                      <span className="w-8 text-right text-accent">{e && e.level != null ? `L${e.level}` : '--'}</span>
-                    </li>
-                  );
-                })}
-              </ol>
-            </div>
-            {/* Footer prompt — same position as intro screen */}
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 mb-[7%] flex w-full flex-col items-center gap-3 px-4">
-              <div
-                className="intro-blink text-center font-caveman"
-                style={{
-                  fontSize: 'clamp(1.25rem, 4.2vw, 2.4rem)',
-                  color: 'hsl(var(--accent))',
-                  textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
-                }}
-              >
-                {isMobile ? 'Tap Anywhere to Start' : 'Press R to Start'}
-              </div>
-              <div
-                className="flex items-center justify-center gap-3 text-center font-caveman"
-                style={{
-                  fontSize: 'clamp(0.85rem, 2.4vw, 1.4rem)',
-                  color: 'hsl(var(--foreground))',
-                  textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
-                  letterSpacing: '0.08em',
-                }}
-              >
-                <span>© Team2Go, 2026</span>
-                <img
-                  src={team2goLogoUrl}
-                  alt="Team2Go logo"
-                  className="object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
-                  style={{
-                    width: 'clamp(40px, 7vw, 64px)',
-                    height: 'clamp(40px, 7vw, 64px)',
-                  }}
-                />
-              </div>
-            </div>
-          </button>
+        {/* Attract: LOCAL leaderboard (your own device only) */}
+        {gameState === 'attractLocalLeaderboard' && (
+          <AttractLeaderboardScreen
+            kind="local"
+            isMobile={isMobile}
+            scores={scores}
+            globalScores={globalScores}
+            globalLoading={globalLoading}
+            onStart={() => { unlockAudio(); resetGame(); }}
+            onRequestClearLocal={() => setConfirmClearOpen(true)}
+            background={introBackgroundUrl}
+            logo={team2goLogoUrl}
+          />
+        )}
+
+        {/* Attract: GLOBAL leaderboard (everyone, via Lovable Cloud) */}
+        {gameState === 'attractGlobalLeaderboard' && (
+          <AttractLeaderboardScreen
+            kind="global"
+            isMobile={isMobile}
+            scores={scores}
+            globalScores={globalScores}
+            globalLoading={globalLoading}
+            onStart={() => { unlockAudio(); resetGame(); }}
+            onRequestClearLocal={() => setConfirmClearOpen(true)}
+            background={introBackgroundUrl}
+            logo={team2goLogoUrl}
+          />
         )}
 
         {/* Attract: How to play (PC only) */}
@@ -1938,7 +1984,7 @@ const CavemanVsDragonGame = () => {
       </div>
 
       {/* Controls — hidden on desktop (md+); also hidden on mobile during intro/attract screens */}
-      {!(gameState === 'intro' || gameState === 'attractLeaderboard' || gameState === 'attractControls') && (
+      {!(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls') && (
       <div className="md:hidden w-full shrink-0 overflow-hidden px-2 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] touch-none">
         <div className="grid h-[152px] w-full grid-cols-[minmax(0,1fr)_3rem_minmax(7.5rem,38vw)] items-stretch gap-2">
           {/* Locked D-pad shape: box-style arrows only, wide Up/Down, L/R centered and slightly taller */}
@@ -2001,7 +2047,240 @@ const CavemanVsDragonGame = () => {
         </div>
       </div>
       )}
+      {/* Confirm clearing the LOCAL leaderboard (long-press on mobile attract screen) */}
+      <AlertDialog open={confirmClearOpen} onOpenChange={setConfirmClearOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear local leaderboard?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This wipes the Top {MAX_ENTRIES} list saved on this device only. The
+              global leaderboard is not affected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                clearLocalScores();
+                setScores([]);
+                setConfirmClearOpen(false);
+              }}
+            >
+              Yes, clear it
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// AttractLeaderboardScreen
+// Shared visual for the LOCAL and GLOBAL attract-mode leaderboards.
+// On the LOCAL variant on mobile, holding the screen for 10s triggers
+// `onRequestClearLocal`. Tapping (short press) starts the game.
+// ---------------------------------------------------------------------------
+interface AttractLeaderboardScreenProps {
+  kind: 'local' | 'global';
+  isMobile: boolean;
+  scores: LeaderboardEntry[];
+  globalScores: GlobalEntry[];
+  globalLoading: boolean;
+  background: string;
+  logo: string;
+  onStart: () => void;
+  onRequestClearLocal: () => void;
+}
+
+const LONG_PRESS_MS = 10_000;
+
+const AttractLeaderboardScreen = ({
+  kind,
+  isMobile,
+  scores,
+  globalScores,
+  globalLoading,
+  background,
+  logo,
+  onStart,
+  onRequestClearLocal,
+}: AttractLeaderboardScreenProps) => {
+  const longPressTimer = useRef<number | null>(null);
+  const longPressFiredRef = useRef<boolean>(false);
+
+  const clearLongPress = () => {
+    if (longPressTimer.current !== null) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    longPressFiredRef.current = false;
+    if (kind === 'local' && isMobile) {
+      clearLongPress();
+      longPressTimer.current = window.setTimeout(() => {
+        longPressFiredRef.current = true;
+        onRequestClearLocal();
+      }, LONG_PRESS_MS);
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    e.preventDefault();
+    const wasLong = longPressFiredRef.current;
+    clearLongPress();
+    longPressFiredRef.current = false;
+    if (wasLong) return; // long-press already opened the dialog
+    onStart();
+  };
+
+  const handlePointerCancel = () => {
+    clearLongPress();
+    longPressFiredRef.current = false;
+  };
+
+  const isGlobal = kind === 'global';
+  const title = isGlobal ? `Global Top ${MAX_ENTRIES}` : `Local Top ${MAX_ENTRIES}`;
+
+  return (
+    <button
+      type="button"
+      aria-label="Start game"
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+      onPointerLeave={handlePointerCancel}
+      className="absolute inset-0 flex flex-col items-center overflow-hidden focus:outline-none bg-black"
+      style={{
+        backgroundImage: `url(${background})`,
+        backgroundSize: 'contain',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        imageRendering: 'pixelated',
+      }}
+    >
+      <div className="pointer-events-none absolute inset-0 bg-black/70" />
+      <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-3 px-6 py-8">
+        <h2
+          className="font-caveman text-center"
+          style={{
+            fontSize: 'clamp(1.4rem, 5vw, 2.8rem)',
+            color: 'hsl(var(--accent))',
+            textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
+          }}
+        >
+          {title}
+        </h2>
+
+        <ol
+          className="flex w-full max-w-md flex-col font-caveman"
+          style={{
+            fontSize: 'clamp(0.55rem, 1.7vw, 0.85rem)',
+            color: 'hsl(var(--foreground))',
+            textShadow: '2px 2px 0 #000',
+            lineHeight: 1.15,
+          }}
+        >
+          <li
+            className="flex items-center justify-between gap-2 border-b-2 border-accent px-2 py-1 text-accent"
+            aria-hidden="true"
+          >
+            <span className="w-6">#</span>
+            <span className="flex-1 tracking-widest">NAME</span>
+            <span className="w-16 text-right">SCORE</span>
+            <span className="w-8 text-right">LV</span>
+          </li>
+          {Array.from({ length: MAX_ENTRIES }).map((_, i) => {
+            if (isGlobal) {
+              const e = globalScores[i];
+              const display = e ? (e.name || '---') : '---';
+              return (
+                <li key={i} className="flex items-center justify-between gap-2 border-b border-accent/20 px-2 py-[2px]">
+                  <span className="w-6 text-accent">{(i + 1).toString().padStart(2, '0')}</span>
+                  <span className="flex-1 truncate tracking-wider">{display}</span>
+                  <span className="w-16 text-right">{e ? e.score.toString().padStart(6, '0') : '------'}</span>
+                  <span className="w-8 text-right text-accent">{e && e.level != null ? `L${e.level}` : '--'}</span>
+                </li>
+              );
+            }
+            const e = scores[i];
+            const display = e ? entryDisplayName(e) : '---';
+            return (
+              <li key={i} className="flex items-center justify-between gap-2 border-b border-accent/20 px-2 py-[2px]">
+                <span className="w-6 text-accent">{(i + 1).toString().padStart(2, '0')}</span>
+                <span className="flex-1 truncate tracking-wider">{display}</span>
+                <span className="w-16 text-right">{e ? e.score.toString().padStart(6, '0') : '------'}</span>
+                <span className="w-8 text-right text-accent">{e && e.level != null ? `L${e.level}` : '--'}</span>
+              </li>
+            );
+          })}
+        </ol>
+
+        {isGlobal && globalLoading && globalScores.length === 0 && (
+          <div
+            className="font-caveman text-center"
+            style={{
+              fontSize: 'clamp(0.7rem, 2vw, 1rem)',
+              color: 'hsl(var(--accent))',
+              textShadow: '2px 2px 0 #000',
+            }}
+          >
+            Loading global scores…
+          </div>
+        )}
+
+        {/* Local-only hint about clearing via long-press (mobile only) */}
+        {kind === 'local' && isMobile && (
+          <div
+            className="mt-1 max-w-md px-2 text-center font-caveman opacity-80"
+            style={{
+              fontSize: 'clamp(0.55rem, 1.6vw, 0.8rem)',
+              color: 'hsl(var(--foreground))',
+              textShadow: '1px 1px 0 #000',
+              lineHeight: 1.2,
+            }}
+          >
+            On phone: press &amp; hold anywhere for 10s to clear the local leaderboard.
+          </div>
+        )}
+      </div>
+      {/* Footer prompt — same position as intro screen */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 mb-[7%] flex w-full flex-col items-center gap-3 px-4">
+        <div
+          className="intro-blink text-center font-caveman"
+          style={{
+            fontSize: 'clamp(1.25rem, 4.2vw, 2.4rem)',
+            color: 'hsl(var(--accent))',
+            textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
+          }}
+        >
+          {isMobile ? 'Tap Anywhere to Start' : 'Press R to Start'}
+        </div>
+        <div
+          className="flex items-center justify-center gap-3 text-center font-caveman"
+          style={{
+            fontSize: 'clamp(0.85rem, 2.4vw, 1.4rem)',
+            color: 'hsl(var(--foreground))',
+            textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
+            letterSpacing: '0.08em',
+          }}
+        >
+          <span>© Team2Go, 2026</span>
+          <img
+            src={logo}
+            alt="Team2Go logo"
+            className="object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+            style={{
+              width: 'clamp(40px, 7vw, 64px)',
+              height: 'clamp(40px, 7vw, 64px)',
+            }}
+          />
+        </div>
+      </div>
+    </button>
   );
 };
 
