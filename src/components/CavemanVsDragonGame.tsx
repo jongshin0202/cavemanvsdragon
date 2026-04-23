@@ -1849,6 +1849,25 @@ const CavemanVsDragonGame = () => {
             </div>
           </button>
         )}
+
+        {/* Level intro overlay: "Level N" for 3s, then full black for 0.5s */}
+        {levelIntro && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black">
+            {levelIntro === 'level' && (
+              <div
+                className="font-caveman text-center"
+                style={{
+                  fontSize: 'clamp(2rem, 9vw, 5rem)',
+                  color: 'hsl(var(--accent))',
+                  textShadow: '4px 4px 0 hsl(var(--primary)), 6px 6px 0 #000',
+                  letterSpacing: '0.08em',
+                }}
+              >
+                Level {levelIntroNumber}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Controls — hidden on desktop (md+); also hidden on mobile during intro/attract screens */}
