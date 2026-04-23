@@ -737,6 +737,7 @@ const CavemanVsDragonGame = () => {
               if (p.y + p.h >= platY && p.y + p.h <= platY + 12 && p.vy >= 0) {
                 p.y = platY - p.h; p.vy = 0; p.onGround = true; p.jumping = false;
                 p.jumpFrame = 0; p.jumpTimer = 0;
+                g.comboKills = 0;
               }
             }
           }
