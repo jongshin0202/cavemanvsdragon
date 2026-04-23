@@ -7,6 +7,7 @@ import {
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarTracked, playPrincessHelpSound, isDragonRoaringNow, unlockAudio } from './game/sounds';
 import { loadScores, qualifiesForTop, insertScore, clearLocalScores, formatDate, entryDisplayName, MAX_ENTRIES, type LeaderboardEntry } from './game/leaderboard';
 import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal, type GlobalEntry } from './game/globalLeaderboard';
+import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/deviceStats';
 import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
@@ -210,6 +211,9 @@ const CavemanVsDragonGame = () => {
     g.score = 0; g.lives = 3; g.round = 1;
     setScore(0); setLives(3);
     setGameState('playing');
+    // Anonymous usage stats: count this as a launch (round 1 implicit).
+    recordRound();
+    recordLaunchAndMaybeFlush().catch(() => { /* logged in module */ });
     playLevelIntro(1, () => resetLevel());
   }, [resetLevel, playLevelIntro]);
 
@@ -220,6 +224,7 @@ const CavemanVsDragonGame = () => {
     g.round += 1;
     const nextRound = g.round;
     setGameState('playing');
+    recordRound();
     playLevelIntro(nextRound, () => resetLevel());
   }, [resetLevel, playLevelIntro]);
 
@@ -249,7 +254,8 @@ const CavemanVsDragonGame = () => {
     // 2) If it qualifies globally, write to the cloud and show GLOBAL view.
     //    Otherwise, show LOCAL view.
     if (justSubmittedGlobal.current) {
-      // Optimistically merge into the displayed list.
+      // Anonymous usage stats: count this as a global-leaderboard hit.
+      recordGlobalHit();
       // The realtime subscription + cache layer also merges the canonical row
       // when it arrives — no extra fetch needed here.
       const optimistic: GlobalEntry = {

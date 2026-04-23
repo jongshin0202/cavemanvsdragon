@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_config: {
+        Row: {
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
+      device_stats: {
+        Row: {
+          device_id: string
+          first_seen_at: string
+          global_hits: number
+          last_flush_at: string
+          last_rounds_per_launch: Json
+          launches: number
+          rounds_total: number
+        }
+        Insert: {
+          device_id: string
+          first_seen_at?: string
+          global_hits?: number
+          last_flush_at?: string
+          last_rounds_per_launch?: Json
+          launches?: number
+          rounds_total?: number
+        }
+        Update: {
+          device_id?: string
+          first_seen_at?: string
+          global_hits?: number
+          last_flush_at?: string
+          last_rounds_per_launch?: Json
+          launches?: number
+          rounds_total?: number
+        }
+        Relationships: []
+      }
       global_leaderboard: {
         Row: {
           created_at: string
