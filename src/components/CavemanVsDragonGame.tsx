@@ -1540,12 +1540,12 @@ const CavemanVsDragonGame = () => {
         ctx.fillText('A-Z, 0-9, SPACE   MAX 10 CHARS', CANVAS_W / 2, CANVAS_H - 60);
         ctx.fillText(isMobileRef.current ? 'TAP FIELD ABOVE TO TYPE' : 'PRESS ENTER TO SUBMIT', CANVAS_W / 2, CANVAS_H - 38);
       }
-      if (gameStateRef.current === 'leaderboard') {
+      if (gameStateRef.current === 'leaderboard' || gameStateRef.current === 'globalLeaderboard') {
+        const isGlobal = gameStateRef.current === 'globalLeaderboard';
         ctx.fillStyle = 'rgba(0,0,0,0.95)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
         ctx.fillStyle = '#FFD700'; ctx.font = `bold 20px ${arcade}`;
-        ctx.fillText(`TOP ${MAX_ENTRIES} SCORES`, CANVAS_W / 2, 30);
+        ctx.fillText(isGlobal ? `GLOBAL TOP ${MAX_ENTRIES}` : `LOCAL TOP ${MAX_ENTRIES}`, CANVAS_W / 2, 30);
 
-        const list = scoresRef.current;
         ctx.font = `bold 10px ${arcade}`;
         ctx.textAlign = 'left';
         const colRank = 14, colName = 44, colScore = 230, colLevel = 320, colDate = 360;
@@ -1557,24 +1557,45 @@ const CavemanVsDragonGame = () => {
         ctx.fillText('DATE', colDate, 55);
         const rowH = 19;
         const startY = 72;
+        const typedName = nameInputRef.current.trim();
         for (let i = 0; i < MAX_ENTRIES; i++) {
-          const e = list[i];
           const y = startY + i * rowH;
-          const isMine = e && e.score === pendingScore && (e.name === nameInputRef.current.trim() || e.name === nameInputRef.current);
-          ctx.fillStyle = isMine ? '#FFD700' : '#FFFFFF';
           ctx.fillText(`${i + 1}.`, colRank, y);
-          if (e) {
-            const display = (e.name && e.name.trim()) || e.initials;
-            ctx.fillText(display.slice(0, 10), colName, y);
-            ctx.fillText(String(e.score), colScore, y);
-            ctx.fillText(e.level != null ? String(e.level) : '-', colLevel, y);
-            ctx.fillText(formatDate(e.date).slice(0, 10), colDate, y);
+          if (isGlobal) {
+            const e = globalScoresRef.current[i];
+            const isMine = e && e.score === pendingScore && e.name === typedName;
+            ctx.fillStyle = isMine ? '#FFD700' : '#FFFFFF';
+            ctx.fillText(`${i + 1}.`, colRank, y);
+            if (e) {
+              ctx.fillText((e.name || '---').slice(0, 10), colName, y);
+              ctx.fillText(String(e.score), colScore, y);
+              ctx.fillText(e.level != null ? String(e.level) : '-', colLevel, y);
+              ctx.fillText(e.created_at ? formatDate(e.created_at).slice(0, 10) : '---', colDate, y);
+            } else {
+              ctx.fillStyle = '#444444';
+              ctx.fillText('---', colName, y);
+              ctx.fillText('---', colScore, y);
+              ctx.fillText('-', colLevel, y);
+              ctx.fillText('---', colDate, y);
+            }
           } else {
-            ctx.fillStyle = '#444444';
-            ctx.fillText('---', colName, y);
-            ctx.fillText('---', colScore, y);
-            ctx.fillText('-', colLevel, y);
-            ctx.fillText('---', colDate, y);
+            const e = scoresRef.current[i];
+            const isMine = e && e.score === pendingScore && (e.name === typedName || e.name === nameInputRef.current);
+            ctx.fillStyle = isMine ? '#FFD700' : '#FFFFFF';
+            ctx.fillText(`${i + 1}.`, colRank, y);
+            if (e) {
+              const display = (e.name && e.name.trim()) || e.initials;
+              ctx.fillText(display.slice(0, 10), colName, y);
+              ctx.fillText(String(e.score), colScore, y);
+              ctx.fillText(e.level != null ? String(e.level) : '-', colLevel, y);
+              ctx.fillText(formatDate(e.date).slice(0, 10), colDate, y);
+            } else {
+              ctx.fillStyle = '#444444';
+              ctx.fillText('---', colName, y);
+              ctx.fillText('---', colScore, y);
+              ctx.fillText('-', colLevel, y);
+              ctx.fillText('---', colDate, y);
+            }
           }
         }
         ctx.textAlign = 'center';
