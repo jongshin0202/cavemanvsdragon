@@ -208,6 +208,12 @@ const CavemanVsDragonGame = () => {
   useEffect(() => { initialsCursorRef.current = initialsCursor; }, [initialsCursor]);
   useEffect(() => { isMobileRef.current = isMobile; }, [isMobile]);
 
+  // Clear any pending level-intro timers on unmount
+  useEffect(() => () => {
+    levelIntroTimersRef.current.forEach((id) => window.clearTimeout(id));
+    levelIntroTimersRef.current = [];
+  }, []);
+
   const gameStateRef = useRef<GameState>('intro');
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
 
