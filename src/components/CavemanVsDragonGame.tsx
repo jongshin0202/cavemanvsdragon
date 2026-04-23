@@ -1589,14 +1589,17 @@ const CavemanVsDragonGame = () => {
   return (
     <div className="flex h-[100dvh] min-h-[100dvh] w-full flex-col overflow-hidden select-none bg-background">
       {/* Game area — fills all remaining space above controls */}
-      <div className="relative flex min-h-0 w-full flex-1 items-center justify-center bg-black">
-        {/* Sized stage matching canvas aspect ratio so overlays align with the canvas */}
+      <div className="relative flex min-h-0 w-full flex-1 items-center justify-center bg-black" style={{ containerType: 'size' }}>
+        {/* Sized stage matching canvas aspect ratio so overlays align with the canvas.
+            On PC the parent is wider than tall → height-bound. On phones the parent is
+            often taller than wide → width-bound. Using both max constraints + aspect-ratio
+            with auto dimensions lets the browser pick whichever fits. */}
         <div
           className="relative block max-h-full max-w-full"
           style={{
             aspectRatio: `${CANVAS_W} / ${CANVAS_H}`,
-            height: '100%',
-            width: 'auto',
+            width: `min(100cqw, 100cqh * (${CANVAS_W} / ${CANVAS_H}))`,
+            height: 'auto',
           }}
         >
         <canvas
