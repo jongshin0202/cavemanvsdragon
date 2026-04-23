@@ -1592,11 +1592,12 @@ const CavemanVsDragonGame = () => {
       <div className="relative flex min-h-0 w-full flex-1 items-center justify-center bg-black">
         {/* Sized stage matching canvas aspect ratio so overlays align with the canvas */}
         <div
-          className="relative block max-h-full max-w-full"
+          className="relative block"
           style={{
             aspectRatio: `${CANVAS_W} / ${CANVAS_H}`,
-            height: '100%',
-            width: 'auto',
+            height: 'min(100%, calc(100vw * ' + (CANVAS_H / CANVAS_W) + '))',
+            maxHeight: '100%',
+            maxWidth: '100%',
           }}
         >
         <canvas
