@@ -2316,8 +2316,8 @@ const AttractLeaderboardScreen = ({
           </div>
         )}
 
-        {/* Local-only hint about clearing via long-press (mobile only) */}
-        {kind === 'local' && isMobile && (
+        {/* Local-only hint about clearing — long-press on mobile, hold C on PC */}
+        {kind === 'local' && (
           <div
             className="mt-1 max-w-md px-2 text-center font-caveman opacity-80"
             style={{
@@ -2327,7 +2327,9 @@ const AttractLeaderboardScreen = ({
               lineHeight: 1.2,
             }}
           >
-            On phone: press &amp; hold anywhere for 10s to clear the local leaderboard.
+            {isMobile
+              ? 'On phone: press & hold anywhere for 10s to clear the local leaderboard.'
+              : 'On PC: press & hold C for 10s to clear the local leaderboard.'}
           </div>
         )}
       </div>
