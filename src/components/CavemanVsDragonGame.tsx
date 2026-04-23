@@ -1594,8 +1594,13 @@ const CavemanVsDragonGame = () => {
           ref={canvasRef}
           width={CANVAS_W}
           height={CANVAS_H}
-          className="block border-b-2 border-primary md:h-full md:w-auto md:max-w-full w-full h-full"
-          style={{ imageRendering: 'pixelated', aspectRatio: `${CANVAS_W} / ${CANVAS_H}` }}
+          className="block border-b-2 border-primary max-h-full max-w-full h-auto w-auto"
+          style={{
+            imageRendering: 'pixelated',
+            aspectRatio: `${CANVAS_W} / ${CANVAS_H}`,
+            height: '100%',
+            width: 'auto',
+          }}
           tabIndex={0}
         />
 
@@ -1774,7 +1779,8 @@ const CavemanVsDragonGame = () => {
         )}
       </div>
 
-      {/* Controls — hidden on desktop (md+); use keyboard arrows + space instead */}
+      {/* Controls — hidden on desktop (md+); also hidden on mobile during intro/attract screens */}
+      {!(gameState === 'intro' || gameState === 'attractLeaderboard' || gameState === 'attractControls') && (
       <div className="md:hidden w-full shrink-0 overflow-hidden px-2 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] touch-none">
         <div className="grid h-[152px] w-full grid-cols-[minmax(0,1fr)_3rem_minmax(7.5rem,38vw)] items-stretch gap-2">
           {/* Locked D-pad shape: box-style arrows only, wide Up/Down, L/R centered and slightly taller */}
@@ -1836,6 +1842,7 @@ const CavemanVsDragonGame = () => {
           >JUMP</button>
         </div>
       </div>
+      )}
     </div>
   );
 };
