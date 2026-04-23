@@ -1159,7 +1159,11 @@ const CavemanVsDragonGame = () => {
           const pPlatY = findPlatformIndex(p.y + p.h, p.x + p.w / 2);
           if (rectsOverlap(p, r) && rPlatY === pPlatY) {
             if (p.vy > 0 && p.y + p.h <= r.y + r.h * 0.6) {
-              g.score += 300; setScore(g.score);
+              const n = (g.comboKills || 0) + 1;
+              g.comboKills = n;
+              // For N kills in one jump, total awarded = 300 * N^2.
+              // Per-kill delta = 300 * (N^2 - (N-1)^2) = 300 * (2N - 1).
+              g.score += 300 * (2 * n - 1); setScore(g.score);
               playRobotKillSound();
               p.vy = -4;
               g.robots.splice(i, 1);
