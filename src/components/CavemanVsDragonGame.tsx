@@ -289,6 +289,7 @@ const CavemanVsDragonGame = () => {
         if (qualifiesForTop(g.score)) {
           // Promote to high-score prompt; swallow this input so a second press is required to advance
           setPendingScore(g.score);
+          setPendingLevel(g.round);
           continueArmedAtRef.current = now + 1000;
           setGameState('highscorePrompt');
           return true;
