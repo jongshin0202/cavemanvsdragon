@@ -1595,9 +1595,10 @@ const CavemanVsDragonGame = () => {
           className="relative block"
           style={{
             aspectRatio: `${CANVAS_W} / ${CANVAS_H}`,
-            height: 'min(100%, calc(100vw * ' + (CANVAS_H / CANVAS_W) + '))',
-            maxHeight: '100%',
+            height: '100%',
+            width: 'auto',
             maxWidth: '100%',
+            maxHeight: '100%',
           }}
         >
         <canvas
