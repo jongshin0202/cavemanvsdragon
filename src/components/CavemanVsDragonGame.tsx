@@ -2316,22 +2316,8 @@ const AttractLeaderboardScreen = ({
           </div>
         )}
 
-        {/* Local-only hint about clearing — long-press on mobile, hold C on PC */}
-        {kind === 'local' && (
-          <div
-            className="mt-1 max-w-md px-2 text-center font-caveman opacity-80"
-            style={{
-              fontSize: 'clamp(0.55rem, 1.6vw, 0.8rem)',
-              color: 'hsl(var(--foreground))',
-              textShadow: '1px 1px 0 #000',
-              lineHeight: 1.2,
-            }}
-          >
-            {isMobile
-              ? 'On phone: press & hold anywhere for 10s to clear the local leaderboard.'
-              : 'On PC: press & hold C for 10s to clear the local leaderboard.'}
-          </div>
-        )}
+        {/* Hidden hint: clearing local leaderboard still works
+            (long-press on mobile, hold C on PC), but is intentionally not shown. */}
       </div>
       {/* Footer prompt — same position as intro screen */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 mb-[7%] flex w-full flex-col items-center gap-3 px-4">
