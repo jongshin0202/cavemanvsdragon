@@ -66,6 +66,12 @@ const CavemanVsDragonGame = () => {
   const [lives, setLives] = useState(3);
   const [gameState, setGameState] = useState<GameState>('intro');
   const [scores, setScores] = useState<LeaderboardEntry[]>(() => loadScores());
+  const [globalScores, setGlobalScores] = useState<GlobalEntry[]>([]);
+  const [globalLoading, setGlobalLoading] = useState<boolean>(false);
+  const [confirmClearOpen, setConfirmClearOpen] = useState<boolean>(false);
+  // Whether the just-submitted score also made the global top — drives which
+  // post-game leaderboard we show after name entry.
+  const justSubmittedGlobal = useRef<boolean>(false);
   const [nameInput, setNameInput] = useState<string>('');
   const [nameError, setNameError] = useState<string>('');
   const [pendingScore, setPendingScore] = useState(0);
