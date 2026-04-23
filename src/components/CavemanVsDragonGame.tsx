@@ -256,8 +256,7 @@ const CavemanVsDragonGame = () => {
     if (justSubmittedGlobal.current) {
       // Anonymous usage stats: count this as a global-leaderboard hit.
       recordGlobalHit();
-      // The realtime subscription + cache layer also merges the canonical row
-      // when it arrives — no extra fetch needed here.
+      // Optimistically merge so the user instantly sees their row.
       const optimistic: GlobalEntry = {
         name: cleanName,
         score: pendingScore,
@@ -270,10 +269,31 @@ const CavemanVsDragonGame = () => {
           .slice(0, MAX_ENTRIES);
         return merged;
       });
+      // Mark "just submitted" so the leaderboard-view effect skips its probe
+      // for this transition — we already have the authoritative row from the
+      // insert response, and probing too early would race the server-side
+      // commit and overwrite the optimistic row with a stale empty list.
+      justSubmittedSkipProbe.current = true;
+      // AWAIT the cloud write so we never navigate before the insert lands.
+      // submitGlobalScore returns the canonical row and updates the cache.
+      const saved = await submitGlobalScore({
+        name: cleanName,
+        score: pendingScore,
+        level: pendingLevel,
+      });
+      if (saved) {
+        // Replace the optimistic placeholder with the real row (now has id).
+        setGlobalScores((prev) => {
+          const withoutOptimistic = prev.filter(
+            (r) => !(r.name === optimistic.name && r.score === optimistic.score && !r.id),
+          );
+          const merged = [...withoutOptimistic, saved]
+            .sort((a, b) => b.score - a.score || (a.created_at || '').localeCompare(b.created_at || ''))
+            .slice(0, MAX_ENTRIES);
+          return merged;
+        });
+      }
       setGameState('globalLeaderboard');
-      // Fire-and-forget cloud write; cache + subscribers updated inside.
-      submitGlobalScore({ name: cleanName, score: pendingScore, level: pendingLevel })
-        .catch(() => { /* network errors already logged */ });
     } else {
       setGameState('leaderboard');
     }
