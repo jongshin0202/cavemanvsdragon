@@ -45,6 +45,7 @@ const CavemanVsDragonGame = () => {
   const [initials, setInitials] = useState<string[]>(['A', 'A', 'A']);
   const [initialsCursor, setInitialsCursor] = useState(0);
   const [pendingScore, setPendingScore] = useState(0);
+  const [pendingLevel, setPendingLevel] = useState(1);
   // Level intro overlay: 'level' shows "Level N" for 3s, then 'black' for 0.5s, then null.
   const [levelIntro, setLevelIntro] = useState<null | 'level' | 'black'>(null);
   const [levelIntroNumber, setLevelIntroNumber] = useState(1);
@@ -196,11 +197,12 @@ const CavemanVsDragonGame = () => {
       initials: initialsRef.current.join('').toUpperCase().padEnd(3, 'A').slice(0, 3),
       score: pendingScore,
       date: new Date().toISOString(),
+      level: pendingLevel,
     };
     const next = insertScore(entry);
     setScores(next);
     setGameState('leaderboard');
-  }, [pendingScore]);
+  }, [pendingScore, pendingLevel]);
 
   // Keep refs in sync with state for the canvas render loop
   useEffect(() => { scoresRef.current = scores; }, [scores]);
@@ -288,6 +290,7 @@ const CavemanVsDragonGame = () => {
         if (qualifiesForTop(g.score)) {
           // Promote to high-score prompt; swallow this input so a second press is required to advance
           setPendingScore(g.score);
+          setPendingLevel(g.round);
           continueArmedAtRef.current = now + 1000;
           setGameState('highscorePrompt');
           return true;
@@ -1449,11 +1452,12 @@ const CavemanVsDragonGame = () => {
         const list = scoresRef.current;
         ctx.font = `bold 12px ${arcade}`;
         ctx.textAlign = 'left';
-        const colRank = 30, colInit = 90, colScore = 180, colDate = 290;
+        const colRank = 30, colInit = 80, colScore = 160, colLevel = 250, colDate = 320;
         ctx.fillStyle = '#888888';
         ctx.fillText('#', colRank, 85);
         ctx.fillText('NAME', colInit, 85);
         ctx.fillText('SCORE', colScore, 85);
+        ctx.fillText('LV', colLevel, 85);
         ctx.fillText('DATE', colDate, 85);
         for (let i = 0; i < MAX_ENTRIES; i++) {
           const e = list[i];
@@ -1464,11 +1468,13 @@ const CavemanVsDragonGame = () => {
           if (e) {
             ctx.fillText(e.initials, colInit, y);
             ctx.fillText(String(e.score), colScore, y);
+            ctx.fillText(e.level != null ? String(e.level) : '-', colLevel, y);
             ctx.fillText(formatDate(e.date), colDate, y);
           } else {
             ctx.fillStyle = '#444444';
             ctx.fillText('---', colInit, y);
             ctx.fillText('---', colScore, y);
+            ctx.fillText('-', colLevel, y);
             ctx.fillText('---', colDate, y);
           }
         }
@@ -1760,6 +1766,7 @@ const CavemanVsDragonGame = () => {
                       <span className="w-6 text-accent">{(i + 1).toString().padStart(2, '0')}</span>
                       <span className="flex-1 text-center tracking-widest">{e ? e.initials : '---'}</span>
                       <span className="w-20 text-right">{e ? e.score.toString().padStart(6, '0') : '------'}</span>
+                      <span className="w-12 text-right text-accent">{e && e.level != null ? `L${e.level}` : '--'}</span>
                     </li>
                   );
                 })}

@@ -2,6 +2,7 @@ export interface LeaderboardEntry {
   initials: string; // 3 uppercase letters
   score: number;
   date: string; // ISO
+  level?: number; // last level reached (optional for backward compat)
 }
 
 const STORAGE_KEY = 'cavemanVsDragon.topScores.v1';
@@ -15,6 +16,7 @@ export function loadScores(): LeaderboardEntry[] {
     if (!Array.isArray(parsed)) return [];
     return parsed
       .filter((e) => e && typeof e.initials === 'string' && typeof e.score === 'number' && typeof e.date === 'string')
+      .map((e) => ({ ...e, level: typeof e.level === 'number' ? e.level : undefined }))
       .slice(0, MAX_ENTRIES);
   } catch {
     return [];
