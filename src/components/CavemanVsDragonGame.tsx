@@ -744,89 +744,56 @@ const CavemanVsDragonGame = () => {
               b.vx = (curPlat && (curPlat.slope || 0) < 0) ? -b.speed : b.speed;
             }
 
-            // Check for ladders going DOWN only (barrels never go up)
+            // Pick the best vine to drop from based on the player's platform slope.
+            // Rule (per design):
+            //   - Player on a platform whose LEFT side is HIGHER than the right (slope > 0,
+            //     wheel rolls right after landing): drop at the vine on the closest LEFT
+            //     side of the player so the wheel rolls right toward him.
+            //   - Player on a platform whose LEFT side is LOWER than the right (slope < 0,
+            //     wheel rolls left after landing): drop at the vine on the closest RIGHT
+            //     side of the player so the wheel rolls left toward him.
+            // Only vines whose top is on the wheel's current platform AND whose bottom is
+            // on the player's platform are eligible. If none qualifies, the wheel keeps
+            // rolling and may fall off the edge.
             let tookLadder = false;
+            const playerPlatIdx = findPlatformIndex(playerFeetY, playerCenterX);
+            const playerPlat = PLATFORMS[playerPlatIdx];
+            const landingRollDir = playerPlat && (playerPlat.slope || 0) < 0 ? -1 : 1; // +1 = rolls right, -1 = rolls left
+            const wantLeftOfPlayer = landingRollDir > 0; // need vine to the LEFT of player
+
+            // Find best eligible vine
+            let bestLi = -1;
+            let bestDist = Infinity;
             for (let li = 0; li < LADDERS.length; li++) {
               if (li === TOP_VINE_IDX && !g.topVineUnlocked) continue;
               const l = LADDERS[li];
-              const ladderCenterX = l.x + 7;
-
-              if (Math.abs(bCenterX - ladderCenterX) > b.speed + 4) continue;
-
-              // Only consider ladders where top matches current platform (going down)
               const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
-              if (topPlatIdx !== bPlatIdx) continue;
               const botPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 12);
+              if (topPlatIdx !== bPlatIdx) continue;
+              if (botPlatIdx !== playerPlatIdx) continue; // only vines that land on player's platform
 
-              // Check if player is beyond all ladders on this platform toward the drop edge
-              // If so, skip the ladder and let barrel fall off the edge
-              const curPlat = PLATFORMS[bPlatIdx];
-              const dropEdgeIsLeft = curPlat && curPlat.x1 > 0;
-              const dropEdgeIsRight = curPlat && curPlat.x2 < CANVAS_W;
-
-              // Find all ladders on this platform going down
-              const laddersOnPlat = LADDERS.filter((ll, lli) => {
-                if (lli === TOP_VINE_IDX && !g.topVineUnlocked) return false;
-                const tpi = PLATFORMS.findIndex(pl => Math.abs(pl.y - ll.yTop) < 12);
-                return tpi === bPlatIdx;
-              });
-
-              const allLadderXs = laddersOnPlat.map(ll => ll.x + 7);
-              const minLadderX = Math.min(...allLadderXs);
-              const maxLadderX = Math.max(...allLadderXs);
-              const playerLeft = p.x;
-              const playerRight = p.x + p.w;
-
-              let playerBeyondLadders = false;
-              if (dropEdgeIsLeft && playerRight <= minLadderX + 1) {
-                playerBeyondLadders = true;
+              const ladderCenterX = l.x + 7;
+              if (wantLeftOfPlayer) {
+                if (ladderCenterX > playerCenterX) continue; // must be left of player
+                const d = playerCenterX - ladderCenterX;
+                if (d < bestDist) { bestDist = d; bestLi = li; }
+              } else {
+                if (ladderCenterX < playerCenterX) continue; // must be right of player
+                const d = ladderCenterX - playerCenterX;
+                if (d < bestDist) { bestDist = d; bestLi = li; }
               }
-              if (dropEdgeIsRight && playerLeft >= maxLadderX - 1) {
-                playerBeyondLadders = true;
-              }
+            }
 
-              if (playerBeyondLadders) {
-                continue; // skip this ladder entirely, let barrel fall off edge
-              }
-
-              // If the player is on the landing platform, never take a vine that would
-              // immediately make the wheel roll away from the player after dropping.
-              if (botPlatIdx >= 0) {
-                const landingPlat = PLATFORMS[botPlatIdx];
-                const landingRollDir = (landingPlat?.slope || 0) < 0 ? -1 : 1;
-                const playerPlatIdx = findPlatformIndex(playerFeetY, playerCenterX);
-                if (playerPlatIdx === botPlatIdx) {
-                  if (landingRollDir > 0 && playerRight <= ladderCenterX + 1) {
-                    continue; // would land and roll right away from player
-                  }
-                  if (landingRollDir < 0 && playerLeft >= ladderCenterX - 1) {
-                    continue; // would land and roll left away from player
-                  }
-                }
-              }
-
-              // Skip this vine if the player is still on the "upstream" side of it
-              // relative to the barrel's current roll direction.
-              const rollDir = Math.sign(b.vx);
-              if (rollDir > 0 && playerRight <= ladderCenterX + 1) {
-                continue; // rolling right, player is still left of this vine
-              }
-              if (rollDir < 0 && playerLeft >= ladderCenterX - 1) {
-                continue; // rolling left, player is still right of this vine
-              }
-
-              // Score: is taking this ladder down closer to the player?
-              const ladderBottomY = l.yBot;
-              const ladderScore = scoreToPlayer(ladderCenterX, ladderBottomY);
-              const continueScore = scoreToPlayer(bCenterX + Math.sign(b.vx) * 50, bFeetY);
-
-              if (ladderScore <= continueScore) {
+            // Take the chosen vine when the wheel reaches it
+            if (bestLi !== -1) {
+              const l = LADDERS[bestLi];
+              const ladderCenterX = l.x + 7;
+              if (Math.abs(bCenterX - ladderCenterX) <= b.speed + 4) {
                 b.onLadder = true;
-                b.targetLadder = li;
+                b.targetLadder = bestLi;
                 b.x = l.x + (16 - b.w) / 2;
                 b.vx = 0;
                 tookLadder = true;
-                break;
               }
             }
 
