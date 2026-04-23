@@ -45,6 +45,10 @@ const CavemanVsDragonGame = () => {
   const [initials, setInitials] = useState<string[]>(['A', 'A', 'A']);
   const [initialsCursor, setInitialsCursor] = useState(0);
   const [pendingScore, setPendingScore] = useState(0);
+  // Level intro overlay: 'level' shows "Level N" for 3s, then 'black' for 0.5s, then null.
+  const [levelIntro, setLevelIntro] = useState<null | 'level' | 'black'>(null);
+  const [levelIntroNumber, setLevelIntroNumber] = useState(1);
+  const levelIntroTimersRef = useRef<number[]>([]);
   const continueArmedAtRef = useRef(0); // ms timestamp when input is allowed
   const walkSpriteRef = useRef<HTMLImageElement | null>(null);
   const jumpSpriteRef = useRef<HTMLImageElement | null>(null);
@@ -154,20 +158,37 @@ const CavemanVsDragonGame = () => {
     setGameState('playing');
   }, [resetPlayer]);
 
+  // Plays the "Level N" intro (3s) → black (0.5s) → then runs onDone.
+  const playLevelIntro = useCallback((levelNumber: number, onDone: () => void) => {
+    levelIntroTimersRef.current.forEach((id) => window.clearTimeout(id));
+    levelIntroTimersRef.current = [];
+    setLevelIntroNumber(levelNumber);
+    setLevelIntro('level');
+    const t1 = window.setTimeout(() => setLevelIntro('black'), 3000);
+    const t2 = window.setTimeout(() => {
+      setLevelIntro(null);
+      onDone();
+    }, 3500);
+    levelIntroTimersRef.current.push(t1, t2);
+  }, []);
+
   const resetGame = useCallback(() => {
     const g = gameRef.current;
     g.score = 0; g.lives = 3; g.round = 1;
     setScore(0); setLives(3);
-    resetLevel();
-  }, [resetLevel]);
+    setGameState('playing');
+    playLevelIntro(1, () => resetLevel());
+  }, [resetLevel, playLevelIntro]);
 
   // Start the next level — for now (only one level), restart the same layout
   // with increased difficulty (next round) while preserving score and lives.
   const startNextLevel = useCallback(() => {
     const g = gameRef.current;
     g.round += 1;
-    resetLevel();
-  }, [resetLevel]);
+    const nextRound = g.round;
+    setGameState('playing');
+    playLevelIntro(nextRound, () => resetLevel());
+  }, [resetLevel, playLevelIntro]);
 
   // Submit a high score and move to the leaderboard view
   const submitHighScore = useCallback(() => {
@@ -186,6 +207,12 @@ const CavemanVsDragonGame = () => {
   useEffect(() => { initialsRef.current = initials; }, [initials]);
   useEffect(() => { initialsCursorRef.current = initialsCursor; }, [initialsCursor]);
   useEffect(() => { isMobileRef.current = isMobile; }, [isMobile]);
+
+  // Clear any pending level-intro timers on unmount
+  useEffect(() => () => {
+    levelIntroTimersRef.current.forEach((id) => window.clearTimeout(id));
+    levelIntroTimersRef.current = [];
+  }, []);
 
   const gameStateRef = useRef<GameState>('intro');
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
@@ -1827,6 +1854,25 @@ const CavemanVsDragonGame = () => {
               </div>
             </div>
           </button>
+        )}
+
+        {/* Level intro overlay: "Level N" for 3s, then full black for 0.5s */}
+        {levelIntro && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black">
+            {levelIntro === 'level' && (
+              <div
+                className="font-caveman text-center"
+                style={{
+                  fontSize: 'clamp(2rem, 9vw, 5rem)',
+                  color: 'hsl(var(--accent))',
+                  textShadow: '4px 4px 0 hsl(var(--primary)), 6px 6px 0 #000',
+                  letterSpacing: '0.08em',
+                }}
+              >
+                Level {levelIntroNumber}
+              </div>
+            )}
+          </div>
         )}
       </div>
 
