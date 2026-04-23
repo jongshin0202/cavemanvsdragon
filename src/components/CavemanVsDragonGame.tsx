@@ -45,6 +45,7 @@ const CavemanVsDragonGame = () => {
   const [initials, setInitials] = useState<string[]>(['A', 'A', 'A']);
   const [initialsCursor, setInitialsCursor] = useState(0);
   const [pendingScore, setPendingScore] = useState(0);
+  const [pendingLevel, setPendingLevel] = useState(1);
   // Level intro overlay: 'level' shows "Level N" for 3s, then 'black' for 0.5s, then null.
   const [levelIntro, setLevelIntro] = useState<null | 'level' | 'black'>(null);
   const [levelIntroNumber, setLevelIntroNumber] = useState(1);
