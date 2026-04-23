@@ -1783,6 +1783,7 @@ const CavemanVsDragonGame = () => {
             </div>
           </button>
         )}
+        </div>
       </div>
 
       {/* Controls — hidden on desktop (md+); also hidden on mobile during intro/attract screens */}
