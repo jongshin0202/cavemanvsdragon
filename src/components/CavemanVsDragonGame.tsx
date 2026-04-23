@@ -726,6 +726,7 @@ const CavemanVsDragonGame = () => {
             p.vy = -5; p.onGround = false; p.jumping = true;
             p.jumpFrame = 0; p.jumpTimer = 0;
             g.pendingClimb = null;
+            g.comboKills = 0;
             playJumpSound();
           }
           p.vy += GRAVITY; p.y += p.vy;
