@@ -2047,7 +2047,240 @@ const CavemanVsDragonGame = () => {
         </div>
       </div>
       )}
+      {/* Confirm clearing the LOCAL leaderboard (long-press on mobile attract screen) */}
+      <AlertDialog open={confirmClearOpen} onOpenChange={setConfirmClearOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear local leaderboard?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This wipes the Top {MAX_ENTRIES} list saved on this device only. The
+              global leaderboard is not affected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                clearLocalScores();
+                setScores([]);
+                setConfirmClearOpen(false);
+              }}
+            >
+              Yes, clear it
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// AttractLeaderboardScreen
+// Shared visual for the LOCAL and GLOBAL attract-mode leaderboards.
+// On the LOCAL variant on mobile, holding the screen for 10s triggers
+// `onRequestClearLocal`. Tapping (short press) starts the game.
+// ---------------------------------------------------------------------------
+interface AttractLeaderboardScreenProps {
+  kind: 'local' | 'global';
+  isMobile: boolean;
+  scores: LeaderboardEntry[];
+  globalScores: GlobalEntry[];
+  globalLoading: boolean;
+  background: string;
+  logo: string;
+  onStart: () => void;
+  onRequestClearLocal: () => void;
+}
+
+const LONG_PRESS_MS = 10_000;
+
+const AttractLeaderboardScreen = ({
+  kind,
+  isMobile,
+  scores,
+  globalScores,
+  globalLoading,
+  background,
+  logo,
+  onStart,
+  onRequestClearLocal,
+}: AttractLeaderboardScreenProps) => {
+  const longPressTimer = useRef<number | null>(null);
+  const longPressFiredRef = useRef<boolean>(false);
+
+  const clearLongPress = () => {
+    if (longPressTimer.current !== null) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    longPressFiredRef.current = false;
+    if (kind === 'local' && isMobile) {
+      clearLongPress();
+      longPressTimer.current = window.setTimeout(() => {
+        longPressFiredRef.current = true;
+        onRequestClearLocal();
+      }, LONG_PRESS_MS);
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    e.preventDefault();
+    const wasLong = longPressFiredRef.current;
+    clearLongPress();
+    longPressFiredRef.current = false;
+    if (wasLong) return; // long-press already opened the dialog
+    onStart();
+  };
+
+  const handlePointerCancel = () => {
+    clearLongPress();
+    longPressFiredRef.current = false;
+  };
+
+  const isGlobal = kind === 'global';
+  const title = isGlobal ? `Global Top ${MAX_ENTRIES}` : `Local Top ${MAX_ENTRIES}`;
+
+  return (
+    <button
+      type="button"
+      aria-label="Start game"
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+      onPointerLeave={handlePointerCancel}
+      className="absolute inset-0 flex flex-col items-center overflow-hidden focus:outline-none bg-black"
+      style={{
+        backgroundImage: `url(${background})`,
+        backgroundSize: 'contain',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        imageRendering: 'pixelated',
+      }}
+    >
+      <div className="pointer-events-none absolute inset-0 bg-black/70" />
+      <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-3 px-6 py-8">
+        <h2
+          className="font-caveman text-center"
+          style={{
+            fontSize: 'clamp(1.4rem, 5vw, 2.8rem)',
+            color: 'hsl(var(--accent))',
+            textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
+          }}
+        >
+          {title}
+        </h2>
+
+        <ol
+          className="flex w-full max-w-md flex-col font-caveman"
+          style={{
+            fontSize: 'clamp(0.55rem, 1.7vw, 0.85rem)',
+            color: 'hsl(var(--foreground))',
+            textShadow: '2px 2px 0 #000',
+            lineHeight: 1.15,
+          }}
+        >
+          <li
+            className="flex items-center justify-between gap-2 border-b-2 border-accent px-2 py-1 text-accent"
+            aria-hidden="true"
+          >
+            <span className="w-6">#</span>
+            <span className="flex-1 tracking-widest">NAME</span>
+            <span className="w-16 text-right">SCORE</span>
+            <span className="w-8 text-right">LV</span>
+          </li>
+          {Array.from({ length: MAX_ENTRIES }).map((_, i) => {
+            if (isGlobal) {
+              const e = globalScores[i];
+              const display = e ? (e.name || '---') : '---';
+              return (
+                <li key={i} className="flex items-center justify-between gap-2 border-b border-accent/20 px-2 py-[2px]">
+                  <span className="w-6 text-accent">{(i + 1).toString().padStart(2, '0')}</span>
+                  <span className="flex-1 truncate tracking-wider">{display}</span>
+                  <span className="w-16 text-right">{e ? e.score.toString().padStart(6, '0') : '------'}</span>
+                  <span className="w-8 text-right text-accent">{e && e.level != null ? `L${e.level}` : '--'}</span>
+                </li>
+              );
+            }
+            const e = scores[i];
+            const display = e ? entryDisplayName(e) : '---';
+            return (
+              <li key={i} className="flex items-center justify-between gap-2 border-b border-accent/20 px-2 py-[2px]">
+                <span className="w-6 text-accent">{(i + 1).toString().padStart(2, '0')}</span>
+                <span className="flex-1 truncate tracking-wider">{display}</span>
+                <span className="w-16 text-right">{e ? e.score.toString().padStart(6, '0') : '------'}</span>
+                <span className="w-8 text-right text-accent">{e && e.level != null ? `L${e.level}` : '--'}</span>
+              </li>
+            );
+          })}
+        </ol>
+
+        {isGlobal && globalLoading && globalScores.length === 0 && (
+          <div
+            className="font-caveman text-center"
+            style={{
+              fontSize: 'clamp(0.7rem, 2vw, 1rem)',
+              color: 'hsl(var(--accent))',
+              textShadow: '2px 2px 0 #000',
+            }}
+          >
+            Loading global scores…
+          </div>
+        )}
+
+        {/* Local-only hint about clearing via long-press (mobile only) */}
+        {kind === 'local' && isMobile && (
+          <div
+            className="mt-1 max-w-md px-2 text-center font-caveman opacity-80"
+            style={{
+              fontSize: 'clamp(0.55rem, 1.6vw, 0.8rem)',
+              color: 'hsl(var(--foreground))',
+              textShadow: '1px 1px 0 #000',
+              lineHeight: 1.2,
+            }}
+          >
+            On phone: press &amp; hold anywhere for 10s to clear the local leaderboard.
+          </div>
+        )}
+      </div>
+      {/* Footer prompt — same position as intro screen */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 mb-[7%] flex w-full flex-col items-center gap-3 px-4">
+        <div
+          className="intro-blink text-center font-caveman"
+          style={{
+            fontSize: 'clamp(1.25rem, 4.2vw, 2.4rem)',
+            color: 'hsl(var(--accent))',
+            textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
+          }}
+        >
+          {isMobile ? 'Tap Anywhere to Start' : 'Press R to Start'}
+        </div>
+        <div
+          className="flex items-center justify-center gap-3 text-center font-caveman"
+          style={{
+            fontSize: 'clamp(0.85rem, 2.4vw, 1.4rem)',
+            color: 'hsl(var(--foreground))',
+            textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
+            letterSpacing: '0.08em',
+          }}
+        >
+          <span>© Team2Go, 2026</span>
+          <img
+            src={logo}
+            alt="Team2Go logo"
+            className="object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+            style={{
+              width: 'clamp(40px, 7vw, 64px)',
+              height: 'clamp(40px, 7vw, 64px)',
+            }}
+          />
+        </div>
+      </div>
+    </button>
   );
 };
 
