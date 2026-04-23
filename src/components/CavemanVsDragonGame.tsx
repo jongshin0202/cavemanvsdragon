@@ -1623,7 +1623,7 @@ const CavemanVsDragonGame = () => {
             className="absolute inset-0 flex flex-col items-center justify-between overflow-hidden focus:outline-none"
             style={{
               backgroundImage: `url(${introBackgroundUrl})`,
-              backgroundSize: 'cover',
+              backgroundSize: 'contain', backgroundRepeat: 'no-repeat',
               backgroundPosition: 'center',
               imageRendering: 'pixelated',
             }}
@@ -1680,7 +1680,7 @@ const CavemanVsDragonGame = () => {
             className="absolute inset-0 flex flex-col items-center overflow-hidden focus:outline-none"
             style={{
               backgroundImage: `url(${introBackgroundUrl})`,
-              backgroundSize: 'cover',
+              backgroundSize: 'contain', backgroundRepeat: 'no-repeat',
               backgroundPosition: 'center',
               imageRendering: 'pixelated',
             }}
@@ -1739,7 +1739,7 @@ const CavemanVsDragonGame = () => {
             className="absolute inset-0 flex flex-col items-center overflow-hidden focus:outline-none"
             style={{
               backgroundImage: `url(${introBackgroundUrl})`,
-              backgroundSize: 'cover',
+              backgroundSize: 'contain', backgroundRepeat: 'no-repeat',
               backgroundPosition: 'center',
               imageRendering: 'pixelated',
             }}
