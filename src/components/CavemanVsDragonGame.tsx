@@ -787,18 +787,6 @@ const CavemanVsDragonGame = () => {
                 continue; // skip this ladder entirely, let barrel fall off edge
               }
 
-              // Per-ladder gating: don't take a ladder the player is "behind" relative
-              // to the platform's downhill drop direction. Specifically, if the platform
-              // drops off the right edge and the player is LEFT of this ladder, skip it
-              // so the barrel keeps rolling past it (and either takes a later ladder or
-              // falls off the right edge). Mirror logic for left-dropping platforms.
-              if (dropEdgeIsRight && playerCenterX < ladderCenterX) {
-                continue;
-              }
-              if (dropEdgeIsLeft && playerCenterX > ladderCenterX) {
-                continue;
-              }
-
               // Score: is taking this ladder down closer to the player?
               const ladderBottomY = l.yBot;
               const ladderScore = scoreToPlayer(ladderCenterX, ladderBottomY);
@@ -1601,26 +1589,17 @@ const CavemanVsDragonGame = () => {
   return (
     <div className="flex h-[100dvh] min-h-[100dvh] w-full flex-col overflow-hidden select-none bg-background">
       {/* Game area — fills all remaining space above controls */}
-      <div className="relative flex min-h-0 w-full flex-1 items-center justify-center bg-black" style={{ containerType: 'size' }}>
-        {/* Sized stage matching canvas aspect ratio so overlays align with the canvas.
-            On PC the parent is wider than tall → height-bound. On phones the parent is
-            often taller than wide → width-bound. Using both max constraints + aspect-ratio
-            with auto dimensions lets the browser pick whichever fits. */}
-        <div
-          className="relative block max-h-full max-w-full"
-          style={{
-            aspectRatio: `${CANVAS_W} / ${CANVAS_H}`,
-            width: `min(100cqw, 100cqh * (${CANVAS_W} / ${CANVAS_H}))`,
-            height: 'auto',
-          }}
-        >
+      <div className="relative flex min-h-0 w-full flex-1 items-center justify-center bg-black">
         <canvas
           ref={canvasRef}
           width={CANVAS_W}
           height={CANVAS_H}
-          className="block border-b-2 border-primary h-full w-full"
+          className="block border-b-2 border-primary max-h-full max-w-full h-auto w-auto"
           style={{
             imageRendering: 'pixelated',
+            aspectRatio: `${CANVAS_W} / ${CANVAS_H}`,
+            height: '100%',
+            width: 'auto',
           }}
           tabIndex={0}
         />
@@ -1638,7 +1617,7 @@ const CavemanVsDragonGame = () => {
             className="absolute inset-0 flex flex-col items-center justify-between overflow-hidden focus:outline-none"
             style={{
               backgroundImage: `url(${introBackgroundUrl})`,
-              backgroundSize: 'contain', backgroundRepeat: 'no-repeat',
+              backgroundSize: 'cover',
               backgroundPosition: 'center',
               imageRendering: 'pixelated',
             }}
@@ -1695,7 +1674,7 @@ const CavemanVsDragonGame = () => {
             className="absolute inset-0 flex flex-col items-center overflow-hidden focus:outline-none"
             style={{
               backgroundImage: `url(${introBackgroundUrl})`,
-              backgroundSize: 'contain', backgroundRepeat: 'no-repeat',
+              backgroundSize: 'cover',
               backgroundPosition: 'center',
               imageRendering: 'pixelated',
             }}
@@ -1754,7 +1733,7 @@ const CavemanVsDragonGame = () => {
             className="absolute inset-0 flex flex-col items-center overflow-hidden focus:outline-none"
             style={{
               backgroundImage: `url(${introBackgroundUrl})`,
-              backgroundSize: 'contain', backgroundRepeat: 'no-repeat',
+              backgroundSize: 'cover',
               backgroundPosition: 'center',
               imageRendering: 'pixelated',
             }}
@@ -1798,7 +1777,6 @@ const CavemanVsDragonGame = () => {
             </div>
           </button>
         )}
-        </div>
       </div>
 
       {/* Controls — hidden on desktop (md+); also hidden on mobile during intro/attract screens */}
