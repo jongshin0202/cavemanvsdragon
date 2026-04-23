@@ -292,9 +292,11 @@ const CavemanVsDragonGame = () => {
 
       if (gs === 'highscorePrompt') {
         if (now < continueArmedAtRef.current) return true;
-        setInitials(['A', 'A', 'A']);
-        setInitialsCursor(0);
-        setGameState('enterInitials');
+        setNameInput('');
+        setNameError('');
+        setGameState('enterName');
+        // Focus the hidden input on the next tick so mobile soft keyboard pops up
+        setTimeout(() => nameFieldRef.current?.focus(), 0);
         return true;
       }
 
@@ -311,37 +313,15 @@ const CavemanVsDragonGame = () => {
         return false;
       }
 
-      if (gs === 'enterInitials') {
-        const cursor = initialsCursorRef.current;
-        const cur = [...initialsRef.current];
-        if (key === 'ArrowUp') {
-          const code = cur[cursor].charCodeAt(0);
-          cur[cursor] = String.fromCharCode(code === 90 ? 65 : code + 1); // A-Z wrap
-          setInitials(cur);
+      if (gs === 'enterName') {
+        // The hidden <input> handles typing via React onChange; here we only
+        // catch Enter (submit). Everything else is swallowed so it doesn't
+        // bleed into the game.
+        if (key === 'Enter') {
+          submitHighScore();
           return true;
         }
-        if (key === 'ArrowDown') {
-          const code = cur[cursor].charCodeAt(0);
-          cur[cursor] = String.fromCharCode(code === 65 ? 90 : code - 1);
-          setInitials(cur);
-          return true;
-        }
-        if (key === 'ArrowLeft') {
-          setInitialsCursor(Math.max(0, cursor - 1));
-          return true;
-        }
-        if (key === 'ArrowRight') {
-          if (cursor < 2) setInitialsCursor(cursor + 1);
-          else submitHighScore();
-          return true;
-        }
-        if (key === ' ' || key === 'Enter' || key === 'r' || key === 'R') {
-          // Jump / R confirms — advance cursor or submit
-          if (cursor < 2) setInitialsCursor(cursor + 1);
-          else submitHighScore();
-          return true;
-        }
-        return true; // swallow other keys during entry
+        return true; // swallow other keys during entry (typing handled by input element)
       }
 
       if (gs === 'leaderboard') {
