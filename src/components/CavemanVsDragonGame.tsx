@@ -1614,11 +1614,12 @@ const CavemanVsDragonGame = () => {
               unlockAudio();
               resetGame();
             }}
-            className="absolute inset-0 flex flex-col items-center justify-between overflow-hidden focus:outline-none"
+            className="absolute inset-0 flex flex-col items-center justify-between overflow-hidden focus:outline-none bg-black"
             style={{
               backgroundImage: `url(${introBackgroundUrl})`,
-              backgroundSize: 'cover',
+              backgroundSize: 'contain',
               backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
               imageRendering: 'pixelated',
             }}
           >
@@ -1671,11 +1672,12 @@ const CavemanVsDragonGame = () => {
             type="button"
             aria-label="Start game"
             onPointerDown={(e) => { e.preventDefault(); unlockAudio(); resetGame(); }}
-            className="absolute inset-0 flex flex-col items-center overflow-hidden focus:outline-none"
+            className="absolute inset-0 flex flex-col items-center overflow-hidden focus:outline-none bg-black"
             style={{
               backgroundImage: `url(${introBackgroundUrl})`,
-              backgroundSize: 'cover',
+              backgroundSize: 'contain',
               backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
               imageRendering: 'pixelated',
             }}
           >
@@ -1730,11 +1732,12 @@ const CavemanVsDragonGame = () => {
             type="button"
             aria-label="Start game"
             onPointerDown={(e) => { e.preventDefault(); unlockAudio(); resetGame(); }}
-            className="absolute inset-0 flex flex-col items-center overflow-hidden focus:outline-none"
+            className="absolute inset-0 flex flex-col items-center overflow-hidden focus:outline-none bg-black"
             style={{
               backgroundImage: `url(${introBackgroundUrl})`,
-              backgroundSize: 'cover',
+              backgroundSize: 'contain',
               backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
               imageRendering: 'pixelated',
             }}
           >
