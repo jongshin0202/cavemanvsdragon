@@ -1759,6 +1759,15 @@ const CavemanVsDragonGame = () => {
                   textShadow: '2px 2px 0 #000',
                 }}
               >
+                <li
+                  className="flex items-center justify-between gap-3 border-b-2 border-accent px-2 py-1 text-accent"
+                  aria-hidden="true"
+                >
+                  <span className="w-6">#</span>
+                  <span className="flex-1 text-center tracking-widest">NAME</span>
+                  <span className="w-20 text-right">SCORE</span>
+                  <span className="w-12 text-right">LV</span>
+                </li>
                 {Array.from({ length: MAX_ENTRIES }).map((_, i) => {
                   const e = scores[i];
                   return (
