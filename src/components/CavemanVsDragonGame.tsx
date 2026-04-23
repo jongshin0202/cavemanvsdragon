@@ -1755,33 +1755,35 @@ const CavemanVsDragonGame = () => {
                   textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
                 }}
               >
-                Top 10
+                Top {MAX_ENTRIES}
               </h2>
               <ol
-                className="flex w-full max-w-md flex-col gap-1 font-caveman"
+                className="flex w-full max-w-md flex-col font-caveman"
                 style={{
-                  fontSize: 'clamp(0.7rem, 2.2vw, 1.1rem)',
+                  fontSize: 'clamp(0.55rem, 1.7vw, 0.85rem)',
                   color: 'hsl(var(--foreground))',
                   textShadow: '2px 2px 0 #000',
+                  lineHeight: 1.15,
                 }}
               >
                 <li
-                  className="flex items-center justify-between gap-3 border-b-2 border-accent px-2 py-1 text-accent"
+                  className="flex items-center justify-between gap-2 border-b-2 border-accent px-2 py-1 text-accent"
                   aria-hidden="true"
                 >
                   <span className="w-6">#</span>
-                  <span className="flex-1 text-center tracking-widest">NAME</span>
-                  <span className="w-20 text-right">SCORE</span>
-                  <span className="w-12 text-right">LV</span>
+                  <span className="flex-1 tracking-widest">NAME</span>
+                  <span className="w-16 text-right">SCORE</span>
+                  <span className="w-8 text-right">LV</span>
                 </li>
                 {Array.from({ length: MAX_ENTRIES }).map((_, i) => {
                   const e = scores[i];
+                  const display = e ? entryDisplayName(e) : '---';
                   return (
-                    <li key={i} className="flex items-center justify-between gap-3 border-b border-accent/30 px-2 py-1">
+                    <li key={i} className="flex items-center justify-between gap-2 border-b border-accent/20 px-2 py-[2px]">
                       <span className="w-6 text-accent">{(i + 1).toString().padStart(2, '0')}</span>
-                      <span className="flex-1 text-center tracking-widest">{e ? e.initials : '---'}</span>
-                      <span className="w-20 text-right">{e ? e.score.toString().padStart(6, '0') : '------'}</span>
-                      <span className="w-12 text-right text-accent">{e && e.level != null ? `L${e.level}` : '--'}</span>
+                      <span className="flex-1 truncate tracking-wider">{display}</span>
+                      <span className="w-16 text-right">{e ? e.score.toString().padStart(6, '0') : '------'}</span>
+                      <span className="w-8 text-right text-accent">{e && e.level != null ? `L${e.level}` : '--'}</span>
                     </li>
                   );
                 })}
