@@ -137,6 +137,8 @@ const CavemanVsDragonGame = () => {
     courseDir: 0 as -1 | 0 | 1,
     // Kill-monkeys → key → grow topmost vine mechanic
     monkeysKilled: 0,
+    // Combo: monkeys killed during the current airborne phase (resets on jump start / landing).
+    comboKills: 0,
     keySpawned: false,
     keyGrabbed: false,
     seedPlanted: false, // (legacy name) true once key is grabbed; triggers vine grow
@@ -178,6 +180,7 @@ const CavemanVsDragonGame = () => {
     g.princessAnimTimer = 0; g.helpTimer = 0; g.showHelp = false;
     g.winAnim = { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
     g.monkeysKilled = 0;
+    g.comboKills = 0;
     g.keySpawned = false;
     g.keyGrabbed = false;
     g.seedPlanted = false;
@@ -723,6 +726,7 @@ const CavemanVsDragonGame = () => {
             p.vy = -5; p.onGround = false; p.jumping = true;
             p.jumpFrame = 0; p.jumpTimer = 0;
             g.pendingClimb = null;
+            g.comboKills = 0;
             playJumpSound();
           }
           p.vy += GRAVITY; p.y += p.vy;
@@ -733,6 +737,7 @@ const CavemanVsDragonGame = () => {
               if (p.y + p.h >= platY && p.y + p.h <= platY + 12 && p.vy >= 0) {
                 p.y = platY - p.h; p.vy = 0; p.onGround = true; p.jumping = false;
                 p.jumpFrame = 0; p.jumpTimer = 0;
+                g.comboKills = 0;
               }
             }
           }
@@ -1154,7 +1159,11 @@ const CavemanVsDragonGame = () => {
           const pPlatY = findPlatformIndex(p.y + p.h, p.x + p.w / 2);
           if (rectsOverlap(p, r) && rPlatY === pPlatY) {
             if (p.vy > 0 && p.y + p.h <= r.y + r.h * 0.6) {
-              g.score += 300; setScore(g.score);
+              const n = (g.comboKills || 0) + 1;
+              g.comboKills = n;
+              // For N kills in one jump, total awarded = 300 * N^2.
+              // Per-kill delta = 300 * (N^2 - (N-1)^2) = 300 * (2N - 1).
+              g.score += 300 * (2 * n - 1); setScore(g.score);
               playRobotKillSound();
               p.vy = -4;
               g.robots.splice(i, 1);
