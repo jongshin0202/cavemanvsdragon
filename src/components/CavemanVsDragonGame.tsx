@@ -73,6 +73,11 @@ const CavemanVsDragonGame = () => {
   // Whether the just-submitted score also made the global top — drives which
   // post-game leaderboard we show after name entry.
   const justSubmittedGlobal = useRef<boolean>(false);
+  // Set to true right before we navigate to 'globalLeaderboard' after a
+  // successful submission. The probe-on-view effect consumes (and clears)
+  // this flag once, so we don't race the server commit and overwrite the
+  // freshly-inserted row with a stale fetch.
+  const justSubmittedSkipProbe = useRef<boolean>(false);
   const [nameInput, setNameInput] = useState<string>('');
   const [nameError, setNameError] = useState<string>('');
   const [pendingScore, setPendingScore] = useState(0);
