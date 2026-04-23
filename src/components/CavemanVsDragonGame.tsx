@@ -107,6 +107,9 @@ const CavemanVsDragonGame = () => {
   const isMobileRef = useRef<boolean>(false);
   // Returns true if the input was consumed (i.e., used to advance a menu/screen).
   const anyInputHandlerRef = useRef<((key: string, source: 'keyboard' | 'pad') => boolean) | null>(null);
+  // PC: hold-C-for-10s on the local-leaderboard attract screen to clear it.
+  const cHoldTimerRef = useRef<number | null>(null);
+  const cHoldFiredRef = useRef<boolean>(false);
   const gameRef = useRef({
     player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 },
     barrels: [] as Barrel[],
