@@ -191,7 +191,7 @@ const CavemanVsDragonGame = () => {
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
 
   // Auto-return to intro screen after 5s of inactivity on terminal screens
-  // (gameover without high score, or after viewing the leaderboard).
+  // (gameover without high score, or after viewing the leaderboard post-game).
   useEffect(() => {
     if (gameState !== 'gameover' && gameState !== 'leaderboard') return;
     let timer = window.setTimeout(() => setGameState('intro'), 5000);
@@ -209,6 +209,26 @@ const CavemanVsDragonGame = () => {
       window.removeEventListener('touchstart', reset);
     };
   }, [gameState]);
+
+  // Attract-mode idle cycle on the title screen:
+  //   intro --(5s idle)--> attractLeaderboard
+  //   attractLeaderboard --(10s idle, PC only)--> attractControls
+  //   attractLeaderboard --(10s idle, mobile)--> intro
+  //   attractControls --(10s idle)--> intro
+  useEffect(() => {
+    let nextState: GameState | null = null;
+    let delay = 0;
+    if (gameState === 'intro') { nextState = 'attractLeaderboard'; delay = 5000; }
+    else if (gameState === 'attractLeaderboard') {
+      nextState = isMobile ? 'intro' : 'attractControls';
+      delay = 10000;
+    }
+    else if (gameState === 'attractControls') { nextState = 'intro'; delay = 10000; }
+    if (!nextState) return;
+    const target = nextState;
+    const timer = window.setTimeout(() => setGameState(target), delay);
+    return () => window.clearTimeout(timer);
+  }, [gameState, isMobile]);
 
   // Wire up the unified "any input" handler. Re-binds whenever dependencies change.
   useEffect(() => {
