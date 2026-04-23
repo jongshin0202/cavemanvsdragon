@@ -1452,11 +1452,12 @@ const CavemanVsDragonGame = () => {
         const list = scoresRef.current;
         ctx.font = `bold 12px ${arcade}`;
         ctx.textAlign = 'left';
-        const colRank = 30, colInit = 90, colScore = 180, colDate = 290;
+        const colRank = 30, colInit = 80, colScore = 160, colLevel = 250, colDate = 320;
         ctx.fillStyle = '#888888';
         ctx.fillText('#', colRank, 85);
         ctx.fillText('NAME', colInit, 85);
         ctx.fillText('SCORE', colScore, 85);
+        ctx.fillText('LV', colLevel, 85);
         ctx.fillText('DATE', colDate, 85);
         for (let i = 0; i < MAX_ENTRIES; i++) {
           const e = list[i];
@@ -1467,11 +1468,13 @@ const CavemanVsDragonGame = () => {
           if (e) {
             ctx.fillText(e.initials, colInit, y);
             ctx.fillText(String(e.score), colScore, y);
+            ctx.fillText(e.level != null ? String(e.level) : '-', colLevel, y);
             ctx.fillText(formatDate(e.date), colDate, y);
           } else {
             ctx.fillStyle = '#444444';
             ctx.fillText('---', colInit, y);
             ctx.fillText('---', colScore, y);
+            ctx.fillText('-', colLevel, y);
             ctx.fillText('---', colDate, y);
           }
         }
