@@ -195,21 +195,31 @@ const CavemanVsDragonGame = () => {
 
   // Submit a high score and move to the leaderboard view
   const submitHighScore = useCallback(() => {
+    const raw = nameInputRef.current;
+    const v = validateName(raw);
+    if (!v.ok) {
+      setNameError(v.error || 'INVALID NAME');
+      return;
+    }
+    const cleanName = raw.trim().slice(0, NAME_MAX_LENGTH);
     const entry: LeaderboardEntry = {
-      initials: initialsRef.current.join('').toUpperCase().padEnd(3, 'A').slice(0, 3),
+      name: cleanName,
+      // Keep initials for backward compat (first 3 chars uppercased)
+      initials: cleanName.replace(/\s+/g, '').toUpperCase().padEnd(3, 'A').slice(0, 3),
       score: pendingScore,
       date: new Date().toISOString(),
       level: pendingLevel,
     };
     const next = insertScore(entry);
     setScores(next);
+    setNameError('');
     setGameState('leaderboard');
   }, [pendingScore, pendingLevel]);
 
   // Keep refs in sync with state for the canvas render loop
   useEffect(() => { scoresRef.current = scores; }, [scores]);
-  useEffect(() => { initialsRef.current = initials; }, [initials]);
-  useEffect(() => { initialsCursorRef.current = initialsCursor; }, [initialsCursor]);
+  useEffect(() => { nameInputRef.current = nameInput; }, [nameInput]);
+  useEffect(() => { nameErrorRef.current = nameError; }, [nameError]);
   useEffect(() => { isMobileRef.current = isMobile; }, [isMobile]);
 
   // Clear any pending level-intro timers on unmount
