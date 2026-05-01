@@ -104,8 +104,21 @@ export function isTopSproutGrown(color: 'green' | 'purple'): boolean {
   return !!(s && s.grown);
 }
 
+/** Count currently-grown sprouts in a given gap (excluding `excludeIdx`). */
+function grownInGap(gapIdx: number, excludeIdx = -1): number {
+  let n = 0;
+  for (let i = 0; i < sproutsRuntime.length; i++) {
+    if (i === excludeIdx) continue;
+    const s = sproutsRuntime[i];
+    if (s.isTop) continue;
+    if (s.gapIdx === gapIdx && s.grown) n++;
+  }
+  return n;
+}
+
 export function tickSprouts(): void {
-  for (const s of sproutsRuntime) {
+  for (let idx = 0; idx < sproutsRuntime.length; idx++) {
+    const s = sproutsRuntime[idx];
     switch (s.phase) {
       case 'idle':
         // Non-top sprouts auto-wither after their alive window, unless being climbed.
@@ -114,9 +127,15 @@ export function tickSprouts(): void {
           if (!s.inUse) {
             s.aliveTimer--;
             if (s.aliveTimer <= 0) {
-              s.grown = false;
-              s.phase = 'wither';
-              s.aliveTimer = undefined;
+              // Guarantee at least 1 grown sprout per gap at all times.
+              if (grownInGap(s.gapIdx, idx) === 0) {
+                // Refresh and stay alive — don't leave the gap empty.
+                s.aliveTimer = rollAliveFrames();
+              } else {
+                s.grown = false;
+                s.phase = 'wither';
+                s.aliveTimer = undefined;
+              }
             }
           }
         }
@@ -140,6 +159,11 @@ export function tickSprouts(): void {
       case 'dormant':
         if (s.isTop) break; // top sprouts only grow when watered
         s.regrowTimer--;
+        // If this sprout's gap currently has 0 alive sprouts, fast-track
+        // regrow so the player is never stranded.
+        if (grownInGap(s.gapIdx, idx) === 0 && s.regrowTimer > 0) {
+          s.regrowTimer = 0;
+        }
         if (s.regrowTimer <= 0) { s.regrowTimer = 0; s.phase = 'grow'; }
         break;
       case 'grow':
