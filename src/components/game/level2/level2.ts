@@ -184,15 +184,38 @@ export function tickApples(
     const dir = r.direction >= 0 ? 1 : -1;
     const ax = r.x + r.w / 2 + dir * 8;
     // 50/50: throw LOW (must be jumped over) or HIGH (must be ducked under).
-    // Low = near monkey's feet so a standing player would be hit unless jumping.
-    // High = near monkey's head so a standing player would be hit unless ducking.
+    //
+    // Player is 24px tall, feet on platform (y_feet = platY). When ducking,
+    // the hitbox shrinks to the lower ~45% (top at platY - 11). When jumping,
+    // the player lifts up to ~84px above the platform.
+    //
+    // LOW (jumpable, NOT duckable): a short apple sitting on the ground at
+    // the player's feet. Must jump over; ducking keeps you in its path.
+    //   Player feet y-range while standing/ducked: [platY-11 .. platY].
+    //   While jumping: feet rise up, so the apple passes under → cleared.
+    //
+    // HIGH (duckable, NOT jumpable): a tall vertical streak that spans from
+    // well above the player's max jump apex down to just above the ducked
+    // hitbox. No jump can clear it (player always intersects somewhere in
+    // its vertical extent), but ducking shrinks the hitbox below it.
     const throwHigh = Math.random() < 0.5;
-    const ay = throwHigh ? r.y - 4 : r.y + r.h - 9;
+    let aw = 7, ah = 7, ay: number;
+    if (throwHigh) {
+      // Tall streak: bottom ~12px above platY (clears ducked top at platY-11),
+      // height long enough to cover the entire jump arc (≈ 90px).
+      ah = 90;
+      ay = (r.y + r.h) - 12 - ah; // bottom = platY - 12, top = platY - 102
+    } else {
+      // Short low apple at feet — bottom on the platform, top ~7px above.
+      ah = 7;
+      ay = (r.y + r.h) - ah - 1; // sits just above platform surface
+    }
     s.apples.push({
-      x: ax, y: ay, w: 7, h: 7,
+      x: ax, y: ay, w: aw, h: ah,
       vx: dir * LEVEL2_PARAMS.APPLE_SPEED,
       ownerId: i,
-    });
+      ...(throwHigh ? { _high: true } : {}),
+    } as any);
     alive[i] = true;
   }
 
@@ -683,7 +706,36 @@ export function renderLevel2(
   }
 
   // ── Apples thrown by colored monkeys
-  for (const a of s.apples) {
+  for (const a of s.apples as any[]) {
+    if (a._high) {
+      // High throw: tall vertical streak. Draw a small apple at the BOTTOM
+      // of the hitbox plus a fading motion trail rising up its full height.
+      const cx = a.x + a.w / 2;
+      const appleR = 4;
+      const bottomCy = a.y + a.h - appleR;
+      // Trail (top of streak → just above apple)
+      const trailTop = a.y;
+      const trailBot = bottomCy - appleR;
+      const segs = 8;
+      for (let k = 0; k < segs; k++) {
+        const t = k / segs;
+        const yy = trailBot - t * (trailBot - trailTop);
+        ctx.fillStyle = `rgba(214, 32, 31, ${0.55 * (1 - t)})`;
+        ctx.fillRect(cx - 2, yy - 1, 4, 2);
+      }
+      // Apple body
+      ctx.fillStyle = '#d6201f';
+      ctx.beginPath();
+      ctx.arc(cx, bottomCy, appleR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ff8a87';
+      ctx.fillRect(cx - 2, bottomCy - 2, 2, 2);
+      ctx.fillStyle = '#5a2a08';
+      ctx.fillRect(cx, bottomCy - appleR - 2, 1, 2);
+      ctx.fillStyle = '#2e8b33';
+      ctx.fillRect(cx + 1, bottomCy - appleR - 1, 2, 1);
+      continue;
+    }
     const cx = a.x + a.w / 2;
     const cy = a.y + a.h / 2;
     // body
