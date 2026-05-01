@@ -216,8 +216,9 @@ export function getLevel2Difficulty(iteration: number): Level2Difficulty {
   const respawnMinFrames = LEVEL2_PARAMS.MONKEY_RESPAWN_MIN_FRAMES;
   const respawnMaxFrames = LEVEL2_PARAMS.MONKEY_RESPAWN_MAX_FRAMES;
 
-  // Monkey movement speed: iter 1 = 0.5 (50% of ROBOT_SPEED), +25% per iter.
-  const monkeySpeedMul = 0.5 * (1 + 0.25 * steps);
+  // Monkey movement speed: iter 1 = 0.25 (25% of ROBOT_SPEED, halved from
+  // previous 0.5 baseline), +25% per iter.
+  const monkeySpeedMul = 0.25 * (1 + 0.25 * steps);
   const monkeySpeedJitter = 0.4;
 
   return {
