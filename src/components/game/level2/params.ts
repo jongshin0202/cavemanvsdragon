@@ -14,8 +14,15 @@ export const LEVEL2_PARAMS = {
   GREEN_JACKET_BASE: 1,
   /** Max monkeys wearing PURPLE jackets at any moment (after volcano sealed). */
   PURPLE_JACKET_BASE: 2,
-  APPLE_COOLDOWN_SEC: 2,
-  APPLE_SPEED: 1.6,
+  /** Min/Max wait (seconds) after a monkey's apple leaves the screen
+   *  before that monkey may throw another. */
+  APPLE_COOLDOWN_MIN_SEC: 2,
+  APPLE_COOLDOWN_MAX_SEC: 5,
+  /** Apple horizontal speed (pixels per frame). */
+  APPLE_SPEED: 2.2,
+  /** Frames the player remains ducked when pressing Down (just enough
+   *  to clear an apple, like a reverse jump). */
+  DUCK_FRAMES: 32,
 
   // ─── VOLCANO / FIREBALLS ─────────────────────────────────────
   MAX_FIREBALLS: 1,
