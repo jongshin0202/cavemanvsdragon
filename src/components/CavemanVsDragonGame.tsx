@@ -1688,7 +1688,7 @@ const CavemanVsDragonGame = () => {
       };
       for (let li = 0; li < LADDERS.length; li++) {
         if (!isLevel2Round(g.round) && li === getTopVineIdx()) continue; // L1: top vine drawn separately
-        if (isLevel2Round(g.round) && !isLadderUsableL2(li)) continue; // L2: hide ungrown sprouts
+        if (!isLadderUsable(g.round, li)) continue; // hide ungrown sprouts
         const l = LADDERS[li];
         drawVine(l.x, l.yTop, l.yBot);
       }
