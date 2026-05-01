@@ -1145,46 +1145,52 @@ const CavemanVsDragonGame = () => {
           }
 
           // Respawn killed monkeys (so purple-jacket phase can occur).
-          // Each pending respawn has its own random 5–10s delay rolled at
-          // kill time. Enforce per-platform cap (1 monkey per platform).
+          // Each pending respawn has its own random delay rolled at kill time
+          // (per-iteration via getLevel2Difficulty).
+          // Enforce per-iteration TOTAL monkey cap and per-platform cap.
           const queue: number[] = (g as any).l2RespawnQueue || [];
           if (queue.length > 0) {
-            // Decrement all pending timers each frame.
             for (let qi = 0; qi < queue.length; qi++) queue[qi]--;
-            // Find a ready entry (timer ≤ 0) and try to spawn.
             const readyIdx = queue.findIndex(t => t <= 0);
             if (readyIdx >= 0) {
-              const platSlots = [1, 2, 3, 4];
-              const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
-              for (const rb of g.robots) {
-                const idx = findPlatformIndex(rb.y + rb.h, rb.x + rb.w / 2);
-                if (counts[idx] !== undefined) counts[idx]++;
+              const l2Diff = getLevel2Difficulty(getLevelIteration(g.round));
+              const aliveTotal = g.robots.length;
+              if (aliveTotal < l2Diff.maxMonkeys) {
+                const platSlots = [1, 2, 3, 4];
+                const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
+                for (const rb of g.robots) {
+                  const idx = findPlatformIndex(rb.y + rb.h, rb.x + rb.w / 2);
+                  if (counts[idx] !== undefined) counts[idx]++;
+                }
+                // Open platforms = those under per-platform cap.
+                const open = platSlots.filter(pi => counts[pi] < l2Diff.maxMonkeysPerPlatform);
+                if (open.length > 0) {
+                  queue.splice(readyIdx, 1);
+                  // Prefer least-populated platforms first.
+                  open.sort((a, b) => counts[a] - counts[b]);
+                  const minCount = counts[open[0]];
+                  const leastFilled = open.filter(pi => counts[pi] === minCount);
+                  const pi = leastFilled[Math.floor(Math.random() * leastFilled.length)];
+                  const plat = PLATFORMS[pi];
+                  const leftAtEdge = plat.x1 <= 2;
+                  const rightAtEdge = plat.x2 >= CANVAS_W - 2;
+                  let fromLeft: boolean;
+                  if (leftAtEdge && rightAtEdge) fromLeft = Math.random() < 0.5;
+                  else if (leftAtEdge) fromLeft = true;
+                  else if (rightAtEdge) fromLeft = false;
+                  else fromLeft = (plat.x1 < CANVAS_W - plat.x2);
+                  const rx = fromLeft ? plat.x1 - 16 : plat.x2 + 2;
+                  const ry = getPlatformY(plat, fromLeft ? plat.x1 + 1 : plat.x2 - 1) - 16;
+                  const spd = ROBOT_SPEED * 0.6;
+                  g.robots.push({
+                    x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0,
+                    onGround: true, climbing: false, targetLadder: null,
+                    direction: fromLeft ? 1 : -1,
+                    frame: 0, frameTimer: 0, speed: spd,
+                  });
+                  pushJacket(l2Ref.current, newSpawnJacket(l2Ref.current));
+                }
               }
-              const open = platSlots.filter(pi => counts[pi] === 0);
-              if (open.length > 0) {
-                queue.splice(readyIdx, 1);
-                const pi = open[Math.floor(Math.random() * open.length)];
-                const plat = PLATFORMS[pi];
-                // Walk in from whichever side touches the screen edge (no gap).
-                const leftAtEdge = plat.x1 <= 2;
-                const rightAtEdge = plat.x2 >= CANVAS_W - 2;
-                let fromLeft: boolean;
-                if (leftAtEdge && rightAtEdge) fromLeft = Math.random() < 0.5;
-                else if (leftAtEdge) fromLeft = true;
-                else if (rightAtEdge) fromLeft = false;
-                else fromLeft = (plat.x1 < CANVAS_W - plat.x2);
-                const rx = fromLeft ? plat.x1 - 16 : plat.x2 + 2;
-                const ry = getPlatformY(plat, fromLeft ? plat.x1 + 1 : plat.x2 - 1) - 16;
-                const spd = ROBOT_SPEED * 0.6;
-                g.robots.push({
-                  x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0,
-                  onGround: true, climbing: false, targetLadder: null,
-                  direction: fromLeft ? 1 : -1,
-                  frame: 0, frameTimer: 0, speed: spd,
-                });
-                pushJacket(l2Ref.current, newSpawnJacket(l2Ref.current));
-              }
-              // If no platform open, the entry stays at ≤0 and will retry next frame.
             }
             (g as any).l2RespawnQueue = queue;
           }
