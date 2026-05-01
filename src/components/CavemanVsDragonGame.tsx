@@ -1353,13 +1353,16 @@ const CavemanVsDragonGame = () => {
             if (p.vy > 0 && p.y + p.h <= r.y + r.h * 0.6) {
               const n = (g.comboKills || 0) + 1;
               g.comboKills = n;
-              // Combo: for P kills in one jump, total = 300 * P * P.
-              // Per-kill delta on the Nth kill = 300 * (N^2 - (N-1)^2) = 300 * (2N - 1).
               g.score += 300 * (2 * n - 1); setScore(g.score);
               playRobotKillSound();
               p.vy = -4;
               g.robots.splice(i, 1);
               g.monkeysKilled = (g.monkeysKilled || 0) + 1;
+              if (g.round >= 2) {
+                onMonkeyKilled(l2Ref.current, i);
+                // L2: respawn a monkey on a random P2..P5 after a short delay
+                queueRespawnMonkey(g);
+              }
             } else if (g.invulnTimer === 0) {
               g.lives--; setLives(g.lives);
               if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
