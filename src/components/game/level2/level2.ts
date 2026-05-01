@@ -477,50 +477,75 @@ export function updateLevel2(
         s.fireballTimer--;
       } else {
         const mouth = getVolcanoMouth();
-        // Pick a target platform: random P1..P5, never the same as the last
-        // landing, never one that already has a hole. Then pick an x on it
-        // that is at least 48px from any existing hole on any platform.
+        // Target the player's current platform when possible. Falls back
+        // to the nearest valid platform (skipping the top platform, the
+        // last-used platform, and any platform with an active hole).
         const TOP_IDX = PLATFORMS.length - 1;
         const lastPi: number = (s as any)._lastFireballPlat ?? -1;
         const platHasHole = (pi: number) => s.holes.some(h => h.platformIdx === pi);
-        let candidates: number[] = [];
-        for (let pi = 0; pi < TOP_IDX; pi++) {
-          if (pi === lastPi) continue;
-          if (platHasHole(pi)) continue;
-          candidates.push(pi);
-        }
-        // Fallbacks if everything is filtered out.
-        if (candidates.length === 0) {
-          for (let pi = 0; pi < TOP_IDX; pi++) {
-            if (!platHasHole(pi)) candidates.push(pi);
-          }
-        }
-        if (candidates.length === 0) {
-          for (let pi = 0; pi < TOP_IDX; pi++) {
-            if (pi !== lastPi) candidates.push(pi);
-          }
-        }
-        if (candidates.length === 0) candidates = [0, 1, 2, 3, 4];
 
-        const pickPi = candidates[Math.floor(Math.random() * candidates.length)];
+        // Identify the player's platform (P0..P4 only).
+        let playerPi = -1;
+        for (let pi = 0; pi < TOP_IDX; pi++) {
+          const plat = PLATFORMS[pi];
+          const py = getPlatformY(plat, playerX);
+          if (
+            playerX >= plat.x1 && playerX <= plat.x2 &&
+            Math.abs((playerY) - py) < 32
+          ) { playerPi = pi; break; }
+        }
+
+        const buildCandidates = (excludeLast: boolean, excludeHoles: boolean) => {
+          const out: number[] = [];
+          for (let pi = 0; pi < TOP_IDX; pi++) {
+            if (excludeLast && pi === lastPi) continue;
+            if (excludeHoles && platHasHole(pi)) continue;
+            out.push(pi);
+          }
+          return out;
+        };
+
+        let pickPi: number;
+        const validForPlayer =
+          playerPi >= 0 && playerPi !== lastPi && !platHasHole(playerPi);
+        if (validForPlayer) {
+          pickPi = playerPi;
+        } else {
+          // Pick the platform whose center is nearest the player from the
+          // remaining valid candidates.
+          let candidates = buildCandidates(true, true);
+          if (candidates.length === 0) candidates = buildCandidates(false, true);
+          if (candidates.length === 0) candidates = buildCandidates(true, false);
+          if (candidates.length === 0) candidates = [0, 1, 2, 3, 4];
+          candidates.sort((a, b) => {
+            const ca = (PLATFORMS[a].x1 + PLATFORMS[a].x2) / 2;
+            const cb = (PLATFORMS[b].x1 + PLATFORMS[b].x2) / 2;
+            return Math.abs(ca - playerX) - Math.abs(cb - playerX);
+          });
+          pickPi = candidates[0];
+        }
+
         const targetPlat = PLATFORMS[pickPi];
         const margin = 24;
-        const HOLE_BUFFER = 48; // never land within 48px of an existing hole
-        let targetX = targetPlat.x1 + margin +
-          Math.random() * Math.max(1, targetPlat.x2 - targetPlat.x1 - margin * 2);
+        const HOLE_BUFFER = 48;
+        // Aim X near the player's X (clamped to the platform with margin).
+        const minX = targetPlat.x1 + margin;
+        const maxX = targetPlat.x2 - margin;
+        const clampX = (v: number) => Math.max(minX, Math.min(maxX, v));
+        let targetX = clampX(playerX);
+        // Nudge away if too close to an existing hole on the same platform.
         for (let attempt = 0; attempt < 20; attempt++) {
-          const cand = targetPlat.x1 + margin +
-            Math.random() * Math.max(1, targetPlat.x2 - targetPlat.x1 - margin * 2);
           const tooClose = s.holes.some(h =>
             h.platformIdx === pickPi &&
-            Math.abs(cand - h.centerX) < HOLE_BUFFER + h.width / 2,
+            Math.abs(targetX - h.centerX) < HOLE_BUFFER + h.width / 2,
           );
-          if (!tooClose) { targetX = cand; break; }
+          if (!tooClose) break;
+          targetX = clampX(playerX + (Math.random() * 2 - 1) * 60);
         }
-        // Add a bit of horizontal randomness to make the angle less predictable
-        // (still biased toward the player via target selection).
-        const aimJitter = (Math.random() * 2 - 1) * 24; // ±24px
-        const aimedX = targetX + aimJitter;
+        // Slight aim jitter so the throw isn't perfectly predictable, but
+        // still aimed at the player.
+        const aimJitter = (Math.random() * 2 - 1) * 12; // ±12px
+        const aimedX = clampX(targetX + aimJitter);
 
         const fb: any = {
           startX: mouth.x, startY: mouth.y,
