@@ -117,7 +117,7 @@ const CavemanVsDragonGame = () => {
   const cHoldTimerRef = useRef<number | null>(null);
   const cHoldFiredRef = useRef<boolean>(false);
   const gameRef = useRef({
-    player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 },
+    player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0, duckTimer: 0 },
     barrels: [] as Barrel[],
     robots: [] as (Robot & { wanderTimer?: number; wanderDir?: number })[],
     barrelTimer: 0,
@@ -171,7 +171,7 @@ const CavemanVsDragonGame = () => {
 
   const resetPlayer = useCallback(() => {
     const g = gameRef.current;
-    g.player = { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 };
+    g.player = { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0, duckTimer: 0 };
     g.barrels = [];
     g.barrelTimer = 0;
     g.pendingClimb = null;
