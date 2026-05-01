@@ -39,14 +39,21 @@ export interface SproutRuntime {
   ladderIdx: number;
   /** Currently usable (climb/render) when true. */
   grown: boolean;
-  /** Frames remaining until regrow (when !grown). */
+  /** Frames remaining until regrow starts (when !grown && growProgress===0). */
   regrowTimer: number;
+  /** Animation progress 0..1 while the vine is growing back from the
+   *  seed mound. When it reaches 1 the sprout becomes `grown`. */
+  growProgress: number;
   /** True for the topmost (P5→P6) — managed by the existing
    *  watering mechanic, not by the regrow timer. */
   isTop: boolean;
 }
 
 let sproutsRuntime: SproutRuntime[] = [];
+
+/** Frames the regrow animation takes once dormant timer reaches 0
+ *  (~1.13s @60fps — matches L1 top-vine grow feel of 1/68 per frame). */
+const GROW_FRAMES = 68;
 
 export function getSprouts(): SproutRuntime[] { return sproutsRuntime; }
 
@@ -61,18 +68,23 @@ export function markSproutUsed(idx: number): void {
   const s = sproutsRuntime[idx];
   if (!s || s.isTop || !s.grown) return;
   s.grown = false;
+  s.growProgress = 0;
   const min = LEVEL2_PARAMS.SPROUT_REGROW_MIN_SEC * 60;
   const max = LEVEL2_PARAMS.SPROUT_REGROW_MAX_SEC * 60;
   s.regrowTimer = Math.round(min + Math.random() * (max - min));
 }
 
-/** Tick all sprout regrow timers. Call once per frame from L2 update. */
+/** Tick all sprout regrow timers + grow animation. Call once per frame. */
 export function tickSprouts(): void {
   for (const s of sproutsRuntime) {
     if (s.isTop) continue;
-    if (!s.grown) {
+    if (s.grown) continue;
+    if (s.regrowTimer > 0) {
       s.regrowTimer--;
-      if (s.regrowTimer <= 0) { s.grown = true; s.regrowTimer = 0; }
+    } else {
+      // Dormant period over — animate the vine growing up from the seed.
+      s.growProgress = Math.min(1, s.growProgress + 1 / GROW_FRAMES);
+      if (s.growProgress >= 1) s.grown = true;
     }
   }
 }
