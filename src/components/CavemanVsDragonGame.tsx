@@ -754,6 +754,7 @@ const CavemanVsDragonGame = () => {
         // Wider snap: find nearest ladder within LADDER_SNAP pixels
         const playerCX = p.x + p.w / 2;
         let nearestLadder: (typeof LADDERS)[number] | null = null;
+        let nearestLadderIdx = -1;
         let nearestLadderDist = Infinity;
         for (let li = 0; li < LADDERS.length; li++) {
           if (li === getTopVineIdx() && !g.topVineUnlocked) continue;
@@ -763,6 +764,7 @@ const CavemanVsDragonGame = () => {
           const dist = Math.abs(playerCX - ladderCX);
           if (dist < LADDER_SNAP && p.y + p.h > l.yTop - 8 && p.y + p.h <= l.yBot + 16 && dist < nearestLadderDist) {
             nearestLadder = l;
+            nearestLadderIdx = li;
             nearestLadderDist = dist;
           }
         }
