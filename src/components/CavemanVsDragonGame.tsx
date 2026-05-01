@@ -748,8 +748,10 @@ const CavemanVsDragonGame = () => {
           g.deathTimer = 0;
           g.deathFlashTimer = 0;
           resetPlayer();
-          // Spawn first rock wheel immediately on respawn
-          {
+          // Spawn first rock wheel immediately on respawn — Level 1 only.
+          // Level 2 manages its own hazards (fireballs/apples) and must
+          // never get a rolling rock.
+          if (!isLevel2Round(g.round)) {
             const d = getRoundDifficulty(g.round);
             const speed = BARREL_SPEED * (d.barrelSpeedMul + Math.random() * d.barrelSpeedJitter);
             g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed, rollPhase: 0 });
