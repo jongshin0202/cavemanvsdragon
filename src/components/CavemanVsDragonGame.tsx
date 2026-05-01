@@ -110,6 +110,11 @@ const CavemanVsDragonGame = () => {
   const [levelIntro, setLevelIntro] = useState<null | 'level' | 'black'>(null);
   const [levelIntroNumber, setLevelIntroNumber] = useState(1);
   const levelIntroTimersRef = useRef<number[]>([]);
+  // Mirrors `levelIntro` so the rAF game loop (which doesn't see React state
+  // directly) can pause physics/spawns/sounds while the "Level N" overlay is
+  // showing. Without this, e.g. L1 barrels would start spawning during the
+  // Level 3 / Level 5 intro and play barrel-roll jingles under the overlay.
+  const levelIntroRef = useRef<null | 'level' | 'black'>(null);
   const continueArmedAtRef = useRef(0); // ms timestamp when input is allowed
   const walkSpriteRef = useRef<HTMLImageElement | null>(null);
   const jumpSpriteRef = useRef<HTMLImageElement | null>(null);
