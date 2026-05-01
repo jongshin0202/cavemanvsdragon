@@ -1006,7 +1006,6 @@ const CavemanVsDragonGame = () => {
           tickSprouts();
 
           // Award 100 points the first time the player jumps over a fireball
-          // (mirrors L1 barrel-jump scoring).
           for (const fb of l2Ref.current.fireballs as any[]) {
             if (fb.jumpedOver || fb.landed) continue;
             if (
@@ -1017,6 +1016,91 @@ const CavemanVsDragonGame = () => {
             ) {
               fb.jumpedOver = true;
               g.score += 100; setScore(g.score);
+            }
+          }
+
+          // Fireball lethal hit on player
+          if (g.invulnTimer === 0 && fireballHitsPlayer(l2Ref.current, pl)) {
+            g.lives--; setLives(g.lives);
+            if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
+            else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
+          }
+
+          // Watering can pickup
+          const pickedColor = tryPickupCan(l2Ref.current, pl);
+          if (pickedColor) playKeyGrabSound();
+
+          // Water a top sprout when standing at its base while carrying matching can
+          if (l2Ref.current.carryingCan) {
+            const targetIdx = l2Ref.current.carryingCan === 'green' ? GREEN_TOP_LADDER_IDX : PURPLE_TOP_LADDER_IDX;
+            if (targetIdx >= 0) {
+              const tv = LADDERS[targetIdx];
+              const sproutX = tv.x + 7;
+              const sproutY = tv.yBot;
+              const playerCXNow = pl.x + pl.w / 2;
+              const playerFeetNow = pl.y + pl.h;
+              if (Math.abs(playerCXNow - sproutX) < 16 && Math.abs(playerFeetNow - sproutY) < 12) {
+                if (waterTopSprout(l2Ref.current.carryingCan)) {
+                  playWaterSproutSound();
+                  playVineGrowSound();
+                  l2Ref.current.carryingCan = null;
+                }
+              }
+            }
+          }
+
+          // Once green sprout is fully grown → volcano coughs out a rock (one time).
+          if (isTopSproutGrown('green') && !l2Ref.current.rockSpawned && !l2Ref.current.volcanoSealed) {
+            maybeSpawnVolcanoRock(l2Ref.current);
+          }
+
+          // Pickup the volcano rock
+          if (tryPickupRock(l2Ref.current, pl)) {
+            playKeyGrabSound();
+          }
+
+          // Seal volcano if carrying rock and at volcano
+          if (l2Ref.current.carryingRock) {
+            if (trySealVolcano(l2Ref.current, pl.x + pl.w / 2, pl.y + pl.h)) {
+              playWinSound();
+            }
+          }
+
+          // Win: purple sprout grown AND player touches princess
+          if (isTopSproutGrown('purple') && !wa.active) {
+            const paulX = 175, paulY = 64;
+            if (rectsOverlap(pl, { x: paulX, y: paulY, w: 40, h: 48 })) {
+              g.state = 'win'; setGameState('win');
+              g.score += 2000 + g.lives * 1000; setScore(g.score);
+              playWinSound(); playPrincessSavedSound();
+              wa.active = true;
+              wa.timer = 0;
+              wa.gorillaY = 76;
+              wa.gorillaRotation = 0;
+              wa.showKiss = false;
+              wa.showCongrats = false;
+            }
+          }
+
+          // Respawn killed monkeys (so purple-jacket phase can occur)
+          if ((g as any).l2RespawnQueue && (g as any).l2RespawnQueue > 0) {
+            (g as any).l2RespawnTimer = ((g as any).l2RespawnTimer || 0) + 1;
+            if ((g as any).l2RespawnTimer > 60) {
+              (g as any).l2RespawnTimer = 0;
+              (g as any).l2RespawnQueue--;
+              const platSlots = [1, 2, 3, 4];
+              const pi = platSlots[Math.floor(Math.random() * platSlots.length)];
+              const plat = PLATFORMS[pi];
+              const rx = plat.x1 + 30 + Math.random() * (plat.x2 - plat.x1 - 60);
+              const ry = getPlatformY(plat, rx) - 16;
+              const spd = ROBOT_SPEED * 0.6;
+              g.robots.push({
+                x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0,
+                onGround: true, climbing: false, targetLadder: null,
+                direction: Math.random() > 0.5 ? 1 : -1,
+                frame: 0, frameTimer: 0, speed: spd,
+              });
+              pushJacket(l2Ref.current, newSpawnJacket(l2Ref.current));
             }
           }
         }
