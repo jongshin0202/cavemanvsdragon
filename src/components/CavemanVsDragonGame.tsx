@@ -181,7 +181,7 @@ const CavemanVsDragonGame = () => {
     g.invulnTimer = 120; // ~2s at 60fps
     // L2: if any hole overlaps the spawn footprint, close it so the player
     // doesn't immediately fall through and lose lives in a death loop.
-    if (g.round >= 2 && l2Ref.current?.holes?.length) {
+    if (isLevel2Round(g.round) && l2Ref.current?.holes?.length) {
       const px1 = g.player.x - 4;
       const px2 = g.player.x + g.player.w + 4;
       l2Ref.current.holes = l2Ref.current.holes.filter((h: any) => {
@@ -224,7 +224,7 @@ const CavemanVsDragonGame = () => {
     // an L1 rock here for the (legacy) L1 layout — the L2 module manages
     // its own hazards independently and the host's L1 barrel-spawn block
     // is gated on round===1 below in the loop.
-    if (g.round >= 2) {
+    if (isLevel2Round(g.round)) {
       // Swap to L2 layout (flat platforms + sprout vines) BEFORE
       // initializing/spawning so monkey + sprite positions snap to it.
       applyLevel2Layout();
@@ -238,7 +238,7 @@ const CavemanVsDragonGame = () => {
       restoreLevel1Layout();
     }
     // Spawn first rock immediately so action starts the moment the level begins
-    if (g.round === 1) {
+    if (!isLevel2Round(g.round)) {
       const d = getRoundDifficulty(g.round);
       const speed = BARREL_SPEED * (d.barrelSpeedMul + Math.random() * d.barrelSpeedJitter);
       g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed, rollPhase: 0 });
@@ -778,8 +778,8 @@ const CavemanVsDragonGame = () => {
         let nearestLadderIdx = -1;
         let nearestLadderDist = Infinity;
         for (let li = 0; li < LADDERS.length; li++) {
-          if (g.round === 1 && li === getTopVineIdx() && !g.topVineUnlocked) continue;
-          if (g.round >= 2 && !isLadderUsableL2(li)) continue;
+          if (!isLevel2Round(g.round) && li === getTopVineIdx() && !g.topVineUnlocked) continue;
+          if (isLevel2Round(g.round) && !isLadderUsableL2(li)) continue;
           const l = LADDERS[li];
           const ladderCX = l.x + 7;
           const dist = Math.abs(playerCX - ladderCX);
@@ -832,7 +832,7 @@ const CavemanVsDragonGame = () => {
             p.x = nearestLadder.x + 7 - p.w / 2;
           } else if (p.onGround && !nearestLadder && rawDown) {
             // L2: ducking — stay ducked the entire time Down is held.
-            if (g.round >= 2) {
+            if (isLevel2Round(g.round)) {
               (p as any).duckTimer = LEVEL2_PARAMS.DUCK_FRAMES;
               (p as any).duckHeld = true;
             } else {
@@ -874,18 +874,18 @@ const CavemanVsDragonGame = () => {
             p.climbing = false;
             if (climbingLadder) p.y = climbingLadder.yTop - p.h;
             // L2: sprout withers after one use (climbed up)
-            if (g.round >= 2 && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
+            if (isLevel2Round(g.round) && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
           } else if (nearBot && (wantsHorizontal || rawDown)) {
             p.climbing = false;
             if (climbingLadder) p.y = climbingLadder.yBot - p.h;
             // L2: sprout withers after one use (climbed down)
-            if (g.round >= 2 && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
+            if (isLevel2Round(g.round) && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
           } else if (wantsHorizontal && !rawUp && !rawDown) {
             p.climbing = false;
           } else {
             p.vy = 0;
             // L2: keep this sprout alive while we're actively on it.
-            if (g.round >= 2 && nearestLadderIdx >= 0) markSproutInUse(nearestLadderIdx);
+            if (isLevel2Round(g.round) && nearestLadderIdx >= 0) markSproutInUse(nearestLadderIdx);
             const climbMoving = rawUp || rawDown;
             if (rawUp) p.y -= CLIMB_SPEED;
             if (rawDown) p.y += CLIMB_SPEED;
@@ -918,7 +918,7 @@ const CavemanVsDragonGame = () => {
               const platY = getPlatformY(plat, p.x + p.w / 2);
               if (p.y + p.h >= platY && p.y + p.h <= platY + 12 && p.vy >= 0) {
                 // L2: fall through holes (or the permanent top-platform gap).
-                if (g.round >= 2 && isHoleAtPlatform(l2Ref.current, plIdx, p.x + p.w / 2)) {
+                if (isLevel2Round(g.round) && isHoleAtPlatform(l2Ref.current, plIdx, p.x + p.w / 2)) {
                   continue;
                 }
                 p.y = platY - p.h; p.vy = 0; p.onGround = true; p.jumping = false;
@@ -947,7 +947,7 @@ const CavemanVsDragonGame = () => {
         // Random placement: anywhere on P1–P4, OR the leftmost edge of P5.
         const monkeyTarget = getRoundDifficulty(g.round).monkeyCount;
         // Level-1 only mechanic — L2 has its own (green/purple) watering cans.
-        if (g.round === 1 && !g.keySpawned && g.monkeysKilled >= monkeyTarget) {
+        if (!isLevel2Round(g.round) && !g.keySpawned && g.monkeysKilled >= monkeyTarget) {
           g.keySpawned = true;
           const choice = Math.floor(Math.random() * 5); // 0..4
           let kx: number;
@@ -998,7 +998,7 @@ const CavemanVsDragonGame = () => {
 
         // Win condition - touch the girl (next to the dragon). Level 1 only;
         // Level 2 owns its own win flow inside the L2 module.
-        if (g.round === 1) {
+        if (!isLevel2Round(g.round)) {
           const paulX = 175, paulY = 64;
           if (rectsOverlap(p, { x: paulX, y: paulY, w: 40, h: 48 })) {
             g.state = 'win'; setGameState('win');
@@ -1014,7 +1014,7 @@ const CavemanVsDragonGame = () => {
 
         // === BARREL SPAWNING (only after player first moves; first barrel ~0.5s after) ===
         // Disabled in Level 2 — the L2 module manages its own hazards.
-        if (g.round === 1 && g.playerHasMoved) {
+        if (!isLevel2Round(g.round) && g.playerHasMoved) {
           const d = getRoundDifficulty(g.round);
           g.barrelTimer++;
           if (!g.nextBarrelTime) g.nextBarrelTime = d.barrelSpawnMin + Math.random() * d.barrelSpawnRange;
@@ -1028,7 +1028,7 @@ const CavemanVsDragonGame = () => {
         }
 
         // === LEVEL 2 UPDATE ===
-        if (g.round >= 2) {
+        if (isLevel2Round(g.round)) {
           const pl = g.player;
           updateLevel2(l2Ref.current, g.frameCount, pl.x + pl.w / 2, pl.y + pl.h / 2);
           // Tick sprout regrow timers (per-frame).
@@ -1191,7 +1191,7 @@ const CavemanVsDragonGame = () => {
         // Distribution across P2..P5 grows by +1 per finished round, added to a
         // random platform with the current minimum count, until each platform
         // has 5 (20 monkeys total). After that the distribution stays at 5/5/5/5.
-        if (g.round === 1 && !g.robotsInitialized) {
+        if (!isLevel2Round(g.round) && !g.robotsInitialized) {
           g.robotsInitialized = true;
           const d = getRoundDifficulty(g.round);
           const platSlots = [1, 2, 3, 4]; // P2..P5
@@ -1301,8 +1301,8 @@ const CavemanVsDragonGame = () => {
               const landingRollDir = landingPlat && (landingPlat.slope || 0) < 0 ? -1 : 1;
               const wantLeftOfPlayer = landingRollDir > 0;
               for (let li = 0; li < LADDERS.length; li++) {
-                if (g.round === 1 && li === getTopVineIdx() && !g.topVineUnlocked) continue;
-                if (g.round >= 2 && !isLadderUsableL2(li)) continue;
+                if (!isLevel2Round(g.round) && li === getTopVineIdx() && !g.topVineUnlocked) continue;
+                if (isLevel2Round(g.round) && !isLadderUsableL2(li)) continue;
                 const l = LADDERS[li];
                 const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
                 const botPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 12);
@@ -1323,8 +1323,8 @@ const CavemanVsDragonGame = () => {
               // Player not on the platform directly below — drop at the vine on this
               // platform nearest to the wheel.
               for (let li = 0; li < LADDERS.length; li++) {
-                if (g.round === 1 && li === getTopVineIdx() && !g.topVineUnlocked) continue;
-                if (g.round >= 2 && !isLadderUsableL2(li)) continue;
+                if (!isLevel2Round(g.round) && li === getTopVineIdx() && !g.topVineUnlocked) continue;
+                if (isLevel2Round(g.round) && !isLadderUsableL2(li)) continue;
                 const l = LADDERS[li];
                 const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
                 if (topPlatIdx !== bPlatIdx) continue;
@@ -1453,8 +1453,8 @@ const CavemanVsDragonGame = () => {
             let climbChoice: { ladderIdx: number; climbVy: number; score: number } | null = null;
             const continueScore = scoreToPlayer(rCenterX + r.wanderDir * r.speed * 30, rFeetY);
             for (let li = 0; li < LADDERS.length; li++) {
-              if (g.round === 1 && li === getTopVineIdx() && !g.topVineUnlocked) continue;
-              if (g.round >= 2 && !isLadderUsableL2(li)) continue;
+              if (!isLevel2Round(g.round) && li === getTopVineIdx() && !g.topVineUnlocked) continue;
+              if (isLevel2Round(g.round) && !isLadderUsableL2(li)) continue;
               const l = LADDERS[li];
               const ladderCenterX = l.x + 7;
               if (Math.abs(rCenterX - ladderCenterX) > r.speed + 4) continue;
@@ -1495,7 +1495,7 @@ const CavemanVsDragonGame = () => {
                 if (r.x + r.w > plat.x1 && r.x < plat.x2) {
                   const platY = getPlatformY(plat, r.x + r.w / 2);
                   if (r.y + r.h >= platY && r.y + r.h <= platY + 12 && r.vy >= 0) {
-                    if (g.round >= 2 && isHoleAtPlatform(l2Ref.current, plIdx, r.x + r.w / 2)) continue;
+                    if (isLevel2Round(g.round) && isHoleAtPlatform(l2Ref.current, plIdx, r.x + r.w / 2)) continue;
                     r.y = platY - r.h; r.vy = 0; r.onGround = true; break;
                   }
                 }
@@ -1528,7 +1528,7 @@ const CavemanVsDragonGame = () => {
               p.vy = -4;
               g.robots.splice(i, 1);
               g.monkeysKilled = (g.monkeysKilled || 0) + 1;
-              if (g.round >= 2) {
+              if (isLevel2Round(g.round)) {
                 onMonkeyKilled(l2Ref.current, i);
                 // L2: queue a respawn with a random 5–10s delay (300–600 frames @60fps).
                 const q: number[] = (g as any).l2RespawnQueue || [];
@@ -1615,8 +1615,8 @@ const CavemanVsDragonGame = () => {
         }
       };
       for (let li = 0; li < LADDERS.length; li++) {
-        if (g.round === 1 && li === getTopVineIdx()) continue; // L1: top vine drawn separately
-        if (g.round >= 2 && !isLadderUsableL2(li)) continue; // L2: hide ungrown sprouts
+        if (!isLevel2Round(g.round) && li === getTopVineIdx()) continue; // L1: top vine drawn separately
+        if (isLevel2Round(g.round) && !isLadderUsableL2(li)) continue; // L2: hide ungrown sprouts
         const l = LADDERS[li];
         drawVine(l.x, l.yTop, l.yBot);
       }
@@ -1624,7 +1624,7 @@ const CavemanVsDragonGame = () => {
       // L2: for each non-top sprout that is currently NOT grown, draw the
       //     same seed mound + sprout art used by L1's top vine, and animate
       //     the vine growing up from the seed once the regrow timer expires.
-      if (g.round >= 2) {
+      if (isLevel2Round(g.round)) {
         const sprouts = getSprouts();
         for (let li = 0; li < LADDERS.length; li++) {
           // (no top-vine skip in L2: green/purple top sprouts are real entries here)
@@ -1672,7 +1672,7 @@ const CavemanVsDragonGame = () => {
 
       // Topmost vine — animated growth from sprout up to top platform.
       // L1 only (L2 manages its own two top sprouts via getSprouts()).
-      if (g.round === 1) {
+      if (!isLevel2Round(g.round)) {
         const tv = LADDERS[getTopVineIdx()];
         if (g.seedPlanted && g.topVineGrowth > 0) {
           const fullH = tv.yBot - tv.yTop; // 64
@@ -1836,7 +1836,7 @@ const CavemanVsDragonGame = () => {
       // ── LEVEL 2: paint L2 scene on top of L1 visuals so the L1 dragon /
       // princess / vines / monkeys / barrels visually disappear. The player
       // is drawn after this block so they remain visible.
-      if (g.round >= 2) {
+      if (isLevel2Round(g.round)) {
         renderLevel2(ctx, l2Ref.current, {
           walk: walkSpriteRef.current,
           jump: jumpSpriteRef.current,
@@ -1929,7 +1929,7 @@ const CavemanVsDragonGame = () => {
       ctx.restore();
 
       // Carried watering can floats above the player until they water the sprout.
-      if (g.round === 1 && g.keyGrabbed && !g.seedPlanted) {
+      if (!isLevel2Round(g.round) && g.keyGrabbed && !g.seedPlanted) {
         const canImg = wateringCanRef.current;
         const cx = pl.x + pl.w / 2;
         const cy = pl.y - 6;
@@ -1939,7 +1939,7 @@ const CavemanVsDragonGame = () => {
         }
       }
       // L2: carried can (colored) or carried grey rock above the player
-      if (g.round >= 2) {
+      if (isLevel2Round(g.round)) {
         const cx = pl.x + pl.w / 2;
         const cy = pl.y - 6;
         if (l2Ref.current.carryingCan) {
