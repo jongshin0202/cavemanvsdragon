@@ -608,17 +608,20 @@ export function updateLevel2(
   // Update fireballs
   for (const fb of s.fireballs as any[]) {
     if (fb.landed) continue;
-    // Steer toward the pre-chosen aim point (mostly the target X) instead of
-    // always tracking the player exactly.
-    const aimX = fb.endX ?? playerX;
-    const dx = aimX - fb.x;
-    fb.vx += Math.sign(dx) * 0.06;
-    if (fb.vx > 2.4) fb.vx = 2.4;
-    if (fb.vx < -2.4) fb.vx = -2.4;
-    fb.vy += 0.18;
-    fb.x += fb.vx;
-    fb.y += fb.vy;
-    const grow = Math.min(1, Math.max(0, (fb.y - fb.startY + 50) / 220));
+    // Follow the selected randomized arc exactly so the rock visibly travels
+    // toward the character instead of repeating one fixed physics trajectory.
+    fb.t = Math.min(1, fb.t + 1 / Math.max(1, fb.duration));
+    const t = fb.t;
+    const omt = 1 - t;
+    const sx = fb.startX;
+    const sy = fb.startY;
+    const ex = fb.endX;
+    const ey = fb.endY;
+    const ax = fb.apexX ?? (sx + ex) / 2;
+    const ay = fb.apexY;
+    fb.x = omt * omt * sx + 2 * omt * t * ax + t * t * ex;
+    fb.y = omt * omt * sy + 2 * omt * t * ay + t * t * ey;
+    const grow = t;
     fb.radius =
       LEVEL2_PARAMS.FIREBALL_START_RADIUS +
       (LEVEL2_PARAMS.FIREBALL_END_RADIUS - LEVEL2_PARAMS.FIREBALL_START_RADIUS) * grow;
@@ -632,9 +635,9 @@ export function updateLevel2(
       const innerMargin = LEVEL2_PARAMS.HOLE_WIDTH / 2 + 4;
       const clampPlat = (v: number) =>
         Math.max(plat.x1 + innerMargin, Math.min(plat.x2 - innerMargin, v));
-      let landX = clampPlat(fb.x);
+      let landX = clampPlat(fb.targetX ?? fb.endX ?? fb.x);
       const platY = getPlatformY(plat, landX);
-      if (fb.y >= platY - 4) {
+      if (fb.t >= 1 || fb.y >= platY - 4) {
         // Hard rule: holes must never touch — keep ≥1 hole-width of solid
         // platform between any two hole centers (center distance ≥ 2*HOLE_W).
         const HOLE_W = LEVEL2_PARAMS.HOLE_WIDTH;
@@ -660,7 +663,7 @@ export function updateLevel2(
               if (d < bestDist) { bestDist = d; bestX = x; }
             }
             if (bestX != null) landX = bestX;
-            else { fb.landed = true; continue; } // no room — drop without hole
+            else { fb.landed = true; continue; } // no room — skip adjacent hole
           }
         }
         addHoleAt(s, landX, platY);
