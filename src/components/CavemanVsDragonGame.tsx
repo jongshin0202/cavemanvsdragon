@@ -1444,8 +1444,8 @@ const CavemanVsDragonGame = () => {
               g.monkeysKilled = (g.monkeysKilled || 0) + 1;
               if (g.round >= 2) {
                 onMonkeyKilled(l2Ref.current, i);
-                // L2: respawn a monkey on a random P2..P5 after a short delay
-                queueRespawnMonkey(g);
+                // L2: queue a respawn after a short delay
+                (g as any).l2RespawnQueue = ((g as any).l2RespawnQueue || 0) + 1;
               }
             } else if (g.invulnTimer === 0) {
               g.lives--; setLives(g.lives);
