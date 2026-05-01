@@ -217,21 +217,29 @@ export function applyLevel2Layout(rng: () => number = Math.random): void {
     return usableL + span * 0.35 + rng() * (span * 0.3);
   };
 
-  // Gaps P1→P2 ... P4→P5 (regular sprouts). Track gap index per ladder.
+  // Gaps P1→P2 ... P4→P5: EXACTLY 2 sprouts per gap, in two distinct slots
+  // (left/center/right). Also avoid placing a sprout in the same slot as
+  // the gap immediately below — that would stack two vines vertically.
   const ladderGapIdx: number[] = []; // parallel to newLadders
+  const slotsByGap: ('left' | 'center' | 'right')[][] = [];
+  const ALL_SLOTS: ('left' | 'center' | 'right')[] = ['left', 'center', 'right'];
   for (let baseIdx = 0; baseIdx < 4; baseIdx++) {
     const topIdx = baseIdx + 1;
-    const minS = LEVEL2_PARAMS.SPROUTS_PER_GAP_MIN;
-    const maxS = LEVEL2_PARAMS.SPROUTS_PER_GAP_MAX;
-    const count = Math.min(3, minS + Math.floor(rng() * (maxS - minS + 1)));
-    // Slot pool ensures unique left/center/right placement (max 1 of each).
-    const slotPool: ('left' | 'center' | 'right')[] = ['left', 'center', 'right'];
-    for (let i = slotPool.length - 1; i > 0; i--) {
+    const count = 2;
+    // Forbid slots already used in the gap directly below this one.
+    const below = baseIdx > 0 ? slotsByGap[baseIdx - 1] : [];
+    let pool = ALL_SLOTS.filter(sl => !below.includes(sl));
+    // If forbidding leaves <2 options, relax (still try to keep variety).
+    if (pool.length < count) pool = ALL_SLOTS.slice();
+    // Shuffle pool, then take first `count`.
+    for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(rng() * (i + 1));
-      [slotPool[i], slotPool[j]] = [slotPool[j], slotPool[i]];
+      [pool[i], pool[j]] = [pool[j], pool[i]];
     }
+    const chosen = pool.slice(0, count);
+    slotsByGap.push(chosen);
     for (let n = 0; n < count; n++) {
-      const slot = slotPool[n];
+      const slot = chosen[n];
       const x = pickX(baseIdx, slot);
       const yBot = PLATFORMS[baseIdx].y;
       const yTop = PLATFORMS[topIdx].y;
