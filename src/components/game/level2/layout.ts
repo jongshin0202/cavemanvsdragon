@@ -34,16 +34,27 @@ let l1LaddersBackup: typeof LADDERS | null = null;
 export let TOP_LADDER_IDX_L2 = 0;
 
 /** Per-ladder runtime sprout state, parallel to LADDERS[]. */
+/** Lifecycle of a non-top sprout in L2:
+ *   'idle'    — fully grown & climbable.
+ *   'wither'  — vine shrinking back toward the seed (growProgress 1→0).
+ *   'dormant' — only the seed mound is visible; regrowTimer counting down.
+ *   'grow'    — vine animating back up from seed (growProgress 0→1).
+ *
+ * Only 'idle' sprouts are climbable.
+ */
+export type SproutPhase = 'idle' | 'wither' | 'dormant' | 'grow';
+
 export interface SproutRuntime {
   /** Index of this ladder/sprout in the LADDERS array. */
   ladderIdx: number;
   /** Currently usable (climb/render) when true. */
   grown: boolean;
-  /** Frames remaining until regrow starts (when !grown && growProgress===0). */
+  /** Frames remaining until grow phase starts (when phase==='dormant'). */
   regrowTimer: number;
-  /** Animation progress 0..1 while the vine is growing back from the
-   *  seed mound. When it reaches 1 the sprout becomes `grown`. */
+  /** Visible vine length, 0..1. 1 = full height (idle), 0 = no vine (dormant). */
   growProgress: number;
+  /** Lifecycle phase — drives both physics (`grown`) and the renderer. */
+  phase: SproutPhase;
   /** True for the topmost (P5→P6) — managed by the existing
    *  watering mechanic, not by the regrow timer. */
   isTop: boolean;
@@ -51,8 +62,8 @@ export interface SproutRuntime {
 
 let sproutsRuntime: SproutRuntime[] = [];
 
-/** Frames the regrow animation takes once dormant timer reaches 0
- *  (~1.13s @60fps — matches L1 top-vine grow feel of 1/68 per frame). */
+/** Frames the grow / wither animation takes (~1.13s @60fps — matches L1
+ *  top-vine grow feel of 1/68 per frame). */
 const GROW_FRAMES = 68;
 
 export function getSprouts(): SproutRuntime[] { return sproutsRuntime; }
@@ -63,28 +74,43 @@ export function isLadderUsableL2(idx: number): boolean {
   return !!s && s.grown;
 }
 
-/** Mark a sprout as just-used; starts the regrow timer. No-op for top. */
+/** Mark a sprout as just-used; kicks off the wither animation. No-op for top. */
 export function markSproutUsed(idx: number): void {
   const s = sproutsRuntime[idx];
-  if (!s || s.isTop || !s.grown) return;
-  s.grown = false;
-  s.growProgress = 0;
-  const min = LEVEL2_PARAMS.SPROUT_REGROW_MIN_SEC * 60;
-  const max = LEVEL2_PARAMS.SPROUT_REGROW_MAX_SEC * 60;
-  s.regrowTimer = Math.round(min + Math.random() * (max - min));
+  if (!s || s.isTop || s.phase !== 'idle') return;
+  s.grown = false;          // immediately not climbable
+  s.phase = 'wither';
+  // growProgress stays at 1 and will tick down to 0.
 }
 
-/** Tick all sprout regrow timers + grow animation. Call once per frame. */
+/** Tick all sprout regrow timers + grow/wither animation. Call once per frame. */
 export function tickSprouts(): void {
   for (const s of sproutsRuntime) {
     if (s.isTop) continue;
-    if (s.grown) continue;
-    if (s.regrowTimer > 0) {
-      s.regrowTimer--;
-    } else {
-      // Dormant period over — animate the vine growing up from the seed.
-      s.growProgress = Math.min(1, s.growProgress + 1 / GROW_FRAMES);
-      if (s.growProgress >= 1) s.grown = true;
+    switch (s.phase) {
+      case 'idle': break;
+      case 'wither':
+        s.growProgress = Math.max(0, s.growProgress - 1 / GROW_FRAMES);
+        if (s.growProgress <= 0) {
+          s.growProgress = 0;
+          s.phase = 'dormant';
+          const min = LEVEL2_PARAMS.SPROUT_REGROW_MIN_SEC * 60;
+          const max = LEVEL2_PARAMS.SPROUT_REGROW_MAX_SEC * 60;
+          s.regrowTimer = Math.round(min + Math.random() * (max - min));
+        }
+        break;
+      case 'dormant':
+        s.regrowTimer--;
+        if (s.regrowTimer <= 0) { s.regrowTimer = 0; s.phase = 'grow'; }
+        break;
+      case 'grow':
+        s.growProgress = Math.min(1, s.growProgress + 1 / GROW_FRAMES);
+        if (s.growProgress >= 1) {
+          s.growProgress = 1;
+          s.phase = 'idle';
+          s.grown = true;
+        }
+        break;
     }
   }
 }
