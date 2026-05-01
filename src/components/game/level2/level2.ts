@@ -706,7 +706,12 @@ export function fireballHitsPlayer(
     const dx = cx - fb.x;
     const dy = cy - fb.y;
     const r = fb.radius + 8;
-    if (dx * dx + dy * dy <= r * r) return true;
+    if (dx * dx + dy * dy <= r * r) {
+      // The rock is consumed by the hit — mark landed so it never punches
+      // a hole in the platform below.
+      fb.landed = true;
+      return true;
+    }
   }
   return false;
 }
