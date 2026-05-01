@@ -438,7 +438,9 @@ export function maybeSpawnVolcanoRock(s: L2State): void {
   (rock as any)._endY = targetY;
   (rock as any)._apexY = Math.min(mouth.y, targetY) - 60;
   (rock as any)._t = 0;
-  (rock as any)._duration = Math.round(LEVEL2_PARAMS.FIREBALL_FLIGHT_SEC * 60);
+  // Grey volcano-seal rock keeps its ORIGINAL flight speed (1.6s) at every
+  // iteration — only fire rocks scale with difficulty.
+  (rock as any)._duration = Math.round(1.6 * 60);
   s.volcanoRock = rock;
   s.rockSpawned = true;
 }
