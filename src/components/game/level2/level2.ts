@@ -79,7 +79,8 @@ export function spawnLevel2Robots(
   const jackets: ('green' | 'purple' | null)[] = [];
 
   // Initial: only green jackets exist (purple appears after volcano sealed).
-  const greenCount = LEVEL2_PARAMS.GREEN_JACKET_BASE;
+  const diff = getLevel2Difficulty(s.round);
+  const greenCount = Math.max(1, diff.greenJacketCount);
   const platCount = MONKEY_PLAT_INDICES.length;
   const greenSet = new Set<number>();
   while (greenSet.size < Math.min(greenCount, platCount)) {
