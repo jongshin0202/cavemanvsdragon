@@ -339,11 +339,14 @@ function addHoleAt(s: L2State, x: number, y: number): void {
   const plat = PLATFORMS[bestIdx];
   const w = LEVEL2_PARAMS.HOLE_WIDTH;
   const cx = Math.max(plat.x1 + w / 2 + 4, Math.min(plat.x2 - w / 2 - 4, x));
-  const min = LEVEL2_PARAMS.HOLE_MIN_LIFETIME_SEC * 60;
-  const max = LEVEL2_PARAMS.HOLE_MAX_LIFETIME_SEC * 60;
-  // Base lifetime + an extra random 5–10s before the hole closes.
+  const diff = getLevel2Difficulty(s.round);
+  const min = diff.holeLifeMinSec * 60;
+  const max = diff.holeLifeMaxSec * 60;
+  // Base lifetime + an extra random buffer (also iter-scaled).
   const baseTtl = Math.round(min + Math.random() * (max - min));
-  const extra = Math.round((5 + Math.random() * 5) * 60); // +5..10 seconds
+  const exMin = diff.holeExtraMinSec * 60;
+  const exMax = diff.holeExtraMaxSec * 60;
+  const extra = Math.round(exMin + Math.random() * (exMax - exMin));
   s.holes.push({ platformIdx: bestIdx, centerX: cx, width: w, ttl: baseTtl + extra });
 }
 
