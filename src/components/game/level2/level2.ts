@@ -209,13 +209,11 @@ export function tickApples(
     } else if (heightTier === 'middle') {
       ay = (r.y + r.h) - 19; // bottom = platY - 12 (clears duck, jumpable)
     } else {
-      // HIGH — render+hitbox as a tall flame streak.
-      // Top sits well above the player's head at jump apex (feet ≈ platY-33,
-      // head ≈ platY-57), bottom reaches the standing player's head so the
-      // standing player is also hit. Ducking (hitbox top platY-11) clears it.
-      // Top = platY - 50, bottom = platY - 24 → height 26.
-      ah = 26;
-      ay = (r.y + r.h) - 50;
+      // HIGH — small standard apple at the standing player's HEAD height.
+      // Standing head ≈ platY - 24. Apple sits at that level so a standing
+      // player is hit; ducking (hitbox top ≈ platY - 11) clears it.
+      ah = 7;
+      ay = (r.y + r.h) - 31; // top = platY - 31, bottom = platY - 24
     }
     s.apples.push({
       x: ax, y: ay, w: aw, h: ah,
