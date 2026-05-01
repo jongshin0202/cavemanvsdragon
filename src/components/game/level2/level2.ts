@@ -199,11 +199,12 @@ export function tickApples(
     const ah = 7;
     let ay: number;
     if (throwHigh) {
-      // Center of apple at platY - 18 → top at platY - 21, bottom at platY - 14.
-      // This sits clearly ABOVE the ducked hitbox top (platY - 11) so ducking
-      // is a clean dodge, and clearly within the standing hitbox so a
-      // standing player gets hit.
-      ay = (r.y + r.h) - 21;
+      // HIGH (duckable): place apple at head height — bottom sits just above
+      // the ducked hitbox top (platY - 11) so a duck cleanly clears it, and
+      // top reaches up to the standing player's head so the throw visually
+      // reads as "above the body" → an obvious ducking cue.
+      // Bottom = platY - 12, top = platY - 19. Player head is at platY - 24.
+      ay = (r.y + r.h) - 19;
     } else {
       // Short low apple at feet — bottom on the platform.
       ay = (r.y + r.h) - ah - 1;
