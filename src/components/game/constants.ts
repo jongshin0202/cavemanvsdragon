@@ -48,6 +48,18 @@ export const DIFFICULTY = {
 export const MONKEY_CAP_ROUND =
   DIFFICULTY.monkeyTotalCap - DIFFICULTY.base.monkeyCount + 1; // = 19
 
+/** Total round → which level type plays (alternates L1, L2, L1, L2…). */
+export function isLevel2Round(round: number): boolean {
+  return round % 2 === 0;
+}
+/** Total round → which iteration of its level type this is.
+ *  Round 1 → L1 #1, Round 2 → L2 #1, Round 3 → L1 #2, Round 4 → L2 #2 … */
+export function getLevelIteration(round: number): number {
+  return isLevel2Round(round) ? round / 2 : Math.ceil(round / 2);
+}
+/** Difficulty for a given total round, mapped through the level iteration so
+ *  that each subsequent visit to L1 (or L2) is one step harder than the
+ *  previous visit. */
 export function getRoundDifficulty(round: number) {
   const r = Math.max(1, round);
   const steps = r - 1;
