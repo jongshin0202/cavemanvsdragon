@@ -24,7 +24,7 @@ export const DIFFICULTY = {
     barrelSpeedMul: 0.5,        // multiplier on BARREL_SPEED
     barrelSpeedJitter: 0.4,     // random extra (0..jitter) added to mul
     monkeyCount: 2,             // round-1 monkey count
-    monkeySpeedMul: 0.5,        // multiplier on ROBOT_SPEED
+    monkeySpeedMul: 0.25,       // multiplier on ROBOT_SPEED (halved from 0.5)
     monkeySpeedJitter: 0.4,
   },
   // Monkey count: +1 per finished round, distributed across P2..P5.
