@@ -235,6 +235,9 @@ export function applyLevel2Layout(rng: () => number = Math.random): void {
   // 4) Sprout runtime — non-top start GROWN, top start as seeds.
   sproutsRuntime = LADDERS.map((_l, i) => {
     const isTop = i === GREEN_TOP_LADDER_IDX || i === PURPLE_TOP_LADDER_IDX;
+    // For non-top sprouts, gap index was tracked per ladder during build.
+    // Top sprouts don't belong to a regular gap (use -1).
+    const gapIdx = isTop ? -1 : (ladderGapIdx[i] ?? -1);
     return {
       ladderIdx: i,
       grown: !isTop,
@@ -244,6 +247,7 @@ export function applyLevel2Layout(rng: () => number = Math.random): void {
       isTop,
       topColor: i === GREEN_TOP_LADDER_IDX ? 'green' : i === PURPLE_TOP_LADDER_IDX ? 'purple' : undefined,
       watered: false,
+      gapIdx,
     };
   });
 }
