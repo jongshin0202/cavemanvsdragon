@@ -327,6 +327,7 @@ const CavemanVsDragonGame = () => {
     // 1) Always write to local
     const next = insertScore(entry);
     setScores(next);
+    setLastSubmission({ name: cleanName, score: pendingScore, level: pendingLevel });
     setNameError('');
 
     // 2) If it qualifies globally, write to the cloud and show GLOBAL view.
