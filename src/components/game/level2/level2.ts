@@ -186,29 +186,27 @@ export function tickApples(
     // 50/50: throw LOW (must be jumped over) or HIGH (must be ducked under).
     //
     // Player is 24px tall, feet on platform (y_feet = platY). When ducking,
-    // the hitbox shrinks to the lower ~45% (top at platY - 11). When jumping,
-    // the player lifts up to ~84px above the platform.
+    // the hitbox shrinks to the lower ~45% (top at platY - 11).
     //
-    // LOW (jumpable, NOT duckable): a short apple sitting on the ground at
-    // the player's feet. Must jump over; ducking keeps you in its path.
-    //   Player feet y-range while standing/ducked: [platY-11 .. platY].
-    //   While jumping: feet rise up, so the apple passes under → cleared.
+    // LOW (jumpable): a short apple sitting on the platform at the player's
+    // feet — duck keeps you in its path; jumping lifts feet over it.
     //
-    // HIGH (duckable, NOT jumpable): a tall vertical streak that spans from
-    // well above the player's max jump apex down to just above the ducked
-    // hitbox. No jump can clear it (player always intersects somewhere in
-    // its vertical extent), but ducking shrinks the hitbox below it.
+    // HIGH (duckable): an apple thrown at head/upper-body height — clearly
+    // above the platform so the player can SEE it's high and duck. Hitbox
+    // matches the visible sprite exactly so it's never unfair.
     const throwHigh = Math.random() < 0.5;
-    let aw = 7, ah = 7, ay: number;
+    const aw = 7;
+    const ah = 7;
+    let ay: number;
     if (throwHigh) {
-      // Tall streak: bottom ~12px above platY (clears ducked top at platY-11),
-      // height long enough to cover the entire jump arc (≈ 90px).
-      ah = 90;
-      ay = (r.y + r.h) - 12 - ah; // bottom = platY - 12, top = platY - 102
+      // Center of apple at platY - 18 → top at platY - 21, bottom at platY - 14.
+      // This sits clearly ABOVE the ducked hitbox top (platY - 11) so ducking
+      // is a clean dodge, and clearly within the standing hitbox so a
+      // standing player gets hit.
+      ay = (r.y + r.h) - 21;
     } else {
-      // Short low apple at feet — bottom on the platform, top ~7px above.
-      ah = 7;
-      ay = (r.y + r.h) - ah - 1; // sits just above platform surface
+      // Short low apple at feet — bottom on the platform.
+      ay = (r.y + r.h) - ah - 1;
     }
     s.apples.push({
       x: ax, y: ay, w: aw, h: ah,
