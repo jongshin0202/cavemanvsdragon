@@ -80,6 +80,8 @@ export function markSproutInUse(idx: number): void {
 export function markSproutUsed(idx: number): void {
   const s = sproutsRuntime[idx];
   if (!s || s.isTop || s.phase !== 'idle') return;
+  // Never wither if it would leave the gap with zero grown sprouts.
+  if (grownInGap(s.gapIdx, idx) === 0) return;
   s.grown = false;
   s.phase = 'wither';
 }
