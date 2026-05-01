@@ -913,17 +913,20 @@ const CavemanVsDragonGame = () => {
           if (g.topVineGrowth >= 1) g.topVineUnlocked = true;
         }
 
-        // Win condition - touch the girl (next to the dragon)
-        const paulX = 175, paulY = 64;
-        if (rectsOverlap(p, { x: paulX, y: paulY, w: 40, h: 48 })) {
-          g.state = 'win'; setGameState('win');
-          g.score += 2000 + g.lives * 1000; setScore(g.score); playWinSound(); playPrincessSavedSound();
-          wa.active = true;
-          wa.timer = 0;
-          wa.gorillaY = 76;
-          wa.gorillaRotation = 0;
-          wa.showKiss = false;
-          wa.showCongrats = false;
+        // Win condition - touch the girl (next to the dragon). Level 1 only;
+        // Level 2 owns its own win flow inside the L2 module.
+        if (g.round === 1) {
+          const paulX = 175, paulY = 64;
+          if (rectsOverlap(p, { x: paulX, y: paulY, w: 40, h: 48 })) {
+            g.state = 'win'; setGameState('win');
+            g.score += 2000 + g.lives * 1000; setScore(g.score); playWinSound(); playPrincessSavedSound();
+            wa.active = true;
+            wa.timer = 0;
+            wa.gorillaY = 76;
+            wa.gorillaRotation = 0;
+            wa.showKiss = false;
+            wa.showCongrats = false;
+          }
         }
 
         // === BARREL SPAWNING (only after player first moves; first barrel ~0.5s after) ===
