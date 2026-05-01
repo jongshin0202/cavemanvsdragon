@@ -1515,8 +1515,9 @@ const CavemanVsDragonGame = () => {
                 q.push(delay);
                 (g as any).l2RespawnQueue = q;
               }
-            } else if (g.invulnTimer === 0) {
+            } else if (g.invulnTimer === 0 && !g.dying) {
               g.lives--; setLives(g.lives);
+              g.invulnTimer = 120;
               if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
               else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
               break;
