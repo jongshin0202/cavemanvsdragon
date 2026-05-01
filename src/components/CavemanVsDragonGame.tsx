@@ -1543,7 +1543,15 @@ const CavemanVsDragonGame = () => {
             // Don't require p.vy > 0: after a chain stomp we set p.vy = -4
             // (rising), and the next overlapping monkey in the same airborne
             // arc must still count as a stomp (combo kill), not a side-hit.
-            if (p.y + p.h <= r.y + r.h * 0.6) {
+            // ALSO: when the player jump-lands onto a monkey already standing
+            // on the destination platform, both end up at the same platY in
+            // the same frame. In that "descending landing" case (p.vy > 0,
+            // not yet onGround), accept a more generous stomp window so the
+            // landing counts as a kill instead of a fatal side-hit.
+            const isStomp =
+              (p.y + p.h <= r.y + r.h * 0.6) ||
+              ((p.vy > 0 || !p.onGround) && p.y + p.h <= r.y + r.h * 0.95);
+            if (isStomp) {
               const n = (g.comboKills || 0) + 1;
               g.comboKills = n;
               g.score += 300 * (2 * n - 1); setScore(g.score);
