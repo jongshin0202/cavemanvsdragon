@@ -113,6 +113,11 @@ export function onMonkeyKilled(s: L2State, idx: number): void {
     if (a.ownerId === idx) a.ownerId = -1;
     else if (a.ownerId > idx) a.ownerId--;
   }
+  // Once the green-kill target is met, spawn the green watering can on a
+  // random platform for the player to grab and bring to the green seed.
+  if (!s.greenCanSpawned && s.greenJacketsKilled >= LEVEL2_PARAMS.GREEN_JACKET_BASE) {
+    spawnGreenCan(s);
+  }
 }
 
 /** Returns the jacket color a newly-spawned monkey should wear given
