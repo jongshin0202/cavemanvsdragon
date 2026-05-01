@@ -105,7 +105,20 @@ export function isTopSproutGrown(color: 'green' | 'purple'): boolean {
 export function tickSprouts(): void {
   for (const s of sproutsRuntime) {
     switch (s.phase) {
-      case 'idle': break;
+      case 'idle':
+        // Non-top sprouts auto-wither after their alive window, unless being climbed.
+        if (!s.isTop) {
+          if (s.aliveTimer === undefined) s.aliveTimer = rollAliveFrames();
+          if (!s.inUse) {
+            s.aliveTimer--;
+            if (s.aliveTimer <= 0) {
+              s.grown = false;
+              s.phase = 'wither';
+              s.aliveTimer = undefined;
+            }
+          }
+        }
+        break;
       case 'wither':
         s.growProgress = Math.max(0, s.growProgress - 1 / GROW_FRAMES);
         if (s.growProgress <= 0) {
@@ -133,9 +146,12 @@ export function tickSprouts(): void {
           s.growProgress = 1;
           s.phase = 'idle';
           s.grown = true;
+          if (!s.isTop) s.aliveTimer = rollAliveFrames();
         }
         break;
     }
+    // Clear per-frame in-use flag; host re-asserts each frame while climbing.
+    s.inUse = false;
   }
 }
 
