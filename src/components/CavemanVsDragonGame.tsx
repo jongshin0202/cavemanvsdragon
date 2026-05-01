@@ -228,7 +228,7 @@ const CavemanVsDragonGame = () => {
       // Swap to L2 layout (flat platforms + sprout vines) BEFORE
       // initializing/spawning so monkey + sprite positions snap to it.
       applyLevel2Layout();
-      initLevel2(l2Ref.current, g.round - 1); // L2 round = total round - 1
+      initLevel2(l2Ref.current, getLevelIteration(g.round)); // L2 iteration #
       // Spawn one monkey per P2..P5 (with 1-2 wearing green jackets)
       const { robots } = spawnLevel2Robots(l2Ref.current);
       g.robots.push(...robots);
