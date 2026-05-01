@@ -195,11 +195,23 @@ export function applyLevel2Layout(rng: () => number = Math.random): void {
   // 1) Flatten every platform.
   for (const p of PLATFORMS) p.slope = 0;
 
-  // 1b) Extend the top platform all the way to the right edge so the
-  // volcano sits ON the platform with empty space to its right (the
-  // green-sprout climb path comes up to the right of the volcano).
+  // 1b) Guarantee every platform anchors to one screen edge so the player
+  // can never fall through an interior gap. Even-indexed platforms (P1,
+  // P3, P5) touch the LEFT edge; odd-indexed (P2, P4) touch the RIGHT
+  // edge. The top platform (P6) spans both edges so the volcano sits on
+  // it with empty space to its right (green-sprout climb path).
+  for (let i = 0; i < PLATFORMS.length; i++) {
+    const p = PLATFORMS[i];
+    if (i === PLATFORMS.length - 1) {
+      p.x1 = 0;
+      p.x2 = CANVAS_W;
+    } else if (i % 2 === 0) {
+      p.x1 = 0; // left-anchored
+    } else {
+      p.x2 = CANVAS_W; // right-anchored
+    }
+  }
   const topPlat = PLATFORMS[PLATFORMS.length - 1];
-  topPlat.x2 = CANVAS_W; // rightmost edge
 
   // 2) Compute the permanent gap on the top platform (P6 = last).
   const gapW = LEVEL2_PARAMS.TOP_GAP_WIDTH;
