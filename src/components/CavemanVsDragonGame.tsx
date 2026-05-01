@@ -975,6 +975,21 @@ const CavemanVsDragonGame = () => {
         if (g.round >= 2) {
           const pl = g.player;
           updateLevel2(l2Ref.current, g.frameCount, pl.x + pl.w / 2, pl.y + pl.h / 2);
+
+          // Award 100 points the first time the player jumps over a fireball
+          // (mirrors L1 barrel-jump scoring).
+          for (const fb of l2Ref.current.fireballs as any[]) {
+            if (fb.jumpedOver || fb.landed) continue;
+            if (
+              (pl.jumping || !pl.onGround) &&
+              pl.x + pl.w > fb.x - fb.radius &&
+              pl.x < fb.x + fb.radius &&
+              pl.y + pl.h < fb.y - fb.radius + 4
+            ) {
+              fb.jumpedOver = true;
+              g.score += 100; setScore(g.score);
+            }
+          }
         }
 
 
