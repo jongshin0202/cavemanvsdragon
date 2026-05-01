@@ -572,8 +572,9 @@ export function updateLevel2(
           targetX = bestX;
         }
         if (targetX == null) {
-          s.fireballTimer = Math.round(LEVEL2_PARAMS.FIREBALL_INTERVAL_SEC * 30);
-          return false;
+          // Very crowded: still aim at the character, but the landing code
+          // will refuse to punch a hole if it would be adjacent to another.
+          targetX = clampX(playerX);
         }
         (s as any)._lastFireballTargetX = targetX;
         const aimedX = targetX;
