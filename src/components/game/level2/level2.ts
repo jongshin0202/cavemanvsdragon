@@ -148,9 +148,10 @@ export function onMonkeyKilled(s: L2State, idx: number): void {
   }
   // Once the green-kill target is met AND no green-jacket monkeys remain
   // alive, spawn the green watering can on a random platform.
+  const diff = getLevel2Difficulty(s.round);
   const greensAlive = arr.filter(j => j === 'green').length;
   if (!s.greenCanSpawned &&
-      s.greenJacketsKilled >= LEVEL2_PARAMS.GREEN_JACKET_BASE &&
+      s.greenJacketsKilled >= diff.greenJacketCount &&
       greensAlive === 0) {
     spawnGreenCan(s);
   }
@@ -162,18 +163,16 @@ export function newSpawnJacket(s: L2State): 'green' | 'purple' | null {
   const arr: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
   const greenAlive = arr.filter(j => j === 'green').length;
   const purpleAlive = arr.filter(j => j === 'purple').length;
+  const diff = getLevel2Difficulty(s.round);
   if (s.purpleJacketPhase) {
-    // How many more purples still need to be created this round?
     const purplesRemaining = Math.max(0, s.purpleTarget - s.purpleJacketsKilled - purpleAlive);
     if (purplesRemaining > 0 && purpleAlive < s.purpleTarget) {
-      // Strongly prefer purple until quota fills, so the player can complete the round.
       if (Math.random() < 0.85) return 'purple';
     }
   }
   // Only spawn green-jacket monkeys until the round's green-kill quota is hit.
-  // Once met, the green watering can has spawned and no more greens should appear.
-  const greensNeeded = Math.max(0, LEVEL2_PARAMS.GREEN_JACKET_BASE - s.greenJacketsKilled - greenAlive);
-  if (greensNeeded > 0 && greenAlive < LEVEL2_PARAMS.GREEN_JACKET_BASE) {
+  const greensNeeded = Math.max(0, diff.greenJacketCount - s.greenJacketsKilled - greenAlive);
+  if (greensNeeded > 0 && greenAlive < diff.greenJacketCount) {
     if (Math.random() < 0.4) return 'green';
   }
   return null;
