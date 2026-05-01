@@ -1540,9 +1540,11 @@ const CavemanVsDragonGame = () => {
               g.monkeysKilled = (g.monkeysKilled || 0) + 1;
               if (isLevel2Round(g.round)) {
                 onMonkeyKilled(l2Ref.current, i);
-                // L2: queue a respawn with a random 5–10s delay (300–600 frames @60fps).
+                // L2: queue a respawn with iteration-tuned random delay.
+                const l2D = getLevel2Difficulty(getLevelIteration(g.round));
                 const q: number[] = (g as any).l2RespawnQueue || [];
-                const delay = 300 + Math.floor(Math.random() * 301); // 300..600
+                const span = Math.max(1, l2D.respawnMaxFrames - l2D.respawnMinFrames);
+                const delay = l2D.respawnMinFrames + Math.floor(Math.random() * (span + 1));
                 q.push(delay);
                 (g as any).l2RespawnQueue = q;
               }
