@@ -191,23 +191,26 @@ export function applyLevel2Layout(rng: () => number = Math.random): void {
     return usableL + span * 0.35 + rng() * (span * 0.3);
   };
 
-  // Gaps P1→P2 ... P4→P5 (regular sprouts)
+  // Gaps P1→P2 ... P4→P5 (regular sprouts). Track gap index per ladder.
+  const ladderGapIdx: number[] = []; // parallel to newLadders
   for (let baseIdx = 0; baseIdx < 4; baseIdx++) {
     const topIdx = baseIdx + 1;
     const minS = LEVEL2_PARAMS.SPROUTS_PER_GAP_MIN;
     const maxS = LEVEL2_PARAMS.SPROUTS_PER_GAP_MAX;
-    const count = minS + Math.floor(rng() * (maxS - minS + 1));
+    const count = Math.min(3, minS + Math.floor(rng() * (maxS - minS + 1)));
+    // Slot pool ensures unique left/center/right placement (max 1 of each).
     const slotPool: ('left' | 'center' | 'right')[] = ['left', 'center', 'right'];
     for (let i = slotPool.length - 1; i > 0; i--) {
       const j = Math.floor(rng() * (i + 1));
       [slotPool[i], slotPool[j]] = [slotPool[j], slotPool[i]];
     }
     for (let n = 0; n < count; n++) {
-      const slot = slotPool[n % slotPool.length];
+      const slot = slotPool[n];
       const x = pickX(baseIdx, slot);
       const yBot = PLATFORMS[baseIdx].y;
       const yTop = PLATFORMS[topIdx].y;
       newLadders.push({ x, yTop, yBot });
+      ladderGapIdx.push(baseIdx);
     }
   }
 
