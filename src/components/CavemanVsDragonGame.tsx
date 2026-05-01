@@ -51,6 +51,23 @@ const LADDER_SNAP = 36;
 const getTopVineIdx = () => LADDERS.length - 1;
 // Where the seed must be planted (base of the topmost vine, on platform P5)
 const getPlantX = () => LADDERS[LADDERS.length - 1].x + 7;
+// True when the L2-style sprout dying mechanic is active for this round —
+// always on for L2 rounds, and on for L1 once the player reaches L1 iter 5+.
+const sproutMechanicActive = (round: number): boolean => {
+  if (isLevel2Round(round)) return true;
+  return getLevelIteration(round) >= 5;
+};
+// Unified "is this ladder currently climbable" check (handles both the
+// L2 sprout system and the L1 dying-sprout system once enabled).
+const isLadderUsable = (round: number, idx: number): boolean => {
+  if (sproutMechanicActive(round)) {
+    // The L1 top vine remains gated by its own seed/key flow, not the
+    // sprout runtime — let the existing topVineUnlocked logic handle it.
+    if (!isLevel2Round(round) && idx === getTopVineIdx()) return true;
+    return isLadderUsableL2(idx);
+  }
+  return true;
+};
 
 type GameState =
   | 'intro'
