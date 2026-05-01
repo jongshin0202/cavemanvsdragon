@@ -147,6 +147,11 @@ export interface Level2Difficulty {
   /** Monkey respawn delay window (frames @ 60fps). */
   respawnMinFrames: number;
   respawnMaxFrames: number;
+  /** Monkey movement speed multiplier on ROBOT_SPEED. Iter 1 = 0.5 (50%);
+   *  +10% per iter thereafter. */
+  monkeySpeedMul: number;
+  /** Random extra (0..jitter) added to the multiplier per monkey. */
+  monkeySpeedJitter: number;
 }
 
 export function getLevel2Difficulty(iteration: number): Level2Difficulty {
