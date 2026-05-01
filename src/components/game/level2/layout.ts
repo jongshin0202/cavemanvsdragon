@@ -195,10 +195,18 @@ export function applyLevel2Layout(rng: () => number = Math.random): void {
   // 1) Flatten every platform.
   for (const p of PLATFORMS) p.slope = 0;
 
-  // 2) Compute the permanent gap on the top platform (P6 = last).
+  // 1b) Extend the top platform all the way to the right edge so the
+  // volcano sits ON the platform with empty space to its right (the
+  // green-sprout climb path comes up to the right of the volcano).
   const topPlat = PLATFORMS[PLATFORMS.length - 1];
+  topPlat.x2 = CANVAS_W; // rightmost edge
+
+  // 2) Compute the permanent gap on the top platform (P6 = last).
   const gapW = LEVEL2_PARAMS.TOP_GAP_WIDTH;
-  const gapCX = (topPlat.x1 + topPlat.x2) / 2 + 30; // shift slightly right so dragon side is wider
+  // Dragon/princess sit around x=70..215 on the left half. Place the gap
+  // safely right of the princess but left of the volcano so the player can
+  // still cross to the dragon side.
+  const gapCX = 270;
   TOP_GAP_X1 = Math.round(gapCX - gapW / 2);
   TOP_GAP_X2 = Math.round(gapCX + gapW / 2);
 
