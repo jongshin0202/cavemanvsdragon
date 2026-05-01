@@ -63,8 +63,8 @@ export const LEVEL2_PARAMS = {
   FIREBALL_INTERVAL_SEC: 5.95,
   FIREBALL_START_RADIUS: 4,
   FIREBALL_END_RADIUS: 14,
-  /** Iter-1 flight = previous 1.6s / 0.10 = 16s (90% slower). */
-  FIREBALL_FLIGHT_SEC: 16,
+  /** Iter-1 flight = 12.8s (90% slower than previous 1.6s, then 25% faster). */
+  FIREBALL_FLIGHT_SEC: 12.8,
 
   // ─── PLATFORM HOLES ──────────────────────────────────────────
   HOLE_WIDTH: 28,
