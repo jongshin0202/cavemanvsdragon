@@ -80,15 +80,26 @@ export function spawnLevel2Robots(
 
   // Initial: only green jackets exist (purple appears after volcano sealed).
   const diff = getLevel2Difficulty(s.round);
-  const greenCount = Math.max(1, diff.greenJacketCount);
   const platCount = MONKEY_PLAT_INDICES.length;
-  const greenSet = new Set<number>();
-  while (greenSet.size < Math.min(greenCount, platCount)) {
-    greenSet.add(Math.floor(rng() * platCount));
+  // How many monkeys to spawn at level start = min(maxMonkeys, platCount).
+  // Iteration 1 = 2 monkeys; +1 per iter up to 4 here (rest fill via respawn).
+  const initialCount = Math.max(1, Math.min(diff.maxMonkeys, platCount));
+  // Pick which platforms get a monkey (random, no duplicates).
+  const platOrder = [...Array(platCount).keys()];
+  for (let i = platOrder.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [platOrder[i], platOrder[j]] = [platOrder[j], platOrder[i]];
+  }
+  const chosenPlats = platOrder.slice(0, initialCount);
+  // Of the chosen monkeys, mark up to greenJacketCount as green.
+  const greenCount = Math.min(diff.greenJacketCount, initialCount);
+  const greenSet = new Set<number>(); // indices into chosenPlats
+  while (greenSet.size < greenCount) {
+    greenSet.add(Math.floor(rng() * chosenPlats.length));
   }
 
-  for (let i = 0; i < platCount; i++) {
-    const pi = MONKEY_PLAT_INDICES[i];
+  for (let i = 0; i < chosenPlats.length; i++) {
+    const pi = MONKEY_PLAT_INDICES[chosenPlats[i]];
     const plat = PLATFORMS[pi];
     const rx = plat.x1 + 30 + rng() * (plat.x2 - plat.x1 - 60);
     const ry = getPlatformY(plat, rx) - 16;
