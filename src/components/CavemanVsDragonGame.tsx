@@ -44,10 +44,12 @@ const DRAGON_FRAMES = 5;
 
 const LADDER_SNAP = 36;
 
-// Index of the topmost vine (P5 → Top). Hidden until the player plants the seed.
-const TOP_VINE_IDX = 8;
+// Index of the topmost vine (P5 → Top). Always the LAST ladder in the
+// (mutated) LADDERS array — true for both L1 and the rebuilt L2 layout.
+// Hidden until the player plants the seed.
+const getTopVineIdx = () => LADDERS.length - 1;
 // Where the seed must be planted (base of the topmost vine, on platform P5)
-const PLANT_X = 357; // matches LADDERS[8].x + 7
+const getPlantX = () => LADDERS[LADDERS.length - 1].x + 7;
 
 type GameState =
   | 'intro'
