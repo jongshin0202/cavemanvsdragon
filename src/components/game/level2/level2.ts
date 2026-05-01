@@ -113,9 +113,12 @@ export function onMonkeyKilled(s: L2State, idx: number): void {
     if (a.ownerId === idx) a.ownerId = -1;
     else if (a.ownerId > idx) a.ownerId--;
   }
-  // Once the green-kill target is met, spawn the green watering can on a
-  // random platform for the player to grab and bring to the green seed.
-  if (!s.greenCanSpawned && s.greenJacketsKilled >= LEVEL2_PARAMS.GREEN_JACKET_BASE) {
+  // Once the green-kill target is met AND no green-jacket monkeys remain
+  // alive, spawn the green watering can on a random platform.
+  const greensAlive = arr.filter(j => j === 'green').length;
+  if (!s.greenCanSpawned &&
+      s.greenJacketsKilled >= LEVEL2_PARAMS.GREEN_JACKET_BASE &&
+      greensAlive === 0) {
     spawnGreenCan(s);
   }
 }
