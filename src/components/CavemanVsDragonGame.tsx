@@ -1559,13 +1559,18 @@ const CavemanVsDragonGame = () => {
               }
             }
           } else {
-            // Dormant seed: matches L1 top-vine seed visual exactly.
-            // Mound
+            // Dormant seed. Top sprouts get a colored halo so the player
+            // knows which watering can grows it.
             ctx.fillStyle = '#5D4037';
             ctx.fillRect(sx - 7, sy - 3, 14, 5);
-            ctx.fillStyle = 'rgba(102, 187, 106, 0.22)';
+            const halo = sr.topColor === 'green'
+              ? 'rgba(116, 224, 127, 0.45)'
+              : sr.topColor === 'purple'
+                ? 'rgba(199, 155, 255, 0.45)'
+                : 'rgba(102, 187, 106, 0.22)';
+            ctx.fillStyle = halo;
             ctx.beginPath();
-            ctx.arc(sx, sy - 7, 8, 0, Math.PI * 2);
+            ctx.arc(sx, sy - 7, 9, 0, Math.PI * 2);
             ctx.fill();
             // Sprout leaves
             ctx.fillStyle = '#66BB6A';
