@@ -2666,6 +2666,8 @@ interface AttractLeaderboardScreenProps {
   scores: LeaderboardEntry[];
   globalScores: GlobalEntry[];
   globalLoading: boolean;
+  /** The score+name this device just submitted, if any. Highlighted in yellow. */
+  mySubmission: { name: string; score: number } | null;
   background: string;
   logo: string;
   onStart: () => void;
