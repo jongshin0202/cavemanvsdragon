@@ -1596,19 +1596,9 @@ const CavemanVsDragonGame = () => {
               }
             }
           } else {
-            // Dormant seed. Top sprouts get a colored halo so the player
-            // knows which watering can grows it.
+            // Dormant seed — just the seed mound and sprout leaves below.
             ctx.fillStyle = '#5D4037';
             ctx.fillRect(sx - 7, sy - 3, 14, 5);
-            const halo = sr.topColor === 'green'
-              ? 'rgba(116, 224, 127, 0.45)'
-              : sr.topColor === 'purple'
-                ? 'rgba(199, 155, 255, 0.45)'
-                : 'rgba(102, 187, 106, 0.22)';
-            ctx.fillStyle = halo;
-            ctx.beginPath();
-            ctx.arc(sx, sy - 7, 9, 0, Math.PI * 2);
-            ctx.fill();
             // Sprout leaves
             ctx.fillStyle = '#66BB6A';
             ctx.fillRect(sx - 2, sy - 10, 4, 8);
