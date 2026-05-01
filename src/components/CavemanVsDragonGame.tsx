@@ -921,17 +921,17 @@ const CavemanVsDragonGame = () => {
             p.climbing = false;
             if (climbingLadder) p.y = climbingLadder.yTop - p.h;
             // L2: sprout withers after one use (climbed up)
-            if (isLevel2Round(g.round) && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
+            if (sproutMechanicActive(g.round) && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
           } else if (nearBot && (rawDown || wantsHorizontal)) {
             // Reached the bottom — dismount onto the lower platform.
             p.climbing = false;
             if (climbingLadder) p.y = climbingLadder.yBot - p.h;
-            // L2: sprout withers after one use (climbed down)
-            if (isLevel2Round(g.round) && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
+            // Sprout withers after one use (climbed down) — L2 always, L1 from iter 5.
+            if (sproutMechanicActive(g.round) && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
           } else {
             p.vy = 0;
-            // L2: keep this sprout alive while we're actively on it.
-            if (isLevel2Round(g.round) && nearestLadderIdx >= 0) markSproutInUse(nearestLadderIdx);
+            // Keep this sprout alive while we're actively on it.
+            if (sproutMechanicActive(g.round) && nearestLadderIdx >= 0) markSproutInUse(nearestLadderIdx);
             const climbMoving = rawUp || rawDown;
             if (rawUp) p.y -= CLIMB_SPEED;
             if (rawDown) p.y += CLIMB_SPEED;
