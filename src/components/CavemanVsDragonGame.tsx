@@ -9,6 +9,9 @@ import { loadScores, qualifiesForTop, insertScore, clearLocalScores, formatDate,
 import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal, type GlobalEntry } from './game/globalLeaderboard';
 import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/deviceStats';
 import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
+import { LEVEL2_PARAMS } from './game/level2/params';
+import { initLevel2, updateLevel2, renderLevel2, type L2Sprites } from './game/level2/level2';
+import { makeEmptyL2State, type L2State } from './game/level2/types';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   AlertDialog,
