@@ -1596,7 +1596,7 @@ const CavemanVsDragonGame = () => {
       const useWin = (g.state === 'win' || wa.active) && !inFollowPhase && winSprite && winSprite.complete && winSprite.naturalWidth > 0;
       const useClimb = !useWin && pl.climbing && climbSprite && climbSprite.complete && climbSprite.naturalWidth > 0;
       const useJump = !useWin && !pl.climbing && pl.jumping && jumpSprite && jumpSprite.complete && jumpSprite.naturalWidth > 0;
-      const useWalk = !useWin && (!pl.climbing && !pl.jumping) || inFollowPhase ? walkSprite && walkSprite.complete && walkSprite.naturalWidth > 0 : false;
+      const useWalk = (!useWin && !pl.climbing && !pl.jumping || inFollowPhase) && !!(walkSprite && walkSprite.complete && walkSprite.naturalWidth > 0);
 
       const followDx = inFollowPhase ? (wa.cavemanFollowOffset || 0) : 0;
       ctx.save();
