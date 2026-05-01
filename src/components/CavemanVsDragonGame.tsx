@@ -1360,7 +1360,7 @@ const CavemanVsDragonGame = () => {
               const wantLeftOfPlayer = landingRollDir > 0;
               for (let li = 0; li < LADDERS.length; li++) {
                 if (!isLevel2Round(g.round) && li === getTopVineIdx() && !g.topVineUnlocked) continue;
-                if (isLevel2Round(g.round) && !isLadderUsableL2(li)) continue;
+                if (!isLadderUsable(g.round, li)) continue;
                 const l = LADDERS[li];
                 const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
                 const botPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 12);
