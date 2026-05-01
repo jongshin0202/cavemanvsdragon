@@ -9,10 +9,17 @@
 // ============================================================
 
 import { PLATFORMS, LADDERS, CANVAS_W } from '../constants';
-import { LEVEL2_PARAMS, getCurrentLevel2Difficulty } from './params';
+import { LEVEL2_PARAMS, getCurrentLevel2Difficulty, setCurrentLevel2Iteration } from './params';
 
 let l1PlatformsBackup: typeof PLATFORMS | null = null;
 let l1LaddersBackup: typeof LADDERS | null = null;
+
+/** True when the L1 sprout-dying mechanic is active (L1 iter ≥ 5). */
+let l1MechanicActive = false;
+export function isL1SproutMechanicActive(): boolean { return l1MechanicActive; }
+/** Index of the L1 top vine ladder when the mechanic is active (so the host
+ *  can keep its existing key→seed→grow flow working). */
+let L1_TOP_VINE_IDX = -1;
 
 /** Last index of LADDERS — kept for backwards-compat. In L2 the host
  *  treats this as “nothing special”; both top sprouts are normal L2
