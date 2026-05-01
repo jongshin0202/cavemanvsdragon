@@ -103,7 +103,7 @@ export function spawnLevel2Robots(
     const plat = PLATFORMS[pi];
     const rx = plat.x1 + 30 + rng() * (plat.x2 - plat.x1 - 60);
     const ry = getPlatformY(plat, rx) - 16;
-    const spd = ROBOT_SPEED * (0.5 + rng() * 0.4);
+    const spd = ROBOT_SPEED * (diff.monkeySpeedMul + rng() * diff.monkeySpeedJitter);
     robots.push({
       x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0,
       onGround: true, climbing: false, targetLadder: null,
