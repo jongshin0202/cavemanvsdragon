@@ -12,6 +12,7 @@ import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profan
 import { LEVEL2_PARAMS } from './game/level2/params';
 import { initLevel2, updateLevel2, renderLevel2, spawnLevel2Robots, type L2Sprites } from './game/level2/level2';
 import { makeEmptyL2State, type L2State } from './game/level2/types';
+import { applyLevel2Layout, restoreLevel1Layout, isLadderUsableL2, markSproutUsed, tickSprouts } from './game/level2/layout';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   AlertDialog,
@@ -43,10 +44,12 @@ const DRAGON_FRAMES = 5;
 
 const LADDER_SNAP = 36;
 
-// Index of the topmost vine (P5 → Top). Hidden until the player plants the seed.
-const TOP_VINE_IDX = 8;
+// Index of the topmost vine (P5 → Top). Always the LAST ladder in the
+// (mutated) LADDERS array — true for both L1 and the rebuilt L2 layout.
+// Hidden until the player plants the seed.
+const getTopVineIdx = () => LADDERS.length - 1;
 // Where the seed must be planted (base of the topmost vine, on platform P5)
-const PLANT_X = 357; // matches LADDERS[8].x + 7
+const getPlantX = () => LADDERS[LADDERS.length - 1].x + 7;
 
 type GameState =
   | 'intro'
@@ -207,11 +210,17 @@ const CavemanVsDragonGame = () => {
     // its own hazards independently and the host's L1 barrel-spawn block
     // is gated on round===1 below in the loop.
     if (g.round >= 2) {
+      // Swap to L2 layout (flat platforms + sprout vines) BEFORE
+      // initializing/spawning so monkey + sprite positions snap to it.
+      applyLevel2Layout();
       initLevel2(l2Ref.current, g.round - 1); // L2 round = total round - 1
       // Spawn one monkey per P2..P5 (with 1-2 wearing green jackets)
       const { robots } = spawnLevel2Robots(l2Ref.current);
       g.robots.push(...robots);
       g.robotsInitialized = true; // prevent L1 spawner from also adding monkeys
+    } else {
+      // L1: make sure layout is the original (in case we just came back).
+      restoreLevel1Layout();
     }
     // Spawn first rock immediately so action starts the moment the level begins
     if (g.round === 1) {
@@ -745,14 +754,17 @@ const CavemanVsDragonGame = () => {
         // Wider snap: find nearest ladder within LADDER_SNAP pixels
         const playerCX = p.x + p.w / 2;
         let nearestLadder: (typeof LADDERS)[number] | null = null;
+        let nearestLadderIdx = -1;
         let nearestLadderDist = Infinity;
         for (let li = 0; li < LADDERS.length; li++) {
-          if (li === TOP_VINE_IDX && !g.topVineUnlocked) continue;
+          if (li === getTopVineIdx() && !g.topVineUnlocked) continue;
+          if (g.round >= 2 && !isLadderUsableL2(li)) continue;
           const l = LADDERS[li];
           const ladderCX = l.x + 7;
           const dist = Math.abs(playerCX - ladderCX);
           if (dist < LADDER_SNAP && p.y + p.h > l.yTop - 8 && p.y + p.h <= l.yBot + 16 && dist < nearestLadderDist) {
             nearestLadder = l;
+            nearestLadderIdx = li;
             nearestLadderDist = dist;
           }
         }
@@ -830,9 +842,13 @@ const CavemanVsDragonGame = () => {
             // Snap to top platform and dismount
             p.climbing = false;
             if (climbingLadder) p.y = climbingLadder.yTop - p.h;
+            // L2: sprout withers after one use (climbed up)
+            if (g.round >= 2 && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
           } else if (nearBot && (wantsHorizontal || rawDown)) {
             p.climbing = false;
             if (climbingLadder) p.y = climbingLadder.yBot - p.h;
+            // L2: sprout withers after one use (climbed down)
+            if (g.round >= 2 && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
           } else if (wantsHorizontal && !rawUp && !rawDown) {
             p.climbing = false;
           } else {
@@ -922,7 +938,7 @@ const CavemanVsDragonGame = () => {
         // Carry the watering can to the sprout: when player reaches the
         // sprout location on P5, plant/water it and start the vine growing.
         if (g.keyGrabbed && !g.seedPlanted) {
-          const tv = LADDERS[TOP_VINE_IDX];
+          const tv = LADDERS[getTopVineIdx()];
           const sproutX = tv.x + 7;
           const sproutY = tv.yBot;
           const playerCXNow = p.x + p.w / 2;
@@ -975,6 +991,8 @@ const CavemanVsDragonGame = () => {
         if (g.round >= 2) {
           const pl = g.player;
           updateLevel2(l2Ref.current, g.frameCount, pl.x + pl.w / 2, pl.y + pl.h / 2);
+          // Tick sprout regrow timers (per-frame).
+          tickSprouts();
 
           // Award 100 points the first time the player jumps over a fireball
           // (mirrors L1 barrel-jump scoring).
@@ -1107,7 +1125,8 @@ const CavemanVsDragonGame = () => {
               const landingRollDir = landingPlat && (landingPlat.slope || 0) < 0 ? -1 : 1;
               const wantLeftOfPlayer = landingRollDir > 0;
               for (let li = 0; li < LADDERS.length; li++) {
-                if (li === TOP_VINE_IDX && !g.topVineUnlocked) continue;
+                if (li === getTopVineIdx() && !g.topVineUnlocked) continue;
+                if (g.round >= 2 && !isLadderUsableL2(li)) continue;
                 const l = LADDERS[li];
                 const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
                 const botPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 12);
@@ -1128,7 +1147,8 @@ const CavemanVsDragonGame = () => {
               // Player not on the platform directly below — drop at the vine on this
               // platform nearest to the wheel.
               for (let li = 0; li < LADDERS.length; li++) {
-                if (li === TOP_VINE_IDX && !g.topVineUnlocked) continue;
+                if (li === getTopVineIdx() && !g.topVineUnlocked) continue;
+                if (g.round >= 2 && !isLadderUsableL2(li)) continue;
                 const l = LADDERS[li];
                 const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
                 if (topPlatIdx !== bPlatIdx) continue;
@@ -1256,7 +1276,8 @@ const CavemanVsDragonGame = () => {
             let climbChoice: { ladderIdx: number; climbVy: number; score: number } | null = null;
             const continueScore = scoreToPlayer(rCenterX + r.wanderDir * r.speed * 30, rFeetY);
             for (let li = 0; li < LADDERS.length; li++) {
-              if (li === TOP_VINE_IDX && !g.topVineUnlocked) continue;
+              if (li === getTopVineIdx() && !g.topVineUnlocked) continue;
+              if (g.round >= 2 && !isLadderUsableL2(li)) continue;
               const l = LADDERS[li];
               const ladderCenterX = l.x + 7;
               if (Math.abs(rCenterX - ladderCenterX) > r.speed + 4) continue;
@@ -1404,14 +1425,31 @@ const CavemanVsDragonGame = () => {
         }
       };
       for (let li = 0; li < LADDERS.length; li++) {
-        if (li === TOP_VINE_IDX) continue; // top vine drawn below based on growth
+        if (li === getTopVineIdx()) continue; // top vine drawn below based on growth
+        if (g.round >= 2 && !isLadderUsableL2(li)) continue; // L2: hide ungrown sprouts
         const l = LADDERS[li];
         drawVine(l.x, l.yTop, l.yBot);
       }
 
+      // L2: tiny seed mound at the base of any non-top sprout that has
+      // withered, hinting where the vine will regrow.
+      if (g.round >= 2) {
+        for (let li = 0; li < LADDERS.length; li++) {
+          if (li === getTopVineIdx()) continue;
+          if (isLadderUsableL2(li)) continue;
+          const l = LADDERS[li];
+          const sx = l.x + 7;
+          const sy = l.yBot - 1;
+          ctx.fillStyle = '#5D4037';
+          ctx.fillRect(sx - 5, sy - 2, 10, 3);
+          ctx.fillStyle = '#66BB6A';
+          ctx.fillRect(sx - 1, sy - 4, 2, 3);
+        }
+      }
+
       // Topmost vine — animated growth from sprout up to top platform
       {
-        const tv = LADDERS[TOP_VINE_IDX];
+        const tv = LADDERS[getTopVineIdx()];
         if (g.seedPlanted && g.topVineGrowth > 0) {
           const fullH = tv.yBot - tv.yTop; // 64
           const grownTop = tv.yBot - fullH * g.topVineGrowth;
