@@ -1986,7 +1986,7 @@ const CavemanVsDragonGame = () => {
             onPointerDown={(e) => {
               e.preventDefault();
               unlockAudio();
-              resetGame();
+              anyInputHandlerRef.current?.('Tap', 'pad');
             }}
             className="absolute inset-0 flex flex-col items-center justify-between overflow-hidden focus:outline-none bg-black"
             style={{
@@ -2048,7 +2048,7 @@ const CavemanVsDragonGame = () => {
             scores={scores}
             globalScores={globalScores}
             globalLoading={globalLoading}
-            onStart={() => { unlockAudio(); resetGame(); }}
+            onStart={() => { unlockAudio(); anyInputHandlerRef.current?.('Tap', 'pad'); }}
             onRequestClearLocal={() => setConfirmClearOpen(true)}
             background={introBackgroundUrl}
             logo={team2goLogoUrl}
@@ -2063,7 +2063,7 @@ const CavemanVsDragonGame = () => {
             scores={scores}
             globalScores={globalScores}
             globalLoading={globalLoading}
-            onStart={() => { unlockAudio(); resetGame(); }}
+            onStart={() => { unlockAudio(); anyInputHandlerRef.current?.('Tap', 'pad'); }}
             onRequestClearLocal={() => setConfirmClearOpen(true)}
             background={introBackgroundUrl}
             logo={team2goLogoUrl}
@@ -2075,7 +2075,7 @@ const CavemanVsDragonGame = () => {
           <button
             type="button"
             aria-label="Start game"
-            onPointerDown={(e) => { e.preventDefault(); unlockAudio(); resetGame(); }}
+            onPointerDown={(e) => { e.preventDefault(); unlockAudio(); anyInputHandlerRef.current?.('Tap', 'pad'); }}
             className="absolute inset-0 flex flex-col items-center overflow-hidden focus:outline-none bg-black"
             style={{
               backgroundImage: `url(${introBackgroundUrl})`,
