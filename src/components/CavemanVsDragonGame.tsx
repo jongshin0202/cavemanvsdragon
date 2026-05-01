@@ -830,8 +830,8 @@ const CavemanVsDragonGame = () => {
             p.climbing = true;
             p.x = nearestLadder.x + 7 - p.w / 2;
           } else if (p.onGround && !nearestLadder && rawDown) {
-            // L2: ducking — start one duck per Down-press; auto-releases.
-            if (g.round >= 2 && (p as any).duckTimer === 0 && !(p as any).duckHeld) {
+            // L2: ducking — stay ducked the entire time Down is held.
+            if (g.round >= 2) {
               (p as any).duckTimer = LEVEL2_PARAMS.DUCK_FRAMES;
               (p as any).duckHeld = true;
             } else {
@@ -849,8 +849,10 @@ const CavemanVsDragonGame = () => {
             }
           }
         }
-        if (!rawDown) (p as any).duckHeld = false;
-        if ((p as any).duckTimer > 0) (p as any).duckTimer--;
+        if (!rawDown) {
+          (p as any).duckHeld = false;
+          if ((p as any).duckTimer > 0) (p as any).duckTimer--;
+        }
 
         if (p.climbing) {
           // If near the top of the ladder and pressing left/right, dismount
