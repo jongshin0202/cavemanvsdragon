@@ -723,7 +723,20 @@ const CavemanVsDragonGame = () => {
           // Phase: pause (1s)
           wa.showKiss = false;
         } else if (wa.timer <= 210) {
-          // Phase: follow — caveman walks right and off-screen
+          // Phase: follow — caveman walks right and off-screen.
+          // FIRST frame of this phase: snap the caveman down onto the TOP
+          // platform so he chases the dragon by walking on the platform
+          // (not in mid-air) — covers the case where the win was triggered
+          // mid-jump (e.g. jumping into the princess).
+          if (!wa.followGrounded) {
+            const topPlat = PLATFORMS[PLATFORMS.length - 1];
+            const topY = getPlatformY(topPlat, p.x + p.w / 2);
+            p.y = topY - p.h;
+            p.vy = 0;
+            p.jumping = false;
+            p.jumpFrame = 0;
+            wa.followGrounded = true;
+          }
           const t = (wa.timer - 120) / 90;
           wa.cavemanFollowOffset = (CANVAS_W + 80) * t;
         } else {
