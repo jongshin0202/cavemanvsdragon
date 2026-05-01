@@ -1453,13 +1453,14 @@ const CavemanVsDragonGame = () => {
       const dragonFrameW = dragonImg && dragonImg.naturalWidth > 0 ? dragonImg.naturalWidth / DRAGON_FRAMES : 0;
       const dragonFrameH = dragonImg ? dragonImg.naturalHeight : 0;
       if (wa.active) {
-        ctx.save();
-        ctx.translate(dkX + dragonSize / 2, wa.gorillaY + dragonSize / 2);
-        ctx.rotate(wa.gorillaRotation);
+        // Dragon-grab outro: dragon stays upright on the top platform but
+        // slides to the right (carrying the princess) until off-screen.
+        const dkY = 16;
+        const offset = wa.dragonX || 0;
+        const frameIdx = g.dkFrame % DRAGON_FRAMES;
         if (dragonImg && dragonImg.complete && dragonFrameW > 0) {
-          ctx.drawImage(dragonImg, 0, 0, dragonFrameW, dragonFrameH, -dragonSize / 2, -dragonSize / 2, dragonSize, dragonSize);
+          ctx.drawImage(dragonImg, frameIdx * dragonFrameW, 0, dragonFrameW, dragonFrameH, dkX + offset, dkY, dragonSize, dragonSize);
         }
-        ctx.restore();
       } else {
         const dkY = 16;
         const frameIdx = g.dkFrame % DRAGON_FRAMES;
