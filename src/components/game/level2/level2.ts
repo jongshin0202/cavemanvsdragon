@@ -477,9 +477,56 @@ export function updateLevel2(
         s.fireballTimer--;
       } else {
         const mouth = getVolcanoMouth();
+        // Pick a target platform: random P1..P5, never the same as the last
+        // landing, never one that already has a hole. Then pick an x on it
+        // that is at least 48px from any existing hole on any platform.
+        const TOP_IDX = PLATFORMS.length - 1;
+        const lastPi: number = (s as any)._lastFireballPlat ?? -1;
+        const platHasHole = (pi: number) => s.holes.some(h => h.platformIdx === pi);
+        let candidates: number[] = [];
+        for (let pi = 0; pi < TOP_IDX; pi++) {
+          if (pi === lastPi) continue;
+          if (platHasHole(pi)) continue;
+          candidates.push(pi);
+        }
+        // Fallbacks if everything is filtered out.
+        if (candidates.length === 0) {
+          for (let pi = 0; pi < TOP_IDX; pi++) {
+            if (!platHasHole(pi)) candidates.push(pi);
+          }
+        }
+        if (candidates.length === 0) {
+          for (let pi = 0; pi < TOP_IDX; pi++) {
+            if (pi !== lastPi) candidates.push(pi);
+          }
+        }
+        if (candidates.length === 0) candidates = [0, 1, 2, 3, 4];
+
+        const pickPi = candidates[Math.floor(Math.random() * candidates.length)];
+        const targetPlat = PLATFORMS[pickPi];
+        const margin = 24;
+        const HOLE_BUFFER = 48; // never land within 48px of an existing hole
+        let targetX = targetPlat.x1 + margin +
+          Math.random() * Math.max(1, targetPlat.x2 - targetPlat.x1 - margin * 2);
+        for (let attempt = 0; attempt < 20; attempt++) {
+          const cand = targetPlat.x1 + margin +
+            Math.random() * Math.max(1, targetPlat.x2 - targetPlat.x1 - margin * 2);
+          const tooClose = s.holes.some(h =>
+            h.platformIdx === pickPi &&
+            Math.abs(cand - h.centerX) < HOLE_BUFFER + h.width / 2,
+          );
+          if (!tooClose) { targetX = cand; break; }
+        }
+        // Add a bit of horizontal randomness to make the angle less predictable
+        // (still biased toward the player via target selection).
+        const aimJitter = (Math.random() * 2 - 1) * 24; // ±24px
+        const aimedX = targetX + aimJitter;
+
         const fb: any = {
           startX: mouth.x, startY: mouth.y,
-          endX: playerX, endY: playerY,
+          endX: aimedX, endY: getPlatformY(targetPlat, targetX),
+          targetPlatIdx: pickPi,
+          targetX,
           apexY: mouth.y - 50,
           t: 0,
           duration: Math.round(LEVEL2_PARAMS.FIREBALL_FLIGHT_SEC * 60),
@@ -498,7 +545,10 @@ export function updateLevel2(
   // Update fireballs
   for (const fb of s.fireballs as any[]) {
     if (fb.landed) continue;
-    const dx = playerX - fb.x;
+    // Steer toward the pre-chosen aim point (mostly the target X) instead of
+    // always tracking the player exactly.
+    const aimX = fb.endX ?? playerX;
+    const dx = aimX - fb.x;
     fb.vx += Math.sign(dx) * 0.06;
     if (fb.vx > 2.4) fb.vx = 2.4;
     if (fb.vx < -2.4) fb.vx = -2.4;
@@ -509,26 +559,26 @@ export function updateLevel2(
     fb.radius =
       LEVEL2_PARAMS.FIREBALL_START_RADIUS +
       (LEVEL2_PARAMS.FIREBALL_END_RADIUS - LEVEL2_PARAMS.FIREBALL_START_RADIUS) * grow;
-    // Check landing on a platform — if so, punch a hole. Skip the TOP
-    // platform: fireballs/rocks must land on lower platforms only.
+    // Check landing — only on the pre-chosen target platform (skips others).
     let landedOnPlat = false;
     const TOP_IDX = PLATFORMS.length - 1;
-    for (let pi = 0; pi < PLATFORMS.length; pi++) {
-      if (pi === TOP_IDX) continue;
-      const plat = PLATFORMS[pi];
+    const targetPi: number = fb.targetPlatIdx ?? -1;
+    if (targetPi >= 0 && targetPi !== TOP_IDX) {
+      const plat = PLATFORMS[targetPi];
       if (fb.x > plat.x1 && fb.x < plat.x2) {
         const platY = getPlatformY(plat, fb.x);
         if (fb.y >= platY - 4 && fb.y <= platY + 12) {
-          // Land!
-          addHoleAt(s, fb.x, platY);
+          // Snap landing x to the chosen targetX so it never lands next to a hole.
+          const landX = fb.targetX ?? fb.x;
+          addHoleAt(s, landX, platY);
+          (s as any)._lastFireballPlat = targetPi;
           fb.landed = true;
           landedOnPlat = true;
-          break;
         }
       }
     }
     if (!landedOnPlat && fb.y > CANVAS_H - 24) {
-      addHoleAt(s, fb.x, CANVAS_H - 48);
+      // Off-screen below — drop without punching a hole.
       fb.landed = true;
     }
   }
