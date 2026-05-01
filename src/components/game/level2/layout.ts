@@ -156,6 +156,7 @@ export function applyLevel2Layout(rng: () => number = Math.random): void {
     ladderIdx: i,
     grown: true,
     regrowTimer: 0,
+    growProgress: 1,
     isTop: i === TOP_LADDER_IDX_L2,
   }));
 }
