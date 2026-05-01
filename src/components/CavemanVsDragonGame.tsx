@@ -12,7 +12,7 @@ import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profan
 import { LEVEL2_PARAMS } from './game/level2/params';
 import { initLevel2, updateLevel2, renderLevel2, spawnLevel2Robots, fireballHitsPlayer, tryPickupCan, tryPickupRock, trySealVolcano, maybeSpawnVolcanoRock, onMonkeyKilled, newSpawnJacket, pushJacket, isHoleAtPlatform, tickApples, appleHitsPlayer, type L2Sprites } from './game/level2/level2';
 import { makeEmptyL2State, type L2State } from './game/level2/types';
-import { applyLevel2Layout, restoreLevel1Layout, isLadderUsableL2, markSproutUsed, tickSprouts, getSprouts, waterTopSprout, isTopSproutGrown, GREEN_TOP_LADDER_IDX, PURPLE_TOP_LADDER_IDX } from './game/level2/layout';
+import { applyLevel2Layout, restoreLevel1Layout, isLadderUsableL2, markSproutUsed, markSproutInUse, tickSprouts, getSprouts, waterTopSprout, isTopSproutGrown, GREEN_TOP_LADDER_IDX, PURPLE_TOP_LADDER_IDX } from './game/level2/layout';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   AlertDialog,
