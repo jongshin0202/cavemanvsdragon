@@ -1194,7 +1194,7 @@ const CavemanVsDragonGame = () => {
                   else fromLeft = (plat.x1 < CANVAS_W - plat.x2);
                   const rx = fromLeft ? plat.x1 - 16 : plat.x2 + 2;
                   const ry = getPlatformY(plat, fromLeft ? plat.x1 + 1 : plat.x2 - 1) - 16;
-                  const spd = ROBOT_SPEED * 0.6;
+                  const spd = ROBOT_SPEED * (l2Diff.monkeySpeedMul + Math.random() * l2Diff.monkeySpeedJitter);
                   g.robots.push({
                     x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0,
                     onGround: true, climbing: false, targetLadder: null,
