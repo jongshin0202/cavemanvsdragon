@@ -277,6 +277,12 @@ const CavemanVsDragonGame = () => {
     const g = gameRef.current;
     g.round += 1;
     const nextRound = g.round;
+    // Eagerly clear leftover L1 outro state so the "LEVEL N CLEAR" overlay
+    // and the win-animation timer don't keep running underneath the intro.
+    // (resetLevel() also clears these, but it doesn't run until after the
+    // 3.5s intro completes.)
+    g.state = 'playing';
+    if (g.winAnim) g.winAnim.active = false;
     setGameState('playing');
     recordRound();
     playLevelIntro(nextRound, () => resetLevel());
