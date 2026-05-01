@@ -1128,13 +1128,23 @@ const CavemanVsDragonGame = () => {
               const platSlots = [1, 2, 3, 4];
               const pi = platSlots[Math.floor(Math.random() * platSlots.length)];
               const plat = PLATFORMS[pi];
-              const rx = plat.x1 + 30 + Math.random() * (plat.x2 - plat.x1 - 60);
-              const ry = getPlatformY(plat, rx) - 16;
+              // Walk in from whichever side touches the screen edge (no gap).
+              // If both sides do, pick randomly. Spawn just off-screen and
+              // face toward the center.
+              const leftAtEdge = plat.x1 <= 2;
+              const rightAtEdge = plat.x2 >= CANVAS_W - 2;
+              let fromLeft: boolean;
+              if (leftAtEdge && rightAtEdge) fromLeft = Math.random() < 0.5;
+              else if (leftAtEdge) fromLeft = true;
+              else if (rightAtEdge) fromLeft = false;
+              else fromLeft = (plat.x1 < CANVAS_W - plat.x2); // closer edge
+              const rx = fromLeft ? plat.x1 - 16 : plat.x2 + 2;
+              const ry = getPlatformY(plat, fromLeft ? plat.x1 + 1 : plat.x2 - 1) - 16;
               const spd = ROBOT_SPEED * 0.6;
               g.robots.push({
                 x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0,
                 onGround: true, climbing: false, targetLadder: null,
-                direction: Math.random() > 0.5 ? 1 : -1,
+                direction: fromLeft ? 1 : -1,
                 frame: 0, frameTimer: 0, speed: spd,
               });
               pushJacket(l2Ref.current, newSpawnJacket(l2Ref.current));
