@@ -214,7 +214,8 @@ export function tickApples(
       x: ax, y: ay, w: aw, h: ah,
       vx: dir * LEVEL2_PARAMS.APPLE_SPEED,
       ownerId: i,
-    });
+      ...(throwHigh ? { _high: true } : {}),
+    } as any);
     alive[i] = true;
   }
 
