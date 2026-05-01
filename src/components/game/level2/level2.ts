@@ -529,7 +529,10 @@ export function updateLevel2(
         const targetPlat = PLATFORMS[pickPi];
         const margin = 24;
         const HOLE_W = LEVEL2_PARAMS.HOLE_WIDTH;
-        const HOLE_BUFFER = HOLE_W; // gap of 1 hole-width minimum from any hole
+        // Require at least one full hole-width of SOLID platform between any
+        // two holes — otherwise they merge into an unjumpable double-gap.
+        // Center-to-center distance must be ≥ HOLE_W + HOLE_W = 2 * HOLE_W.
+        const MIN_CENTER_DIST = HOLE_W * 2;
         const minX = targetPlat.x1 + margin;
         const maxX = targetPlat.x2 - margin;
         const clampX = (v: number) => Math.max(minX, Math.min(maxX, v));
@@ -540,40 +543,48 @@ export function updateLevel2(
         const moveDir = moveDx > 1 ? 1 : moveDx < -1 ? -1 : 0;
         (s as any)._lastPlayerX = playerX;
 
-        // Aim toward the player, but offset by a random 2–3 hole-widths,
-        // biased in the direction the player is moving (so the rock leads
-        // them slightly instead of always landing on their head).
-        const offsetMag = (2 + Math.random()) * HOLE_W; // 2..3 hole widths
-        // 70% chance the offset goes in the player's movement direction;
-        // if the player is standing still, pick a random side.
+        // Random offset: directly on the player (0), or 2 or 3 hole-widths
+        // away — randomly chosen each throw. Side biased toward player
+        // movement direction (random when standing still).
+        const offsetChoices = [0, 2, 3];
+        const offsetMult = offsetChoices[Math.floor(Math.random() * offsetChoices.length)];
+        const offsetMag = offsetMult * HOLE_W;
         let offsetSign: number;
         if (moveDir !== 0) offsetSign = Math.random() < 0.7 ? moveDir : -moveDir;
         else offsetSign = Math.random() < 0.5 ? 1 : -1;
 
-        // Helper: is candidate X clear of every existing hole on this platform?
+        // A candidate X is "clear" if it's at least MIN_CENTER_DIST from
+        // every existing hole on this platform → guarantees ≥1 hole-width
+        // of solid ground between holes (jumpable).
         const xIsClearOfHoles = (x: number): boolean =>
           !s.holes.some(h =>
             h.platformIdx === pickPi &&
-            Math.abs(x - h.centerX) < HOLE_BUFFER + h.width / 2,
+            Math.abs(x - h.centerX) < MIN_CENTER_DIST,
           );
 
         let targetX = clampX(playerX + offsetSign * offsetMag);
         if (!xIsClearOfHoles(targetX)) {
-          // Try the opposite side first.
+          // Try the opposite side at the same magnitude.
           const alt = clampX(playerX - offsetSign * offsetMag);
           if (xIsClearOfHoles(alt)) {
             targetX = alt;
           } else {
-            // Sweep the platform for any clear spot.
+            // Sweep the platform for any spot that respects the gap rule,
+            // preferring the spot closest to the original aim.
             const step = 6;
-            let found = false;
+            let bestX: number | null = null;
+            let bestDist = Infinity;
             for (let x = minX; x <= maxX; x += step) {
-              if (xIsClearOfHoles(x)) { targetX = x; found = true; break; }
+              if (!xIsClearOfHoles(x)) continue;
+              const d = Math.abs(x - targetX);
+              if (d < bestDist) { bestDist = d; bestX = x; }
             }
-            if (!found) targetX = clampX(playerX); // give up; very crowded
+            if (bestX != null) targetX = bestX;
+            else targetX = clampX(playerX); // very crowded — fall back
           }
         }
         const aimedX = targetX;
+
 
 
         const fb: any = {
@@ -626,17 +637,33 @@ export function updateLevel2(
       let landX = clampPlat(fb.x);
       const platY = getPlatformY(plat, landX);
       if (fb.y >= platY - 4) {
-        // Hard rule: never land on/adjacent to an existing hole. If the
-        // visual landing point overlaps a hole, snap to the pre-chosen
-        // targetX (which was selected to avoid all holes).
+        // Hard rule: holes must never touch — keep ≥1 hole-width of solid
+        // platform between any two hole centers (center distance ≥ 2*HOLE_W).
         const HOLE_W = LEVEL2_PARAMS.HOLE_WIDTH;
-        const overlapsHole = (x: number) =>
+        const MIN_DIST = HOLE_W * 2;
+        const tooCloseToHole = (x: number) =>
           s.holes.some(h =>
             h.platformIdx === targetPi &&
-            Math.abs(x - h.centerX) < HOLE_W / 2 + h.width / 2,
+            Math.abs(x - h.centerX) < MIN_DIST,
           );
-        if (overlapsHole(landX) && fb.targetX != null) {
-          landX = clampPlat(fb.targetX);
+        if (tooCloseToHole(landX)) {
+          // Try the pre-validated targetX first.
+          const pre = fb.targetX != null ? clampPlat(fb.targetX) : landX;
+          if (!tooCloseToHole(pre)) {
+            landX = pre;
+          } else {
+            // Sweep platform for the closest spot that respects the rule.
+            const step = 6;
+            let bestX: number | null = null;
+            let bestDist = Infinity;
+            for (let x = plat.x1 + innerMargin; x <= plat.x2 - innerMargin; x += step) {
+              if (tooCloseToHole(x)) continue;
+              const d = Math.abs(x - landX);
+              if (d < bestDist) { bestDist = d; bestX = x; }
+            }
+            if (bestX != null) landX = bestX;
+            else { fb.landed = true; continue; } // no room — drop without hole
+          }
         }
         addHoleAt(s, landX, platY);
         (s as any)._lastFireballPlat = targetPi;
