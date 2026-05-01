@@ -509,9 +509,13 @@ export function updateLevel2(
     fb.radius =
       LEVEL2_PARAMS.FIREBALL_START_RADIUS +
       (LEVEL2_PARAMS.FIREBALL_END_RADIUS - LEVEL2_PARAMS.FIREBALL_START_RADIUS) * grow;
-    // Check landing on a platform — if so, punch a hole.
+    // Check landing on a platform — if so, punch a hole. Skip the TOP
+    // platform: fireballs/rocks must land on lower platforms only.
     let landedOnPlat = false;
-    for (const plat of PLATFORMS) {
+    const TOP_IDX = PLATFORMS.length - 1;
+    for (let pi = 0; pi < PLATFORMS.length; pi++) {
+      if (pi === TOP_IDX) continue;
+      const plat = PLATFORMS[pi];
       if (fb.x > plat.x1 && fb.x < plat.x2) {
         const platY = getPlatformY(plat, fb.x);
         if (fb.y >= platY - 4 && fb.y <= platY + 12) {
