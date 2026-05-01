@@ -1372,8 +1372,9 @@ const CavemanVsDragonGame = () => {
           // we don't take a hit from a barrel that happens to overlap during the arc.
           const bPlatY = findPlatformIndex(b.y + b.h, b.x + b.w / 2);
           const pPlatY = findPlatformIndex(p.y + p.h, p.x + p.w / 2);
-          if (rectsOverlap(p, b) && bPlatY === pPlatY && g.invulnTimer === 0 && p.onGround && !p.jumping) {
+          if (rectsOverlap(p, b) && bPlatY === pPlatY && g.invulnTimer === 0 && !g.dying && p.onGround && !p.jumping) {
             g.lives--; setLives(g.lives);
+            g.invulnTimer = 120;
             if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
             else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
             break;
