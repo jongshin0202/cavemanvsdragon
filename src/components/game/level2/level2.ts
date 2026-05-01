@@ -412,7 +412,7 @@ export function trySealVolcano(s: L2State, playerCX: number, playerFeetY: number
  *  AND volcano is sealed AND purple can hasn't spawned yet → spawn it. */
 function maybeSpawnPurpleCan(s: L2State): void {
   if (!s.purpleJacketPhase || s.purpleCanSpawned) return;
-  if (s.purpleJacketsKilled < LEVEL2_PARAMS.PURPLE_JACKET_BASE) return;
+  if (s.purpleJacketsKilled < s.purpleTarget) return;
   spawnPurpleCan(s);
 }
 
