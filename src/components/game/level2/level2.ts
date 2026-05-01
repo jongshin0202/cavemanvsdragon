@@ -486,12 +486,11 @@ export function updateLevel2(
         s.fireballTimer--;
       } else {
         const mouth = getVolcanoMouth();
-        // Target the player's current platform when possible. Falls back
-        // to the nearest valid platform (skipping the top platform, the
-        // last-used platform, and any platform with an active hole).
+        // Target the player's current platform whenever possible. The rock
+        // always aims toward the player's current x, with only a small random
+        // angle variation so a standing player is not attacked by the exact
+        // same line over and over.
         const TOP_IDX = PLATFORMS.length - 1;
-        const lastPi: number = (s as any)._lastFireballPlat ?? -1;
-        const platHasHole = (pi: number) => s.holes.some(h => h.platformIdx === pi);
 
         // Identify the player's platform (P0..P4 only).
         let playerPi = -1;
@@ -504,32 +503,17 @@ export function updateLevel2(
           ) { playerPi = pi; break; }
         }
 
-        const buildCandidates = (excludeLast: boolean, excludeHoles: boolean) => {
-          const out: number[] = [];
-          for (let pi = 0; pi < TOP_IDX; pi++) {
-            if (excludeLast && pi === lastPi) continue;
-            if (excludeHoles && platHasHole(pi)) continue;
-            out.push(pi);
-          }
-          return out;
-        };
-
         let pickPi: number;
-        const validForPlayer =
-          playerPi >= 0 && playerPi !== lastPi && !platHasHole(playerPi);
-        if (validForPlayer) {
+        if (playerPi >= 0) {
           pickPi = playerPi;
         } else {
-          // Pick the platform whose center is nearest the player from the
-          // remaining valid candidates.
-          let candidates = buildCandidates(true, true);
-          if (candidates.length === 0) candidates = buildCandidates(false, true);
-          if (candidates.length === 0) candidates = buildCandidates(true, false);
-          if (candidates.length === 0) candidates = [0, 1, 2, 3, 4];
+          // Airborne / between platforms: aim at the platform nearest the
+          // player, not at a random safe platform elsewhere.
+          const candidates = [0, 1, 2, 3, 4];
           candidates.sort((a, b) => {
-            const ca = (PLATFORMS[a].x1 + PLATFORMS[a].x2) / 2;
-            const cb = (PLATFORMS[b].x1 + PLATFORMS[b].x2) / 2;
-            return Math.abs(ca - playerX) - Math.abs(cb - playerX);
+            const ay = getPlatformY(PLATFORMS[a], playerX);
+            const by = getPlatformY(PLATFORMS[b], playerX);
+            return Math.abs(ay - playerY) - Math.abs(by - playerY);
           });
           pickPi = candidates[0];
         }
@@ -545,32 +529,6 @@ export function updateLevel2(
         const maxX = targetPlat.x2 - margin;
         const clampX = (v: number) => Math.max(minX, Math.min(maxX, v));
 
-        // Detect player movement direction since last fireball spawn, and
-        // remember the LAST non-zero direction so a standing player still has
-        // a "facing" used to bias attacks.
-        const lastPlayerX: number = (s as any)._lastPlayerX ?? playerX;
-        const moveDx = playerX - lastPlayerX;
-        const moveDir = moveDx > 1 ? 1 : moveDx < -1 ? -1 : 0;
-        (s as any)._lastPlayerX = playerX;
-        if (moveDir !== 0) (s as any)._lastFacingDir = moveDir;
-        const facingDir: number = moveDir !== 0
-          ? moveDir
-          : ((s as any)._lastFacingDir ?? (Math.random() < 0.5 ? 1 : -1));
-
-        // Three trajectory choices, ALL on the player's facing side:
-        //   0 → direct hit on the player
-        //  +2 → 2 hole-widths ahead of the player (in facing direction)
-        //  +3 → 3 hole-widths ahead of the player (in facing direction)
-        // Never repeat the same magnitude twice in a row, so even a standing
-        // player sees varied attack angles every throw.
-        const magChoices = [0, 2, 3];
-        const lastMag: number | null = (s as any)._lastFireballOffset ?? null;
-        const candidates = magChoices.filter(m => m !== lastMag);
-        const pickedMag = candidates[Math.floor(Math.random() * candidates.length)];
-        (s as any)._lastFireballOffset = pickedMag;
-        const offsetMag = pickedMag * HOLE_W;
-        const offsetSign = facingDir;
-
         // A candidate X is "clear" if it's at least MIN_CENTER_DIST from
         // every existing hole on this platform → guarantees ≥1 hole-width
         // of solid ground between holes (jumpable).
@@ -580,37 +538,60 @@ export function updateLevel2(
             Math.abs(x - h.centerX) < MIN_CENTER_DIST,
           );
 
-        let targetX = clampX(playerX + offsetSign * offsetMag);
-        if (!xIsClearOfHoles(targetX)) {
-          // Try the opposite side at the same magnitude.
-          const alt = clampX(playerX - offsetSign * offsetMag);
-          if (xIsClearOfHoles(alt)) {
-            targetX = alt;
-          } else {
-            // Sweep the platform for any spot that respects the gap rule,
-            // preferring the spot closest to the original aim.
-            const step = 6;
-            let bestX: number | null = null;
-            let bestDist = Infinity;
-            for (let x = minX; x <= maxX; x += step) {
-              if (!xIsClearOfHoles(x)) continue;
-              const d = Math.abs(x - targetX);
-              if (d < bestDist) { bestDist = d; bestX = x; }
-            }
-            if (bestX != null) targetX = bestX;
-            else targetX = clampX(playerX); // very crowded — fall back
+        const shuffledOffsets = [0, -0.45, 0.45, -0.85, 0.85, -1.2, 1.2]
+          .map(mult => ({ mult, sort: Math.random() }))
+          .sort((a, b) => a.sort - b.sort)
+          .map(v => v.mult * HOLE_W);
+        const lastTargetX: number | null = (s as any)._lastFireballTargetX ?? null;
+        let targetX: number | null = null;
+        for (const offset of shuffledOffsets) {
+          const candidateX = clampX(playerX + offset);
+          if (!xIsClearOfHoles(candidateX)) continue;
+          if (lastTargetX != null && Math.abs(candidateX - lastTargetX) < HOLE_W * 0.5) continue;
+          targetX = candidateX;
+          break;
+        }
+        if (targetX == null) {
+          for (const offset of shuffledOffsets) {
+            const candidateX = clampX(playerX + offset);
+            if (xIsClearOfHoles(candidateX)) { targetX = candidateX; break; }
           }
         }
+        if (targetX == null) {
+          // Sweep the platform for the closest non-adjacent hole location to
+          // the player. If none exists, skip this throw so adjacent holes are
+          // never created.
+          const step = 6;
+          let bestX: number | null = null;
+          let bestDist = Infinity;
+          for (let x = minX; x <= maxX; x += step) {
+            if (!xIsClearOfHoles(x)) continue;
+            const d = Math.abs(x - playerX);
+            if (d < bestDist) { bestDist = d; bestX = x; }
+          }
+          targetX = bestX;
+        }
+        if (targetX == null) {
+          // Very crowded: still aim at the character, but the landing code
+          // will refuse to punch a hole if it would be adjacent to another.
+          targetX = clampX(playerX);
+        }
+        (s as any)._lastFireballTargetX = targetX;
         const aimedX = targetX;
+        const endY = getPlatformY(targetPlat, targetX);
+        const travelX = aimedX - mouth.x;
+        const apexX = mouth.x + travelX * (0.48 + Math.random() * 0.16) + (Math.random() - 0.5) * HOLE_W;
+        const apexY = Math.min(mouth.y, endY) - (48 + Math.random() * 30);
 
 
 
         const fb: any = {
           startX: mouth.x, startY: mouth.y,
-          endX: aimedX, endY: getPlatformY(targetPlat, targetX),
+          endX: aimedX, endY,
           targetPlatIdx: pickPi,
           targetX,
-          apexY: mouth.y - 50,
+          apexX,
+          apexY,
           t: 0,
           duration: Math.round(LEVEL2_PARAMS.FIREBALL_FLIGHT_SEC * 60),
           landed: false,
@@ -628,17 +609,20 @@ export function updateLevel2(
   // Update fireballs
   for (const fb of s.fireballs as any[]) {
     if (fb.landed) continue;
-    // Steer toward the pre-chosen aim point (mostly the target X) instead of
-    // always tracking the player exactly.
-    const aimX = fb.endX ?? playerX;
-    const dx = aimX - fb.x;
-    fb.vx += Math.sign(dx) * 0.06;
-    if (fb.vx > 2.4) fb.vx = 2.4;
-    if (fb.vx < -2.4) fb.vx = -2.4;
-    fb.vy += 0.18;
-    fb.x += fb.vx;
-    fb.y += fb.vy;
-    const grow = Math.min(1, Math.max(0, (fb.y - fb.startY + 50) / 220));
+    // Follow the selected randomized arc exactly so the rock visibly travels
+    // toward the character instead of repeating one fixed physics trajectory.
+    fb.t = Math.min(1, fb.t + 1 / Math.max(1, fb.duration));
+    const t = fb.t;
+    const omt = 1 - t;
+    const sx = fb.startX;
+    const sy = fb.startY;
+    const ex = fb.endX;
+    const ey = fb.endY;
+    const ax = fb.apexX ?? (sx + ex) / 2;
+    const ay = fb.apexY;
+    fb.x = omt * omt * sx + 2 * omt * t * ax + t * t * ex;
+    fb.y = omt * omt * sy + 2 * omt * t * ay + t * t * ey;
+    const grow = t;
     fb.radius =
       LEVEL2_PARAMS.FIREBALL_START_RADIUS +
       (LEVEL2_PARAMS.FIREBALL_END_RADIUS - LEVEL2_PARAMS.FIREBALL_START_RADIUS) * grow;
@@ -652,9 +636,9 @@ export function updateLevel2(
       const innerMargin = LEVEL2_PARAMS.HOLE_WIDTH / 2 + 4;
       const clampPlat = (v: number) =>
         Math.max(plat.x1 + innerMargin, Math.min(plat.x2 - innerMargin, v));
-      let landX = clampPlat(fb.x);
+      let landX = clampPlat(fb.targetX ?? fb.endX ?? fb.x);
       const platY = getPlatformY(plat, landX);
-      if (fb.y >= platY - 4) {
+      if (fb.t >= 1 || fb.y >= platY - 4) {
         // Hard rule: holes must never touch — keep ≥1 hole-width of solid
         // platform between any two hole centers (center distance ≥ 2*HOLE_W).
         const HOLE_W = LEVEL2_PARAMS.HOLE_WIDTH;
@@ -680,7 +664,7 @@ export function updateLevel2(
               if (d < bestDist) { bestDist = d; bestX = x; }
             }
             if (bestX != null) landX = bestX;
-            else { fb.landed = true; continue; } // no room — drop without hole
+            else { fb.landed = true; continue; } // no room — skip adjacent hole
           }
         }
         addHoleAt(s, landX, platY);
