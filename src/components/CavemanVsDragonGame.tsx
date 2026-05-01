@@ -244,6 +244,20 @@ const CavemanVsDragonGame = () => {
     playLevelIntro(1, () => resetLevel());
   }, [resetLevel, playLevelIntro]);
 
+  // DEV/TEST: jump straight into Level 2 from the intro screen (gated on
+  // LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2). Triggered by double-tap on phone
+  // or the "2" key on PC.
+  const startInLevel2Test = useCallback(() => {
+    if (!LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2) return;
+    const g = gameRef.current;
+    g.score = 0; g.lives = 3; g.round = 2;
+    setScore(0); setLives(3);
+    setGameState('playing');
+    recordRound();
+    recordLaunchAndMaybeFlush().catch(() => { /* logged in module */ });
+    playLevelIntro(2, () => resetLevel());
+  }, [resetLevel, playLevelIntro]);
+
   // Start the next level — for now (only one level), restart the same layout
   // with increased difficulty (next round) while preserving score and lives.
   const startNextLevel = useCallback(() => {
