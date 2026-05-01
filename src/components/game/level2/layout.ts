@@ -278,10 +278,10 @@ export function applyLevel2Layout(rng: () => number = Math.random): void {
   const purpleTargetX = 230; // just right of princess (right edge ≈215)
   const purpleMaxX = TOP_GAP_X1 - 18; // stay on dragon side of top gap
   const purpleX = Math.max(p5.x1 + TOP_EDGE, Math.min(p5.x2 - TOP_EDGE, Math.min(purpleTargetX, purpleMaxX)));
-  // Place green to the RIGHT of the volcano so the climb path lands beside
-  // it (volcano center is at top.x2 - 80, right edge ≈ top.x2 - 35). Keep
-  // it inside the edge margin too.
-  const greenIdeal = topPlat.x2 - 28;
+  // Green sits to the right of the volcano (volcano center = top.x2 - 95,
+  // right edge ≈ top.x2 - 50). Place green at top.x2 - 40 so it's clearly
+  // beside (not under) the volcano while still respecting the edge margin.
+  const greenIdeal = topPlat.x2 - TOP_EDGE;
   const greenX = Math.max(p5.x1 + TOP_EDGE, Math.min(p5.x2 - TOP_EDGE, greenIdeal));
 
   newLadders.push({ x: purpleX, yTop: yTopTop, yBot: yBotTop });
