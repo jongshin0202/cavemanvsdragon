@@ -240,28 +240,36 @@ export function applyLevel2Layout(rng: () => number = Math.random): void {
   };
 
   // Gaps P1→P2 ... P4→P5: EXACTLY 2 sprouts per gap — one on the LEFT
-  // half, one on the RIGHT half. Keep each sprout horizontally separated
-  // from sprouts in the gap directly below so vines never appear stacked.
-  const MIN_VERT_SEP_PX = 56;
+  // half, one on the RIGHT half. Keep each sprout WELL-separated from
+  // sprouts in the gap directly below (whose tops emerge on the same
+  // platform that this gap's bases sit on) so vines never appear stacked.
+  const MIN_VERT_SEP_PX = 110;
   const ladderGapIdx: number[] = []; // parallel to newLadders
   const xsByGap: number[][] = [];
   for (let baseIdx = 0; baseIdx < 4; baseIdx++) {
     const topIdx = baseIdx + 1;
     const belowXs = baseIdx > 0 ? xsByGap[baseIdx - 1] : [];
-    const farFromBelow = (x: number) =>
-      belowXs.every(bx => Math.abs(x - bx) >= MIN_VERT_SEP_PX);
+    const minDistFromBelow = (x: number) =>
+      belowXs.length === 0 ? Infinity : Math.min(...belowXs.map(bx => Math.abs(x - bx)));
 
     const slots: ('left' | 'right')[] = ['left', 'right'];
     const xs: number[] = [];
     for (const slot of slots) {
-      let x = pickX(baseIdx, slot);
-      for (let attempt = 0; attempt < 12 && !farFromBelow(x); attempt++) {
-        x = pickX(baseIdx, slot);
+      // Try many candidates and keep the one farthest from any sprout
+      // directly below — guarantees maximum spread even if the slot
+      // range is tight.
+      let bestX = pickX(baseIdx, slot);
+      let bestDist = minDistFromBelow(bestX);
+      for (let attempt = 0; attempt < 40; attempt++) {
+        const cand = pickX(baseIdx, slot);
+        const d = minDistFromBelow(cand);
+        if (d > bestDist) { bestDist = d; bestX = cand; }
+        if (bestDist >= MIN_VERT_SEP_PX) break;
       }
-      xs.push(x);
+      xs.push(bestX);
       const yBot = PLATFORMS[baseIdx].y;
       const yTop = PLATFORMS[topIdx].y;
-      newLadders.push({ x, yTop, yBot });
+      newLadders.push({ x: bestX, yTop, yBot });
       ladderGapIdx.push(baseIdx);
     }
     xsByGap.push(xs);
