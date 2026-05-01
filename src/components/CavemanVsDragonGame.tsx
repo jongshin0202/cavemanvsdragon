@@ -918,8 +918,9 @@ const CavemanVsDragonGame = () => {
         }
 
         p.x = Math.max(0, Math.min(CANVAS_W - p.w, p.x));
-        if (p.y > CANVAS_H) {
+        if (p.y > CANVAS_H && !g.dying && g.invulnTimer === 0) {
           g.lives--; setLives(g.lives);
+          g.invulnTimer = 120;
           if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
           else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
         }
