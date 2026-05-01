@@ -555,13 +555,32 @@ export function updateLevel2(
 
         // Random offset: directly on the player (0), or 2 or 3 hole-widths
         // away — randomly chosen each throw. Side biased toward player
-        // movement direction (random when standing still).
-        const offsetChoices = [0, 2, 3];
-        const offsetMult = offsetChoices[Math.floor(Math.random() * offsetChoices.length)];
-        const offsetMag = offsetMult * HOLE_W;
-        let offsetSign: number;
-        if (moveDir !== 0) offsetSign = Math.random() < 0.7 ? moveDir : -moveDir;
-        else offsetSign = Math.random() < 0.5 ? 1 : -1;
+        // movement direction (random when standing still). The trajectory
+        // (signed offset) must NEVER repeat the previous throw, so even a
+        // standing player sees varied attack angles.
+        const offsetChoicesAll = [-3, -2, 0, 2, 3]; // signed: side+magnitude
+        const lastOffset: number | null = (s as any)._lastFireballOffset ?? null;
+
+        // Build a candidate list, biased toward player movement direction.
+        const dirSign: number = moveDir !== 0
+          ? moveDir
+          : (Math.random() < 0.5 ? 1 : -1);
+
+        // Score each option: prefer same sign as dirSign (when player is
+        // moving) or both sides equally (when still). Always exclude the
+        // last-used signed offset.
+        let candidates = offsetChoicesAll.filter(o => o !== lastOffset);
+        if (moveDir !== 0) {
+          // 70% chance to keep only same-direction (or zero) candidates.
+          if (Math.random() < 0.7) {
+            const sameDir = candidates.filter(o => o === 0 || Math.sign(o) === dirSign);
+            if (sameDir.length > 0) candidates = sameDir;
+          }
+        }
+        const pickedOffset = candidates[Math.floor(Math.random() * candidates.length)];
+        (s as any)._lastFireballOffset = pickedOffset;
+        const offsetMag = Math.abs(pickedOffset) * HOLE_W;
+        const offsetSign = pickedOffset === 0 ? 1 : Math.sign(pickedOffset);
 
         // A candidate X is "clear" if it's at least MIN_CENTER_DIST from
         // every existing hole on this platform → guarantees ≥1 hole-width
