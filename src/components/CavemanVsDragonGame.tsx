@@ -89,6 +89,10 @@ const CavemanVsDragonGame = () => {
   const [nameError, setNameError] = useState<string>('');
   const [pendingScore, setPendingScore] = useState(0);
   const [pendingLevel, setPendingLevel] = useState(1);
+  // The most recently submitted high score from this device (name + score).
+  // Used to highlight "my row" in yellow on the attract leaderboards.
+  // Cleared when a new round starts.
+  const [mySubmission, setMySubmission] = useState<{ name: string; score: number } | null>(null);
   // Level intro overlay: 'level' shows "Level N" for 3s, then 'black' for 0.5s, then null.
   const [levelIntro, setLevelIntro] = useState<null | 'level' | 'black'>(null);
   const [levelIntroNumber, setLevelIntroNumber] = useState(1);
