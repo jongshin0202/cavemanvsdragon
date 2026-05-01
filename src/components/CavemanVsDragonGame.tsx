@@ -1575,7 +1575,7 @@ const CavemanVsDragonGame = () => {
           robot: robotWalkRef.current,
           rockWheel: rockWheelRef.current,
           wateringCan: wateringCanRef.current,
-        });
+        }, g.robots);
       }
 
       // Player (Caveman sprite) - flash 3 times when dying
