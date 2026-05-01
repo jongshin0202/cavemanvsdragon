@@ -49,6 +49,8 @@ export interface SproutRuntime {
   /** Set per-frame by host: true while a player is actively climbing this sprout.
    *  Auto-clears each frame; host re-asserts. */
   inUse?: boolean;
+  /** Which platform-gap this sprout belongs to (0..3). -1 for top sprouts. */
+  gapIdx: number;
 }
 
 let sproutsRuntime: SproutRuntime[] = [];
