@@ -227,11 +227,13 @@ export function applyLevel2Layout(rng: () => number = Math.random): void {
 
   const pickX = (platIdx: number, slot: 'left' | 'center' | 'right'): number => {
     const plat = PLATFORMS[platIdx];
-    const margin = 24;
-    const usableL = plat.x1 + margin;
-    const usableR = plat.x2 - margin - 14;
+    // Keep sprouts well inside the platform — never at the edge — so the
+    // player has solid ground on both sides to land on after climbing.
+    const EDGE_MARGIN = 40;
+    const usableL = plat.x1 + EDGE_MARGIN;
+    const usableR = plat.x2 - EDGE_MARGIN - 14;
     const span = usableR - usableL;
-    if (span <= 0) return Math.max(plat.x1, Math.min(plat.x2 - 14, (plat.x1 + plat.x2) / 2 - 7));
+    if (span <= 0) return Math.max(plat.x1 + EDGE_MARGIN, Math.min(plat.x2 - EDGE_MARGIN - 14, (plat.x1 + plat.x2) / 2 - 7));
     if (slot === 'left')   return usableL + rng() * (span * 0.3);
     if (slot === 'right')  return usableL + span * 0.7 + rng() * (span * 0.3);
     return usableL + span * 0.35 + rng() * (span * 0.3);
