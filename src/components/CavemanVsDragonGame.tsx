@@ -1512,7 +1512,7 @@ const CavemanVsDragonGame = () => {
             const continueScore = scoreToPlayer(rCenterX + r.wanderDir * r.speed * 30, rFeetY);
             for (let li = 0; li < LADDERS.length; li++) {
               if (!isLevel2Round(g.round) && li === getTopVineIdx() && !g.topVineUnlocked) continue;
-              if (isLevel2Round(g.round) && !isLadderUsableL2(li)) continue;
+              if (!isLadderUsable(g.round, li)) continue;
               const l = LADDERS[li];
               const ladderCenterX = l.x + 7;
               if (Math.abs(rCenterX - ladderCenterX) > r.speed + 4) continue;
