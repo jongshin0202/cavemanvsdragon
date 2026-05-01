@@ -12,7 +12,28 @@ import {
 } from '../constants';
 import { LEVEL2_PARAMS } from './params';
 import { L2State, makeEmptyL2State, L2VolcanoRock } from './types';
-import { TOP_GAP_X1, TOP_GAP_X2 } from './layout';
+import { TOP_GAP_X1, TOP_GAP_X2, getSprouts } from './layout';
+import { LADDERS } from '../constants';
+
+/** Returns true if punching a hole of width HOLE_W centered at `x` on
+ *  platform `platIdx` would overlap a sprout's base (a vine sitting on
+ *  that platform). Holes must never destroy a sprout's footing. */
+function isHoleOverlappingSprout(platIdx: number, x: number): boolean {
+  const HOLE_W = LEVEL2_PARAMS.HOLE_WIDTH;
+  const SPROUT_HALF = 10; // vine base half-width
+  const minDist = HOLE_W / 2 + SPROUT_HALF + 2;
+  const platY = PLATFORMS[platIdx].y;
+  const sprouts = getSprouts();
+  for (let i = 0; i < LADDERS.length; i++) {
+    const l = LADDERS[i];
+    if (Math.abs(l.yBot - platY) > 2) continue; // sprout not on this platform
+    const sp = sprouts[i];
+    // Withered/dormant sprouts have no base to protect.
+    if (sp && !sp.grown && sp.phase !== 'grow') continue;
+    if (Math.abs(x - l.x) < minDist) return true;
+  }
+  return false;
+}
 
 export interface L2Sprites {
   walk: HTMLImageElement | null;
@@ -537,6 +558,8 @@ export function updateLevel2(
             h.platformIdx === pickPi &&
             Math.abs(x - h.centerX) < MIN_CENTER_DIST,
           );
+        const xIsClear = (x: number): boolean =>
+          xIsClearOfHoles(x) && !isHoleOverlappingSprout(pickPi, x);
 
         const shuffledOffsets = [0, -0.45, 0.45, -0.85, 0.85, -1.2, 1.2]
           .map(mult => ({ mult, sort: Math.random() }))
@@ -546,7 +569,7 @@ export function updateLevel2(
         let targetX: number | null = null;
         for (const offset of shuffledOffsets) {
           const candidateX = clampX(playerX + offset);
-          if (!xIsClearOfHoles(candidateX)) continue;
+          if (!xIsClear(candidateX)) continue;
           if (lastTargetX != null && Math.abs(candidateX - lastTargetX) < HOLE_W * 0.5) continue;
           targetX = candidateX;
           break;
@@ -554,18 +577,17 @@ export function updateLevel2(
         if (targetX == null) {
           for (const offset of shuffledOffsets) {
             const candidateX = clampX(playerX + offset);
-            if (xIsClearOfHoles(candidateX)) { targetX = candidateX; break; }
+            if (xIsClear(candidateX)) { targetX = candidateX; break; }
           }
         }
         if (targetX == null) {
-          // Sweep the platform for the closest non-adjacent hole location to
-          // the player. If none exists, skip this throw so adjacent holes are
-          // never created.
+          // Sweep the platform for the closest spot that respects both the
+          // non-adjacent-hole rule AND the don't-destroy-sprout-base rule.
           const step = 6;
           let bestX: number | null = null;
           let bestDist = Infinity;
           for (let x = minX; x <= maxX; x += step) {
-            if (!xIsClearOfHoles(x)) continue;
+            if (!xIsClear(x)) continue;
             const d = Math.abs(x - playerX);
             if (d < bestDist) { bestDist = d; bestX = x; }
           }
@@ -648,10 +670,12 @@ export function updateLevel2(
             h.platformIdx === targetPi &&
             Math.abs(x - h.centerX) < MIN_DIST,
           );
-        if (tooCloseToHole(landX)) {
+        const isBadSpot = (x: number) =>
+          tooCloseToHole(x) || isHoleOverlappingSprout(targetPi, x);
+        if (isBadSpot(landX)) {
           // Try the pre-validated targetX first.
           const pre = fb.targetX != null ? clampPlat(fb.targetX) : landX;
-          if (!tooCloseToHole(pre)) {
+          if (!isBadSpot(pre)) {
             landX = pre;
           } else {
             // Sweep platform for the closest spot that respects the rule.
@@ -659,12 +683,12 @@ export function updateLevel2(
             let bestX: number | null = null;
             let bestDist = Infinity;
             for (let x = plat.x1 + innerMargin; x <= plat.x2 - innerMargin; x += step) {
-              if (tooCloseToHole(x)) continue;
+              if (isBadSpot(x)) continue;
               const d = Math.abs(x - landX);
               if (d < bestDist) { bestDist = d; bestX = x; }
             }
             if (bestX != null) landX = bestX;
-            else { fb.landed = true; continue; } // no room — skip adjacent hole
+            else { fb.landed = true; continue; } // no safe spot — skip the hole
           }
         }
         addHoleAt(s, landX, platY);
