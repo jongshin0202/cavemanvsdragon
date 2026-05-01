@@ -257,7 +257,7 @@ export function tickApples(
     }
     s.apples.push({
       x: ax, y: ay, w: aw, h: ah,
-      vx: dir * LEVEL2_PARAMS.APPLE_SPEED,
+      vx: dir * diff.appleSpeed,
       ownerId: i,
       ...(heightTier === 'high' ? { _high: true } : {}),
       ...(heightTier === 'middle' ? { _mid: true } : {}),
@@ -279,6 +279,7 @@ export function tickApples(
       s.apples.splice(i, 1);
     }
   }
+  } // end else (apples enabled)
 }
 
 /** Returns true if any active apple overlaps the (possibly-ducked) player.
