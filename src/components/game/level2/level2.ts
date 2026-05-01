@@ -696,8 +696,8 @@ export function renderLevel2(
 ): void {
   // ── Volcano on the FAR RIGHT of the top platform (right of the gap)
   const topPlat = PLATFORMS[PLATFORMS.length - 1];
-  const baseY = getPlatformY(topPlat, topPlat.x2 - 40);
-  const baseCX = topPlat.x2 - 40;
+  const baseCX = topPlat.x2 - 80;
+  const baseY = getPlatformY(topPlat, baseCX);
   const baseW = 90;
   const volH = 56;
 
