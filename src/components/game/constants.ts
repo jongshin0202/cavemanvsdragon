@@ -107,9 +107,10 @@ export function getRoundDifficulty(round: number) {
 export function buildMonkeyDistribution(round: number): number[] {
   const slots = DIFFICULTY.monkeyPlatforms;
   const counts = new Array<number>(slots).fill(0);
+  const iter = getLevelIteration(round);
   const total = Math.min(
     DIFFICULTY.monkeyTotalCap,
-    DIFFICULTY.base.monkeyCount + Math.max(0, round - 1),
+    DIFFICULTY.base.monkeyCount + Math.max(0, iter - 1),
   );
   for (let added = 0; added < total; added++) {
     // Find platforms with the minimum count that still have capacity.
