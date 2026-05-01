@@ -951,7 +951,7 @@ const CavemanVsDragonGame = () => {
         // Distribution across P2..P5 grows by +1 per finished round, added to a
         // random platform with the current minimum count, until each platform
         // has 5 (20 monkeys total). After that the distribution stays at 5/5/5/5.
-        if (!g.robotsInitialized) {
+        if (g.round === 1 && !g.robotsInitialized) {
           g.robotsInitialized = true;
           const d = getRoundDifficulty(g.round);
           const platSlots = [1, 2, 3, 4]; // P2..P5
