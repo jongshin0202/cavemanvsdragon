@@ -16,20 +16,19 @@ import { TOP_GAP_X1, TOP_GAP_X2, getSprouts } from './layout';
 import { LADDERS } from '../constants';
 
 /** Returns true if punching a hole of width HOLE_W centered at `x` on
- *  platform `platIdx` would overlap a sprout's base (a vine sitting on
- *  that platform). Holes must never destroy a sprout's footing. */
+ *  platform `platIdx` would overlap any sprout location — either the
+ *  sprout's BASE (lower platform) or its TOP (upper platform where the
+ *  vine emerges). Fire rocks must never land on top of a sprout. */
 function isHoleOverlappingSprout(platIdx: number, x: number): boolean {
   const HOLE_W = LEVEL2_PARAMS.HOLE_WIDTH;
-  const SPROUT_HALF = 10; // vine base half-width
+  const SPROUT_HALF = 10; // vine half-width
   const minDist = HOLE_W / 2 + SPROUT_HALF + 2;
   const platY = PLATFORMS[platIdx].y;
-  const sprouts = getSprouts();
   for (let i = 0; i < LADDERS.length; i++) {
     const l = LADDERS[i];
-    if (Math.abs(l.yBot - platY) > 2) continue; // sprout not on this platform
-    const sp = sprouts[i];
-    // Withered/dormant sprouts have no base to protect.
-    if (sp && !sp.grown && sp.phase !== 'grow') continue;
+    const onBase = Math.abs(l.yBot - platY) <= 2;
+    const onTop = Math.abs(l.yTop - platY) <= 2;
+    if (!onBase && !onTop) continue;
     if (Math.abs(x - l.x) < minDist) return true;
   }
   return false;
