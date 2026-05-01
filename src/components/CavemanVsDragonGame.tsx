@@ -160,6 +160,12 @@ const CavemanVsDragonGame = () => {
     nextHelpTime: 600 + Math.floor(Math.random() * 600), // 10–20s at 60fps
   });
 
+  // ── Level 2 state (separate file/module; never mutated by L1 code) ──
+  const l2Ref = useRef<L2State>(makeEmptyL2State());
+  // Tracks the last intro-tap time so we can detect a double-tap shortcut
+  // to jump straight to Level 2 (when LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2).
+  const lastIntroTapRef = useRef<number>(0);
+
   const resetPlayer = useCallback(() => {
     const g = gameRef.current;
     g.player = { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 };
