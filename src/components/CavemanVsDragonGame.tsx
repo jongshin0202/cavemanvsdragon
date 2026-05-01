@@ -925,22 +925,31 @@ const CavemanVsDragonGame = () => {
           const nearBot = !!climbingLadder && feetY > climbingLadder.yBot - endZone;
           const wantsHorizontal = rawLeft || rawRight;
 
-          // No jump-off mid-climb. The player can only leave the ladder by
-          // reaching the top/bottom 10% zone (then up/down or left/right
-          // dismounts).
+          // No jump-off mid-climb. The player can leave the ladder by
+          // pressing up/down at the corresponding end, OR by pressing
+          // left/right at any height — in which case we snap to the nearest
+          // end (top if in the upper half, bottom otherwise) so the player
+          // dismounts onto a platform.
           if (!nearestLadder && !nearTop) {
             p.climbing = false;
-          } else if (nearTop && (rawUp || wantsHorizontal)) {
-            // Reached the top — snap to the platform and dismount.
+          } else if (nearTop && rawUp) {
+            // Reached the top via Up — snap to the platform.
             p.climbing = false;
             if (climbingLadder) p.y = climbingLadder.yTop - p.h;
-            // L2: sprout withers after one use (climbed up)
             if (sproutMechanicActive(g.round) && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
-          } else if (nearBot && (rawDown || wantsHorizontal)) {
-            // Reached the bottom — dismount onto the lower platform.
+          } else if (nearBot && rawDown) {
+            // Reached the bottom via Down — dismount onto the lower platform.
             p.climbing = false;
             if (climbingLadder) p.y = climbingLadder.yBot - p.h;
-            // Sprout withers after one use (climbed down) — L2 always, L1 from iter 5.
+            if (sproutMechanicActive(g.round) && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
+          } else if (wantsHorizontal && climbingLadder) {
+            // Horizontal dismount at any height: snap to whichever end is
+            // closer so the player ends up standing on a platform, then
+            // walking begins this frame in the !p.climbing block below.
+            const midY = (climbingLadder.yTop + climbingLadder.yBot) / 2;
+            const snapTop = feetY <= midY;
+            p.y = (snapTop ? climbingLadder.yTop : climbingLadder.yBot) - p.h;
+            p.climbing = false;
             if (sproutMechanicActive(g.round) && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
           } else {
             p.vy = 0;
