@@ -10,9 +10,9 @@ import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal
 import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/deviceStats';
 import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
 import { LEVEL2_PARAMS } from './game/level2/params';
-import { initLevel2, updateLevel2, renderLevel2, spawnLevel2Robots, type L2Sprites } from './game/level2/level2';
+import { initLevel2, updateLevel2, renderLevel2, spawnLevel2Robots, fireballHitsPlayer, tryPickupCan, tryPickupRock, trySealVolcano, maybeSpawnVolcanoRock, onMonkeyKilled, newSpawnJacket, pushJacket, isHoleAtPlatform, type L2Sprites } from './game/level2/level2';
 import { makeEmptyL2State, type L2State } from './game/level2/types';
-import { applyLevel2Layout, restoreLevel1Layout, isLadderUsableL2, markSproutUsed, tickSprouts, getSprouts } from './game/level2/layout';
+import { applyLevel2Layout, restoreLevel1Layout, isLadderUsableL2, markSproutUsed, tickSprouts, getSprouts, waterTopSprout, isTopSproutGrown, GREEN_TOP_LADDER_IDX, PURPLE_TOP_LADDER_IDX } from './game/level2/layout';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   AlertDialog,
@@ -763,7 +763,7 @@ const CavemanVsDragonGame = () => {
         let nearestLadderIdx = -1;
         let nearestLadderDist = Infinity;
         for (let li = 0; li < LADDERS.length; li++) {
-          if (li === getTopVineIdx() && !g.topVineUnlocked) continue;
+          if (g.round === 1 && li === getTopVineIdx() && !g.topVineUnlocked) continue;
           if (g.round >= 2 && !isLadderUsableL2(li)) continue;
           const l = LADDERS[li];
           const ladderCX = l.x + 7;
@@ -885,10 +885,15 @@ const CavemanVsDragonGame = () => {
           }
           p.vy += GRAVITY; p.y += p.vy;
           p.onGround = false;
-          for (const plat of PLATFORMS) {
+          for (let plIdx = 0; plIdx < PLATFORMS.length; plIdx++) {
+            const plat = PLATFORMS[plIdx];
             if (p.x + p.w > plat.x1 && p.x < plat.x2) {
               const platY = getPlatformY(plat, p.x + p.w / 2);
               if (p.y + p.h >= platY && p.y + p.h <= platY + 12 && p.vy >= 0) {
+                // L2: fall through holes (or the permanent top-platform gap).
+                if (g.round >= 2 && isHoleAtPlatform(l2Ref.current, plIdx, p.x + p.w / 2)) {
+                  continue;
+                }
                 p.y = platY - p.h; p.vy = 0; p.onGround = true; p.jumping = false;
                 p.jumpFrame = 0; p.jumpTimer = 0;
                 g.comboKills = 0;
@@ -1001,7 +1006,6 @@ const CavemanVsDragonGame = () => {
           tickSprouts();
 
           // Award 100 points the first time the player jumps over a fireball
-          // (mirrors L1 barrel-jump scoring).
           for (const fb of l2Ref.current.fireballs as any[]) {
             if (fb.jumpedOver || fb.landed) continue;
             if (
@@ -1012,6 +1016,91 @@ const CavemanVsDragonGame = () => {
             ) {
               fb.jumpedOver = true;
               g.score += 100; setScore(g.score);
+            }
+          }
+
+          // Fireball lethal hit on player
+          if (g.invulnTimer === 0 && fireballHitsPlayer(l2Ref.current, pl)) {
+            g.lives--; setLives(g.lives);
+            if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
+            else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
+          }
+
+          // Watering can pickup
+          const pickedColor = tryPickupCan(l2Ref.current, pl);
+          if (pickedColor) playKeyGrabSound();
+
+          // Water a top sprout when standing at its base while carrying matching can
+          if (l2Ref.current.carryingCan) {
+            const targetIdx = l2Ref.current.carryingCan === 'green' ? GREEN_TOP_LADDER_IDX : PURPLE_TOP_LADDER_IDX;
+            if (targetIdx >= 0) {
+              const tv = LADDERS[targetIdx];
+              const sproutX = tv.x + 7;
+              const sproutY = tv.yBot;
+              const playerCXNow = pl.x + pl.w / 2;
+              const playerFeetNow = pl.y + pl.h;
+              if (Math.abs(playerCXNow - sproutX) < 16 && Math.abs(playerFeetNow - sproutY) < 12) {
+                if (waterTopSprout(l2Ref.current.carryingCan)) {
+                  playWaterSproutSound();
+                  playVineGrowSound();
+                  l2Ref.current.carryingCan = null;
+                }
+              }
+            }
+          }
+
+          // Once green sprout is fully grown → volcano coughs out a rock (one time).
+          if (isTopSproutGrown('green') && !l2Ref.current.rockSpawned && !l2Ref.current.volcanoSealed) {
+            maybeSpawnVolcanoRock(l2Ref.current);
+          }
+
+          // Pickup the volcano rock
+          if (tryPickupRock(l2Ref.current, pl)) {
+            playKeyGrabSound();
+          }
+
+          // Seal volcano if carrying rock and at volcano
+          if (l2Ref.current.carryingRock) {
+            if (trySealVolcano(l2Ref.current, pl.x + pl.w / 2, pl.y + pl.h)) {
+              playWinSound();
+            }
+          }
+
+          // Win: purple sprout grown AND player touches princess
+          if (isTopSproutGrown('purple') && !wa.active) {
+            const paulX = 175, paulY = 64;
+            if (rectsOverlap(pl, { x: paulX, y: paulY, w: 40, h: 48 })) {
+              g.state = 'win'; setGameState('win');
+              g.score += 2000 + g.lives * 1000; setScore(g.score);
+              playWinSound(); playPrincessSavedSound();
+              wa.active = true;
+              wa.timer = 0;
+              wa.gorillaY = 76;
+              wa.gorillaRotation = 0;
+              wa.showKiss = false;
+              wa.showCongrats = false;
+            }
+          }
+
+          // Respawn killed monkeys (so purple-jacket phase can occur)
+          if ((g as any).l2RespawnQueue && (g as any).l2RespawnQueue > 0) {
+            (g as any).l2RespawnTimer = ((g as any).l2RespawnTimer || 0) + 1;
+            if ((g as any).l2RespawnTimer > 60) {
+              (g as any).l2RespawnTimer = 0;
+              (g as any).l2RespawnQueue--;
+              const platSlots = [1, 2, 3, 4];
+              const pi = platSlots[Math.floor(Math.random() * platSlots.length)];
+              const plat = PLATFORMS[pi];
+              const rx = plat.x1 + 30 + Math.random() * (plat.x2 - plat.x1 - 60);
+              const ry = getPlatformY(plat, rx) - 16;
+              const spd = ROBOT_SPEED * 0.6;
+              g.robots.push({
+                x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0,
+                onGround: true, climbing: false, targetLadder: null,
+                direction: Math.random() > 0.5 ? 1 : -1,
+                frame: 0, frameTimer: 0, speed: spd,
+              });
+              pushJacket(l2Ref.current, newSpawnJacket(l2Ref.current));
             }
           }
         }
@@ -1131,7 +1220,7 @@ const CavemanVsDragonGame = () => {
               const landingRollDir = landingPlat && (landingPlat.slope || 0) < 0 ? -1 : 1;
               const wantLeftOfPlayer = landingRollDir > 0;
               for (let li = 0; li < LADDERS.length; li++) {
-                if (li === getTopVineIdx() && !g.topVineUnlocked) continue;
+                if (g.round === 1 && li === getTopVineIdx() && !g.topVineUnlocked) continue;
                 if (g.round >= 2 && !isLadderUsableL2(li)) continue;
                 const l = LADDERS[li];
                 const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
@@ -1153,7 +1242,7 @@ const CavemanVsDragonGame = () => {
               // Player not on the platform directly below — drop at the vine on this
               // platform nearest to the wheel.
               for (let li = 0; li < LADDERS.length; li++) {
-                if (li === getTopVineIdx() && !g.topVineUnlocked) continue;
+                if (g.round === 1 && li === getTopVineIdx() && !g.topVineUnlocked) continue;
                 if (g.round >= 2 && !isLadderUsableL2(li)) continue;
                 const l = LADDERS[li];
                 const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
@@ -1282,7 +1371,7 @@ const CavemanVsDragonGame = () => {
             let climbChoice: { ladderIdx: number; climbVy: number; score: number } | null = null;
             const continueScore = scoreToPlayer(rCenterX + r.wanderDir * r.speed * 30, rFeetY);
             for (let li = 0; li < LADDERS.length; li++) {
-              if (li === getTopVineIdx() && !g.topVineUnlocked) continue;
+              if (g.round === 1 && li === getTopVineIdx() && !g.topVineUnlocked) continue;
               if (g.round >= 2 && !isLadderUsableL2(li)) continue;
               const l = LADDERS[li];
               const ladderCenterX = l.x + 7;
@@ -1319,10 +1408,12 @@ const CavemanVsDragonGame = () => {
               r.y += r.vy;
               r.onGround = false;
 
-              for (const plat of PLATFORMS) {
+              for (let plIdx = 0; plIdx < PLATFORMS.length; plIdx++) {
+                const plat = PLATFORMS[plIdx];
                 if (r.x + r.w > plat.x1 && r.x < plat.x2) {
                   const platY = getPlatformY(plat, r.x + r.w / 2);
                   if (r.y + r.h >= platY && r.y + r.h <= platY + 12 && r.vy >= 0) {
+                    if (g.round >= 2 && isHoleAtPlatform(l2Ref.current, plIdx, r.x + r.w / 2)) continue;
                     r.y = platY - r.h; r.vy = 0; r.onGround = true; break;
                   }
                 }
@@ -1346,13 +1437,16 @@ const CavemanVsDragonGame = () => {
             if (p.vy > 0 && p.y + p.h <= r.y + r.h * 0.6) {
               const n = (g.comboKills || 0) + 1;
               g.comboKills = n;
-              // Combo: for P kills in one jump, total = 300 * P * P.
-              // Per-kill delta on the Nth kill = 300 * (N^2 - (N-1)^2) = 300 * (2N - 1).
               g.score += 300 * (2 * n - 1); setScore(g.score);
               playRobotKillSound();
               p.vy = -4;
               g.robots.splice(i, 1);
               g.monkeysKilled = (g.monkeysKilled || 0) + 1;
+              if (g.round >= 2) {
+                onMonkeyKilled(l2Ref.current, i);
+                // L2: queue a respawn after a short delay
+                (g as any).l2RespawnQueue = ((g as any).l2RespawnQueue || 0) + 1;
+              }
             } else if (g.invulnTimer === 0) {
               g.lives--; setLives(g.lives);
               if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
@@ -1431,7 +1525,7 @@ const CavemanVsDragonGame = () => {
         }
       };
       for (let li = 0; li < LADDERS.length; li++) {
-        if (li === getTopVineIdx()) continue; // top vine drawn below based on growth
+        if (g.round === 1 && li === getTopVineIdx()) continue; // L1: top vine drawn separately
         if (g.round >= 2 && !isLadderUsableL2(li)) continue; // L2: hide ungrown sprouts
         const l = LADDERS[li];
         drawVine(l.x, l.yTop, l.yBot);
@@ -1443,7 +1537,7 @@ const CavemanVsDragonGame = () => {
       if (g.round >= 2) {
         const sprouts = getSprouts();
         for (let li = 0; li < LADDERS.length; li++) {
-          if (li === getTopVineIdx()) continue;
+          // (no top-vine skip in L2: green/purple top sprouts are real entries here)
           const sr = sprouts[li];
           if (!sr || sr.grown) continue;
           const l = LADDERS[li];
@@ -1465,13 +1559,18 @@ const CavemanVsDragonGame = () => {
               }
             }
           } else {
-            // Dormant seed: matches L1 top-vine seed visual exactly.
-            // Mound
+            // Dormant seed. Top sprouts get a colored halo so the player
+            // knows which watering can grows it.
             ctx.fillStyle = '#5D4037';
             ctx.fillRect(sx - 7, sy - 3, 14, 5);
-            ctx.fillStyle = 'rgba(102, 187, 106, 0.22)';
+            const halo = sr.topColor === 'green'
+              ? 'rgba(116, 224, 127, 0.45)'
+              : sr.topColor === 'purple'
+                ? 'rgba(199, 155, 255, 0.45)'
+                : 'rgba(102, 187, 106, 0.22)';
+            ctx.fillStyle = halo;
             ctx.beginPath();
-            ctx.arc(sx, sy - 7, 8, 0, Math.PI * 2);
+            ctx.arc(sx, sy - 7, 9, 0, Math.PI * 2);
             ctx.fill();
             // Sprout leaves
             ctx.fillStyle = '#66BB6A';
@@ -1487,14 +1586,14 @@ const CavemanVsDragonGame = () => {
         g.sparkleTimer++;
       }
 
-      // Topmost vine — animated growth from sprout up to top platform
-      {
+      // Topmost vine — animated growth from sprout up to top platform.
+      // L1 only (L2 manages its own two top sprouts via getSprouts()).
+      if (g.round === 1) {
         const tv = LADDERS[getTopVineIdx()];
         if (g.seedPlanted && g.topVineGrowth > 0) {
           const fullH = tv.yBot - tv.yTop; // 64
           const grownTop = tv.yBot - fullH * g.topVineGrowth;
           drawVine(tv.x, grownTop, tv.yBot);
-          // Water droplets while the vine grows
           if (g.topVineGrowth < 1) {
             for (let i = 0; i < 5; i++) {
               const sx = tv.x + 7 + Math.cos(g.sparkleTimer * 0.18 + i * 1.3) * 7;
@@ -1504,18 +1603,15 @@ const CavemanVsDragonGame = () => {
             }
           }
         }
-        // Sprout/seed marker at the planting spot when not yet planted
         if (!g.seedPlanted) {
           const sx = tv.x + 7;
           const sy = tv.yBot - 2;
-          // Mound
           ctx.fillStyle = '#5D4037';
           ctx.fillRect(sx - 7, sy - 3, 14, 5);
           ctx.fillStyle = 'rgba(102, 187, 106, 0.22)';
           ctx.beginPath();
           ctx.arc(sx, sy - 7, 8, 0, Math.PI * 2);
           ctx.fill();
-          // Bigger sprout hint
           ctx.fillStyle = '#66BB6A';
           ctx.fillRect(sx - 2, sy - 10, 4, 8);
           ctx.fillStyle = '#4CAF50';
@@ -1746,13 +1842,39 @@ const CavemanVsDragonGame = () => {
       ctx.restore();
 
       // Carried watering can floats above the player until they water the sprout.
-      if (g.keyGrabbed && !g.seedPlanted) {
+      if (g.round === 1 && g.keyGrabbed && !g.seedPlanted) {
         const canImg = wateringCanRef.current;
         const cx = pl.x + pl.w / 2;
         const cy = pl.y - 6;
         const drawW = 20, drawH = 16;
         if (canImg && canImg.complete && canImg.naturalWidth > 0) {
           ctx.drawImage(canImg, cx - drawW / 2, cy - drawH / 2, drawW, drawH);
+        }
+      }
+      // L2: carried can (colored) or carried grey rock above the player
+      if (g.round >= 2) {
+        const cx = pl.x + pl.w / 2;
+        const cy = pl.y - 6;
+        if (l2Ref.current.carryingCan) {
+          const fill = l2Ref.current.carryingCan === 'green' ? '#2e9b3a' : '#7a2bd1';
+          const hi = l2Ref.current.carryingCan === 'green' ? '#74e07f' : '#c79bff';
+          ctx.fillStyle = fill;
+          ctx.fillRect(cx - 8, cy - 5, 14, 10);
+          ctx.fillRect(cx + 5, cy - 2, 4, 4);
+          ctx.fillStyle = hi;
+          ctx.fillRect(cx - 7, cy - 4, 4, 2);
+          ctx.fillStyle = fill;
+          ctx.fillRect(cx - 12, cy - 3, 4, 3);
+        }
+        if (l2Ref.current.carryingRock) {
+          ctx.fillStyle = '#777';
+          ctx.beginPath();
+          ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#999';
+          ctx.beginPath();
+          ctx.arc(cx - 2, cy - 2, 3, 0, Math.PI * 2);
+          ctx.fill();
         }
       }
 
