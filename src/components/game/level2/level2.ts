@@ -10,7 +10,7 @@ import {
   CANVAS_W, CANVAS_H, PLATFORMS, getPlatformY,
   ROBOT_SPEED, type Robot, GRAVITY,
 } from '../constants';
-import { LEVEL2_PARAMS } from './params';
+import { LEVEL2_PARAMS, getLevel2Difficulty, setCurrentLevel2Iteration } from './params';
 import { L2State, makeEmptyL2State, L2VolcanoRock } from './types';
 import { TOP_GAP_X1, TOP_GAP_X2, getSprouts } from './layout';
 import { LADDERS } from '../constants';
