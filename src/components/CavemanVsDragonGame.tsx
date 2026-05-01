@@ -877,26 +877,22 @@ const CavemanVsDragonGame = () => {
           const nearBot = climbingLadder && (p.y + p.h) > climbingLadder.yBot - 6;
           const wantsHorizontal = rawLeft || rawRight;
           
-          if (jumpPressed) {
-            // Jump pressed while climbing — dismount immediately so the jump can fire below
+          // No jump-off and no horizontal dismount mid-climb. The player can
+          // only leave the ladder by reaching the very top or very bottom.
+          if (!nearestLadder && !nearTop) {
             p.climbing = false;
-            if (climbingLadder && nearTop) p.y = climbingLadder.yTop - p.h;
-            p.onGround = !!(climbingLadder && nearTop);
-          } else if (!nearestLadder && !nearTop) {
-            p.climbing = false;
-          } else if (nearTop && (wantsHorizontal || rawUp)) {
-            // Snap to top platform and dismount
+          } else if (nearTop && rawUp) {
+            // Reached the top — snap to the platform and dismount.
             p.climbing = false;
             if (climbingLadder) p.y = climbingLadder.yTop - p.h;
             // L2: sprout withers after one use (climbed up)
             if (isLevel2Round(g.round) && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
-          } else if (nearBot && (wantsHorizontal || rawDown)) {
+          } else if (nearBot && rawDown) {
+            // Reached the bottom — dismount onto the lower platform.
             p.climbing = false;
             if (climbingLadder) p.y = climbingLadder.yBot - p.h;
             // L2: sprout withers after one use (climbed down)
             if (isLevel2Round(g.round) && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
-          } else if (wantsHorizontal && !rawUp && !rawDown) {
-            p.climbing = false;
           } else {
             p.vy = 0;
             // L2: keep this sprout alive while we're actively on it.
