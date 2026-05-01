@@ -452,13 +452,13 @@ const CavemanVsDragonGame = () => {
       delay = 5000;
     } else if (gameState === 'attractControls') {
       nextState = 'attractLocalLeaderboard';
-      delay = 10000;
+      delay = 5000;
     } else if (gameState === 'attractLocalLeaderboard') {
       nextState = 'attractGlobalLeaderboard';
-      delay = 10000;
+      delay = 5000;
     } else if (gameState === 'attractGlobalLeaderboard') {
       nextState = 'intro';
-      delay = 10000;
+      delay = 5000;
     }
     if (!nextState) return;
     const target = nextState;
