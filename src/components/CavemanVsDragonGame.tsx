@@ -1449,7 +1449,8 @@ const CavemanVsDragonGame = () => {
             const fullH = l.yBot - l.yTop;
             const grownTop = l.yBot - fullH * sr.growProgress;
             drawVine(l.x, grownTop, l.yBot);
-            if (sr.growProgress < 1) {
+            // Sparkles only while regrowing — withering is silent (no water).
+            if (sr.growProgress < 1 && sr.phase === 'grow') {
               for (let i = 0; i < 5; i++) {
                 const dx = sx + Math.cos(g.sparkleTimer * 0.18 + i * 1.3 + li) * 7;
                 const dy = grownTop - 4 + ((g.sparkleTimer * 0.6 + i * 5 + li * 3) % 18);
