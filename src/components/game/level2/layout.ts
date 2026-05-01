@@ -217,49 +217,24 @@ export function applyLevel2Layout(rng: () => number = Math.random): void {
     return usableL + span * 0.35 + rng() * (span * 0.3);
   };
 
-  // Gaps P1→P2 ... P4→P5: EXACTLY 2 sprouts per gap, in two distinct slots
-  // (left/center/right). Also keep each sprout horizontally separated from
-  // every sprout in the gap directly below so vines never appear stacked.
-  const MIN_VERT_SEP_PX = 56; // min horizontal distance to a sprout one gap below
+  // Gaps P1→P2 ... P4→P5: EXACTLY 2 sprouts per gap — one on the LEFT
+  // half, one on the RIGHT half. Keep each sprout horizontally separated
+  // from sprouts in the gap directly below so vines never appear stacked.
+  const MIN_VERT_SEP_PX = 56;
   const ladderGapIdx: number[] = []; // parallel to newLadders
-  const slotsByGap: ('left' | 'center' | 'right')[][] = [];
   const xsByGap: number[][] = [];
-  const ALL_SLOTS: ('left' | 'center' | 'right')[] = ['left', 'center', 'right'];
   for (let baseIdx = 0; baseIdx < 4; baseIdx++) {
     const topIdx = baseIdx + 1;
-    const count = 2;
-    const belowSlots = baseIdx > 0 ? slotsByGap[baseIdx - 1] : [];
     const belowXs = baseIdx > 0 ? xsByGap[baseIdx - 1] : [];
-    let pool = ALL_SLOTS.filter(sl => !belowSlots.includes(sl));
-    if (pool.length < count) pool = ALL_SLOTS.slice();
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(rng() * (i + 1));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
-    const chosen = pool.slice(0, count);
-    slotsByGap.push(chosen);
-
     const farFromBelow = (x: number) =>
       belowXs.every(bx => Math.abs(x - bx) >= MIN_VERT_SEP_PX);
 
+    const slots: ('left' | 'right')[] = ['left', 'right'];
     const xs: number[] = [];
-    for (let n = 0; n < count; n++) {
-      const slot = chosen[n];
-      // Try several jitters within the chosen slot.
+    for (const slot of slots) {
       let x = pickX(baseIdx, slot);
-      for (let attempt = 0; attempt < 10 && !farFromBelow(x); attempt++) {
+      for (let attempt = 0; attempt < 12 && !farFromBelow(x); attempt++) {
         x = pickX(baseIdx, slot);
-      }
-      // Still too close? Try the other slots until one works.
-      if (!farFromBelow(x)) {
-        const fallbackSlots = ALL_SLOTS.filter(sl => sl !== slot);
-        for (const sl of fallbackSlots) {
-          for (let attempt = 0; attempt < 10; attempt++) {
-            const cand = pickX(baseIdx, sl);
-            if (farFromBelow(cand)) { x = cand; break; }
-          }
-          if (farFromBelow(x)) break;
-        }
       }
       xs.push(x);
       const yBot = PLATFORMS[baseIdx].y;
