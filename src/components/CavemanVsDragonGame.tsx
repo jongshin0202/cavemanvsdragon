@@ -1499,7 +1499,11 @@ const CavemanVsDragonGame = () => {
           const rPlatY = findPlatformIndex(r.y + r.h, r.x + r.w / 2);
           const pPlatY = findPlatformIndex(p.y + p.h, p.x + p.w / 2);
           if (rectsOverlap(p, r) && rPlatY === pPlatY) {
-            if (p.vy > 0 && p.y + p.h <= r.y + r.h * 0.6) {
+            // Stomp = player's feet are above the monkey's upper portion.
+            // Don't require p.vy > 0: after a chain stomp we set p.vy = -4
+            // (rising), and the next overlapping monkey in the same airborne
+            // arc must still count as a stomp (combo kill), not a side-hit.
+            if (p.y + p.h <= r.y + r.h * 0.6) {
               const n = (g.comboKills || 0) + 1;
               g.comboKills = n;
               g.score += 300 * (2 * n - 1); setScore(g.score);
