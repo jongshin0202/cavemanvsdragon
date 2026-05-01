@@ -1842,13 +1842,39 @@ const CavemanVsDragonGame = () => {
       ctx.restore();
 
       // Carried watering can floats above the player until they water the sprout.
-      if (g.keyGrabbed && !g.seedPlanted) {
+      if (g.round === 1 && g.keyGrabbed && !g.seedPlanted) {
         const canImg = wateringCanRef.current;
         const cx = pl.x + pl.w / 2;
         const cy = pl.y - 6;
         const drawW = 20, drawH = 16;
         if (canImg && canImg.complete && canImg.naturalWidth > 0) {
           ctx.drawImage(canImg, cx - drawW / 2, cy - drawH / 2, drawW, drawH);
+        }
+      }
+      // L2: carried can (colored) or carried grey rock above the player
+      if (g.round >= 2) {
+        const cx = pl.x + pl.w / 2;
+        const cy = pl.y - 6;
+        if (l2Ref.current.carryingCan) {
+          const fill = l2Ref.current.carryingCan === 'green' ? '#2e9b3a' : '#7a2bd1';
+          const hi = l2Ref.current.carryingCan === 'green' ? '#74e07f' : '#c79bff';
+          ctx.fillStyle = fill;
+          ctx.fillRect(cx - 8, cy - 5, 14, 10);
+          ctx.fillRect(cx + 5, cy - 2, 4, 4);
+          ctx.fillStyle = hi;
+          ctx.fillRect(cx - 7, cy - 4, 4, 2);
+          ctx.fillStyle = fill;
+          ctx.fillRect(cx - 12, cy - 3, 4, 3);
+        }
+        if (l2Ref.current.carryingRock) {
+          ctx.fillStyle = '#777';
+          ctx.beginPath();
+          ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#999';
+          ctx.beginPath();
+          ctx.arc(cx - 2, cy - 2, 3, 0, Math.PI * 2);
+          ctx.fill();
         }
       }
 
