@@ -49,20 +49,21 @@ export interface L2Sprites {
 
 const MONKEY_PLAT_INDICES = [1, 2, 3, 4];
 
-/** Re-initialize for a new L2 round. */
+/** Re-initialize for a new L2 round. `round` here is the L2 ITERATION number
+ *  (1, 2, 3, …) — host computes via getLevelIteration() before calling. */
 export function initLevel2(s: L2State, round: number): void {
   const prev = s.round;
   Object.assign(s, makeEmptyL2State());
   s.round = round > 0 ? round : prev;
   s.initialized = true;
+  // Publish the iteration so layout / sprout-runtime can read difficulty too.
+  setCurrentLevel2Iteration(s.round);
+  const diff = getLevel2Difficulty(s.round);
   s.fireballTimer = 60;
-  // Random per-round purple target: between 1 and PURPLE_JACKET_BASE (cap 2).
-  const cap = Math.max(1, LEVEL2_PARAMS.PURPLE_JACKET_BASE);
-  s.purpleTarget = 1 + Math.floor(Math.random() * cap); // 1..cap
-  if (s.purpleTarget > cap) s.purpleTarget = cap;
+  // Per-iteration purple target = full purple count for this iteration.
+  s.purpleTarget = Math.max(1, diff.purpleJacketCount);
   // Green watering can does NOT spawn at level start. It spawns only after
-  // the player kills the required number of green-jacketed monkeys
-  // (see onMonkeyKilled → spawnGreenCan gate).
+  // the player kills the required number of green-jacketed monkeys.
 }
 
 // ============================================================
