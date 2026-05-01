@@ -637,17 +637,33 @@ export function updateLevel2(
       let landX = clampPlat(fb.x);
       const platY = getPlatformY(plat, landX);
       if (fb.y >= platY - 4) {
-        // Hard rule: never land on/adjacent to an existing hole. If the
-        // visual landing point overlaps a hole, snap to the pre-chosen
-        // targetX (which was selected to avoid all holes).
+        // Hard rule: holes must never touch — keep ≥1 hole-width of solid
+        // platform between any two hole centers (center distance ≥ 2*HOLE_W).
         const HOLE_W = LEVEL2_PARAMS.HOLE_WIDTH;
-        const overlapsHole = (x: number) =>
+        const MIN_DIST = HOLE_W * 2;
+        const tooCloseToHole = (x: number) =>
           s.holes.some(h =>
             h.platformIdx === targetPi &&
-            Math.abs(x - h.centerX) < HOLE_W / 2 + h.width / 2,
+            Math.abs(x - h.centerX) < MIN_DIST,
           );
-        if (overlapsHole(landX) && fb.targetX != null) {
-          landX = clampPlat(fb.targetX);
+        if (tooCloseToHole(landX)) {
+          // Try the pre-validated targetX first.
+          const pre = fb.targetX != null ? clampPlat(fb.targetX) : landX;
+          if (!tooCloseToHole(pre)) {
+            landX = pre;
+          } else {
+            // Sweep platform for the closest spot that respects the rule.
+            const step = 6;
+            let bestX: number | null = null;
+            let bestDist = Infinity;
+            for (let x = plat.x1 + innerMargin; x <= plat.x2 - innerMargin; x += step) {
+              if (tooCloseToHole(x)) continue;
+              const d = Math.abs(x - landX);
+              if (d < bestDist) { bestDist = d; bestX = x; }
+            }
+            if (bestX != null) landX = bestX;
+            else { fb.landed = true; continue; } // no room — drop without hole
+          }
         }
         addHoleAt(s, landX, platY);
         (s as any)._lastFireballPlat = targetPi;
