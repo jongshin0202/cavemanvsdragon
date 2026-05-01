@@ -49,6 +49,8 @@ export interface SproutRuntime {
   /** Set per-frame by host: true while a player is actively climbing this sprout.
    *  Auto-clears each frame; host re-asserts. */
   inUse?: boolean;
+  /** Which platform-gap this sprout belongs to (0..3). -1 for top sprouts. */
+  gapIdx: number;
 }
 
 let sproutsRuntime: SproutRuntime[] = [];
@@ -78,6 +80,8 @@ export function markSproutInUse(idx: number): void {
 export function markSproutUsed(idx: number): void {
   const s = sproutsRuntime[idx];
   if (!s || s.isTop || s.phase !== 'idle') return;
+  // Never wither if it would leave the gap with zero grown sprouts.
+  if (grownInGap(s.gapIdx, idx) === 0) return;
   s.grown = false;
   s.phase = 'wither';
 }
@@ -102,8 +106,21 @@ export function isTopSproutGrown(color: 'green' | 'purple'): boolean {
   return !!(s && s.grown);
 }
 
+/** Count currently-grown sprouts in a given gap (excluding `excludeIdx`). */
+function grownInGap(gapIdx: number, excludeIdx = -1): number {
+  let n = 0;
+  for (let i = 0; i < sproutsRuntime.length; i++) {
+    if (i === excludeIdx) continue;
+    const s = sproutsRuntime[i];
+    if (s.isTop) continue;
+    if (s.gapIdx === gapIdx && s.grown) n++;
+  }
+  return n;
+}
+
 export function tickSprouts(): void {
-  for (const s of sproutsRuntime) {
+  for (let idx = 0; idx < sproutsRuntime.length; idx++) {
+    const s = sproutsRuntime[idx];
     switch (s.phase) {
       case 'idle':
         // Non-top sprouts auto-wither after their alive window, unless being climbed.
@@ -112,9 +129,15 @@ export function tickSprouts(): void {
           if (!s.inUse) {
             s.aliveTimer--;
             if (s.aliveTimer <= 0) {
-              s.grown = false;
-              s.phase = 'wither';
-              s.aliveTimer = undefined;
+              // Guarantee at least 1 grown sprout per gap at all times.
+              if (grownInGap(s.gapIdx, idx) === 0) {
+                // Refresh and stay alive — don't leave the gap empty.
+                s.aliveTimer = rollAliveFrames();
+              } else {
+                s.grown = false;
+                s.phase = 'wither';
+                s.aliveTimer = undefined;
+              }
             }
           }
         }
@@ -138,6 +161,11 @@ export function tickSprouts(): void {
       case 'dormant':
         if (s.isTop) break; // top sprouts only grow when watered
         s.regrowTimer--;
+        // If this sprout's gap currently has 0 alive sprouts, fast-track
+        // regrow so the player is never stranded.
+        if (grownInGap(s.gapIdx, idx) === 0 && s.regrowTimer > 0) {
+          s.regrowTimer = 0;
+        }
         if (s.regrowTimer <= 0) { s.regrowTimer = 0; s.phase = 'grow'; }
         break;
       case 'grow':
@@ -189,23 +217,26 @@ export function applyLevel2Layout(rng: () => number = Math.random): void {
     return usableL + span * 0.35 + rng() * (span * 0.3);
   };
 
-  // Gaps P1→P2 ... P4→P5 (regular sprouts)
+  // Gaps P1→P2 ... P4→P5 (regular sprouts). Track gap index per ladder.
+  const ladderGapIdx: number[] = []; // parallel to newLadders
   for (let baseIdx = 0; baseIdx < 4; baseIdx++) {
     const topIdx = baseIdx + 1;
     const minS = LEVEL2_PARAMS.SPROUTS_PER_GAP_MIN;
     const maxS = LEVEL2_PARAMS.SPROUTS_PER_GAP_MAX;
-    const count = minS + Math.floor(rng() * (maxS - minS + 1));
+    const count = Math.min(3, minS + Math.floor(rng() * (maxS - minS + 1)));
+    // Slot pool ensures unique left/center/right placement (max 1 of each).
     const slotPool: ('left' | 'center' | 'right')[] = ['left', 'center', 'right'];
     for (let i = slotPool.length - 1; i > 0; i--) {
       const j = Math.floor(rng() * (i + 1));
       [slotPool[i], slotPool[j]] = [slotPool[j], slotPool[i]];
     }
     for (let n = 0; n < count; n++) {
-      const slot = slotPool[n % slotPool.length];
+      const slot = slotPool[n];
       const x = pickX(baseIdx, slot);
       const yBot = PLATFORMS[baseIdx].y;
       const yTop = PLATFORMS[topIdx].y;
       newLadders.push({ x, yTop, yBot });
+      ladderGapIdx.push(baseIdx);
     }
   }
 
@@ -230,6 +261,9 @@ export function applyLevel2Layout(rng: () => number = Math.random): void {
   // 4) Sprout runtime — non-top start GROWN, top start as seeds.
   sproutsRuntime = LADDERS.map((_l, i) => {
     const isTop = i === GREEN_TOP_LADDER_IDX || i === PURPLE_TOP_LADDER_IDX;
+    // For non-top sprouts, gap index was tracked per ladder during build.
+    // Top sprouts don't belong to a regular gap (use -1).
+    const gapIdx = isTop ? -1 : (ladderGapIdx[i] ?? -1);
     return {
       ladderIdx: i,
       grown: !isTop,
@@ -239,6 +273,7 @@ export function applyLevel2Layout(rng: () => number = Math.random): void {
       isTop,
       topColor: i === GREEN_TOP_LADDER_IDX ? 'green' : i === PURPLE_TOP_LADDER_IDX ? 'purple' : undefined,
       watered: false,
+      gapIdx,
     };
   });
 }
