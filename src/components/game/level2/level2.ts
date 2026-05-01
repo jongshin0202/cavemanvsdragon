@@ -523,9 +523,10 @@ export function updateLevel2(
   if (!s.initialized) return false;
 
   // ── Fireballs (only if NOT sealed) ──────────────────────
+  const diffFB = getLevel2Difficulty(s.round);
   if (!s.volcanoSealed) {
     const inFlight = s.fireballs.filter(f => !f.landed).length;
-    if (inFlight < LEVEL2_PARAMS.MAX_FIREBALLS) {
+    if (inFlight < diffFB.maxFireballs) {
       if (s.fireballTimer > 0) {
         s.fireballTimer--;
       } else {
