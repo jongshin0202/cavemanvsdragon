@@ -1583,10 +1583,24 @@ const CavemanVsDragonGame = () => {
       const jumpSprite = jumpSpriteRef.current;
       const climbSprite = climbSpriteRef.current;
       const winSprite = winSpriteRef.current;
-      const useWin = (g.state === 'win' || wa.active) && winSprite && winSprite.complete && winSprite.naturalWidth > 0;
+      // During the dragon-grab outro: phase 'follow' (timer 120..210) we
+      // want the caveman to walk right off-screen. Force walking animation
+      // and apply the horizontal follow offset.
+      const inFollowPhase = wa.active && wa.timer > 120 && (wa.cavemanFollowOffset || 0) > 0;
+      if (inFollowPhase) {
+        // advance walk frame
+        pl.walkTimer = (pl.walkTimer || 0) + 1;
+        if (pl.walkTimer > 5) { pl.walkTimer = 0; pl.walkFrame = (pl.walkFrame + 1) % 4; }
+        pl.facing = 1;
+      }
+      const useWin = (g.state === 'win' || wa.active) && !inFollowPhase && winSprite && winSprite.complete && winSprite.naturalWidth > 0;
       const useClimb = !useWin && pl.climbing && climbSprite && climbSprite.complete && climbSprite.naturalWidth > 0;
       const useJump = !useWin && !pl.climbing && pl.jumping && jumpSprite && jumpSprite.complete && jumpSprite.naturalWidth > 0;
-      const useWalk = !useWin && !pl.climbing && !pl.jumping && walkSprite && walkSprite.complete && walkSprite.naturalWidth > 0;
+      const useWalk = !useWin && (!pl.climbing && !pl.jumping) || inFollowPhase ? walkSprite && walkSprite.complete && walkSprite.naturalWidth > 0 : false;
+
+      const followDx = inFollowPhase ? (wa.cavemanFollowOffset || 0) : 0;
+      ctx.save();
+      if (followDx) ctx.translate(followDx, 0);
       // Player sprites — 50% bigger
       if (showPlayer && useWin) {
         const drawW = 48;
@@ -1631,6 +1645,7 @@ const CavemanVsDragonGame = () => {
         }
         ctx.restore();
       }
+      ctx.restore();
 
       // Carried watering can floats above the player until they water the sprout.
       if (g.keyGrabbed && !g.seedPlanted) {
