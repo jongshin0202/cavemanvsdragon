@@ -631,6 +631,11 @@ export function updateLevel2(
 
 
 
+        // Per-rock random flight time within iteration's [min, max] —
+        // when multiple rocks coexist, each rock has its own speed up to
+        // the iteration's max (shorter flight = faster rock).
+        const flightSec = diffFB.fireballFlightMinSec +
+          Math.random() * (diffFB.fireballFlightMaxSec - diffFB.fireballFlightMinSec);
         const fb: any = {
           startX: mouth.x, startY: mouth.y,
           endX: aimedX, endY,
@@ -639,14 +644,14 @@ export function updateLevel2(
           apexX,
           apexY,
           t: 0,
-          duration: Math.round(LEVEL2_PARAMS.FIREBALL_FLIGHT_SEC * 60),
+          duration: Math.round(flightSec * 60),
           landed: false,
           x: mouth.x, y: mouth.y,
           radius: LEVEL2_PARAMS.FIREBALL_START_RADIUS,
           vx: 0, vy: -3.6,
         };
         s.fireballs.push(fb);
-        const base = LEVEL2_PARAMS.FIREBALL_INTERVAL_SEC * 60;
+        const base = diffFB.fireballIntervalSec * 60;
         s.fireballTimer = Math.round(base * (0.5 + Math.random()));
       }
     }
