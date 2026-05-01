@@ -217,9 +217,11 @@ export function tickApples(
     //   LOW    apple top = platY - 7
     //   MIDDLE apple top = platY - 19
     //   HIGH   apple top = platY - 31  (same +12 step)
+    // Balance jumping vs ducking opportunities: HIGH (duck) ≈ 50%,
+    // LOW + MIDDLE (jump) ≈ 50% combined (25% each).
     const roll = Math.random();
     const heightTier: 'low' | 'middle' | 'high' =
-      roll < 1 / 3 ? 'low' : roll < 2 / 3 ? 'middle' : 'high';
+      roll < 0.25 ? 'low' : roll < 0.5 ? 'middle' : 'high';
 
     const aw = 7;
     let ah = 7;
