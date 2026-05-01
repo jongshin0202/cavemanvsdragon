@@ -10,7 +10,7 @@ import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal
 import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/deviceStats';
 import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
 import { LEVEL2_PARAMS } from './game/level2/params';
-import { initLevel2, updateLevel2, renderLevel2, spawnLevel2Robots, fireballHitsPlayer, tryPickupCan, tryPickupRock, trySealVolcano, maybeSpawnVolcanoRock, onMonkeyKilled, newSpawnJacket, pushJacket, isHoleAtPlatform, type L2Sprites } from './game/level2/level2';
+import { initLevel2, updateLevel2, renderLevel2, spawnLevel2Robots, fireballHitsPlayer, tryPickupCan, tryPickupRock, trySealVolcano, maybeSpawnVolcanoRock, onMonkeyKilled, newSpawnJacket, pushJacket, isHoleAtPlatform, tickApples, appleHitsPlayer, type L2Sprites } from './game/level2/level2';
 import { makeEmptyL2State, type L2State } from './game/level2/types';
 import { applyLevel2Layout, restoreLevel1Layout, isLadderUsableL2, markSproutUsed, tickSprouts, getSprouts, waterTopSprout, isTopSproutGrown, GREEN_TOP_LADDER_IDX, PURPLE_TOP_LADDER_IDX } from './game/level2/layout';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -117,7 +117,7 @@ const CavemanVsDragonGame = () => {
   const cHoldTimerRef = useRef<number | null>(null);
   const cHoldFiredRef = useRef<boolean>(false);
   const gameRef = useRef({
-    player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 },
+    player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0, duckTimer: 0 },
     barrels: [] as Barrel[],
     robots: [] as (Robot & { wanderTimer?: number; wanderDir?: number })[],
     barrelTimer: 0,
@@ -171,7 +171,7 @@ const CavemanVsDragonGame = () => {
 
   const resetPlayer = useCallback(() => {
     const g = gameRef.current;
-    g.player = { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 };
+    g.player = { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0, duckTimer: 0 };
     g.barrels = [];
     g.barrelTimer = 0;
     g.pendingClimb = null;
@@ -816,19 +816,27 @@ const CavemanVsDragonGame = () => {
             p.climbing = true;
             p.x = nearestLadder.x + 7 - p.w / 2;
           } else if (p.onGround && !nearestLadder && rawDown) {
-            // Drop down from platform edge - check if near edge of current platform
-            const curPlatIdx = findPlatformIndex(p.y + p.h, playerCX);
-            const curPlat = PLATFORMS[curPlatIdx];
-            if (curPlat) {
-              const distToLeft = playerCX - curPlat.x1;
-              const distToRight = curPlat.x2 - playerCX;
-              if (distToLeft < 20 || distToRight < 20) {
-                p.onGround = false;
-                p.vy = 1;
+            // L2: ducking — start one duck per Down-press; auto-releases.
+            if (g.round >= 2 && (p as any).duckTimer === 0 && !(p as any).duckHeld) {
+              (p as any).duckTimer = LEVEL2_PARAMS.DUCK_FRAMES;
+              (p as any).duckHeld = true;
+            } else {
+              // Drop down from platform edge - check if near edge of current platform
+              const curPlatIdx = findPlatformIndex(p.y + p.h, playerCX);
+              const curPlat = PLATFORMS[curPlatIdx];
+              if (curPlat) {
+                const distToLeft = playerCX - curPlat.x1;
+                const distToRight = curPlat.x2 - playerCX;
+                if (distToLeft < 20 || distToRight < 20) {
+                  p.onGround = false;
+                  p.vy = 1;
+                }
               }
             }
           }
         }
+        if (!rawDown) (p as any).duckHeld = false;
+        if ((p as any).duckTimer > 0) (p as any).duckTimer--;
 
         if (p.climbing) {
           // If near the top of the ladder and pressing left/right, dismount
@@ -1026,7 +1034,34 @@ const CavemanVsDragonGame = () => {
             else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
           }
 
-          // Watering can pickup
+          // ── Apples (colored monkeys throw them) ──
+          tickApples(l2Ref.current, g.robots);
+          {
+            // Build hitbox honoring duck (top half shaved off when ducking).
+            const ducked = (pl as any).duckTimer > 0;
+            const hitbox = ducked
+              ? { x: pl.x, y: pl.y + Math.floor(pl.h * 0.55), w: pl.w, h: Math.ceil(pl.h * 0.45) }
+              : { x: pl.x, y: pl.y, w: pl.w, h: pl.h };
+            // Track apples that have passed the player → award 100 each.
+            for (const a of l2Ref.current.apples as any[]) {
+              if (a._scored) continue;
+              const passedRight = a.vx > 0 && a.x > pl.x + pl.w + 2;
+              const passedLeft  = a.vx < 0 && a.x + a.w < pl.x - 2;
+              if (passedRight || passedLeft) {
+                a._scored = true;
+                g.score += 100; setScore(g.score);
+              }
+            }
+            if (g.invulnTimer === 0) {
+              const hit = appleHitsPlayer(l2Ref.current, hitbox);
+              if (hit >= 0) {
+                g.lives--; setLives(g.lives);
+                if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
+                else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
+              }
+            }
+          }
+
           const pickedColor = tryPickupCan(l2Ref.current, pl);
           if (pickedColor) playKeyGrabSound();
 
@@ -1827,8 +1862,11 @@ const CavemanVsDragonGame = () => {
         const sh = walkSprite.naturalHeight;
         const sx = pl.walkFrame * sw;
         const sy = 0;
-        const drawW = 42;
-        const drawH = 48;
+        let drawW = 42;
+        let drawH = 48;
+        // Duck: squash vertically so the apple flies overhead.
+        const ducked = (pl as any).duckTimer > 0;
+        if (ducked) drawH = Math.round(drawH * 0.55);
         ctx.save();
         if (pl.facing < 0) {
           ctx.translate(pl.x + pl.w / 2, 0);
