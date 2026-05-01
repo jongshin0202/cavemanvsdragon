@@ -48,9 +48,25 @@ export const DIFFICULTY = {
 export const MONKEY_CAP_ROUND =
   DIFFICULTY.monkeyTotalCap - DIFFICULTY.base.monkeyCount + 1; // = 19
 
+/** Total round → which level type plays (alternates L1, L2, L1, L2…). */
+export function isLevel2Round(round: number): boolean {
+  return round % 2 === 0;
+}
+/** Total round → which iteration of its level type this is.
+ *  Round 1 → L1 #1, Round 2 → L2 #1, Round 3 → L1 #2, Round 4 → L2 #2 … */
+export function getLevelIteration(round: number): number {
+  return isLevel2Round(round) ? round / 2 : Math.ceil(round / 2);
+}
+/** Difficulty for a given total round, mapped through the level iteration so
+ *  that each subsequent visit to L1 (or L2) is one step harder than the
+ *  previous visit. */
 export function getRoundDifficulty(round: number) {
   const r = Math.max(1, round);
-  const steps = r - 1;
+  // Difficulty ramps by how many times the player has visited THIS level
+  // type. L1 visits: rounds 1, 3, 5, … → iterations 1, 2, 3, …
+  // L2 visits: rounds 2, 4, 6, … → iterations 1, 2, 3, …
+  const iter = getLevelIteration(r);
+  const steps = iter - 1;
 
   // Wheel speed: +10% per round up to cap, then +20% per round after.
   const stepsBeforeCap = Math.min(steps, MONKEY_CAP_ROUND - 1);
@@ -91,9 +107,10 @@ export function getRoundDifficulty(round: number) {
 export function buildMonkeyDistribution(round: number): number[] {
   const slots = DIFFICULTY.monkeyPlatforms;
   const counts = new Array<number>(slots).fill(0);
+  const iter = getLevelIteration(round);
   const total = Math.min(
     DIFFICULTY.monkeyTotalCap,
-    DIFFICULTY.base.monkeyCount + Math.max(0, round - 1),
+    DIFFICULTY.base.monkeyCount + Math.max(0, iter - 1),
   );
   for (let added = 0; added < total; added++) {
     // Find platforms with the minimum count that still have capacity.
