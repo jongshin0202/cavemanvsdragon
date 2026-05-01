@@ -822,7 +822,7 @@ const CavemanVsDragonGame = () => {
         let nearestLadderDist = Infinity;
         for (let li = 0; li < LADDERS.length; li++) {
           if (!isLevel2Round(g.round) && li === getTopVineIdx() && !g.topVineUnlocked) continue;
-          if (isLevel2Round(g.round) && !isLadderUsableL2(li)) continue;
+          if (!isLadderUsable(g.round, li)) continue;
           const l = LADDERS[li];
           const ladderCX = l.x + 7;
           const dist = Math.abs(playerCX - ladderCX);
