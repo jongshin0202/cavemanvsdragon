@@ -928,7 +928,8 @@ const CavemanVsDragonGame = () => {
         // Spawn the watering can once all monkeys for this round are dead.
         // Random placement: anywhere on P1–P4, OR the leftmost edge of P5.
         const monkeyTarget = getRoundDifficulty(g.round).monkeyCount;
-        if (!g.keySpawned && g.monkeysKilled >= monkeyTarget) {
+        // Level-1 only mechanic — L2 has its own (green/purple) watering cans.
+        if (g.round === 1 && !g.keySpawned && g.monkeysKilled >= monkeyTarget) {
           g.keySpawned = true;
           const choice = Math.floor(Math.random() * 5); // 0..4
           let kx: number;
