@@ -555,13 +555,32 @@ export function updateLevel2(
 
         // Random offset: directly on the player (0), or 2 or 3 hole-widths
         // away — randomly chosen each throw. Side biased toward player
-        // movement direction (random when standing still).
-        const offsetChoices = [0, 2, 3];
-        const offsetMult = offsetChoices[Math.floor(Math.random() * offsetChoices.length)];
-        const offsetMag = offsetMult * HOLE_W;
-        let offsetSign: number;
-        if (moveDir !== 0) offsetSign = Math.random() < 0.7 ? moveDir : -moveDir;
-        else offsetSign = Math.random() < 0.5 ? 1 : -1;
+        // movement direction (random when standing still). The trajectory
+        // (signed offset) must NEVER repeat the previous throw, so even a
+        // standing player sees varied attack angles.
+        const offsetChoicesAll = [-3, -2, 0, 2, 3]; // signed: side+magnitude
+        const lastOffset: number | null = (s as any)._lastFireballOffset ?? null;
+
+        // Build a candidate list, biased toward player movement direction.
+        const dirSign: number = moveDir !== 0
+          ? moveDir
+          : (Math.random() < 0.5 ? 1 : -1);
+
+        // Score each option: prefer same sign as dirSign (when player is
+        // moving) or both sides equally (when still). Always exclude the
+        // last-used signed offset.
+        let candidates = offsetChoicesAll.filter(o => o !== lastOffset);
+        if (moveDir !== 0) {
+          // 70% chance to keep only same-direction (or zero) candidates.
+          if (Math.random() < 0.7) {
+            const sameDir = candidates.filter(o => o === 0 || Math.sign(o) === dirSign);
+            if (sameDir.length > 0) candidates = sameDir;
+          }
+        }
+        const pickedOffset = candidates[Math.floor(Math.random() * candidates.length)];
+        (s as any)._lastFireballOffset = pickedOffset;
+        const offsetMag = Math.abs(pickedOffset) * HOLE_W;
+        const offsetSign = pickedOffset === 0 ? 1 : Math.sign(pickedOffset);
 
         // A candidate X is "clear" if it's at least MIN_CENTER_DIST from
         // every existing hole on this platform → guarantees ≥1 hole-width
@@ -870,47 +889,27 @@ export function renderLevel2(
   // ── Apples thrown by colored monkeys
   for (const a of s.apples as any[]) {
     const cx = a.x + a.w / 2;
-    if (a._high) {
-      // HIGH throw: render as a tall vertical fire-streak so the player
-      // visually reads it as "above jump height — must duck."
-      const topY = a.y;
-      const botY = a.y + a.h;
-      // Outer glow
-      const grad = ctx.createLinearGradient(cx, topY, cx, botY);
-      grad.addColorStop(0, 'rgba(255, 80, 0, 0)');
-      grad.addColorStop(0.3, 'rgba(255, 140, 0, 0.6)');
-      grad.addColorStop(1, 'rgba(255, 220, 80, 0.95)');
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.moveTo(cx, topY);
-      ctx.lineTo(cx + 4, botY);
-      ctx.lineTo(cx - 4, botY);
-      ctx.closePath();
-      ctx.fill();
-      // Bright apple at the bottom of the streak
-      ctx.fillStyle = '#d6201f';
-      ctx.beginPath();
-      ctx.arc(cx, botY - 3, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#ffe27a';
-      ctx.fillRect(cx - 1, botY - 5, 2, 2);
-      continue;
-    }
-    const cy = a.y + a.h / 2;
+    // For HIGH throws the hitbox is a tall streak (so jumping can't clear
+    // it), but the player should still SEE a normal apple — drawn at the
+    // TOP of the streak so it visually reads as "above jump height".
+    // For low/middle, the apple is drawn at the centre of its small hitbox.
+    const drawW = 7;
+    const drawH = 7;
+    const cy = a._high ? a.y + drawH / 2 : a.y + a.h / 2;
     // body
     ctx.fillStyle = '#d6201f';
     ctx.beginPath();
-    ctx.arc(cx, cy, a.w / 2 + 1, 0, Math.PI * 2);
+    ctx.arc(cx, cy, drawW / 2 + 1, 0, Math.PI * 2);
     ctx.fill();
     // shine
     ctx.fillStyle = '#ff8a87';
     ctx.fillRect(cx - 2, cy - 3, 2, 2);
     // stem
     ctx.fillStyle = '#5a2a08';
-    ctx.fillRect(cx, cy - a.h / 2 - 2, 1, 2);
+    ctx.fillRect(cx, cy - drawH / 2 - 2, 1, 2);
     // leaf
     ctx.fillStyle = '#2e8b33';
-    ctx.fillRect(cx + 1, cy - a.h / 2 - 1, 2, 1);
+    ctx.fillRect(cx + 1, cy - drawH / 2 - 1, 2, 1);
   }
 
   // ── Fireballs
