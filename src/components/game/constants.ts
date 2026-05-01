@@ -62,7 +62,11 @@ export function getLevelIteration(round: number): number {
  *  previous visit. */
 export function getRoundDifficulty(round: number) {
   const r = Math.max(1, round);
-  const steps = r - 1;
+  // Difficulty ramps by how many times the player has visited THIS level
+  // type. L1 visits: rounds 1, 3, 5, … → iterations 1, 2, 3, …
+  // L2 visits: rounds 2, 4, 6, … → iterations 1, 2, 3, …
+  const iter = getLevelIteration(r);
+  const steps = iter - 1;
 
   // Wheel speed: +10% per round up to cap, then +20% per round after.
   const stepsBeforeCap = Math.min(steps, MONKEY_CAP_ROUND - 1);
