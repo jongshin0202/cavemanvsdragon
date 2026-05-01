@@ -13,7 +13,7 @@ import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profan
 import { LEVEL2_PARAMS, getLevel2Difficulty } from './game/level2/params';
 import { initLevel2, updateLevel2, renderLevel2, spawnLevel2Robots, fireballHitsPlayer, tryPickupCan, tryPickupRock, trySealVolcano, maybeSpawnVolcanoRock, onMonkeyKilled, newSpawnJacket, pushJacket, isHoleAtPlatform, tickApples, appleHitsPlayer, type L2Sprites } from './game/level2/level2';
 import { makeEmptyL2State, type L2State } from './game/level2/types';
-import { applyLevel2Layout, restoreLevel1Layout, isLadderUsableL2, markSproutUsed, markSproutInUse, tickSprouts, getSprouts, waterTopSprout, isTopSproutGrown, GREEN_TOP_LADDER_IDX, PURPLE_TOP_LADDER_IDX } from './game/level2/layout';
+import { applyLevel2Layout, restoreLevel1Layout, isLadderUsableL2, markSproutUsed, markSproutInUse, tickSprouts, getSprouts, waterTopSprout, isTopSproutGrown, GREEN_TOP_LADDER_IDX, PURPLE_TOP_LADDER_IDX, enableLevel1SproutMechanic } from './game/level2/layout';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   AlertDialog,
@@ -51,6 +51,23 @@ const LADDER_SNAP = 36;
 const getTopVineIdx = () => LADDERS.length - 1;
 // Where the seed must be planted (base of the topmost vine, on platform P5)
 const getPlantX = () => LADDERS[LADDERS.length - 1].x + 7;
+// True when the L2-style sprout dying mechanic is active for this round —
+// always on for L2 rounds, and on for L1 once the player reaches L1 iter 5+.
+const sproutMechanicActive = (round: number): boolean => {
+  if (isLevel2Round(round)) return true;
+  return getLevelIteration(round) >= 5;
+};
+// Unified "is this ladder currently climbable" check (handles both the
+// L2 sprout system and the L1 dying-sprout system once enabled).
+const isLadderUsable = (round: number, idx: number): boolean => {
+  if (sproutMechanicActive(round)) {
+    // The L1 top vine remains gated by its own seed/key flow, not the
+    // sprout runtime — let the existing topVineUnlocked logic handle it.
+    if (!isLevel2Round(round) && idx === getTopVineIdx()) return true;
+    return isLadderUsableL2(idx);
+  }
+  return true;
+};
 
 type GameState =
   | 'intro'
@@ -236,6 +253,12 @@ const CavemanVsDragonGame = () => {
     } else {
       // L1: make sure layout is the original (in case we just came back).
       restoreLevel1Layout();
+      // From L1 iter 5 onwards, enable the L2-style sprout dying mechanic
+      // on L1 ladders. Map L1 iter 5 → L2 iter 1, L1 iter 6 → L2 iter 2, …
+      const l1Iter = getLevelIteration(g.round);
+      if (l1Iter >= 5) {
+        enableLevel1SproutMechanic(getTopVineIdx(), l1Iter - 4);
+      }
     }
     // Spawn first rock immediately so action starts the moment the level begins
     if (!isLevel2Round(g.round)) {
@@ -799,7 +822,7 @@ const CavemanVsDragonGame = () => {
         let nearestLadderDist = Infinity;
         for (let li = 0; li < LADDERS.length; li++) {
           if (!isLevel2Round(g.round) && li === getTopVineIdx() && !g.topVineUnlocked) continue;
-          if (isLevel2Round(g.round) && !isLadderUsableL2(li)) continue;
+          if (!isLadderUsable(g.round, li)) continue;
           const l = LADDERS[li];
           const ladderCX = l.x + 7;
           const dist = Math.abs(playerCX - ladderCX);
@@ -898,17 +921,17 @@ const CavemanVsDragonGame = () => {
             p.climbing = false;
             if (climbingLadder) p.y = climbingLadder.yTop - p.h;
             // L2: sprout withers after one use (climbed up)
-            if (isLevel2Round(g.round) && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
+            if (sproutMechanicActive(g.round) && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
           } else if (nearBot && (rawDown || wantsHorizontal)) {
             // Reached the bottom — dismount onto the lower platform.
             p.climbing = false;
             if (climbingLadder) p.y = climbingLadder.yBot - p.h;
-            // L2: sprout withers after one use (climbed down)
-            if (isLevel2Round(g.round) && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
+            // Sprout withers after one use (climbed down) — L2 always, L1 from iter 5.
+            if (sproutMechanicActive(g.round) && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
           } else {
             p.vy = 0;
-            // L2: keep this sprout alive while we're actively on it.
-            if (isLevel2Round(g.round) && nearestLadderIdx >= 0) markSproutInUse(nearestLadderIdx);
+            // Keep this sprout alive while we're actively on it.
+            if (sproutMechanicActive(g.round) && nearestLadderIdx >= 0) markSproutInUse(nearestLadderIdx);
             const climbMoving = rawUp || rawDown;
             if (rawUp) p.y -= CLIMB_SPEED;
             if (rawDown) p.y += CLIMB_SPEED;
@@ -1050,14 +1073,18 @@ const CavemanVsDragonGame = () => {
           }
         }
 
+        // Tick the sprout lifecycle whenever the dying-sprout mechanic is
+        // active (always for L2 rounds; from L1 iter 5 onwards as well).
+        if (sproutMechanicActive(g.round)) {
+          tickSprouts();
+        }
+
         // === LEVEL 2 UPDATE ===
         if (isLevel2Round(g.round)) {
           // Belt-and-suspenders: Level 2 must NEVER show L1 rolling rocks.
           if (g.barrels.length) g.barrels = [];
           const pl = g.player;
           updateLevel2(l2Ref.current, g.frameCount, pl.x + pl.w / 2, pl.y + pl.h / 2);
-          // Tick sprout regrow timers (per-frame).
-          tickSprouts();
 
           // Award 100 points the first time the player jumps over a fireball
           for (const fb of l2Ref.current.fireballs as any[]) {
@@ -1333,7 +1360,7 @@ const CavemanVsDragonGame = () => {
               const wantLeftOfPlayer = landingRollDir > 0;
               for (let li = 0; li < LADDERS.length; li++) {
                 if (!isLevel2Round(g.round) && li === getTopVineIdx() && !g.topVineUnlocked) continue;
-                if (isLevel2Round(g.round) && !isLadderUsableL2(li)) continue;
+                if (!isLadderUsable(g.round, li)) continue;
                 const l = LADDERS[li];
                 const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
                 const botPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 12);
@@ -1355,7 +1382,7 @@ const CavemanVsDragonGame = () => {
               // platform nearest to the wheel.
               for (let li = 0; li < LADDERS.length; li++) {
                 if (!isLevel2Round(g.round) && li === getTopVineIdx() && !g.topVineUnlocked) continue;
-                if (isLevel2Round(g.round) && !isLadderUsableL2(li)) continue;
+                if (!isLadderUsable(g.round, li)) continue;
                 const l = LADDERS[li];
                 const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
                 if (topPlatIdx !== bPlatIdx) continue;
@@ -1485,7 +1512,7 @@ const CavemanVsDragonGame = () => {
             const continueScore = scoreToPlayer(rCenterX + r.wanderDir * r.speed * 30, rFeetY);
             for (let li = 0; li < LADDERS.length; li++) {
               if (!isLevel2Round(g.round) && li === getTopVineIdx() && !g.topVineUnlocked) continue;
-              if (isLevel2Round(g.round) && !isLadderUsableL2(li)) continue;
+              if (!isLadderUsable(g.round, li)) continue;
               const l = LADDERS[li];
               const ladderCenterX = l.x + 7;
               if (Math.abs(rCenterX - ladderCenterX) > r.speed + 4) continue;
@@ -1661,7 +1688,7 @@ const CavemanVsDragonGame = () => {
       };
       for (let li = 0; li < LADDERS.length; li++) {
         if (!isLevel2Round(g.round) && li === getTopVineIdx()) continue; // L1: top vine drawn separately
-        if (isLevel2Round(g.round) && !isLadderUsableL2(li)) continue; // L2: hide ungrown sprouts
+        if (!isLadderUsable(g.round, li)) continue; // hide ungrown sprouts
         const l = LADDERS[li];
         drawVine(l.x, l.yTop, l.yBot);
       }

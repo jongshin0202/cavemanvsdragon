@@ -9,10 +9,17 @@
 // ============================================================
 
 import { PLATFORMS, LADDERS, CANVAS_W } from '../constants';
-import { LEVEL2_PARAMS, getCurrentLevel2Difficulty } from './params';
+import { LEVEL2_PARAMS, getCurrentLevel2Difficulty, setCurrentLevel2Iteration } from './params';
 
 let l1PlatformsBackup: typeof PLATFORMS | null = null;
 let l1LaddersBackup: typeof LADDERS | null = null;
+
+/** True when the L1 sprout-dying mechanic is active (L1 iter ≥ 5). */
+let l1MechanicActive = false;
+export function isL1SproutMechanicActive(): boolean { return l1MechanicActive; }
+/** Index of the L1 top vine ladder when the mechanic is active (so the host
+ *  can keep its existing key→seed→grow flow working). */
+let L1_TOP_VINE_IDX = -1;
 
 /** Last index of LADDERS — kept for backwards-compat. In L2 the host
  *  treats this as “nothing special”; both top sprouts are normal L2
@@ -333,4 +340,45 @@ export function restoreLevel1Layout(): void {
   PURPLE_TOP_LADDER_IDX = -1;
   TOP_GAP_X1 = 0;
   TOP_GAP_X2 = 0;
+  l1MechanicActive = false;
+  L1_TOP_VINE_IDX = -1;
 }
+
+/** Enable the L2-style sprout-dying lifecycle on the standard L1 ladders.
+ *  `topVineIdx` is excluded (it has its own key/seed flow). `l2IterEquivalent`
+ *  controls which L2 difficulty params the timers use (e.g. L1 iter 5 → 1). */
+export function enableLevel1SproutMechanic(topVineIdx: number, l2IterEquivalent: number): void {
+  l1MechanicActive = true;
+  L1_TOP_VINE_IDX = topVineIdx;
+  setCurrentLevel2Iteration(Math.max(1, l2IterEquivalent));
+  // Build a sprout runtime entry per L1 ladder. Group by the platform pair the
+  // ladder spans so wither/regrow can guarantee at least one alive sprout per
+  // gap (matching L2 behavior).
+  const gapKeyOf = (l: { yTop: number; yBot: number }) => `${Math.round(l.yTop)}|${Math.round(l.yBot)}`;
+  const gapKeys = new Map<string, number>();
+  sproutsRuntime = LADDERS.map((l, i) => {
+    let gapIdx: number;
+    if (i === topVineIdx) {
+      gapIdx = -1;
+    } else {
+      const key = gapKeyOf(l);
+      if (!gapKeys.has(key)) gapKeys.set(key, gapKeys.size);
+      gapIdx = gapKeys.get(key)!;
+    }
+    return {
+      ladderIdx: i,
+      grown: true,
+      regrowTimer: 0,
+      growProgress: 1,
+      // The top vine opts OUT of the dying lifecycle by reusing isTop=true
+      // (tickSprouts treats isTop sprouts as never-auto-withering). Regular
+      // L1 ladders are full sprouts (isTop=false) and follow the L2 cycle.
+      phase: 'idle' as SproutPhase,
+      isTop: i === topVineIdx,
+      topColor: undefined,
+      watered: false,
+      gapIdx,
+    };
+  });
+}
+
