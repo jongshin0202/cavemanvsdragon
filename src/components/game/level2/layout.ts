@@ -56,11 +56,10 @@ export interface SproutRuntime {
 let sproutsRuntime: SproutRuntime[] = [];
 
 const GROW_FRAMES = 68;
-const ALIVE_MIN_SEC = 3;
-const ALIVE_MAX_SEC = 5;
 
 function rollAliveFrames(): number {
-  return Math.round((ALIVE_MIN_SEC + Math.random() * (ALIVE_MAX_SEC - ALIVE_MIN_SEC)) * 60);
+  const d = getCurrentLevel2Difficulty();
+  return Math.round((d.sproutAliveMinSec + Math.random() * (d.sproutAliveMaxSec - d.sproutAliveMinSec)) * 60);
 }
 
 export function getSprouts(): SproutRuntime[] { return sproutsRuntime; }
