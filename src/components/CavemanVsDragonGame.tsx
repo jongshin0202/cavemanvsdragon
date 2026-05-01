@@ -1324,10 +1324,12 @@ const CavemanVsDragonGame = () => {
               r.y += r.vy;
               r.onGround = false;
 
-              for (const plat of PLATFORMS) {
+              for (let plIdx = 0; plIdx < PLATFORMS.length; plIdx++) {
+                const plat = PLATFORMS[plIdx];
                 if (r.x + r.w > plat.x1 && r.x < plat.x2) {
                   const platY = getPlatformY(plat, r.x + r.w / 2);
                   if (r.y + r.h >= platY && r.y + r.h <= platY + 12 && r.vy >= 0) {
+                    if (g.round >= 2 && isHoleAtPlatform(l2Ref.current, plIdx, r.x + r.w / 2)) continue;
                     r.y = platY - r.h; r.vy = 0; r.onGround = true; break;
                   }
                 }
