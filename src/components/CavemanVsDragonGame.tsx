@@ -927,7 +927,8 @@ const CavemanVsDragonGame = () => {
         }
 
         // === BARREL SPAWNING (only after player first moves; first barrel ~0.5s after) ===
-        if (g.playerHasMoved) {
+        // Disabled in Level 2 — the L2 module manages its own hazards.
+        if (g.round === 1 && g.playerHasMoved) {
           const d = getRoundDifficulty(g.round);
           g.barrelTimer++;
           if (!g.nextBarrelTime) g.nextBarrelTime = d.barrelSpawnMin + Math.random() * d.barrelSpawnRange;
@@ -939,6 +940,12 @@ const CavemanVsDragonGame = () => {
             playBarrelRollSound();
           }
         }
+
+        // === LEVEL 2 UPDATE (mechanics added in follow-up stages) ===
+        if (g.round >= 2) {
+          updateLevel2(l2Ref.current, g.frameCount);
+        }
+
 
         // === MONKEY SPAWNING ===
         // Distribution across P2..P5 grows by +1 per finished round, added to a
