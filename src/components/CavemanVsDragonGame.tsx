@@ -763,7 +763,7 @@ const CavemanVsDragonGame = () => {
         let nearestLadderIdx = -1;
         let nearestLadderDist = Infinity;
         for (let li = 0; li < LADDERS.length; li++) {
-          if (li === getTopVineIdx() && !g.topVineUnlocked) continue;
+          if (g.round === 1 && li === getTopVineIdx() && !g.topVineUnlocked) continue;
           if (g.round >= 2 && !isLadderUsableL2(li)) continue;
           const l = LADDERS[li];
           const ladderCX = l.x + 7;
@@ -1220,7 +1220,7 @@ const CavemanVsDragonGame = () => {
               const landingRollDir = landingPlat && (landingPlat.slope || 0) < 0 ? -1 : 1;
               const wantLeftOfPlayer = landingRollDir > 0;
               for (let li = 0; li < LADDERS.length; li++) {
-                if (li === getTopVineIdx() && !g.topVineUnlocked) continue;
+                if (g.round === 1 && li === getTopVineIdx() && !g.topVineUnlocked) continue;
                 if (g.round >= 2 && !isLadderUsableL2(li)) continue;
                 const l = LADDERS[li];
                 const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
@@ -1242,7 +1242,7 @@ const CavemanVsDragonGame = () => {
               // Player not on the platform directly below — drop at the vine on this
               // platform nearest to the wheel.
               for (let li = 0; li < LADDERS.length; li++) {
-                if (li === getTopVineIdx() && !g.topVineUnlocked) continue;
+                if (g.round === 1 && li === getTopVineIdx() && !g.topVineUnlocked) continue;
                 if (g.round >= 2 && !isLadderUsableL2(li)) continue;
                 const l = LADDERS[li];
                 const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
@@ -1371,7 +1371,7 @@ const CavemanVsDragonGame = () => {
             let climbChoice: { ladderIdx: number; climbVy: number; score: number } | null = null;
             const continueScore = scoreToPlayer(rCenterX + r.wanderDir * r.speed * 30, rFeetY);
             for (let li = 0; li < LADDERS.length; li++) {
-              if (li === getTopVineIdx() && !g.topVineUnlocked) continue;
+              if (g.round === 1 && li === getTopVineIdx() && !g.topVineUnlocked) continue;
               if (g.round >= 2 && !isLadderUsableL2(li)) continue;
               const l = LADDERS[li];
               const ladderCenterX = l.x + 7;
