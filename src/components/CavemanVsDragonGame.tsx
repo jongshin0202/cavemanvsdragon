@@ -178,7 +178,21 @@ const CavemanVsDragonGame = () => {
     g.courseDir = 0;
     // Brief invulnerability so we don't die on the same frame we respawn
     g.invulnTimer = 120; // ~2s at 60fps
+    // L2: if any hole overlaps the spawn footprint, close it so the player
+    // doesn't immediately fall through and lose lives in a death loop.
+    if (g.round >= 2 && l2Ref.current?.holes?.length) {
+      const px1 = g.player.x - 4;
+      const px2 = g.player.x + g.player.w + 4;
+      l2Ref.current.holes = l2Ref.current.holes.filter((h: any) => {
+        const hx1 = h.centerX - h.width / 2;
+        const hx2 = h.centerX + h.width / 2;
+        const overlapsSpawn = hx2 >= px1 && hx1 <= px2;
+        // Spawn is on the bottommost platform (P0). Only remove holes there.
+        return !(overlapsSpawn && h.platformIdx === 0);
+      });
+    }
   }, []);
+
 
   // Resets the level only (for next level / death respawn). Preserves score & lives.
   const resetLevel = useCallback(() => {
