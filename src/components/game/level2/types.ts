@@ -108,8 +108,11 @@ export interface L2State {
   // monkey phase
   /** True after the volcano is sealed — purple-jacket spawning enabled. */
   purpleJacketPhase: boolean;
-  /** Total purple-jacketed monkeys killed this round (target = PURPLE_JACKET_BASE). */
+  /** Total purple-jacketed monkeys killed this round (target = purpleTarget). */
   purpleJacketsKilled: number;
+  /** Random per-round target: how many purple-jacket monkeys must be killed
+   *  before the purple watering can spawns. Rolled at initLevel2. */
+  purpleTarget: number;
   /** Total green-jacketed monkeys killed this round (target = GREEN_JACKET_BASE). */
   greenJacketsKilled: number;
   /** True once the green watering can has been spawned (level start). */
