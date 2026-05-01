@@ -9,6 +9,9 @@ import { loadScores, qualifiesForTop, insertScore, clearLocalScores, formatDate,
 import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal, type GlobalEntry } from './game/globalLeaderboard';
 import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/deviceStats';
 import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
+import { LEVEL2_PARAMS } from './game/level2/params';
+import { initLevel2, updateLevel2, renderLevel2, type L2Sprites } from './game/level2/level2';
+import { makeEmptyL2State, type L2State } from './game/level2/types';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   AlertDialog,
@@ -157,6 +160,12 @@ const CavemanVsDragonGame = () => {
     nextHelpTime: 600 + Math.floor(Math.random() * 600), // 10–20s at 60fps
   });
 
+  // ── Level 2 state (separate file/module; never mutated by L1 code) ──
+  const l2Ref = useRef<L2State>(makeEmptyL2State());
+  // Tracks the last intro-tap time so we can detect a double-tap shortcut
+  // to jump straight to Level 2 (when LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2).
+  const lastIntroTapRef = useRef<number>(0);
+
   const resetPlayer = useCallback(() => {
     const g = gameRef.current;
     g.player = { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0 };
@@ -193,8 +202,15 @@ const CavemanVsDragonGame = () => {
     g.keyBob = 0;
     g.sparkleTimer = 0;
     resetPlayer();
+    // For Level 2+, initialize the L2 module's own state. We still spawn
+    // an L1 rock here for the (legacy) L1 layout — the L2 module manages
+    // its own hazards independently and the host's L1 barrel-spawn block
+    // is gated on round===1 below in the loop.
+    if (g.round >= 2) {
+      initLevel2(l2Ref.current, g.round - 1); // L2 round = total round - 1
+    }
     // Spawn first rock immediately so action starts the moment the level begins
-    {
+    if (g.round === 1) {
       const d = getRoundDifficulty(g.round);
       const speed = BARREL_SPEED * (d.barrelSpeedMul + Math.random() * d.barrelSpeedJitter);
       g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed, rollPhase: 0 });
@@ -226,6 +242,20 @@ const CavemanVsDragonGame = () => {
     recordRound();
     recordLaunchAndMaybeFlush().catch(() => { /* logged in module */ });
     playLevelIntro(1, () => resetLevel());
+  }, [resetLevel, playLevelIntro]);
+
+  // DEV/TEST: jump straight into Level 2 from the intro screen (gated on
+  // LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2). Triggered by double-tap on phone
+  // or the "2" key on PC.
+  const startInLevel2Test = useCallback(() => {
+    if (!LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2) return;
+    const g = gameRef.current;
+    g.score = 0; g.lives = 3; g.round = 2;
+    setScore(0); setLives(3);
+    setGameState('playing');
+    recordRound();
+    recordLaunchAndMaybeFlush().catch(() => { /* logged in module */ });
+    playLevelIntro(2, () => resetLevel());
   }, [resetLevel, playLevelIntro]);
 
   // Start the next level — for now (only one level), restart the same layout
@@ -433,6 +463,50 @@ const CavemanVsDragonGame = () => {
           }
           return true; // swallow C — don't start the game
         }
+        // DEV/TEST: PC presses "2" on intro to jump straight into Level 2.
+        if (
+          _source === 'keyboard' &&
+          (gs === 'intro' || gs === 'attractControls') &&
+          key === '2' &&
+          LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2
+        ) {
+          startInLevel2Test();
+          return true;
+        }
+        // DEV/TEST: mobile/touch double-tap on intro/attract screens jumps
+        // straight into Level 2.
+        if (
+          _source === 'pad' &&
+          (gs === 'intro' ||
+            gs === 'attractLocalLeaderboard' ||
+            gs === 'attractGlobalLeaderboard' ||
+            gs === 'attractControls') &&
+          LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2
+        ) {
+          const since = now - lastIntroTapRef.current;
+          lastIntroTapRef.current = now;
+          if (since > 0 && since <= LEVEL2_PARAMS.DOUBLE_TAP_MAX_GAP_MS) {
+            lastIntroTapRef.current = 0;
+            startInLevel2Test();
+            return true;
+          }
+          // First tap of a possible double — wait briefly to see if a
+          // second one arrives. If not, start the normal game.
+          window.setTimeout(() => {
+            // If still on intro/attract and no second tap fired the shortcut,
+            // begin the normal game.
+            if (lastIntroTapRef.current !== 0) {
+              const stillIntro =
+                gameStateRef.current === 'intro' ||
+                gameStateRef.current === 'attractLocalLeaderboard' ||
+                gameStateRef.current === 'attractGlobalLeaderboard' ||
+                gameStateRef.current === 'attractControls';
+              lastIntroTapRef.current = 0;
+              if (stillIntro) resetGame();
+            }
+          }, LEVEL2_PARAMS.DOUBLE_TAP_MAX_GAP_MS + 20);
+          return true;
+        }
         // Any other key/tap starts the game from the intro/attract screens
         resetGame();
         return true;
@@ -490,7 +564,7 @@ const CavemanVsDragonGame = () => {
 
       return false;
     };
-  }, [startNextLevel, submitHighScore, resetGame, globalScores]);
+  }, [startNextLevel, submitHighScore, resetGame, startInLevel2Test, globalScores]);
 
 
   useEffect(() => {
@@ -589,19 +663,42 @@ const CavemanVsDragonGame = () => {
       const keys = keysRef.current;
       const p = g.player;
 
-      const wa = g.winAnim || { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
+      const wa: any = g.winAnim || { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
       if (!g.winAnim) g.winAnim = wa;
       if (wa.active) {
         wa.timer++;
-        if (wa.gorillaY < CANVAS_H + 50) {
-          wa.gorillaY += 4;
-          wa.gorillaRotation += 0.15;
+        // ── Outro phases (replaces old "dragon falls" animation) ──
+        // grab    (0..60f)    : dragon swoops to the right with princess in tow,
+        //                       both slide off-screen by frame ~60
+        // pause   (60..120f)  : 1 second of quiet
+        // follow  (120..210f) : caveman walks right and exits screen
+        // congrats(210..)     : show CONGRATS overlay; after another ~90f → continue
+        if (wa.dragonX === undefined) wa.dragonX = 0;
+        if (wa.princessX === undefined) wa.princessX = 0;
+        if (wa.cavemanFollowOffset === undefined) wa.cavemanFollowOffset = 0;
+
+        if (wa.timer <= 60) {
+          // Phase: grab — accelerate dragon + princess to the right
+          const t = wa.timer / 60;
+          // ease-in: travel ~CANVAS_W + 80 over 60 frames
+          const dist = (CANVAS_W + 80) * (t * t);
+          wa.dragonX = dist;
+          wa.princessX = dist;
+          wa.showKiss = wa.timer > 12 && wa.timer < 40; // brief "!" beat
+        } else if (wa.timer <= 120) {
+          // Phase: pause (1s)
+          wa.showKiss = false;
+        } else if (wa.timer <= 210) {
+          // Phase: follow — caveman walks right and off-screen
+          const t = (wa.timer - 120) / 90;
+          wa.cavemanFollowOffset = (CANVAS_W + 80) * t;
+        } else {
+          // Phase: congrats overlay
+          wa.showCongrats = true;
         }
-        if (wa.timer > 30) wa.showKiss = true;
-        // Wait until the jingle finishes (~66 frames) + a 2-second pause (120 frames) before showing the win screen
-        if (wa.timer > 186) wa.showCongrats = true;
-        // After Congrats has been visible ~1.5s, switch to "press any button to continue"
-        if (wa.timer > 186 + 90 && g.state === 'win') {
+
+        // After CONGRATS has been visible ~1.5s, switch to LEVEL CLEAR
+        if (wa.timer > 210 + 90 && g.state === 'win') {
           g.state = 'continue';
           setGameState('continue');
           continueArmedAtRef.current = performance.now() + 1000; // 1s input lock
@@ -839,21 +936,25 @@ const CavemanVsDragonGame = () => {
           if (g.topVineGrowth >= 1) g.topVineUnlocked = true;
         }
 
-        // Win condition - touch the girl (next to the dragon)
-        const paulX = 175, paulY = 64;
-        if (rectsOverlap(p, { x: paulX, y: paulY, w: 40, h: 48 })) {
-          g.state = 'win'; setGameState('win');
-          g.score += 2000 + g.lives * 1000; setScore(g.score); playWinSound(); playPrincessSavedSound();
-          wa.active = true;
-          wa.timer = 0;
-          wa.gorillaY = 76;
-          wa.gorillaRotation = 0;
-          wa.showKiss = false;
-          wa.showCongrats = false;
+        // Win condition - touch the girl (next to the dragon). Level 1 only;
+        // Level 2 owns its own win flow inside the L2 module.
+        if (g.round === 1) {
+          const paulX = 175, paulY = 64;
+          if (rectsOverlap(p, { x: paulX, y: paulY, w: 40, h: 48 })) {
+            g.state = 'win'; setGameState('win');
+            g.score += 2000 + g.lives * 1000; setScore(g.score); playWinSound(); playPrincessSavedSound();
+            wa.active = true;
+            wa.timer = 0;
+            wa.gorillaY = 76;
+            wa.gorillaRotation = 0;
+            wa.showKiss = false;
+            wa.showCongrats = false;
+          }
         }
 
         // === BARREL SPAWNING (only after player first moves; first barrel ~0.5s after) ===
-        if (g.playerHasMoved) {
+        // Disabled in Level 2 — the L2 module manages its own hazards.
+        if (g.round === 1 && g.playerHasMoved) {
           const d = getRoundDifficulty(g.round);
           g.barrelTimer++;
           if (!g.nextBarrelTime) g.nextBarrelTime = d.barrelSpawnMin + Math.random() * d.barrelSpawnRange;
@@ -866,11 +967,17 @@ const CavemanVsDragonGame = () => {
           }
         }
 
+        // === LEVEL 2 UPDATE (mechanics added in follow-up stages) ===
+        if (g.round >= 2) {
+          updateLevel2(l2Ref.current, g.frameCount);
+        }
+
+
         // === MONKEY SPAWNING ===
         // Distribution across P2..P5 grows by +1 per finished round, added to a
         // random platform with the current minimum count, until each platform
         // has 5 (20 monkeys total). After that the distribution stays at 5/5/5/5.
-        if (!g.robotsInitialized) {
+        if (g.round === 1 && !g.robotsInitialized) {
           g.robotsInitialized = true;
           const d = getRoundDifficulty(g.round);
           const platSlots = [1, 2, 3, 4]; // P2..P5
@@ -1346,13 +1453,14 @@ const CavemanVsDragonGame = () => {
       const dragonFrameW = dragonImg && dragonImg.naturalWidth > 0 ? dragonImg.naturalWidth / DRAGON_FRAMES : 0;
       const dragonFrameH = dragonImg ? dragonImg.naturalHeight : 0;
       if (wa.active) {
-        ctx.save();
-        ctx.translate(dkX + dragonSize / 2, wa.gorillaY + dragonSize / 2);
-        ctx.rotate(wa.gorillaRotation);
+        // Dragon-grab outro: dragon stays upright on the top platform but
+        // slides to the right (carrying the princess) until off-screen.
+        const dkY = 16;
+        const offset = wa.dragonX || 0;
+        const frameIdx = g.dkFrame % DRAGON_FRAMES;
         if (dragonImg && dragonImg.complete && dragonFrameW > 0) {
-          ctx.drawImage(dragonImg, 0, 0, dragonFrameW, dragonFrameH, -dragonSize / 2, -dragonSize / 2, dragonSize, dragonSize);
+          ctx.drawImage(dragonImg, frameIdx * dragonFrameW, 0, dragonFrameW, dragonFrameH, dkX + offset, dkY, dragonSize, dragonSize);
         }
-        ctx.restore();
       } else {
         const dkY = 16;
         const frameIdx = g.dkFrame % DRAGON_FRAMES;
@@ -1368,22 +1476,28 @@ const CavemanVsDragonGame = () => {
       const paulY = 112 - princessDrawH;          // feet on top platform (y=112)
       const princessImg = princessRef.current;
       if (princessImg && princessImg.complete && princessImg.naturalWidth > 0) {
-        // New sprite: 5 frames in a single row
         const PRINCESS_FRAMES = 5;
         const pFrameW = princessImg.naturalWidth / PRINCESS_FRAMES;
         const pFrameH = princessImg.naturalHeight;
-        // Pick frame: kiss → frame 0; otherwise alternate between idle (0) and "help" (2)
+        // During outro, princess slides right with the dragon (carried away).
+        // Otherwise, alternate idle / help-shout frames.
+        const princessOffset = wa.active ? (wa.princessX || 0) : 0;
         let frameIdx = 0;
-        if (!(wa.active && wa.showKiss)) {
+        if (wa.active) {
+          // "!" / shocked beat early in the grab, otherwise help frame
+          frameIdx = wa.showKiss ? 2 : 0;
+        } else {
           frameIdx = g.showHelp ? 2 : 0;
         }
-        ctx.drawImage(princessImg, frameIdx * pFrameW, 0, pFrameW, pFrameH, paulX, paulY, princessDrawW, princessDrawH);
+        ctx.drawImage(
+          princessImg,
+          frameIdx * pFrameW, 0, pFrameW, pFrameH,
+          paulX + princessOffset, paulY, princessDrawW, princessDrawH,
+        );
         if (wa.active && wa.showKiss) {
-          ctx.fillStyle = '#FF0000'; ctx.font = '12px serif';
-          ctx.fillText('❤', paulX + princessDrawW + 2, paulY + 8);
-          ctx.fillStyle = '#FF69B4'; ctx.font = 'bold 14px "Press Start 2P", monospace';
-          ctx.fillText('THANK YOU!', paulX - 30, paulY - 8);
-        } else if (g.showHelp) {
+          ctx.fillStyle = '#FFD700'; ctx.font = 'bold 14px "Press Start 2P", monospace';
+          ctx.fillText('!', paulX + princessOffset + princessDrawW / 2 - 3, paulY - 8);
+        } else if (!wa.active && g.showHelp) {
           ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 14px "Press Start 2P", monospace';
           ctx.fillText('HELP!', paulX - 4, paulY - 8);
         }
@@ -1441,6 +1555,24 @@ const CavemanVsDragonGame = () => {
         }
       }
 
+      // ── LEVEL 2: paint L2 scene on top of L1 visuals so the L1 dragon /
+      // princess / vines / monkeys / barrels visually disappear. The player
+      // is drawn after this block so they remain visible.
+      if (g.round >= 2) {
+        renderLevel2(ctx, l2Ref.current, {
+          walk: walkSpriteRef.current,
+          jump: jumpSpriteRef.current,
+          climb: climbSpriteRef.current,
+          win: winSpriteRef.current,
+          dragonAngry: dragonAngryRef.current,
+          dragonFire: dragonFireRef.current,
+          princess: princessRef.current,
+          robot: robotWalkRef.current,
+          rockWheel: rockWheelRef.current,
+          wateringCan: wateringCanRef.current,
+        });
+      }
+
       // Player (Caveman sprite) - flash 3 times when dying
       // (toggle every 18 frames over 108 frames at 60fps → 3 on/off cycles)
       const pl = g.player;
@@ -1451,10 +1583,24 @@ const CavemanVsDragonGame = () => {
       const jumpSprite = jumpSpriteRef.current;
       const climbSprite = climbSpriteRef.current;
       const winSprite = winSpriteRef.current;
-      const useWin = (g.state === 'win' || wa.active) && winSprite && winSprite.complete && winSprite.naturalWidth > 0;
+      // During the dragon-grab outro: phase 'follow' (timer 120..210) we
+      // want the caveman to walk right off-screen. Force walking animation
+      // and apply the horizontal follow offset.
+      const inFollowPhase = wa.active && wa.timer > 120 && (wa.cavemanFollowOffset || 0) > 0;
+      if (inFollowPhase) {
+        // advance walk frame
+        pl.walkTimer = (pl.walkTimer || 0) + 1;
+        if (pl.walkTimer > 5) { pl.walkTimer = 0; pl.walkFrame = (pl.walkFrame + 1) % 4; }
+        pl.facing = 1;
+      }
+      const useWin = (g.state === 'win' || wa.active) && !inFollowPhase && winSprite && winSprite.complete && winSprite.naturalWidth > 0;
       const useClimb = !useWin && pl.climbing && climbSprite && climbSprite.complete && climbSprite.naturalWidth > 0;
       const useJump = !useWin && !pl.climbing && pl.jumping && jumpSprite && jumpSprite.complete && jumpSprite.naturalWidth > 0;
-      const useWalk = !useWin && !pl.climbing && !pl.jumping && walkSprite && walkSprite.complete && walkSprite.naturalWidth > 0;
+      const useWalk = (!useWin && !pl.climbing && !pl.jumping || inFollowPhase) && !!(walkSprite && walkSprite.complete && walkSprite.naturalWidth > 0);
+
+      const followDx = inFollowPhase ? (wa.cavemanFollowOffset || 0) : 0;
+      ctx.save();
+      if (followDx) ctx.translate(followDx, 0);
       // Player sprites — 50% bigger
       if (showPlayer && useWin) {
         const drawW = 48;
@@ -1499,6 +1645,7 @@ const CavemanVsDragonGame = () => {
         }
         ctx.restore();
       }
+      ctx.restore();
 
       // Carried watering can floats above the player until they water the sprout.
       if (g.keyGrabbed && !g.seedPlanted) {
@@ -1912,7 +2059,7 @@ const CavemanVsDragonGame = () => {
             onPointerDown={(e) => {
               e.preventDefault();
               unlockAudio();
-              resetGame();
+              anyInputHandlerRef.current?.('Tap', 'pad');
             }}
             className="absolute inset-0 flex flex-col items-center justify-between overflow-hidden focus:outline-none bg-black"
             style={{
@@ -1974,7 +2121,7 @@ const CavemanVsDragonGame = () => {
             scores={scores}
             globalScores={globalScores}
             globalLoading={globalLoading}
-            onStart={() => { unlockAudio(); resetGame(); }}
+            onStart={() => { unlockAudio(); anyInputHandlerRef.current?.('Tap', 'pad'); }}
             onRequestClearLocal={() => setConfirmClearOpen(true)}
             background={introBackgroundUrl}
             logo={team2goLogoUrl}
@@ -1989,7 +2136,7 @@ const CavemanVsDragonGame = () => {
             scores={scores}
             globalScores={globalScores}
             globalLoading={globalLoading}
-            onStart={() => { unlockAudio(); resetGame(); }}
+            onStart={() => { unlockAudio(); anyInputHandlerRef.current?.('Tap', 'pad'); }}
             onRequestClearLocal={() => setConfirmClearOpen(true)}
             background={introBackgroundUrl}
             logo={team2goLogoUrl}
@@ -2001,7 +2148,7 @@ const CavemanVsDragonGame = () => {
           <button
             type="button"
             aria-label="Start game"
-            onPointerDown={(e) => { e.preventDefault(); unlockAudio(); resetGame(); }}
+            onPointerDown={(e) => { e.preventDefault(); unlockAudio(); anyInputHandlerRef.current?.('Tap', 'pad'); }}
             className="absolute inset-0 flex flex-col items-center overflow-hidden focus:outline-none bg-black"
             style={{
               backgroundImage: `url(${introBackgroundUrl})`,
