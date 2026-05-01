@@ -9,7 +9,7 @@
 // ============================================================
 
 import { PLATFORMS, LADDERS, CANVAS_W } from '../constants';
-import { LEVEL2_PARAMS } from './params';
+import { LEVEL2_PARAMS, getCurrentLevel2Difficulty } from './params';
 
 let l1PlatformsBackup: typeof PLATFORMS | null = null;
 let l1LaddersBackup: typeof LADDERS | null = null;
