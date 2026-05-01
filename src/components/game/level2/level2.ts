@@ -528,25 +528,53 @@ export function updateLevel2(
 
         const targetPlat = PLATFORMS[pickPi];
         const margin = 24;
-        const HOLE_BUFFER = 48;
-        // Aim X near the player's X (clamped to the platform with margin).
+        const HOLE_W = LEVEL2_PARAMS.HOLE_WIDTH;
+        const HOLE_BUFFER = HOLE_W; // gap of 1 hole-width minimum from any hole
         const minX = targetPlat.x1 + margin;
         const maxX = targetPlat.x2 - margin;
         const clampX = (v: number) => Math.max(minX, Math.min(maxX, v));
-        let targetX = clampX(playerX);
-        // Nudge away if too close to an existing hole on the same platform.
-        for (let attempt = 0; attempt < 20; attempt++) {
-          const tooClose = s.holes.some(h =>
+
+        // Detect player movement direction since last fireball spawn.
+        const lastPlayerX: number = (s as any)._lastPlayerX ?? playerX;
+        const moveDx = playerX - lastPlayerX;
+        const moveDir = moveDx > 1 ? 1 : moveDx < -1 ? -1 : 0;
+        (s as any)._lastPlayerX = playerX;
+
+        // Aim toward the player, but offset by a random 2–3 hole-widths,
+        // biased in the direction the player is moving (so the rock leads
+        // them slightly instead of always landing on their head).
+        const offsetMag = (2 + Math.random()) * HOLE_W; // 2..3 hole widths
+        // 70% chance the offset goes in the player's movement direction;
+        // if the player is standing still, pick a random side.
+        let offsetSign: number;
+        if (moveDir !== 0) offsetSign = Math.random() < 0.7 ? moveDir : -moveDir;
+        else offsetSign = Math.random() < 0.5 ? 1 : -1;
+
+        // Helper: is candidate X clear of every existing hole on this platform?
+        const xIsClearOfHoles = (x: number): boolean =>
+          !s.holes.some(h =>
             h.platformIdx === pickPi &&
-            Math.abs(targetX - h.centerX) < HOLE_BUFFER + h.width / 2,
+            Math.abs(x - h.centerX) < HOLE_BUFFER + h.width / 2,
           );
-          if (!tooClose) break;
-          targetX = clampX(playerX + (Math.random() * 2 - 1) * 60);
+
+        let targetX = clampX(playerX + offsetSign * offsetMag);
+        if (!xIsClearOfHoles(targetX)) {
+          // Try the opposite side first.
+          const alt = clampX(playerX - offsetSign * offsetMag);
+          if (xIsClearOfHoles(alt)) {
+            targetX = alt;
+          } else {
+            // Sweep the platform for any clear spot.
+            const step = 6;
+            let found = false;
+            for (let x = minX; x <= maxX; x += step) {
+              if (xIsClearOfHoles(x)) { targetX = x; found = true; break; }
+            }
+            if (!found) targetX = clampX(playerX); // give up; very crowded
+          }
         }
-        // Slight aim jitter so the throw isn't perfectly predictable, but
-        // still aimed at the player.
-        const aimJitter = (Math.random() * 2 - 1) * 12; // ±12px
-        const aimedX = clampX(targetX + aimJitter);
+        const aimedX = targetX;
+
 
         const fb: any = {
           startX: mouth.x, startY: mouth.y,
@@ -592,13 +620,24 @@ export function updateLevel2(
     const targetPi: number = fb.targetPlatIdx ?? -1;
     if (targetPi >= 0 && targetPi !== TOP_IDX) {
       const plat = PLATFORMS[targetPi];
-      // Land where the fireball *visually* is. Clamp using the same inner
-      // margin addHoleAt applies (HOLE_WIDTH/2 + 4) so the hole appears at
-      // the exact spot the rock impacts — no offset between visual and hole.
       const innerMargin = LEVEL2_PARAMS.HOLE_WIDTH / 2 + 4;
-      const landX = Math.max(plat.x1 + innerMargin, Math.min(plat.x2 - innerMargin, fb.x));
+      const clampPlat = (v: number) =>
+        Math.max(plat.x1 + innerMargin, Math.min(plat.x2 - innerMargin, v));
+      let landX = clampPlat(fb.x);
       const platY = getPlatformY(plat, landX);
       if (fb.y >= platY - 4) {
+        // Hard rule: never land on/adjacent to an existing hole. If the
+        // visual landing point overlaps a hole, snap to the pre-chosen
+        // targetX (which was selected to avoid all holes).
+        const HOLE_W = LEVEL2_PARAMS.HOLE_WIDTH;
+        const overlapsHole = (x: number) =>
+          s.holes.some(h =>
+            h.platformIdx === targetPi &&
+            Math.abs(x - h.centerX) < HOLE_W / 2 + h.width / 2,
+          );
+        if (overlapsHole(landX) && fb.targetX != null) {
+          landX = clampPlat(fb.targetX);
+        }
         addHoleAt(s, landX, platY);
         (s as any)._lastFireballPlat = targetPi;
         fb.x = landX;
