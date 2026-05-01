@@ -113,9 +113,12 @@ export function onMonkeyKilled(s: L2State, idx: number): void {
     if (a.ownerId === idx) a.ownerId = -1;
     else if (a.ownerId > idx) a.ownerId--;
   }
-  // Once the green-kill target is met, spawn the green watering can on a
-  // random platform for the player to grab and bring to the green seed.
-  if (!s.greenCanSpawned && s.greenJacketsKilled >= LEVEL2_PARAMS.GREEN_JACKET_BASE) {
+  // Once the green-kill target is met AND no green-jacket monkeys remain
+  // alive, spawn the green watering can on a random platform.
+  const greensAlive = arr.filter(j => j === 'green').length;
+  if (!s.greenCanSpawned &&
+      s.greenJacketsKilled >= LEVEL2_PARAMS.GREEN_JACKET_BASE &&
+      greensAlive === 0) {
     spawnGreenCan(s);
   }
 }
@@ -134,7 +137,10 @@ export function newSpawnJacket(s: L2State): 'green' | 'purple' | null {
       if (Math.random() < 0.85) return 'purple';
     }
   }
-  if (greenAlive < LEVEL2_PARAMS.GREEN_JACKET_BASE) {
+  // Only spawn green-jacket monkeys until the round's green-kill quota is hit.
+  // Once met, the green watering can has spawned and no more greens should appear.
+  const greensNeeded = Math.max(0, LEVEL2_PARAMS.GREEN_JACKET_BASE - s.greenJacketsKilled - greenAlive);
+  if (greensNeeded > 0 && greenAlive < LEVEL2_PARAMS.GREEN_JACKET_BASE) {
     if (Math.random() < 0.4) return 'green';
   }
   return null;
