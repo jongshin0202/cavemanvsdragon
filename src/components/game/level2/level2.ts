@@ -889,47 +889,27 @@ export function renderLevel2(
   // ── Apples thrown by colored monkeys
   for (const a of s.apples as any[]) {
     const cx = a.x + a.w / 2;
-    if (a._high) {
-      // HIGH throw: render as a tall vertical fire-streak so the player
-      // visually reads it as "above jump height — must duck."
-      const topY = a.y;
-      const botY = a.y + a.h;
-      // Outer glow
-      const grad = ctx.createLinearGradient(cx, topY, cx, botY);
-      grad.addColorStop(0, 'rgba(255, 80, 0, 0)');
-      grad.addColorStop(0.3, 'rgba(255, 140, 0, 0.6)');
-      grad.addColorStop(1, 'rgba(255, 220, 80, 0.95)');
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.moveTo(cx, topY);
-      ctx.lineTo(cx + 4, botY);
-      ctx.lineTo(cx - 4, botY);
-      ctx.closePath();
-      ctx.fill();
-      // Bright apple at the bottom of the streak
-      ctx.fillStyle = '#d6201f';
-      ctx.beginPath();
-      ctx.arc(cx, botY - 3, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#ffe27a';
-      ctx.fillRect(cx - 1, botY - 5, 2, 2);
-      continue;
-    }
-    const cy = a.y + a.h / 2;
+    // For HIGH throws the hitbox is a tall streak (so jumping can't clear
+    // it), but the player should still SEE a normal apple — drawn at the
+    // TOP of the streak so it visually reads as "above jump height".
+    // For low/middle, the apple is drawn at the centre of its small hitbox.
+    const drawW = 7;
+    const drawH = 7;
+    const cy = a._high ? a.y + drawH / 2 : a.y + a.h / 2;
     // body
     ctx.fillStyle = '#d6201f';
     ctx.beginPath();
-    ctx.arc(cx, cy, a.w / 2 + 1, 0, Math.PI * 2);
+    ctx.arc(cx, cy, drawW / 2 + 1, 0, Math.PI * 2);
     ctx.fill();
     // shine
     ctx.fillStyle = '#ff8a87';
     ctx.fillRect(cx - 2, cy - 3, 2, 2);
     // stem
     ctx.fillStyle = '#5a2a08';
-    ctx.fillRect(cx, cy - a.h / 2 - 2, 1, 2);
+    ctx.fillRect(cx, cy - drawH / 2 - 2, 1, 2);
     // leaf
     ctx.fillStyle = '#2e8b33';
-    ctx.fillRect(cx + 1, cy - a.h / 2 - 1, 2, 1);
+    ctx.fillRect(cx + 1, cy - drawH / 2 - 1, 2, 1);
   }
 
   // ── Fireballs
