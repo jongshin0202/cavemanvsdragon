@@ -134,7 +134,10 @@ export function newSpawnJacket(s: L2State): 'green' | 'purple' | null {
       if (Math.random() < 0.85) return 'purple';
     }
   }
-  if (greenAlive < LEVEL2_PARAMS.GREEN_JACKET_BASE) {
+  // Only spawn green-jacket monkeys until the round's green-kill quota is hit.
+  // Once met, the green watering can has spawned and no more greens should appear.
+  const greensNeeded = Math.max(0, LEVEL2_PARAMS.GREEN_JACKET_BASE - s.greenJacketsKilled - greenAlive);
+  if (greensNeeded > 0 && greenAlive < LEVEL2_PARAMS.GREEN_JACKET_BASE) {
     if (Math.random() < 0.4) return 'green';
   }
   return null;
