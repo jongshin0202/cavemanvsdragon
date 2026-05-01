@@ -298,10 +298,15 @@ const CavemanVsDragonGame = () => {
     // 3.5s intro completes.)
     g.state = 'playing';
     if (g.winAnim) g.winAnim.active = false;
+    // Reset player position immediately so the previous level's end-pose
+    // (e.g. standing on the princess at the top of L2) doesn't accidentally
+    // re-trigger the next level's win condition during the "Level N" intro
+    // overlay (before resetLevel runs).
+    resetPlayer();
     setGameState('playing');
     recordRound();
     playLevelIntro(nextRound, () => resetLevel());
-  }, [resetLevel, playLevelIntro]);
+  }, [resetLevel, resetPlayer, playLevelIntro]);
 
   // Submit a high score: writes to LOCAL always, and to GLOBAL if it qualifies
   // for the global top 20. Then routes to the appropriate post-game view.
