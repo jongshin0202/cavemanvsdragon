@@ -2662,7 +2662,6 @@ interface AttractLeaderboardScreenProps {
   scores: LeaderboardEntry[];
   globalScores: GlobalEntry[];
   globalLoading: boolean;
-  highlight: { name: string; score: number; level: number } | null;
   background: string;
   logo: string;
   onStart: () => void;
