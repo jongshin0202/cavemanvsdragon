@@ -842,9 +842,13 @@ const CavemanVsDragonGame = () => {
             // Snap to top platform and dismount
             p.climbing = false;
             if (climbingLadder) p.y = climbingLadder.yTop - p.h;
+            // L2: sprout withers after one use (climbed up)
+            if (g.round >= 2 && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
           } else if (nearBot && (wantsHorizontal || rawDown)) {
             p.climbing = false;
             if (climbingLadder) p.y = climbingLadder.yBot - p.h;
+            // L2: sprout withers after one use (climbed down)
+            if (g.round >= 2 && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
           } else if (wantsHorizontal && !rawUp && !rawDown) {
             p.climbing = false;
           } else {
