@@ -558,6 +558,8 @@ export function updateLevel2(
             h.platformIdx === pickPi &&
             Math.abs(x - h.centerX) < MIN_CENTER_DIST,
           );
+        const xIsClear = (x: number): boolean =>
+          xIsClearOfHoles(x) && !isHoleOverlappingSprout(pickPi, x);
 
         const shuffledOffsets = [0, -0.45, 0.45, -0.85, 0.85, -1.2, 1.2]
           .map(mult => ({ mult, sort: Math.random() }))
@@ -567,7 +569,7 @@ export function updateLevel2(
         let targetX: number | null = null;
         for (const offset of shuffledOffsets) {
           const candidateX = clampX(playerX + offset);
-          if (!xIsClearOfHoles(candidateX)) continue;
+          if (!xIsClear(candidateX)) continue;
           if (lastTargetX != null && Math.abs(candidateX - lastTargetX) < HOLE_W * 0.5) continue;
           targetX = candidateX;
           break;
@@ -575,18 +577,17 @@ export function updateLevel2(
         if (targetX == null) {
           for (const offset of shuffledOffsets) {
             const candidateX = clampX(playerX + offset);
-            if (xIsClearOfHoles(candidateX)) { targetX = candidateX; break; }
+            if (xIsClear(candidateX)) { targetX = candidateX; break; }
           }
         }
         if (targetX == null) {
-          // Sweep the platform for the closest non-adjacent hole location to
-          // the player. If none exists, skip this throw so adjacent holes are
-          // never created.
+          // Sweep the platform for the closest spot that respects both the
+          // non-adjacent-hole rule AND the don't-destroy-sprout-base rule.
           const step = 6;
           let bestX: number | null = null;
           let bestDist = Infinity;
           for (let x = minX; x <= maxX; x += step) {
-            if (!xIsClearOfHoles(x)) continue;
+            if (!xIsClear(x)) continue;
             const d = Math.abs(x - playerX);
             if (d < bestDist) { bestDist = d; bestX = x; }
           }
