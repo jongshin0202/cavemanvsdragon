@@ -12,7 +12,7 @@ import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profan
 import { LEVEL2_PARAMS } from './game/level2/params';
 import { initLevel2, updateLevel2, renderLevel2, spawnLevel2Robots, type L2Sprites } from './game/level2/level2';
 import { makeEmptyL2State, type L2State } from './game/level2/types';
-import { applyLevel2Layout, restoreLevel1Layout, isLadderUsableL2, markSproutUsed, tickSprouts } from './game/level2/layout';
+import { applyLevel2Layout, restoreLevel1Layout, isLadderUsableL2, markSproutUsed, tickSprouts, getSprouts } from './game/level2/layout';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   AlertDialog,
@@ -1431,20 +1431,53 @@ const CavemanVsDragonGame = () => {
         drawVine(l.x, l.yTop, l.yBot);
       }
 
-      // L2: tiny seed mound at the base of any non-top sprout that has
-      // withered, hinting where the vine will regrow.
+      // L2: for each non-top sprout that is currently NOT grown, draw the
+      //     same seed mound + sprout art used by L1's top vine, and animate
+      //     the vine growing up from the seed once the regrow timer expires.
       if (g.round >= 2) {
+        const sprouts = getSprouts();
         for (let li = 0; li < LADDERS.length; li++) {
           if (li === getTopVineIdx()) continue;
-          if (isLadderUsableL2(li)) continue;
+          const sr = sprouts[li];
+          if (!sr || sr.grown) continue;
           const l = LADDERS[li];
           const sx = l.x + 7;
-          const sy = l.yBot - 1;
-          ctx.fillStyle = '#5D4037';
-          ctx.fillRect(sx - 5, sy - 2, 10, 3);
-          ctx.fillStyle = '#66BB6A';
-          ctx.fillRect(sx - 1, sy - 4, 2, 3);
+          const sy = l.yBot - 2;
+
+          // Animated portion: vine growing from seed up toward top platform
+          if (sr.growProgress > 0) {
+            const fullH = l.yBot - l.yTop;
+            const grownTop = l.yBot - fullH * sr.growProgress;
+            drawVine(l.x, grownTop, l.yBot);
+            if (sr.growProgress < 1) {
+              for (let i = 0; i < 5; i++) {
+                const dx = sx + Math.cos(g.sparkleTimer * 0.18 + i * 1.3 + li) * 7;
+                const dy = grownTop - 4 + ((g.sparkleTimer * 0.6 + i * 5 + li * 3) % 18);
+                ctx.fillStyle = ['#4FC3F7', '#B3E5FC', '#81D4FA', '#FFFFFF', '#4FC3F7'][i];
+                ctx.fillRect(dx, dy, 2, 2);
+              }
+            }
+          } else {
+            // Dormant seed: matches L1 top-vine seed visual exactly.
+            // Mound
+            ctx.fillStyle = '#5D4037';
+            ctx.fillRect(sx - 7, sy - 3, 14, 5);
+            ctx.fillStyle = 'rgba(102, 187, 106, 0.22)';
+            ctx.beginPath();
+            ctx.arc(sx, sy - 7, 8, 0, Math.PI * 2);
+            ctx.fill();
+            // Sprout leaves
+            ctx.fillStyle = '#66BB6A';
+            ctx.fillRect(sx - 2, sy - 10, 4, 8);
+            ctx.fillStyle = '#4CAF50';
+            ctx.fillRect(sx - 6, sy - 10, 4, 4);
+            ctx.fillRect(sx + 2, sy - 12, 4, 4);
+            ctx.fillRect(sx - 4, sy - 14, 3, 3);
+            ctx.fillRect(sx + 1, sy - 15, 3, 3);
+          }
         }
+        // Keep sparkle timer ticking so the grow droplets animate.
+        g.sparkleTimer++;
       }
 
       // Topmost vine — animated growth from sprout up to top platform
