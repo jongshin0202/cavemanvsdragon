@@ -281,9 +281,14 @@ const CavemanVsDragonGame = () => {
     levelIntroTimersRef.current = [];
     setLevelIntroNumber(levelNumber);
     setLevelIntro('level');
-    const t1 = window.setTimeout(() => setLevelIntro('black'), 3000);
+    levelIntroRef.current = 'level';
+    const t1 = window.setTimeout(() => {
+      setLevelIntro('black');
+      levelIntroRef.current = 'black';
+    }, 3000);
     const t2 = window.setTimeout(() => {
       setLevelIntro(null);
+      levelIntroRef.current = null;
       onDone();
     }, 3500);
     levelIntroTimersRef.current.push(t1, t2);
