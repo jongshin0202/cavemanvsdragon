@@ -43,17 +43,35 @@ export interface SproutRuntime {
   topColor?: 'green' | 'purple';
   /** True once watered; growth animation runs. */
   watered?: boolean;
+  /** Frames remaining at full grown state before auto-wither (non-top only).
+   *  Frozen while inUse is true. */
+  aliveTimer?: number;
+  /** Set per-frame by host: true while a player is actively climbing this sprout.
+   *  Auto-clears each frame; host re-asserts. */
+  inUse?: boolean;
 }
 
 let sproutsRuntime: SproutRuntime[] = [];
 
 const GROW_FRAMES = 68;
+const ALIVE_MIN_SEC = 3;
+const ALIVE_MAX_SEC = 5;
+
+function rollAliveFrames(): number {
+  return Math.round((ALIVE_MIN_SEC + Math.random() * (ALIVE_MAX_SEC - ALIVE_MIN_SEC)) * 60);
+}
 
 export function getSprouts(): SproutRuntime[] { return sproutsRuntime; }
 
 export function isLadderUsableL2(idx: number): boolean {
   const s = sproutsRuntime[idx];
   return !!s && s.grown;
+}
+
+/** Host calls this each frame for the sprout currently being climbed (if any). */
+export function markSproutInUse(idx: number): void {
+  const s = sproutsRuntime[idx];
+  if (s) s.inUse = true;
 }
 
 /** Mark a (non-top) sprout as just-used; kicks off the wither animation. */
