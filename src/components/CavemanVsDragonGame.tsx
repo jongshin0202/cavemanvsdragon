@@ -2779,8 +2779,13 @@ const AttractLeaderboardScreen = ({
             if (isGlobal) {
               const e = globalScores[i];
               const display = e ? (e.name || '---') : '---';
+              const isMine = !!(e && mySubmission && e.score === mySubmission.score && (e.name || '') === mySubmission.name);
               return (
-                <li key={i} className="flex items-center justify-between gap-2 border-b border-accent/20 px-2 py-[2px]">
+                <li
+                  key={i}
+                  className="flex items-center justify-between gap-2 border-b border-accent/20 px-2 py-[2px]"
+                  style={isMine ? { color: 'hsl(var(--accent))' } : undefined}
+                >
                   <span className="w-6 text-accent">{(i + 1).toString().padStart(2, '0')}</span>
                   <span className="flex-1 truncate tracking-wider">{display}</span>
                   <span className="w-16 text-right">{e ? e.score.toString().padStart(6, '0') : '------'}</span>
@@ -2790,8 +2795,13 @@ const AttractLeaderboardScreen = ({
             }
             const e = scores[i];
             const display = e ? entryDisplayName(e) : '---';
+            const isMine = !!(e && mySubmission && e.score === mySubmission.score && ((e.name || '') === mySubmission.name || e.initials === mySubmission.name));
             return (
-              <li key={i} className="flex items-center justify-between gap-2 border-b border-accent/20 px-2 py-[2px]">
+              <li
+                key={i}
+                className="flex items-center justify-between gap-2 border-b border-accent/20 px-2 py-[2px]"
+                style={isMine ? { color: 'hsl(var(--accent))' } : undefined}
+              >
                 <span className="w-6 text-accent">{(i + 1).toString().padStart(2, '0')}</span>
                 <span className="flex-1 truncate tracking-wider">{display}</span>
                 <span className="w-16 text-right">{e ? e.score.toString().padStart(6, '0') : '------'}</span>
