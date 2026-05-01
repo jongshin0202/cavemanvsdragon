@@ -183,6 +183,7 @@ export function applyLevel2Layout(rng: () => number = Math.random): void {
     grown: true,
     regrowTimer: 0,
     growProgress: 1,
+    phase: 'idle' as SproutPhase,
     isTop: i === TOP_LADDER_IDX_L2,
   }));
 }
