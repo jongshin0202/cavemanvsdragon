@@ -757,7 +757,7 @@ export function renderLevel2(
 ): void {
   // ── Volcano on the FAR RIGHT of the top platform (right of the gap)
   const topPlat = PLATFORMS[PLATFORMS.length - 1];
-  const baseCX = topPlat.x2 - 80;
+  const baseCX = topPlat.x2 - 95;
   const baseY = getPlatformY(topPlat, baseCX);
   const baseW = 90;
   const volH = 56;
@@ -933,7 +933,7 @@ export function getVolcanoMouth(): { x: number; y: number } {
   const topPlat = PLATFORMS[PLATFORMS.length - 1];
   // Volcano sits with ~80px of empty platform to its right so the green
   // sprout's climb path lands beside it (not under it).
-  const baseCX = topPlat.x2 - 80;
+  const baseCX = topPlat.x2 - 95;
   const baseY = getPlatformY(topPlat, baseCX);
   const volH = 56;
   return { x: baseCX, y: baseY - volH + 2 };

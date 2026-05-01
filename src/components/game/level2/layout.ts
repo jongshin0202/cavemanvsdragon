@@ -195,11 +195,23 @@ export function applyLevel2Layout(rng: () => number = Math.random): void {
   // 1) Flatten every platform.
   for (const p of PLATFORMS) p.slope = 0;
 
-  // 1b) Extend the top platform all the way to the right edge so the
-  // volcano sits ON the platform with empty space to its right (the
-  // green-sprout climb path comes up to the right of the volcano).
+  // 1b) Guarantee every platform anchors to one screen edge so the player
+  // can never fall through an interior gap. Even-indexed platforms (P1,
+  // P3, P5) touch the LEFT edge; odd-indexed (P2, P4) touch the RIGHT
+  // edge. The top platform (P6) spans both edges so the volcano sits on
+  // it with empty space to its right (green-sprout climb path).
+  for (let i = 0; i < PLATFORMS.length; i++) {
+    const p = PLATFORMS[i];
+    if (i === PLATFORMS.length - 1) {
+      p.x1 = 0;
+      p.x2 = CANVAS_W;
+    } else if (i % 2 === 0) {
+      p.x1 = 0; // left-anchored
+    } else {
+      p.x2 = CANVAS_W; // right-anchored
+    }
+  }
   const topPlat = PLATFORMS[PLATFORMS.length - 1];
-  topPlat.x2 = CANVAS_W; // rightmost edge
 
   // 2) Compute the permanent gap on the top platform (P6 = last).
   const gapW = LEVEL2_PARAMS.TOP_GAP_WIDTH;
@@ -215,11 +227,13 @@ export function applyLevel2Layout(rng: () => number = Math.random): void {
 
   const pickX = (platIdx: number, slot: 'left' | 'center' | 'right'): number => {
     const plat = PLATFORMS[platIdx];
-    const margin = 24;
-    const usableL = plat.x1 + margin;
-    const usableR = plat.x2 - margin - 14;
+    // Keep sprouts well inside the platform — never at the edge — so the
+    // player has solid ground on both sides to land on after climbing.
+    const EDGE_MARGIN = 40;
+    const usableL = plat.x1 + EDGE_MARGIN;
+    const usableR = plat.x2 - EDGE_MARGIN - 14;
     const span = usableR - usableL;
-    if (span <= 0) return Math.max(plat.x1, Math.min(plat.x2 - 14, (plat.x1 + plat.x2) / 2 - 7));
+    if (span <= 0) return Math.max(plat.x1 + EDGE_MARGIN, Math.min(plat.x2 - EDGE_MARGIN - 14, (plat.x1 + plat.x2) / 2 - 7));
     if (slot === 'left')   return usableL + rng() * (span * 0.3);
     if (slot === 'right')  return usableL + span * 0.7 + rng() * (span * 0.3);
     return usableL + span * 0.35 + rng() * (span * 0.3);
@@ -260,12 +274,15 @@ export function applyLevel2Layout(rng: () => number = Math.random): void {
   const p5 = PLATFORMS[4];
   const yBotTop = p5.y;
   const yTopTop = topPlat.y;
+  const TOP_EDGE = 40;
   const purpleTargetX = 230; // just right of princess (right edge ≈215)
   const purpleMaxX = TOP_GAP_X1 - 18; // stay on dragon side of top gap
-  const purpleX = Math.max(p5.x1 + 30, Math.min(p5.x2 - 44, Math.min(purpleTargetX, purpleMaxX)));
-  // Place green to the RIGHT of the volcano so the climb path lands beside
-  // it (volcano center is at top.x2 - 80, right edge ≈ top.x2 - 35).
-  const greenX = Math.max(p5.x1 + 30, Math.min(p5.x2 - 22, topPlat.x2 - 22));
+  const purpleX = Math.max(p5.x1 + TOP_EDGE, Math.min(p5.x2 - TOP_EDGE, Math.min(purpleTargetX, purpleMaxX)));
+  // Green sits to the right of the volcano (volcano center = top.x2 - 95,
+  // right edge ≈ top.x2 - 50). Place green at top.x2 - 40 so it's clearly
+  // beside (not under) the volcano while still respecting the edge margin.
+  const greenIdeal = topPlat.x2 - TOP_EDGE;
+  const greenX = Math.max(p5.x1 + TOP_EDGE, Math.min(p5.x2 - TOP_EDGE, greenIdeal));
 
   newLadders.push({ x: purpleX, yTop: yTopTop, yBot: yBotTop });
   PURPLE_TOP_LADDER_IDX = newLadders.length - 1;
