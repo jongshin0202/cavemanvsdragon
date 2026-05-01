@@ -971,9 +971,10 @@ const CavemanVsDragonGame = () => {
           }
         }
 
-        // === LEVEL 2 UPDATE (mechanics added in follow-up stages) ===
+        // === LEVEL 2 UPDATE ===
         if (g.round >= 2) {
-          updateLevel2(l2Ref.current, g.frameCount);
+          const pl = g.player;
+          updateLevel2(l2Ref.current, g.frameCount, pl.x + pl.w / 2, pl.y + pl.h / 2);
         }
 
 
