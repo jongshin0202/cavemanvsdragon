@@ -183,38 +183,48 @@ export function tickApples(
     const r = hostRobots[i];
     const dir = r.direction >= 0 ? 1 : -1;
     const ax = r.x + r.w / 2 + dir * 8;
-    // 50/50: throw LOW (must be jumped over) or HIGH (must be ducked under).
+    // Three throw heights, randomly chosen:
+    //   LOW    — apple at the player's feet. Jumpable.
+    //   MIDDLE — apple at chest height. Jumpable (slightly higher arc).
+    //   HIGH   — a tall vertical fire-streak that reaches above the
+    //            player's foot at jump apex (apex feet ≈ platY - 33),
+    //            so jumping CANNOT clear it. Standing is also hit
+    //            (streak reaches down to head height). Only DUCKING
+    //            clears it (streak stops above the ducked hitbox).
     //
-    // Player is 24px tall, feet on platform (y_feet = platY). When ducking,
-    // the hitbox shrinks to the lower ~45% (top at platY - 11).
-    //
-    // LOW (jumpable): a short apple sitting on the platform at the player's
-    // feet — duck keeps you in its path; jumping lifts feet over it.
-    //
-    // HIGH (duckable): an apple thrown at head/upper-body height — clearly
-    // above the platform so the player can SEE it's high and duck. Hitbox
-    // matches the visible sprite exactly so it's never unfair.
-    const throwHigh = Math.random() < 0.5;
+    // Vertical spacing for the visible apple TOP follows the user's
+    // rule: distance from LOW to MIDDLE is the same as MIDDLE to HIGH.
+    //   LOW    apple top = platY - 7
+    //   MIDDLE apple top = platY - 19
+    //   HIGH   apple top = platY - 31  (same +12 step)
+    const roll = Math.random();
+    const heightTier: 'low' | 'middle' | 'high' =
+      roll < 1 / 3 ? 'low' : roll < 2 / 3 ? 'middle' : 'high';
+
     const aw = 7;
-    const ah = 7;
+    let ah = 7;
     let ay: number;
-    if (throwHigh) {
-      // HIGH (duckable): place apple at head height — bottom sits just above
-      // the ducked hitbox top (platY - 11) so a duck cleanly clears it, and
-      // top reaches up to the standing player's head so the throw visually
-      // reads as "above the body" → an obvious ducking cue.
-      // Bottom = platY - 12, top = platY - 19. Player head is at platY - 24.
-      ay = (r.y + r.h) - 19;
+    if (heightTier === 'low') {
+      ay = (r.y + r.h) - ah - 1; // bottom on the platform
+    } else if (heightTier === 'middle') {
+      ay = (r.y + r.h) - 19; // bottom = platY - 12 (clears duck, jumpable)
     } else {
-      // Short low apple at feet — bottom on the platform.
-      ay = (r.y + r.h) - ah - 1;
+      // HIGH — render+hitbox as a tall flame streak.
+      // Top sits well above the player's head at jump apex (feet ≈ platY-33,
+      // head ≈ platY-57), bottom reaches the standing player's head so the
+      // standing player is also hit. Ducking (hitbox top platY-11) clears it.
+      // Top = platY - 50, bottom = platY - 24 → height 26.
+      ah = 26;
+      ay = (r.y + r.h) - 50;
     }
     s.apples.push({
       x: ax, y: ay, w: aw, h: ah,
       vx: dir * LEVEL2_PARAMS.APPLE_SPEED,
       ownerId: i,
-      ...(throwHigh ? { _high: true } : {}),
+      ...(heightTier === 'high' ? { _high: true } : {}),
+      ...(heightTier === 'middle' ? { _mid: true } : {}),
     } as any);
+
     alive[i] = true;
   }
 
@@ -860,6 +870,32 @@ export function renderLevel2(
   // ── Apples thrown by colored monkeys
   for (const a of s.apples as any[]) {
     const cx = a.x + a.w / 2;
+    if (a._high) {
+      // HIGH throw: render as a tall vertical fire-streak so the player
+      // visually reads it as "above jump height — must duck."
+      const topY = a.y;
+      const botY = a.y + a.h;
+      // Outer glow
+      const grad = ctx.createLinearGradient(cx, topY, cx, botY);
+      grad.addColorStop(0, 'rgba(255, 80, 0, 0)');
+      grad.addColorStop(0.3, 'rgba(255, 140, 0, 0.6)');
+      grad.addColorStop(1, 'rgba(255, 220, 80, 0.95)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(cx, topY);
+      ctx.lineTo(cx + 4, botY);
+      ctx.lineTo(cx - 4, botY);
+      ctx.closePath();
+      ctx.fill();
+      // Bright apple at the bottom of the streak
+      ctx.fillStyle = '#d6201f';
+      ctx.beginPath();
+      ctx.arc(cx, botY - 3, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffe27a';
+      ctx.fillRect(cx - 1, botY - 5, 2, 2);
+      continue;
+    }
     const cy = a.y + a.h / 2;
     // body
     ctx.fillStyle = '#d6201f';
