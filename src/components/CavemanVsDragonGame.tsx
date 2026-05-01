@@ -816,19 +816,27 @@ const CavemanVsDragonGame = () => {
             p.climbing = true;
             p.x = nearestLadder.x + 7 - p.w / 2;
           } else if (p.onGround && !nearestLadder && rawDown) {
-            // Drop down from platform edge - check if near edge of current platform
-            const curPlatIdx = findPlatformIndex(p.y + p.h, playerCX);
-            const curPlat = PLATFORMS[curPlatIdx];
-            if (curPlat) {
-              const distToLeft = playerCX - curPlat.x1;
-              const distToRight = curPlat.x2 - playerCX;
-              if (distToLeft < 20 || distToRight < 20) {
-                p.onGround = false;
-                p.vy = 1;
+            // L2: ducking — start one duck per Down-press; auto-releases.
+            if (g.round >= 2 && (p as any).duckTimer === 0 && !(p as any).duckHeld) {
+              (p as any).duckTimer = LEVEL2_PARAMS.DUCK_FRAMES;
+              (p as any).duckHeld = true;
+            } else {
+              // Drop down from platform edge - check if near edge of current platform
+              const curPlatIdx = findPlatformIndex(p.y + p.h, playerCX);
+              const curPlat = PLATFORMS[curPlatIdx];
+              if (curPlat) {
+                const distToLeft = playerCX - curPlat.x1;
+                const distToRight = curPlat.x2 - playerCX;
+                if (distToLeft < 20 || distToRight < 20) {
+                  p.onGround = false;
+                  p.vy = 1;
+                }
               }
             }
           }
         }
+        if (!rawDown) (p as any).duckHeld = false;
+        if ((p as any).duckTimer > 0) (p as any).duckTimer--;
 
         if (p.climbing) {
           // If near the top of the ladder and pressing left/right, dismount
