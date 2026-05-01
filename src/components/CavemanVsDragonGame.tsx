@@ -1862,8 +1862,11 @@ const CavemanVsDragonGame = () => {
         const sh = walkSprite.naturalHeight;
         const sx = pl.walkFrame * sw;
         const sy = 0;
-        const drawW = 42;
-        const drawH = 48;
+        let drawW = 42;
+        let drawH = 48;
+        // Duck: squash vertically so the apple flies overhead.
+        const ducked = (pl as any).duckTimer > 0;
+        if (ducked) drawH = Math.round(drawH * 0.55);
         ctx.save();
         if (pl.facing < 0) {
           ctx.translate(pl.x + pl.w / 2, 0);
