@@ -143,6 +143,7 @@ export function makeEmptyL2State(): L2State {
     carryingRock: false,
     purpleJacketPhase: false,
     purpleJacketsKilled: 0,
+    purpleTarget: 1,
     greenJacketsKilled: 0,
     greenCanSpawned: false,
     purpleCanSpawned: false,
