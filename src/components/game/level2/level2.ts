@@ -592,10 +592,11 @@ export function updateLevel2(
     const targetPi: number = fb.targetPlatIdx ?? -1;
     if (targetPi >= 0 && targetPi !== TOP_IDX) {
       const plat = PLATFORMS[targetPi];
-      // Land where the fireball *visually* is. Clamp inside the target
-      // platform so the hole lines up with what the player just saw.
-      const margin = 6;
-      const landX = Math.max(plat.x1 + margin, Math.min(plat.x2 - margin, fb.x));
+      // Land where the fireball *visually* is. Clamp using the same inner
+      // margin addHoleAt applies (HOLE_WIDTH/2 + 4) so the hole appears at
+      // the exact spot the rock impacts — no offset between visual and hole.
+      const innerMargin = LEVEL2_PARAMS.HOLE_WIDTH / 2 + 4;
+      const landX = Math.max(plat.x1 + innerMargin, Math.min(plat.x2 - innerMargin, fb.x));
       const platY = getPlatformY(plat, landX);
       if (fb.y >= platY - 4) {
         addHoleAt(s, landX, platY);
