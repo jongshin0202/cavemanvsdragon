@@ -208,6 +208,10 @@ const CavemanVsDragonGame = () => {
     // is gated on round===1 below in the loop.
     if (g.round >= 2) {
       initLevel2(l2Ref.current, g.round - 1); // L2 round = total round - 1
+      // Spawn one monkey per P2..P5 (with 1-2 wearing green jackets)
+      const { robots } = spawnLevel2Robots(l2Ref.current);
+      g.robots.push(...robots);
+      g.robotsInitialized = true; // prevent L1 spawner from also adding monkeys
     }
     // Spawn first rock immediately so action starts the moment the level begins
     if (g.round === 1) {
