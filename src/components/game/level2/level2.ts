@@ -177,7 +177,11 @@ export function tickApples(
     const r = hostRobots[i];
     const dir = r.direction >= 0 ? 1 : -1;
     const ax = r.x + r.w / 2 + dir * 8;
-    const ay = r.y + 2; // mid-body
+    // 50/50: throw LOW (must be jumped over) or HIGH (must be ducked under).
+    // Low = near monkey's feet so a standing player would be hit unless jumping.
+    // High = near monkey's head so a standing player would be hit unless ducking.
+    const throwHigh = Math.random() < 0.5;
+    const ay = throwHigh ? r.y - 4 : r.y + r.h - 9;
     s.apples.push({
       x: ax, y: ay, w: 7, h: 7,
       vx: dir * LEVEL2_PARAMS.APPLE_SPEED,
