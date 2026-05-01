@@ -2682,6 +2682,7 @@ const AttractLeaderboardScreen = ({
   scores,
   globalScores,
   globalLoading,
+  mySubmission,
   background,
   logo,
   onStart,
