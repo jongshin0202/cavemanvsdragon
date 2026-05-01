@@ -2457,7 +2457,6 @@ const CavemanVsDragonGame = () => {
             scores={scores}
             globalScores={globalScores}
             globalLoading={globalLoading}
-            highlight={lastSubmission}
             onStart={() => { unlockAudio(); anyInputHandlerRef.current?.('Tap', 'pad'); }}
             onRequestClearLocal={() => setConfirmClearOpen(true)}
             background={introBackgroundUrl}
@@ -2473,7 +2472,6 @@ const CavemanVsDragonGame = () => {
             scores={scores}
             globalScores={globalScores}
             globalLoading={globalLoading}
-            highlight={lastSubmission}
             onStart={() => { unlockAudio(); anyInputHandlerRef.current?.('Tap', 'pad'); }}
             onRequestClearLocal={() => setConfirmClearOpen(true)}
             background={introBackgroundUrl}
