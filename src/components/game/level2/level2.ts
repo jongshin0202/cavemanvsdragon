@@ -120,8 +120,13 @@ export function newSpawnJacket(s: L2State): 'green' | 'purple' | null {
   const arr: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
   const greenAlive = arr.filter(j => j === 'green').length;
   const purpleAlive = arr.filter(j => j === 'purple').length;
-  if (s.purpleJacketPhase && purpleAlive < LEVEL2_PARAMS.PURPLE_JACKET_BASE) {
-    if (Math.random() < 0.5) return 'purple';
+  if (s.purpleJacketPhase) {
+    // How many more purples still need to be created this round?
+    const purplesRemaining = Math.max(0, s.purpleTarget - s.purpleJacketsKilled - purpleAlive);
+    if (purplesRemaining > 0 && purpleAlive < s.purpleTarget) {
+      // Strongly prefer purple until quota fills, so the player can complete the round.
+      if (Math.random() < 0.85) return 'purple';
+    }
   }
   if (greenAlive < LEVEL2_PARAMS.GREEN_JACKET_BASE) {
     if (Math.random() < 0.4) return 'green';
