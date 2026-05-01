@@ -670,10 +670,12 @@ export function updateLevel2(
             h.platformIdx === targetPi &&
             Math.abs(x - h.centerX) < MIN_DIST,
           );
-        if (tooCloseToHole(landX)) {
+        const isBadSpot = (x: number) =>
+          tooCloseToHole(x) || isHoleOverlappingSprout(targetPi, x);
+        if (isBadSpot(landX)) {
           // Try the pre-validated targetX first.
           const pre = fb.targetX != null ? clampPlat(fb.targetX) : landX;
-          if (!tooCloseToHole(pre)) {
+          if (!isBadSpot(pre)) {
             landX = pre;
           } else {
             // Sweep platform for the closest spot that respects the rule.
@@ -681,12 +683,12 @@ export function updateLevel2(
             let bestX: number | null = null;
             let bestDist = Infinity;
             for (let x = plat.x1 + innerMargin; x <= plat.x2 - innerMargin; x += step) {
-              if (tooCloseToHole(x)) continue;
+              if (isBadSpot(x)) continue;
               const d = Math.abs(x - landX);
               if (d < bestDist) { bestDist = d; bestX = x; }
             }
             if (bestX != null) landX = bestX;
-            else { fb.landed = true; continue; } // no room — skip adjacent hole
+            else { fb.landed = true; continue; } // no safe spot — skip the hole
           }
         }
         addHoleAt(s, landX, platY);
