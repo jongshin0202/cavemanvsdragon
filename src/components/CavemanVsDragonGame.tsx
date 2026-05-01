@@ -463,6 +463,50 @@ const CavemanVsDragonGame = () => {
           }
           return true; // swallow C — don't start the game
         }
+        // DEV/TEST: PC presses "2" on intro to jump straight into Level 2.
+        if (
+          _source === 'keyboard' &&
+          (gs === 'intro' || gs === 'attractControls') &&
+          key === '2' &&
+          LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2
+        ) {
+          startInLevel2Test();
+          return true;
+        }
+        // DEV/TEST: mobile/touch double-tap on intro/attract screens jumps
+        // straight into Level 2.
+        if (
+          _source === 'pad' &&
+          (gs === 'intro' ||
+            gs === 'attractLocalLeaderboard' ||
+            gs === 'attractGlobalLeaderboard' ||
+            gs === 'attractControls') &&
+          LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2
+        ) {
+          const since = now - lastIntroTapRef.current;
+          lastIntroTapRef.current = now;
+          if (since > 0 && since <= LEVEL2_PARAMS.DOUBLE_TAP_MAX_GAP_MS) {
+            lastIntroTapRef.current = 0;
+            startInLevel2Test();
+            return true;
+          }
+          // First tap of a possible double — wait briefly to see if a
+          // second one arrives. If not, start the normal game.
+          window.setTimeout(() => {
+            // If still on intro/attract and no second tap fired the shortcut,
+            // begin the normal game.
+            if (lastIntroTapRef.current !== 0) {
+              const stillIntro =
+                gameStateRef.current === 'intro' ||
+                gameStateRef.current === 'attractLocalLeaderboard' ||
+                gameStateRef.current === 'attractGlobalLeaderboard' ||
+                gameStateRef.current === 'attractControls';
+              lastIntroTapRef.current = 0;
+              if (stillIntro) resetGame();
+            }
+          }, LEVEL2_PARAMS.DOUBLE_TAP_MAX_GAP_MS + 20);
+          return true;
+        }
         // Any other key/tap starts the game from the intro/attract screens
         resetGame();
         return true;
