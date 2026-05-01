@@ -761,35 +761,6 @@ export function renderLevel2(
 
   // ── Apples thrown by colored monkeys
   for (const a of s.apples as any[]) {
-    if (a._high) {
-      // High throw: tall vertical streak. Draw a small apple at the BOTTOM
-      // of the hitbox plus a fading motion trail rising up its full height.
-      const cx = a.x + a.w / 2;
-      const appleR = 4;
-      const bottomCy = a.y + a.h - appleR;
-      // Trail (top of streak → just above apple)
-      const trailTop = a.y;
-      const trailBot = bottomCy - appleR;
-      const segs = 8;
-      for (let k = 0; k < segs; k++) {
-        const t = k / segs;
-        const yy = trailBot - t * (trailBot - trailTop);
-        ctx.fillStyle = `rgba(214, 32, 31, ${0.55 * (1 - t)})`;
-        ctx.fillRect(cx - 2, yy - 1, 4, 2);
-      }
-      // Apple body
-      ctx.fillStyle = '#d6201f';
-      ctx.beginPath();
-      ctx.arc(cx, bottomCy, appleR, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#ff8a87';
-      ctx.fillRect(cx - 2, bottomCy - 2, 2, 2);
-      ctx.fillStyle = '#5a2a08';
-      ctx.fillRect(cx, bottomCy - appleR - 2, 1, 2);
-      ctx.fillStyle = '#2e8b33';
-      ctx.fillRect(cx + 1, bottomCy - appleR - 1, 2, 1);
-      continue;
-    }
     const cx = a.x + a.w / 2;
     const cy = a.y + a.h / 2;
     // body
