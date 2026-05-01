@@ -340,4 +340,45 @@ export function restoreLevel1Layout(): void {
   PURPLE_TOP_LADDER_IDX = -1;
   TOP_GAP_X1 = 0;
   TOP_GAP_X2 = 0;
+  l1MechanicActive = false;
+  L1_TOP_VINE_IDX = -1;
 }
+
+/** Enable the L2-style sprout-dying lifecycle on the standard L1 ladders.
+ *  `topVineIdx` is excluded (it has its own key/seed flow). `l2IterEquivalent`
+ *  controls which L2 difficulty params the timers use (e.g. L1 iter 5 → 1). */
+export function enableLevel1SproutMechanic(topVineIdx: number, l2IterEquivalent: number): void {
+  l1MechanicActive = true;
+  L1_TOP_VINE_IDX = topVineIdx;
+  setCurrentLevel2Iteration(Math.max(1, l2IterEquivalent));
+  // Build a sprout runtime entry per L1 ladder. Group by the platform pair the
+  // ladder spans so wither/regrow can guarantee at least one alive sprout per
+  // gap (matching L2 behavior).
+  const gapKeyOf = (l: { yTop: number; yBot: number }) => `${Math.round(l.yTop)}|${Math.round(l.yBot)}`;
+  const gapKeys = new Map<string, number>();
+  sproutsRuntime = LADDERS.map((l, i) => {
+    let gapIdx: number;
+    if (i === topVineIdx) {
+      gapIdx = -1;
+    } else {
+      const key = gapKeyOf(l);
+      if (!gapKeys.has(key)) gapKeys.set(key, gapKeys.size);
+      gapIdx = gapKeys.get(key)!;
+    }
+    const isTopLikeStatic = i === topVineIdx; // excluded from dying mechanic
+    return {
+      ladderIdx: i,
+      grown: true,
+      regrowTimer: 0,
+      growProgress: 1,
+      // Use the existing 'isTop' flag to opt OUT of the wither/regrow cycle
+      // (matches how L2 top sprouts behave: never auto-wither).
+      phase: 'idle' as SproutPhase,
+      isTop: isTopLikeStatic,
+      topColor: undefined,
+      watered: false,
+      gapIdx,
+    };
+  });
+}
+
