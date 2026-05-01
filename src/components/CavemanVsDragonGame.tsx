@@ -1431,6 +1431,22 @@ const CavemanVsDragonGame = () => {
         drawVine(l.x, l.yTop, l.yBot);
       }
 
+      // L2: tiny seed mound at the base of any non-top sprout that has
+      // withered, hinting where the vine will regrow.
+      if (g.round >= 2) {
+        for (let li = 0; li < LADDERS.length; li++) {
+          if (li === getTopVineIdx()) continue;
+          if (isLadderUsableL2(li)) continue;
+          const l = LADDERS[li];
+          const sx = l.x + 7;
+          const sy = l.yBot - 1;
+          ctx.fillStyle = '#5D4037';
+          ctx.fillRect(sx - 5, sy - 2, 10, 3);
+          ctx.fillStyle = '#66BB6A';
+          ctx.fillRect(sx - 1, sy - 4, 2, 3);
+        }
+      }
+
       // Topmost vine — animated growth from sprout up to top platform
       {
         const tv = LADDERS[getTopVineIdx()];
