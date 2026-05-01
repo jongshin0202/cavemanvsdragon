@@ -386,11 +386,11 @@ export function maybeSpawnVolcanoRock(s: L2State): void {
   const mouth = getVolcanoMouth();
   const sz = LEVEL2_PARAMS.VOLCANO_ROCK_SIZE;
 
-  // Pick a random target platform from P1..P5 (indices 0..4) — explicitly
-  // EXCLUDE the top platform (index PLATFORMS.length - 1 = 5) since the
-  // volcano sits on it and rocks should land below for the player to grab.
-  const TOP_IDX = PLATFORMS.length - 1;
-  const candidates = [0, 1, 2, 3, 4].filter(i => i !== TOP_IDX);
+  // Pick a random target platform from P1..P4 (indices 0..3) — exclude
+  // the top platform (where the volcano sits) AND P5 (index 4, directly
+  // below the volcano), so the rock visibly arcs DOWN like a fireball
+  // instead of plopping right next to the mouth.
+  const candidates = [0, 1, 2, 3];
   let targetX = mouth.x;
   let targetY = mouth.y + 100;
   for (let attempt = 0; attempt < 8; attempt++) {
