@@ -1073,14 +1073,18 @@ const CavemanVsDragonGame = () => {
           }
         }
 
+        // Tick the sprout lifecycle whenever the dying-sprout mechanic is
+        // active (always for L2 rounds; from L1 iter 5 onwards as well).
+        if (sproutMechanicActive(g.round)) {
+          tickSprouts();
+        }
+
         // === LEVEL 2 UPDATE ===
         if (isLevel2Round(g.round)) {
           // Belt-and-suspenders: Level 2 must NEVER show L1 rolling rocks.
           if (g.barrels.length) g.barrels = [];
           const pl = g.player;
           updateLevel2(l2Ref.current, g.frameCount, pl.x + pl.w / 2, pl.y + pl.h / 2);
-          // Tick sprout regrow timers (per-frame).
-          tickSprouts();
 
           // Award 100 points the first time the player jumps over a fireball
           for (const fb of l2Ref.current.fireballs as any[]) {
