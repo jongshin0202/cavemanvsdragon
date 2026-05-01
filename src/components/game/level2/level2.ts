@@ -40,8 +40,9 @@ export function initLevel2(s: L2State, round: number): void {
   const cap = Math.max(1, LEVEL2_PARAMS.PURPLE_JACKET_BASE);
   s.purpleTarget = 1 + Math.floor(Math.random() * cap); // 1..cap
   if (s.purpleTarget > cap) s.purpleTarget = cap;
-  // Spawn the GREEN watering can at level start on a random platform.
-  spawnGreenCan(s);
+  // Green watering can does NOT spawn at level start. It spawns only after
+  // the player kills the required number of green-jacketed monkeys
+  // (see onMonkeyKilled → spawnGreenCan gate).
 }
 
 // ============================================================
