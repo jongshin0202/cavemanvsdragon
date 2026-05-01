@@ -564,7 +564,7 @@ const CavemanVsDragonGame = () => {
 
       return false;
     };
-  }, [startNextLevel, submitHighScore, resetGame, globalScores]);
+  }, [startNextLevel, submitHighScore, resetGame, startInLevel2Test, globalScores]);
 
 
   useEffect(() => {
