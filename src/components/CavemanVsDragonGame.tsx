@@ -1596,27 +1596,21 @@ const CavemanVsDragonGame = () => {
               }
             }
           } else {
-            // Dormant seed. Top sprouts get a colored halo so the player
-            // knows which watering can grows it.
+            // Dormant seed: small mound of dirt with tiny green sprout leaves.
+            // No colored halo — the halo previously made the seed look like a
+            // pickup item, which confused players.
             ctx.fillStyle = '#5D4037';
-            ctx.fillRect(sx - 7, sy - 3, 14, 5);
-            const halo = sr.topColor === 'green'
-              ? 'rgba(116, 224, 127, 0.45)'
-              : sr.topColor === 'purple'
-                ? 'rgba(199, 155, 255, 0.45)'
-                : 'rgba(102, 187, 106, 0.22)';
-            ctx.fillStyle = halo;
-            ctx.beginPath();
-            ctx.arc(sx, sy - 7, 9, 0, Math.PI * 2);
-            ctx.fill();
-            // Sprout leaves
-            ctx.fillStyle = '#66BB6A';
-            ctx.fillRect(sx - 2, sy - 10, 4, 8);
-            ctx.fillStyle = '#4CAF50';
-            ctx.fillRect(sx - 6, sy - 10, 4, 4);
-            ctx.fillRect(sx + 2, sy - 12, 4, 4);
-            ctx.fillRect(sx - 4, sy - 14, 3, 3);
-            ctx.fillRect(sx + 1, sy - 15, 3, 3);
+            ctx.fillRect(sx - 6, sy - 2, 12, 4);
+            ctx.fillStyle = '#3E2723';
+            ctx.fillRect(sx - 6, sy + 1, 12, 1);
+            // Two tiny leaves poking out of the dirt
+            const leafColor = sr.topColor === 'purple' ? '#9C27B0' : '#66BB6A';
+            ctx.fillStyle = leafColor;
+            ctx.fillRect(sx - 3, sy - 5, 2, 3);
+            ctx.fillRect(sx + 1, sy - 5, 2, 3);
+            ctx.fillStyle = sr.topColor === 'purple' ? '#7B1FA2' : '#4CAF50';
+            ctx.fillRect(sx - 4, sy - 6, 1, 1);
+            ctx.fillRect(sx + 2, sy - 6, 1, 1);
           }
         }
         // Keep sparkle timer ticking so the grow droplets animate.
