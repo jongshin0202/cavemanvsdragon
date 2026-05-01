@@ -210,11 +210,17 @@ const CavemanVsDragonGame = () => {
     // its own hazards independently and the host's L1 barrel-spawn block
     // is gated on round===1 below in the loop.
     if (g.round >= 2) {
+      // Swap to L2 layout (flat platforms + sprout vines) BEFORE
+      // initializing/spawning so monkey + sprite positions snap to it.
+      applyLevel2Layout();
       initLevel2(l2Ref.current, g.round - 1); // L2 round = total round - 1
       // Spawn one monkey per P2..P5 (with 1-2 wearing green jackets)
       const { robots } = spawnLevel2Robots(l2Ref.current);
       g.robots.push(...robots);
       g.robotsInitialized = true; // prevent L1 spawner from also adding monkeys
+    } else {
+      // L1: make sure layout is the original (in case we just came back).
+      restoreLevel1Layout();
     }
     // Spawn first rock immediately so action starts the moment the level begins
     if (g.round === 1) {
