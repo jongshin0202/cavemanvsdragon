@@ -867,6 +867,8 @@ const CavemanVsDragonGame = () => {
             p.climbing = false;
           } else {
             p.vy = 0;
+            // L2: keep this sprout alive while we're actively on it.
+            if (g.round >= 2 && nearestLadderIdx >= 0) markSproutInUse(nearestLadderIdx);
             const climbMoving = rawUp || rawDown;
             if (rawUp) p.y -= CLIMB_SPEED;
             if (rawDown) p.y += CLIMB_SPEED;
