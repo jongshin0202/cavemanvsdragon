@@ -545,40 +545,31 @@ export function updateLevel2(
         const maxX = targetPlat.x2 - margin;
         const clampX = (v: number) => Math.max(minX, Math.min(maxX, v));
 
-        // Detect player movement direction since last fireball spawn.
+        // Detect player movement direction since last fireball spawn, and
+        // remember the LAST non-zero direction so a standing player still has
+        // a "facing" used to bias attacks.
         const lastPlayerX: number = (s as any)._lastPlayerX ?? playerX;
         const moveDx = playerX - lastPlayerX;
         const moveDir = moveDx > 1 ? 1 : moveDx < -1 ? -1 : 0;
         (s as any)._lastPlayerX = playerX;
-
-        // Random offset: directly on the player (0), or 2 or 3 hole-widths
-        // away — randomly chosen each throw. Side biased toward player
-        // movement direction (random when standing still). The trajectory
-        // (signed offset) must NEVER repeat the previous throw, so even a
-        // standing player sees varied attack angles.
-        const offsetChoicesAll = [-3, -2, 0, 2, 3]; // signed: side+magnitude
-        const lastOffset: number | null = (s as any)._lastFireballOffset ?? null;
-
-        // Build a candidate list, biased toward player movement direction.
-        const dirSign: number = moveDir !== 0
+        if (moveDir !== 0) (s as any)._lastFacingDir = moveDir;
+        const facingDir: number = moveDir !== 0
           ? moveDir
-          : (Math.random() < 0.5 ? 1 : -1);
+          : ((s as any)._lastFacingDir ?? (Math.random() < 0.5 ? 1 : -1));
 
-        // Score each option: prefer same sign as dirSign (when player is
-        // moving) or both sides equally (when still). Always exclude the
-        // last-used signed offset.
-        let candidates = offsetChoicesAll.filter(o => o !== lastOffset);
-        if (moveDir !== 0) {
-          // 70% chance to keep only same-direction (or zero) candidates.
-          if (Math.random() < 0.7) {
-            const sameDir = candidates.filter(o => o === 0 || Math.sign(o) === dirSign);
-            if (sameDir.length > 0) candidates = sameDir;
-          }
-        }
-        const pickedOffset = candidates[Math.floor(Math.random() * candidates.length)];
-        (s as any)._lastFireballOffset = pickedOffset;
-        const offsetMag = Math.abs(pickedOffset) * HOLE_W;
-        const offsetSign = pickedOffset === 0 ? 1 : Math.sign(pickedOffset);
+        // Three trajectory choices, ALL on the player's facing side:
+        //   0 → direct hit on the player
+        //  +2 → 2 hole-widths ahead of the player (in facing direction)
+        //  +3 → 3 hole-widths ahead of the player (in facing direction)
+        // Never repeat the same magnitude twice in a row, so even a standing
+        // player sees varied attack angles every throw.
+        const magChoices = [0, 2, 3];
+        const lastMag: number | null = (s as any)._lastFireballOffset ?? null;
+        const candidates = magChoices.filter(m => m !== lastMag);
+        const pickedMag = candidates[Math.floor(Math.random() * candidates.length)];
+        (s as any)._lastFireballOffset = pickedMag;
+        const offsetMag = pickedMag * HOLE_W;
+        const offsetSign = facingDir;
 
         // A candidate X is "clear" if it's at least MIN_CENTER_DIST from
         // every existing hole on this platform → guarantees ≥1 hole-width
