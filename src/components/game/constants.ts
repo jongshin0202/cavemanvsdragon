@@ -39,8 +39,8 @@ export const DIFFICULTY = {
   // Wheel spawn frequency: unchanged until monkey cap is reached,
   // then spawn intervals shrink by 10% per finished round.
   barrelSpawnScalePerRoundAfterCap: 0.10,
-  // Monkey speed continues to scale gently each round.
-  monkeySpeedScalePerRound: 0.10,
+  // Monkey speed continues to scale per round (+25% per iter).
+  monkeySpeedScalePerRound: 0.25,
 };
 
 // Round at which the monkey count cap (20) is first reached.
