@@ -365,16 +365,16 @@ export function enableLevel1SproutMechanic(topVineIdx: number, l2IterEquivalent:
       if (!gapKeys.has(key)) gapKeys.set(key, gapKeys.size);
       gapIdx = gapKeys.get(key)!;
     }
-    const isTopLikeStatic = i === topVineIdx; // excluded from dying mechanic
     return {
       ladderIdx: i,
       grown: true,
       regrowTimer: 0,
       growProgress: 1,
-      // Use the existing 'isTop' flag to opt OUT of the wither/regrow cycle
-      // (matches how L2 top sprouts behave: never auto-wither).
+      // The top vine opts OUT of the dying lifecycle by reusing isTop=true
+      // (tickSprouts treats isTop sprouts as never-auto-withering). Regular
+      // L1 ladders are full sprouts (isTop=false) and follow the L2 cycle.
       phase: 'idle' as SproutPhase,
-      isTop: isTopLikeStatic,
+      isTop: i === topVineIdx,
       topColor: undefined,
       watered: false,
       gapIdx,
