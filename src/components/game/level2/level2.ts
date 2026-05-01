@@ -620,13 +620,24 @@ export function updateLevel2(
     const targetPi: number = fb.targetPlatIdx ?? -1;
     if (targetPi >= 0 && targetPi !== TOP_IDX) {
       const plat = PLATFORMS[targetPi];
-      // Land where the fireball *visually* is. Clamp using the same inner
-      // margin addHoleAt applies (HOLE_WIDTH/2 + 4) so the hole appears at
-      // the exact spot the rock impacts — no offset between visual and hole.
       const innerMargin = LEVEL2_PARAMS.HOLE_WIDTH / 2 + 4;
-      const landX = Math.max(plat.x1 + innerMargin, Math.min(plat.x2 - innerMargin, fb.x));
+      const clampPlat = (v: number) =>
+        Math.max(plat.x1 + innerMargin, Math.min(plat.x2 - innerMargin, v));
+      let landX = clampPlat(fb.x);
       const platY = getPlatformY(plat, landX);
       if (fb.y >= platY - 4) {
+        // Hard rule: never land on/adjacent to an existing hole. If the
+        // visual landing point overlaps a hole, snap to the pre-chosen
+        // targetX (which was selected to avoid all holes).
+        const HOLE_W = LEVEL2_PARAMS.HOLE_WIDTH;
+        const overlapsHole = (x: number) =>
+          s.holes.some(h =>
+            h.platformIdx === targetPi &&
+            Math.abs(x - h.centerX) < HOLE_W / 2 + h.width / 2,
+          );
+        if (overlapsHole(landX) && fb.targetX != null) {
+          landX = clampPlat(fb.targetX);
+        }
         addHoleAt(s, landX, platY);
         (s as any)._lastFireballPlat = targetPi;
         fb.x = landX;
