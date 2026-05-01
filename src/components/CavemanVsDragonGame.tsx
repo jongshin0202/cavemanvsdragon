@@ -1581,14 +1581,14 @@ const CavemanVsDragonGame = () => {
         g.sparkleTimer++;
       }
 
-      // Topmost vine — animated growth from sprout up to top platform
-      {
+      // Topmost vine — animated growth from sprout up to top platform.
+      // L1 only (L2 manages its own two top sprouts via getSprouts()).
+      if (g.round === 1) {
         const tv = LADDERS[getTopVineIdx()];
         if (g.seedPlanted && g.topVineGrowth > 0) {
           const fullH = tv.yBot - tv.yTop; // 64
           const grownTop = tv.yBot - fullH * g.topVineGrowth;
           drawVine(tv.x, grownTop, tv.yBot);
-          // Water droplets while the vine grows
           if (g.topVineGrowth < 1) {
             for (let i = 0; i < 5; i++) {
               const sx = tv.x + 7 + Math.cos(g.sparkleTimer * 0.18 + i * 1.3) * 7;
@@ -1598,18 +1598,15 @@ const CavemanVsDragonGame = () => {
             }
           }
         }
-        // Sprout/seed marker at the planting spot when not yet planted
         if (!g.seedPlanted) {
           const sx = tv.x + 7;
           const sy = tv.yBot - 2;
-          // Mound
           ctx.fillStyle = '#5D4037';
           ctx.fillRect(sx - 7, sy - 3, 14, 5);
           ctx.fillStyle = 'rgba(102, 187, 106, 0.22)';
           ctx.beginPath();
           ctx.arc(sx, sy - 7, 8, 0, Math.PI * 2);
           ctx.fill();
-          // Bigger sprout hint
           ctx.fillStyle = '#66BB6A';
           ctx.fillRect(sx - 2, sy - 10, 4, 8);
           ctx.fillStyle = '#4CAF50';
