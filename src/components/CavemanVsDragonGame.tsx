@@ -89,9 +89,6 @@ const CavemanVsDragonGame = () => {
   const [nameError, setNameError] = useState<string>('');
   const [pendingScore, setPendingScore] = useState(0);
   const [pendingLevel, setPendingLevel] = useState(1);
-  // The most recent score the player submitted in this session — used to
-  // highlight their row in yellow on attract-mode leaderboards too.
-  const [lastSubmission, setLastSubmission] = useState<{ name: string; score: number; level: number } | null>(null);
   // Level intro overlay: 'level' shows "Level N" for 3s, then 'black' for 0.5s, then null.
   const [levelIntro, setLevelIntro] = useState<null | 'level' | 'black'>(null);
   const [levelIntroNumber, setLevelIntroNumber] = useState(1);
@@ -327,7 +324,6 @@ const CavemanVsDragonGame = () => {
     // 1) Always write to local
     const next = insertScore(entry);
     setScores(next);
-    setLastSubmission({ name: cleanName, score: pendingScore, level: pendingLevel });
     setNameError('');
 
     // 2) If it qualifies globally, write to the cloud and show GLOBAL view.
@@ -2457,7 +2453,6 @@ const CavemanVsDragonGame = () => {
             scores={scores}
             globalScores={globalScores}
             globalLoading={globalLoading}
-            highlight={lastSubmission}
             onStart={() => { unlockAudio(); anyInputHandlerRef.current?.('Tap', 'pad'); }}
             onRequestClearLocal={() => setConfirmClearOpen(true)}
             background={introBackgroundUrl}
@@ -2473,7 +2468,6 @@ const CavemanVsDragonGame = () => {
             scores={scores}
             globalScores={globalScores}
             globalLoading={globalLoading}
-            highlight={lastSubmission}
             onStart={() => { unlockAudio(); anyInputHandlerRef.current?.('Tap', 'pad'); }}
             onRequestClearLocal={() => setConfirmClearOpen(true)}
             background={introBackgroundUrl}
@@ -2664,7 +2658,6 @@ interface AttractLeaderboardScreenProps {
   scores: LeaderboardEntry[];
   globalScores: GlobalEntry[];
   globalLoading: boolean;
-  highlight: { name: string; score: number; level: number } | null;
   background: string;
   logo: string;
   onStart: () => void;
