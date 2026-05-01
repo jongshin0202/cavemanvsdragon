@@ -70,11 +70,21 @@ export interface L2WateringCan {
   collected: boolean;
 }
 
-/** Top-level state container for Level 2. Owned by the host through
- *  a single ref; never reaches into level 1 state. */
+/** A flying rock launched out of the volcano (for sealing). Pre-landing
+ *  it follows simple physics; post-landing it sits as a pickup. */
+export interface L2VolcanoRock {
+  x: number; y: number; w: number; h: number;
+  vx: number; vy: number;
+  /** false while in flight, true after landing on a platform. */
+  landed: boolean;
+  /** true once the player picks it up. */
+  collected: boolean;
+}
+
+/** Top-level state container for Level 2. */
 export interface L2State {
   initialized: boolean;
-  round: number; // L2 round count (1 = first time playing L2)
+  round: number;
   // entities
   monkeys: L2Monkey[];
   apples: L2Apple[];
@@ -83,13 +93,29 @@ export interface L2State {
   sprouts: L2Sprout[];
   // volcano / progression
   volcanoSealed: boolean;
+  /** True after green sprout is grown and the volcano coughs up a rock.
+   *  Once true, no more rocks spawn. */
+  rockSpawned: boolean;
+  /** Rock entity (in flight or sitting on a platform), or null. */
+  volcanoRock: L2VolcanoRock | null;
+  /** Watering cans on the ground (one for green, one for purple). */
   greenCan: L2WateringCan | null;
   purpleCan: L2WateringCan | null;
-  greenSproutGrown: boolean;  // sprout that lets caveman reach volcano
-  purpleSproutGrown: boolean; // sprout that lets caveman reach princess
+  /** Color the player is currently carrying (null if not carrying). */
   carryingCan: 'green' | 'purple' | null;
+  /** True while the player is carrying the volcano-seal rock. */
   carryingRock: boolean;
-  rockEntity: { x: number; y: number; w: number; h: number; collected: boolean } | null;
+  // monkey phase
+  /** True after the volcano is sealed — purple-jacket spawning enabled. */
+  purpleJacketPhase: boolean;
+  /** Total purple-jacketed monkeys killed this round (target = PURPLE_JACKET_BASE). */
+  purpleJacketsKilled: number;
+  /** Total green-jacketed monkeys killed this round (target = GREEN_JACKET_BASE). */
+  greenJacketsKilled: number;
+  /** True once the green watering can has been spawned (level start). */
+  greenCanSpawned: boolean;
+  /** True once the purple watering can has been spawned. */
+  purpleCanSpawned: boolean;
   // timers
   fireballTimer: number;
   // outro
@@ -106,13 +132,17 @@ export function makeEmptyL2State(): L2State {
     holes: [],
     sprouts: [],
     volcanoSealed: false,
+    rockSpawned: false,
+    volcanoRock: null,
     greenCan: null,
     purpleCan: null,
-    greenSproutGrown: false,
-    purpleSproutGrown: false,
     carryingCan: null,
     carryingRock: false,
-    rockEntity: null,
+    purpleJacketPhase: false,
+    purpleJacketsKilled: 0,
+    greenJacketsKilled: 0,
+    greenCanSpawned: false,
+    purpleCanSpawned: false,
     fireballTimer: 0,
     winOutro: { active: false, phase: 'grab', timer: 0 },
   };
