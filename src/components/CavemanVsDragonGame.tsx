@@ -1515,6 +1515,24 @@ const CavemanVsDragonGame = () => {
         }
       }
 
+      // ── LEVEL 2: paint L2 scene on top of L1 visuals so the L1 dragon /
+      // princess / vines / monkeys / barrels visually disappear. The player
+      // is drawn after this block so they remain visible.
+      if (g.round >= 2) {
+        renderLevel2(ctx, l2Ref.current, {
+          walk: walkSpriteRef.current,
+          jump: jumpSpriteRef.current,
+          climb: climbSpriteRef.current,
+          win: winSpriteRef.current,
+          dragonAngry: dragonAngryRef.current,
+          dragonFire: dragonFireRef.current,
+          princess: princessRef.current,
+          robot: robotWalkRef.current,
+          rockWheel: rockWheelRef.current,
+          wateringCan: wateringCanRef.current,
+        });
+      }
+
       // Player (Caveman sprite) - flash 3 times when dying
       // (toggle every 18 frames over 108 frames at 60fps → 3 on/off cycles)
       const pl = g.player;
