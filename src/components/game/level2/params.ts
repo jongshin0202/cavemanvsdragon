@@ -40,7 +40,7 @@ export const LEVEL2_PARAMS = {
   HOLE_MAX_LIFETIME_SEC: 5,
 
   // ─── SPROUTS ────────────────────────────────────────────────
-  SPROUTS_PER_GAP_MIN: 2,
+  SPROUTS_PER_GAP_MIN: 1,
   SPROUTS_PER_GAP_MAX: 3,
   SPROUT_REGROW_MIN_SEC: 2,
   SPROUT_REGROW_MAX_SEC: 5,
