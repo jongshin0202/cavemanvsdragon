@@ -885,10 +885,15 @@ const CavemanVsDragonGame = () => {
           }
           p.vy += GRAVITY; p.y += p.vy;
           p.onGround = false;
-          for (const plat of PLATFORMS) {
+          for (let plIdx = 0; plIdx < PLATFORMS.length; plIdx++) {
+            const plat = PLATFORMS[plIdx];
             if (p.x + p.w > plat.x1 && p.x < plat.x2) {
               const platY = getPlatformY(plat, p.x + p.w / 2);
               if (p.y + p.h >= platY && p.y + p.h <= platY + 12 && p.vy >= 0) {
+                // L2: fall through holes (or the permanent top-platform gap).
+                if (g.round >= 2 && isHoleAtPlatform(l2Ref.current, plIdx, p.x + p.w / 2)) {
+                  continue;
+                }
                 p.y = platY - p.h; p.vy = 0; p.onGround = true; p.jumping = false;
                 p.jumpFrame = 0; p.jumpTimer = 0;
                 g.comboKills = 0;
