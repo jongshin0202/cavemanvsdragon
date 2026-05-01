@@ -820,7 +820,11 @@ const CavemanVsDragonGame = () => {
       g.helpTimer++;
       if (g.helpTimer > 120) { g.helpTimer = 0; g.showHelp = !g.showHelp; }
 
-      if (g.state === 'playing' && !g.dying) {
+      // Pause physics, spawning, and gameplay sounds while the "Level N"
+      // intro overlay is showing — otherwise e.g. the L1 barrel-spawner
+      // would fire under the Level 3 / Level 5 overlay and play barrel-roll
+      // jingles before the level actually starts.
+      if (g.state === 'playing' && !g.dying && !levelIntroRef.current) {
         // Decrement invulnerability after respawn
         if (g.invulnTimer > 0) g.invulnTimer--;
         // Periodic dragon roar and princess "Help!" sounds removed per user request.
