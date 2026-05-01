@@ -985,6 +985,8 @@ const CavemanVsDragonGame = () => {
         if (g.round >= 2) {
           const pl = g.player;
           updateLevel2(l2Ref.current, g.frameCount, pl.x + pl.w / 2, pl.y + pl.h / 2);
+          // Tick sprout regrow timers (per-frame).
+          tickSprouts();
 
           // Award 100 points the first time the player jumps over a fireball
           // (mirrors L1 barrel-jump scoring).
