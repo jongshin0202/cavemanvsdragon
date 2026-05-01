@@ -10,7 +10,7 @@ import {
   CANVAS_W, CANVAS_H, PLATFORMS, getPlatformY,
   ROBOT_SPEED, type Robot, GRAVITY,
 } from '../constants';
-import { LEVEL2_PARAMS } from './params';
+import { LEVEL2_PARAMS, getLevel2Difficulty, setCurrentLevel2Iteration } from './params';
 import { L2State, makeEmptyL2State, L2VolcanoRock } from './types';
 import { TOP_GAP_X1, TOP_GAP_X2, getSprouts } from './layout';
 import { LADDERS } from '../constants';
@@ -49,20 +49,21 @@ export interface L2Sprites {
 
 const MONKEY_PLAT_INDICES = [1, 2, 3, 4];
 
-/** Re-initialize for a new L2 round. */
+/** Re-initialize for a new L2 round. `round` here is the L2 ITERATION number
+ *  (1, 2, 3, …) — host computes via getLevelIteration() before calling. */
 export function initLevel2(s: L2State, round: number): void {
   const prev = s.round;
   Object.assign(s, makeEmptyL2State());
   s.round = round > 0 ? round : prev;
   s.initialized = true;
+  // Publish the iteration so layout / sprout-runtime can read difficulty too.
+  setCurrentLevel2Iteration(s.round);
+  const diff = getLevel2Difficulty(s.round);
   s.fireballTimer = 60;
-  // Random per-round purple target: between 1 and PURPLE_JACKET_BASE (cap 2).
-  const cap = Math.max(1, LEVEL2_PARAMS.PURPLE_JACKET_BASE);
-  s.purpleTarget = 1 + Math.floor(Math.random() * cap); // 1..cap
-  if (s.purpleTarget > cap) s.purpleTarget = cap;
+  // Per-iteration purple target = full purple count for this iteration.
+  s.purpleTarget = Math.max(1, diff.purpleJacketCount);
   // Green watering can does NOT spawn at level start. It spawns only after
-  // the player kills the required number of green-jacketed monkeys
-  // (see onMonkeyKilled → spawnGreenCan gate).
+  // the player kills the required number of green-jacketed monkeys.
 }
 
 // ============================================================
@@ -78,15 +79,27 @@ export function spawnLevel2Robots(
   const jackets: ('green' | 'purple' | null)[] = [];
 
   // Initial: only green jackets exist (purple appears after volcano sealed).
-  const greenCount = LEVEL2_PARAMS.GREEN_JACKET_BASE;
+  const diff = getLevel2Difficulty(s.round);
   const platCount = MONKEY_PLAT_INDICES.length;
-  const greenSet = new Set<number>();
-  while (greenSet.size < Math.min(greenCount, platCount)) {
-    greenSet.add(Math.floor(rng() * platCount));
+  // How many monkeys to spawn at level start = min(maxMonkeys, platCount).
+  // Iteration 1 = 2 monkeys; +1 per iter up to 4 here (rest fill via respawn).
+  const initialCount = Math.max(1, Math.min(diff.maxMonkeys, platCount));
+  // Pick which platforms get a monkey (random, no duplicates).
+  const platOrder = [...Array(platCount).keys()];
+  for (let i = platOrder.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [platOrder[i], platOrder[j]] = [platOrder[j], platOrder[i]];
+  }
+  const chosenPlats = platOrder.slice(0, initialCount);
+  // Of the chosen monkeys, mark up to greenJacketCount as green.
+  const greenCount = Math.min(diff.greenJacketCount, initialCount);
+  const greenSet = new Set<number>(); // indices into chosenPlats
+  while (greenSet.size < greenCount) {
+    greenSet.add(Math.floor(rng() * chosenPlats.length));
   }
 
-  for (let i = 0; i < platCount; i++) {
-    const pi = MONKEY_PLAT_INDICES[i];
+  for (let i = 0; i < chosenPlats.length; i++) {
+    const pi = MONKEY_PLAT_INDICES[chosenPlats[i]];
     const plat = PLATFORMS[pi];
     const rx = plat.x1 + 30 + rng() * (plat.x2 - plat.x1 - 60);
     const ry = getPlatformY(plat, rx) - 16;
@@ -135,9 +148,10 @@ export function onMonkeyKilled(s: L2State, idx: number): void {
   }
   // Once the green-kill target is met AND no green-jacket monkeys remain
   // alive, spawn the green watering can on a random platform.
+  const diff = getLevel2Difficulty(s.round);
   const greensAlive = arr.filter(j => j === 'green').length;
   if (!s.greenCanSpawned &&
-      s.greenJacketsKilled >= LEVEL2_PARAMS.GREEN_JACKET_BASE &&
+      s.greenJacketsKilled >= diff.greenJacketCount &&
       greensAlive === 0) {
     spawnGreenCan(s);
   }
@@ -149,18 +163,16 @@ export function newSpawnJacket(s: L2State): 'green' | 'purple' | null {
   const arr: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
   const greenAlive = arr.filter(j => j === 'green').length;
   const purpleAlive = arr.filter(j => j === 'purple').length;
+  const diff = getLevel2Difficulty(s.round);
   if (s.purpleJacketPhase) {
-    // How many more purples still need to be created this round?
     const purplesRemaining = Math.max(0, s.purpleTarget - s.purpleJacketsKilled - purpleAlive);
     if (purplesRemaining > 0 && purpleAlive < s.purpleTarget) {
-      // Strongly prefer purple until quota fills, so the player can complete the round.
       if (Math.random() < 0.85) return 'purple';
     }
   }
   // Only spawn green-jacket monkeys until the round's green-kill quota is hit.
-  // Once met, the green watering can has spawned and no more greens should appear.
-  const greensNeeded = Math.max(0, LEVEL2_PARAMS.GREEN_JACKET_BASE - s.greenJacketsKilled - greenAlive);
-  if (greensNeeded > 0 && greenAlive < LEVEL2_PARAMS.GREEN_JACKET_BASE) {
+  const greensNeeded = Math.max(0, diff.greenJacketCount - s.greenJacketsKilled - greenAlive);
+  if (greensNeeded > 0 && greenAlive < diff.greenJacketCount) {
     if (Math.random() < 0.4) return 'green';
   }
   return null;
@@ -194,7 +206,13 @@ export function tickApples(
   const jackets: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
   const cd: number[] = (s as any)._appleCooldowns || [];
   const alive: boolean[] = (s as any)._hasAppleAlive || [];
+  const diff = getLevel2Difficulty(s.round);
 
+  // Iteration 1: apples are completely disabled.
+  if (!diff.applesEnabled) {
+    // Drain any in-flight apples (shouldn't exist, but be safe).
+    s.apples.length = 0;
+  } else {
   // Throw new apples
   for (let i = 0; i < hostRobots.length; i++) {
     if (!jackets[i]) continue;        // only colored monkeys throw
@@ -239,7 +257,7 @@ export function tickApples(
     }
     s.apples.push({
       x: ax, y: ay, w: aw, h: ah,
-      vx: dir * LEVEL2_PARAMS.APPLE_SPEED,
+      vx: dir * diff.appleSpeed,
       ownerId: i,
       ...(heightTier === 'high' ? { _high: true } : {}),
       ...(heightTier === 'middle' ? { _mid: true } : {}),
@@ -261,6 +279,7 @@ export function tickApples(
       s.apples.splice(i, 1);
     }
   }
+  } // end else (apples enabled)
 }
 
 /** Returns true if any active apple overlaps the (possibly-ducked) player.
@@ -320,11 +339,14 @@ function addHoleAt(s: L2State, x: number, y: number): void {
   const plat = PLATFORMS[bestIdx];
   const w = LEVEL2_PARAMS.HOLE_WIDTH;
   const cx = Math.max(plat.x1 + w / 2 + 4, Math.min(plat.x2 - w / 2 - 4, x));
-  const min = LEVEL2_PARAMS.HOLE_MIN_LIFETIME_SEC * 60;
-  const max = LEVEL2_PARAMS.HOLE_MAX_LIFETIME_SEC * 60;
-  // Base lifetime + an extra random 5–10s before the hole closes.
+  const diff = getLevel2Difficulty(s.round);
+  const min = diff.holeLifeMinSec * 60;
+  const max = diff.holeLifeMaxSec * 60;
+  // Base lifetime + an extra random buffer (also iter-scaled).
   const baseTtl = Math.round(min + Math.random() * (max - min));
-  const extra = Math.round((5 + Math.random() * 5) * 60); // +5..10 seconds
+  const exMin = diff.holeExtraMinSec * 60;
+  const exMax = diff.holeExtraMaxSec * 60;
+  const extra = Math.round(exMin + Math.random() * (exMax - exMin));
   s.holes.push({ platformIdx: bestIdx, centerX: cx, width: w, ttl: baseTtl + extra });
 }
 
@@ -501,9 +523,10 @@ export function updateLevel2(
   if (!s.initialized) return false;
 
   // ── Fireballs (only if NOT sealed) ──────────────────────
+  const diffFB = getLevel2Difficulty(s.round);
   if (!s.volcanoSealed) {
     const inFlight = s.fireballs.filter(f => !f.landed).length;
-    if (inFlight < LEVEL2_PARAMS.MAX_FIREBALLS) {
+    if (inFlight < diffFB.maxFireballs) {
       if (s.fireballTimer > 0) {
         s.fireballTimer--;
       } else {
@@ -608,6 +631,11 @@ export function updateLevel2(
 
 
 
+        // Per-rock random flight time within iteration's [min, max] —
+        // when multiple rocks coexist, each rock has its own speed up to
+        // the iteration's max (shorter flight = faster rock).
+        const flightSec = diffFB.fireballFlightMinSec +
+          Math.random() * (diffFB.fireballFlightMaxSec - diffFB.fireballFlightMinSec);
         const fb: any = {
           startX: mouth.x, startY: mouth.y,
           endX: aimedX, endY,
@@ -616,14 +644,14 @@ export function updateLevel2(
           apexX,
           apexY,
           t: 0,
-          duration: Math.round(LEVEL2_PARAMS.FIREBALL_FLIGHT_SEC * 60),
+          duration: Math.round(flightSec * 60),
           landed: false,
           x: mouth.x, y: mouth.y,
           radius: LEVEL2_PARAMS.FIREBALL_START_RADIUS,
           vx: 0, vy: -3.6,
         };
         s.fireballs.push(fb);
-        const base = LEVEL2_PARAMS.FIREBALL_INTERVAL_SEC * 60;
+        const base = diffFB.fireballIntervalSec * 60;
         s.fireballTimer = Math.round(base * (0.5 + Math.random()));
       }
     }

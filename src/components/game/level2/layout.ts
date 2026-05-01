@@ -9,7 +9,7 @@
 // ============================================================
 
 import { PLATFORMS, LADDERS, CANVAS_W } from '../constants';
-import { LEVEL2_PARAMS } from './params';
+import { LEVEL2_PARAMS, getCurrentLevel2Difficulty } from './params';
 
 let l1PlatformsBackup: typeof PLATFORMS | null = null;
 let l1LaddersBackup: typeof LADDERS | null = null;
@@ -56,11 +56,10 @@ export interface SproutRuntime {
 let sproutsRuntime: SproutRuntime[] = [];
 
 const GROW_FRAMES = 68;
-const ALIVE_MIN_SEC = 3;
-const ALIVE_MAX_SEC = 5;
 
 function rollAliveFrames(): number {
-  return Math.round((ALIVE_MIN_SEC + Math.random() * (ALIVE_MAX_SEC - ALIVE_MIN_SEC)) * 60);
+  const d = getCurrentLevel2Difficulty();
+  return Math.round((d.sproutAliveMinSec + Math.random() * (d.sproutAliveMaxSec - d.sproutAliveMinSec)) * 60);
 }
 
 export function getSprouts(): SproutRuntime[] { return sproutsRuntime; }
@@ -152,8 +151,9 @@ export function tickSprouts(): void {
             s.regrowTimer = -1;
           } else {
             s.phase = 'dormant';
-            const min = LEVEL2_PARAMS.SPROUT_REGROW_MIN_SEC * 60;
-            const max = LEVEL2_PARAMS.SPROUT_REGROW_MAX_SEC * 60;
+            const d = getCurrentLevel2Difficulty();
+            const min = d.sproutRegrowMinSec * 60;
+            const max = d.sproutRegrowMaxSec * 60;
             s.regrowTimer = Math.round(min + Math.random() * (max - min));
           }
         }
