@@ -10,7 +10,7 @@ import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal
 import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/deviceStats';
 import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
 import { LEVEL2_PARAMS } from './game/level2/params';
-import { initLevel2, updateLevel2, renderLevel2, type L2Sprites } from './game/level2/level2';
+import { initLevel2, updateLevel2, renderLevel2, spawnLevel2Robots, type L2Sprites } from './game/level2/level2';
 import { makeEmptyL2State, type L2State } from './game/level2/types';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
@@ -208,6 +208,10 @@ const CavemanVsDragonGame = () => {
     // is gated on round===1 below in the loop.
     if (g.round >= 2) {
       initLevel2(l2Ref.current, g.round - 1); // L2 round = total round - 1
+      // Spawn one monkey per P2..P5 (with 1-2 wearing green jackets)
+      const { robots } = spawnLevel2Robots(l2Ref.current);
+      g.robots.push(...robots);
+      g.robotsInitialized = true; // prevent L1 spawner from also adding monkeys
     }
     // Spawn first rock immediately so action starts the moment the level begins
     if (g.round === 1) {
@@ -967,9 +971,10 @@ const CavemanVsDragonGame = () => {
           }
         }
 
-        // === LEVEL 2 UPDATE (mechanics added in follow-up stages) ===
+        // === LEVEL 2 UPDATE ===
         if (g.round >= 2) {
-          updateLevel2(l2Ref.current, g.frameCount);
+          const pl = g.player;
+          updateLevel2(l2Ref.current, g.frameCount, pl.x + pl.w / 2, pl.y + pl.h / 2);
         }
 
 
@@ -1570,7 +1575,7 @@ const CavemanVsDragonGame = () => {
           robot: robotWalkRef.current,
           rockWheel: rockWheelRef.current,
           wateringCan: wateringCanRef.current,
-        });
+        }, g.robots);
       }
 
       // Player (Caveman sprite) - flash 3 times when dying
