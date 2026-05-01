@@ -663,19 +663,42 @@ const CavemanVsDragonGame = () => {
       const keys = keysRef.current;
       const p = g.player;
 
-      const wa = g.winAnim || { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
+      const wa: any = g.winAnim || { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
       if (!g.winAnim) g.winAnim = wa;
       if (wa.active) {
         wa.timer++;
-        if (wa.gorillaY < CANVAS_H + 50) {
-          wa.gorillaY += 4;
-          wa.gorillaRotation += 0.15;
+        // ── Outro phases (replaces old "dragon falls" animation) ──
+        // grab    (0..60f)    : dragon swoops to the right with princess in tow,
+        //                       both slide off-screen by frame ~60
+        // pause   (60..120f)  : 1 second of quiet
+        // follow  (120..210f) : caveman walks right and exits screen
+        // congrats(210..)     : show CONGRATS overlay; after another ~90f → continue
+        if (wa.dragonX === undefined) wa.dragonX = 0;
+        if (wa.princessX === undefined) wa.princessX = 0;
+        if (wa.cavemanFollowOffset === undefined) wa.cavemanFollowOffset = 0;
+
+        if (wa.timer <= 60) {
+          // Phase: grab — accelerate dragon + princess to the right
+          const t = wa.timer / 60;
+          // ease-in: travel ~CANVAS_W + 80 over 60 frames
+          const dist = (CANVAS_W + 80) * (t * t);
+          wa.dragonX = dist;
+          wa.princessX = dist;
+          wa.showKiss = wa.timer > 12 && wa.timer < 40; // brief "!" beat
+        } else if (wa.timer <= 120) {
+          // Phase: pause (1s)
+          wa.showKiss = false;
+        } else if (wa.timer <= 210) {
+          // Phase: follow — caveman walks right and off-screen
+          const t = (wa.timer - 120) / 90;
+          wa.cavemanFollowOffset = (CANVAS_W + 80) * t;
+        } else {
+          // Phase: congrats overlay
+          wa.showCongrats = true;
         }
-        if (wa.timer > 30) wa.showKiss = true;
-        // Wait until the jingle finishes (~66 frames) + a 2-second pause (120 frames) before showing the win screen
-        if (wa.timer > 186) wa.showCongrats = true;
-        // After Congrats has been visible ~1.5s, switch to "press any button to continue"
-        if (wa.timer > 186 + 90 && g.state === 'win') {
+
+        // After CONGRATS has been visible ~1.5s, switch to LEVEL CLEAR
+        if (wa.timer > 210 + 90 && g.state === 'win') {
           g.state = 'continue';
           setGameState('continue');
           continueArmedAtRef.current = performance.now() + 1000; // 1s input lock
