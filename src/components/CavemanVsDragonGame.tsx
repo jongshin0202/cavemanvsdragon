@@ -876,23 +876,30 @@ const CavemanVsDragonGame = () => {
         }
 
         if (p.climbing) {
-          // If near the top of the ladder and pressing left/right, dismount
           const climbingLadder = nearestLadder;
-          const nearTop = climbingLadder && (p.y + p.h) < climbingLadder.yTop + 10;
-          const nearBot = climbingLadder && (p.y + p.h) > climbingLadder.yBot - 6;
+          // Define a generous "near end" zone: the top/bottom 10% of the
+          // ladder length counts as "at the end", so the player can dismount
+          // (snap to the platform, or step off sideways) once they're 90%
+          // of the way up/down.
+          const ladderLen = climbingLadder ? Math.max(1, climbingLadder.yBot - climbingLadder.yTop) : 0;
+          const endZone = Math.max(8, ladderLen * 0.10);
+          const feetY = p.y + p.h;
+          const nearTop = !!climbingLadder && feetY < climbingLadder.yTop + endZone;
+          const nearBot = !!climbingLadder && feetY > climbingLadder.yBot - endZone;
           const wantsHorizontal = rawLeft || rawRight;
-          
-          // No jump-off and no horizontal dismount mid-climb. The player can
-          // only leave the ladder by reaching the very top or very bottom.
+
+          // No jump-off mid-climb. The player can only leave the ladder by
+          // reaching the top/bottom 10% zone (then up/down or left/right
+          // dismounts).
           if (!nearestLadder && !nearTop) {
             p.climbing = false;
-          } else if (nearTop && rawUp) {
+          } else if (nearTop && (rawUp || wantsHorizontal)) {
             // Reached the top — snap to the platform and dismount.
             p.climbing = false;
             if (climbingLadder) p.y = climbingLadder.yTop - p.h;
             // L2: sprout withers after one use (climbed up)
             if (isLevel2Round(g.round) && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
-          } else if (nearBot && rawDown) {
+          } else if (nearBot && (rawDown || wantsHorizontal)) {
             // Reached the bottom — dismount onto the lower platform.
             p.climbing = false;
             if (climbingLadder) p.y = climbingLadder.yBot - p.h;
