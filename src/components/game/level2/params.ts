@@ -82,10 +82,10 @@ export const LEVEL2_PARAMS = {
    *  but regrow also reflects "living longer" intent at iter 1). */
   SPROUT_REGROW_MIN_SEC: 2,
   SPROUT_REGROW_MAX_SEC: 5,
-  /** Iter-1 alive (visible) window — 90% longer than the previous (3..5)s
-   *  baseline → (5.7..9.5)s. Per-iter ramp shrinks this by 10% each iter. */
-  SPROUT_ALIVE_MIN_SEC: 5.7,
-  SPROUT_ALIVE_MAX_SEC: 9.5,
+  /** Iter-1 alive (visible) window — previously (5.7..9.5)s, increased
+   *  another 50% → (8.55..14.25)s. Per-iter ramp shrinks this by 10% each iter. */
+  SPROUT_ALIVE_MIN_SEC: 8.55,
+  SPROUT_ALIVE_MAX_SEC: 14.25,
 
   // ─── TOP PLATFORM SPLIT ─────────────────────────────────────
   TOP_GAP_WIDTH: 36,
