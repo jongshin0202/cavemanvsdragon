@@ -75,7 +75,15 @@ export function spawnLevel2Robots(
     jackets.push(greenSet.has(i) ? 'green' : null);
   }
   (s as any)._jackets = jackets;
+  (s as any)._appleCooldowns = jackets.map(() => randomCooldownFrames());
+  (s as any)._hasAppleAlive = jackets.map(() => false);
   return { robots, jackets };
+}
+
+function randomCooldownFrames(): number {
+  const min = LEVEL2_PARAMS.APPLE_COOLDOWN_MIN_SEC * 60;
+  const max = LEVEL2_PARAMS.APPLE_COOLDOWN_MAX_SEC * 60;
+  return Math.round(min + Math.random() * (max - min));
 }
 
 export function getJacketAt(s: L2State, idx: number): 'green' | 'purple' | null {
@@ -91,12 +99,15 @@ export function onMonkeyKilled(s: L2State, idx: number): void {
   if (jacket === 'green') s.greenJacketsKilled++;
   else if (jacket === 'purple') s.purpleJacketsKilled++;
   arr.splice(idx, 1);
-
-  // After volcano sealed, every replacement spawn has a chance to be purple
-  // up to the cap of PURPLE_JACKET_BASE alive at once.
-  // (We don't auto-respawn here; the host's existing respawn logic doesn't
-  // exist for L2 monkeys yet, so jackets are assigned at spawn time. The
-  // newSpawnJacket() helper below is used by the host when adding a robot.)
+  const cd: number[] = (s as any)._appleCooldowns || [];
+  const al: boolean[] = (s as any)._hasAppleAlive || [];
+  cd.splice(idx, 1);
+  al.splice(idx, 1);
+  // Re-key in-flight apples whose owner index shifted, or orphan them.
+  for (const a of s.apples) {
+    if (a.ownerId === idx) a.ownerId = -1;
+    else if (a.ownerId > idx) a.ownerId--;
+  }
 }
 
 /** Returns the jacket color a newly-spawned monkey should wear given
@@ -105,7 +116,6 @@ export function newSpawnJacket(s: L2State): 'green' | 'purple' | null {
   const arr: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
   const greenAlive = arr.filter(j => j === 'green').length;
   const purpleAlive = arr.filter(j => j === 'purple').length;
-  // Purple priority once unlocked
   if (s.purpleJacketPhase && purpleAlive < LEVEL2_PARAMS.PURPLE_JACKET_BASE) {
     if (Math.random() < 0.5) return 'purple';
   }
@@ -121,6 +131,82 @@ export function pushJacket(s: L2State, jacket: 'green' | 'purple' | null): void 
   const arr: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
   arr.push(jacket);
   (s as any)._jackets = arr;
+  const cd: number[] = (s as any)._appleCooldowns || [];
+  const al: boolean[] = (s as any)._hasAppleAlive || [];
+  cd.push(randomCooldownFrames());
+  al.push(false);
+  (s as any)._appleCooldowns = cd;
+  (s as any)._hasAppleAlive = al;
+}
+
+// ============================================================
+// APPLES — thrown by colored (jacketed) monkeys; player ducks under them.
+// ============================================================
+
+/** Called every frame by host with current host robots[] (parallel to _jackets).
+ *  Spawns apples for jacketed monkeys whose cooldown elapsed; updates
+ *  in-flight apples; removes off-screen apples and refreshes cooldowns. */
+export function tickApples(
+  s: L2State,
+  hostRobots: { x: number; y: number; w: number; h: number; direction: number }[],
+): void {
+  const jackets: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
+  const cd: number[] = (s as any)._appleCooldowns || [];
+  const alive: boolean[] = (s as any)._hasAppleAlive || [];
+
+  // Throw new apples
+  for (let i = 0; i < hostRobots.length; i++) {
+    if (!jackets[i]) continue;        // only colored monkeys throw
+    if (alive[i]) continue;            // one apple at a time per monkey
+    if (cd[i] > 0) { cd[i]--; continue; }
+    const r = hostRobots[i];
+    const dir = r.direction >= 0 ? 1 : -1;
+    const ax = r.x + r.w / 2 + dir * 8;
+    const ay = r.y + 2; // mid-body
+    s.apples.push({
+      x: ax, y: ay, w: 7, h: 7,
+      vx: dir * LEVEL2_PARAMS.APPLE_SPEED,
+      ownerId: i,
+    });
+    alive[i] = true;
+  }
+
+  // Update apples: travel horizontally; remove when off-screen; refresh cooldown.
+  for (let i = s.apples.length - 1; i >= 0; i--) {
+    const a = s.apples[i];
+    a.x += a.vx;
+    if (a.x + a.w < -8 || a.x > CANVAS_W + 8) {
+      // Apple safely passed — release thrower's cooldown.
+      if (a.ownerId >= 0 && a.ownerId < alive.length) {
+        alive[a.ownerId] = false;
+        cd[a.ownerId] = randomCooldownFrames();
+      }
+      s.apples.splice(i, 1);
+    }
+  }
+}
+
+/** Returns true if any active apple overlaps the (possibly-ducked) player.
+ *  When the player is ducked, the host should pass a shrunken hitbox. */
+export function appleHitsPlayer(
+  s: L2State,
+  p: { x: number; y: number; w: number; h: number },
+): number {
+  for (let i = 0; i < s.apples.length; i++) {
+    const a = s.apples[i];
+    if (p.x < a.x + a.w && p.x + p.w > a.x &&
+        p.y < a.y + a.h && p.y + p.h > a.y) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+/** Award 100 points for each apple that just passed the player (jumped/ducked over).
+ *  Called by host once per apple the first time the player avoids it. */
+export function markAppleDodged(s: L2State, idx: number): void {
+  const a = s.apples[idx] as any;
+  if (a) a._dodged = true;
 }
 
 // ============================================================
