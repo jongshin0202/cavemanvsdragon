@@ -89,10 +89,6 @@ const CavemanVsDragonGame = () => {
   const [nameError, setNameError] = useState<string>('');
   const [pendingScore, setPendingScore] = useState(0);
   const [pendingLevel, setPendingLevel] = useState(1);
-  // The most recently submitted high score from this device (name + score).
-  // Used to highlight "my row" in yellow on the attract leaderboards.
-  // Cleared when a new round starts.
-  const [mySubmission, setMySubmission] = useState<{ name: string; score: number } | null>(null);
   // Level intro overlay: 'level' shows "Level N" for 3s, then 'black' for 0.5s, then null.
   const [levelIntro, setLevelIntro] = useState<null | 'level' | 'black'>(null);
   const [levelIntroNumber, setLevelIntroNumber] = useState(1);
@@ -269,7 +265,6 @@ const CavemanVsDragonGame = () => {
     const g = gameRef.current;
     g.score = 0; g.lives = 3; g.round = 1;
     setScore(0); setLives(3);
-    setMySubmission(null);
     setGameState('playing');
     // Anonymous usage stats: count this as a launch (round 1 implicit).
     recordRound();
@@ -330,7 +325,6 @@ const CavemanVsDragonGame = () => {
     const next = insertScore(entry);
     setScores(next);
     setNameError('');
-    setMySubmission({ name: cleanName, score: pendingScore });
 
     // 2) If it qualifies globally, write to the cloud and show GLOBAL view.
     //    Otherwise, show LOCAL view.
@@ -2459,7 +2453,6 @@ const CavemanVsDragonGame = () => {
             scores={scores}
             globalScores={globalScores}
             globalLoading={globalLoading}
-            mySubmission={mySubmission}
             onStart={() => { unlockAudio(); anyInputHandlerRef.current?.('Tap', 'pad'); }}
             onRequestClearLocal={() => setConfirmClearOpen(true)}
             background={introBackgroundUrl}
@@ -2475,7 +2468,6 @@ const CavemanVsDragonGame = () => {
             scores={scores}
             globalScores={globalScores}
             globalLoading={globalLoading}
-            mySubmission={mySubmission}
             onStart={() => { unlockAudio(); anyInputHandlerRef.current?.('Tap', 'pad'); }}
             onRequestClearLocal={() => setConfirmClearOpen(true)}
             background={introBackgroundUrl}
@@ -2666,8 +2658,6 @@ interface AttractLeaderboardScreenProps {
   scores: LeaderboardEntry[];
   globalScores: GlobalEntry[];
   globalLoading: boolean;
-  /** The score+name this device just submitted, if any. Highlighted in yellow. */
-  mySubmission: { name: string; score: number } | null;
   background: string;
   logo: string;
   onStart: () => void;
@@ -2682,7 +2672,6 @@ const AttractLeaderboardScreen = ({
   scores,
   globalScores,
   globalLoading,
-  mySubmission,
   background,
   logo,
   onStart,
@@ -2779,13 +2768,8 @@ const AttractLeaderboardScreen = ({
             if (isGlobal) {
               const e = globalScores[i];
               const display = e ? (e.name || '---') : '---';
-              const isMine = !!(e && mySubmission && e.score === mySubmission.score && (e.name || '') === mySubmission.name);
               return (
-                <li
-                  key={i}
-                  className="flex items-center justify-between gap-2 border-b border-accent/20 px-2 py-[2px]"
-                  style={isMine ? { color: 'hsl(var(--accent))' } : undefined}
-                >
+                <li key={i} className="flex items-center justify-between gap-2 border-b border-accent/20 px-2 py-[2px]">
                   <span className="w-6 text-accent">{(i + 1).toString().padStart(2, '0')}</span>
                   <span className="flex-1 truncate tracking-wider">{display}</span>
                   <span className="w-16 text-right">{e ? e.score.toString().padStart(6, '0') : '------'}</span>
@@ -2795,13 +2779,8 @@ const AttractLeaderboardScreen = ({
             }
             const e = scores[i];
             const display = e ? entryDisplayName(e) : '---';
-            const isMine = !!(e && mySubmission && e.score === mySubmission.score && ((e.name || '') === mySubmission.name || e.initials === mySubmission.name));
             return (
-              <li
-                key={i}
-                className="flex items-center justify-between gap-2 border-b border-accent/20 px-2 py-[2px]"
-                style={isMine ? { color: 'hsl(var(--accent))' } : undefined}
-              >
+              <li key={i} className="flex items-center justify-between gap-2 border-b border-accent/20 px-2 py-[2px]">
                 <span className="w-6 text-accent">{(i + 1).toString().padStart(2, '0')}</span>
                 <span className="flex-1 truncate tracking-wider">{display}</span>
                 <span className="w-16 text-right">{e ? e.score.toString().padStart(6, '0') : '------'}</span>
