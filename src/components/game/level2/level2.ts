@@ -592,12 +592,14 @@ export function updateLevel2(
     const targetPi: number = fb.targetPlatIdx ?? -1;
     if (targetPi >= 0 && targetPi !== TOP_IDX) {
       const plat = PLATFORMS[targetPi];
-      const landX = fb.targetX ?? fb.x;
+      // Land where the fireball *visually* is. Clamp inside the target
+      // platform so the hole lines up with what the player just saw.
+      const margin = 6;
+      const landX = Math.max(plat.x1 + margin, Math.min(plat.x2 - margin, fb.x));
       const platY = getPlatformY(plat, landX);
       if (fb.y >= platY - 4) {
         addHoleAt(s, landX, platY);
         (s as any)._lastFireballPlat = targetPi;
-        // Snap visual to the actual landing point.
         fb.x = landX;
         fb.y = platY;
         fb.landed = true;
