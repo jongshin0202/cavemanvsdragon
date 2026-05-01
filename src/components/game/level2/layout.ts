@@ -245,12 +245,16 @@ export function applyLevel2Layout(rng: () => number = Math.random): void {
     xsByGap.push(xs);
   }
 
-  // P5 → Top: TWO sprouts. Purple (dragon side, left) and Green (volcano side, right).
+  // P5 → Top: TWO sprouts. Purple (dragon side, just RIGHT of princess) and
+  // Green (volcano side, right). Princess sits at x≈175 with width 40, so
+  // her right edge is ≈215. Place purple just to the right of her, but still
+  // left of the permanent top-platform gap (so it leads to the dragon side).
   const p5 = PLATFORMS[4];
   const yBotTop = p5.y;
   const yTopTop = topPlat.y;
-  // Place purple roughly under dragon area (left ~25% of canvas)
-  const purpleX = Math.max(p5.x1 + 30, Math.min(p5.x2 - 44, 110));
+  const purpleTargetX = 230; // just right of princess (right edge ≈215)
+  const purpleMaxX = TOP_GAP_X1 - 18; // stay on dragon side of top gap
+  const purpleX = Math.max(p5.x1 + 30, Math.min(p5.x2 - 44, Math.min(purpleTargetX, purpleMaxX)));
   // Place green roughly under volcano (right ~80% of canvas)
   const greenX = Math.max(p5.x1 + 30, Math.min(p5.x2 - 44, CANVAS_W - 130));
 
