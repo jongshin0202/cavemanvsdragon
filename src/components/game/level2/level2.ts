@@ -36,6 +36,10 @@ export function initLevel2(s: L2State, round: number): void {
   s.round = round > 0 ? round : prev;
   s.initialized = true;
   s.fireballTimer = 60;
+  // Random per-round purple target: between 1 and PURPLE_JACKET_BASE (cap 2).
+  const cap = Math.max(1, LEVEL2_PARAMS.PURPLE_JACKET_BASE);
+  s.purpleTarget = 1 + Math.floor(Math.random() * cap); // 1..cap
+  if (s.purpleTarget > cap) s.purpleTarget = cap;
   // Spawn the GREEN watering can at level start on a random platform.
   spawnGreenCan(s);
 }
