@@ -36,6 +36,10 @@ export function initLevel2(s: L2State, round: number): void {
   s.round = round > 0 ? round : prev;
   s.initialized = true;
   s.fireballTimer = 60;
+  // Random per-round purple target: between 1 and PURPLE_JACKET_BASE (cap 2).
+  const cap = Math.max(1, LEVEL2_PARAMS.PURPLE_JACKET_BASE);
+  s.purpleTarget = 1 + Math.floor(Math.random() * cap); // 1..cap
+  if (s.purpleTarget > cap) s.purpleTarget = cap;
   // Spawn the GREEN watering can at level start on a random platform.
   spawnGreenCan(s);
 }
@@ -116,8 +120,13 @@ export function newSpawnJacket(s: L2State): 'green' | 'purple' | null {
   const arr: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
   const greenAlive = arr.filter(j => j === 'green').length;
   const purpleAlive = arr.filter(j => j === 'purple').length;
-  if (s.purpleJacketPhase && purpleAlive < LEVEL2_PARAMS.PURPLE_JACKET_BASE) {
-    if (Math.random() < 0.5) return 'purple';
+  if (s.purpleJacketPhase) {
+    // How many more purples still need to be created this round?
+    const purplesRemaining = Math.max(0, s.purpleTarget - s.purpleJacketsKilled - purpleAlive);
+    if (purplesRemaining > 0 && purpleAlive < s.purpleTarget) {
+      // Strongly prefer purple until quota fills, so the player can complete the round.
+      if (Math.random() < 0.85) return 'purple';
+    }
   }
   if (greenAlive < LEVEL2_PARAMS.GREEN_JACKET_BASE) {
     if (Math.random() < 0.4) return 'green';
@@ -299,49 +308,69 @@ export function tryPickupCan(s: L2State, p: { x: number; y: number; w: number; h
 // VOLCANO ROCK
 // ============================================================
 
-/** Called externally when the green sprout finishes growing. */
+/** Called externally when the green sprout finishes growing.
+ *  Launches a grey rock from the volcano on a parabolic arc toward a
+ *  random target platform (like a fireball). It "lands" when the arc
+ *  completes, then sits on that platform for the player to grab. */
 export function maybeSpawnVolcanoRock(s: L2State): void {
   if (s.rockSpawned || s.volcanoSealed) return;
   const mouth = getVolcanoMouth();
   const sz = LEVEL2_PARAMS.VOLCANO_ROCK_SIZE;
-  // pop up with random horizontal velocity to land somewhere random
-  const vx = (Math.random() - 0.5) * 4.5;
-  s.volcanoRock = {
+
+  // Pick a random target platform (P1..P5) and a random x on it that is
+  // not inside the permanent top gap or an existing hole.
+  const candidates = [0, 1, 2, 3, 4];
+  let targetX = mouth.x;
+  let targetY = mouth.y + 100;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const pi = candidates[Math.floor(Math.random() * candidates.length)];
+    const plat = PLATFORMS[pi];
+    const margin = 20;
+    const tx = plat.x1 + margin + Math.random() * Math.max(1, plat.x2 - plat.x1 - margin * 2);
+    if (isHoleAtPlatform(s, pi, tx)) continue;
+    targetX = tx;
+    targetY = getPlatformY(plat, tx) - sz;
+    break;
+  }
+
+  const rock: L2VolcanoRock = {
     x: mouth.x - sz / 2, y: mouth.y - sz, w: sz, h: sz,
-    vx, vy: LEVEL2_PARAMS.VOLCANO_ROCK_VY, landed: false, collected: false,
+    vx: 0, vy: 0, landed: false, collected: false,
   };
+  // Stash arc parameters on the rock for updateVolcanoRock.
+  (rock as any)._startX = mouth.x;
+  (rock as any)._startY = mouth.y;
+  (rock as any)._endX = targetX;
+  (rock as any)._endY = targetY;
+  (rock as any)._apexY = Math.min(mouth.y, targetY) - 60;
+  (rock as any)._t = 0;
+  (rock as any)._duration = Math.round(LEVEL2_PARAMS.FIREBALL_FLIGHT_SEC * 60);
+  s.volcanoRock = rock;
   s.rockSpawned = true;
 }
 
 function updateVolcanoRock(s: L2State): void {
-  const r = s.volcanoRock;
+  const r = s.volcanoRock as any;
   if (!r || r.collected) return;
   if (!r.landed) {
-    r.vy += GRAVITY;
-    r.x += r.vx; r.y += r.vy;
-    // Land on first platform encountered when falling
-    if (r.vy >= 0) {
-      for (const plat of PLATFORMS) {
-        if (r.x + r.w > plat.x1 && r.x < plat.x2) {
-          const platY = getPlatformY(plat, r.x + r.w / 2);
-          if (r.y + r.h >= platY && r.y + r.h <= platY + 14) {
-            // Don't land in a hole or in the top-platform gap
-            const cx = r.x + r.w / 2;
-            const platIdx = PLATFORMS.indexOf(plat);
-            if (isHoleAtPlatform(s, platIdx, cx)) continue;
-            r.y = platY - r.h;
-            r.vy = 0;
-            r.vx = 0;
-            r.landed = true;
-            break;
-          }
-        }
-      }
-    }
-    if (r.y > CANVAS_H + 40) {
-      // Off screen — re-launch
-      s.rockSpawned = false;
-      s.volcanoRock = null;
+    r._t = Math.min(1, r._t + 1 / r._duration);
+    const t = r._t;
+    // Quadratic Bezier through (start, apex, end) for an arc.
+    const sx = r._startX, sy = r._startY;
+    const ex = r._endX, ey = r._endY;
+    const apexX = (sx + ex) / 2;
+    const apexY = r._apexY;
+    const omt = 1 - t;
+    const cx = omt * omt * sx + 2 * omt * t * apexX + t * t * ex;
+    const cy = omt * omt * sy + 2 * omt * t * apexY + t * t * ey;
+    r.x = cx - r.w / 2;
+    r.y = cy - r.h / 2;
+    if (t >= 1) {
+      r.x = ex - r.w / 2;
+      r.y = ey;
+      r.landed = true;
+      r.vx = 0;
+      r.vy = 0;
     }
   }
 }
@@ -383,7 +412,7 @@ export function trySealVolcano(s: L2State, playerCX: number, playerFeetY: number
  *  AND volcano is sealed AND purple can hasn't spawned yet → spawn it. */
 function maybeSpawnPurpleCan(s: L2State): void {
   if (!s.purpleJacketPhase || s.purpleCanSpawned) return;
-  if (s.purpleJacketsKilled < LEVEL2_PARAMS.PURPLE_JACKET_BASE) return;
+  if (s.purpleJacketsKilled < s.purpleTarget) return;
   spawnPurpleCan(s);
 }
 
