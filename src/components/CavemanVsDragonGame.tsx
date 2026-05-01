@@ -1537,7 +1537,7 @@ const CavemanVsDragonGame = () => {
       if (g.round >= 2) {
         const sprouts = getSprouts();
         for (let li = 0; li < LADDERS.length; li++) {
-          if (li === getTopVineIdx()) continue;
+          // (no top-vine skip in L2: green/purple top sprouts are real entries here)
           const sr = sprouts[li];
           if (!sr || sr.grown) continue;
           const l = LADDERS[li];
