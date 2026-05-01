@@ -253,6 +253,12 @@ const CavemanVsDragonGame = () => {
     } else {
       // L1: make sure layout is the original (in case we just came back).
       restoreLevel1Layout();
+      // From L1 iter 5 onwards, enable the L2-style sprout dying mechanic
+      // on L1 ladders. Map L1 iter 5 → L2 iter 1, L1 iter 6 → L2 iter 2, …
+      const l1Iter = getLevelIteration(g.round);
+      if (l1Iter >= 5) {
+        enableLevel1SproutMechanic(getTopVineIdx(), l1Iter - 4);
+      }
     }
     // Spawn first rock immediately so action starts the moment the level begins
     if (!isLevel2Round(g.round)) {
