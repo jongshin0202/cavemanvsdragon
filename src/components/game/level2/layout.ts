@@ -151,8 +151,9 @@ export function tickSprouts(): void {
             s.regrowTimer = -1;
           } else {
             s.phase = 'dormant';
-            const min = LEVEL2_PARAMS.SPROUT_REGROW_MIN_SEC * 60;
-            const max = LEVEL2_PARAMS.SPROUT_REGROW_MAX_SEC * 60;
+            const d = getCurrentLevel2Difficulty();
+            const min = d.sproutRegrowMinSec * 60;
+            const max = d.sproutRegrowMaxSec * 60;
             s.regrowTimer = Math.round(min + Math.random() * (max - min));
           }
         }
