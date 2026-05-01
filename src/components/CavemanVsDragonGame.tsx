@@ -1031,6 +1031,8 @@ const CavemanVsDragonGame = () => {
 
         // === LEVEL 2 UPDATE ===
         if (isLevel2Round(g.round)) {
+          // Belt-and-suspenders: Level 2 must NEVER show L1 rolling rocks.
+          if (g.barrels.length) g.barrels = [];
           const pl = g.player;
           updateLevel2(l2Ref.current, g.frameCount, pl.x + pl.w / 2, pl.y + pl.h / 2);
           // Tick sprout regrow timers (per-frame).
