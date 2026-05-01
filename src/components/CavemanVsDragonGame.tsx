@@ -202,8 +202,15 @@ const CavemanVsDragonGame = () => {
     g.keyBob = 0;
     g.sparkleTimer = 0;
     resetPlayer();
+    // For Level 2+, initialize the L2 module's own state. We still spawn
+    // an L1 rock here for the (legacy) L1 layout — the L2 module manages
+    // its own hazards independently and the host's L1 barrel-spawn block
+    // is gated on round===1 below in the loop.
+    if (g.round >= 2) {
+      initLevel2(l2Ref.current, g.round - 1); // L2 round = total round - 1
+    }
     // Spawn first rock immediately so action starts the moment the level begins
-    {
+    if (g.round === 1) {
       const d = getRoundDifficulty(g.round);
       const speed = BARREL_SPEED * (d.barrelSpeedMul + Math.random() * d.barrelSpeedJitter);
       g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed, rollPhase: 0 });
