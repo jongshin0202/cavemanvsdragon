@@ -59,7 +59,7 @@ export const LEVEL2_PARAMS = {
    *  the topmost gap to the volcano/dragon platform, which only
    *  appears after watering). */
   SPROUTS_PER_GAP_MIN: 1,
-  SPROUTS_PER_GAP_MAX: 2,
+  SPROUTS_PER_GAP_MAX: 3,
   /** After a sprout is used (climbed up or down), it withers back
    *  into a seed and regrows after a delay rolled in this range. */
   SPROUT_REGROW_MIN_SEC: 2,
