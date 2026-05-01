@@ -918,8 +918,9 @@ const CavemanVsDragonGame = () => {
         }
 
         p.x = Math.max(0, Math.min(CANVAS_W - p.w, p.x));
-        if (p.y > CANVAS_H) {
+        if (p.y > CANVAS_H && !g.dying && g.invulnTimer === 0) {
           g.lives--; setLives(g.lives);
+          g.invulnTimer = 120;
           if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
           else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
         }
@@ -1031,8 +1032,9 @@ const CavemanVsDragonGame = () => {
           }
 
           // Fireball lethal hit on player
-          if (g.invulnTimer === 0 && fireballHitsPlayer(l2Ref.current, pl)) {
+          if (g.invulnTimer === 0 && !g.dying && fireballHitsPlayer(l2Ref.current, pl)) {
             g.lives--; setLives(g.lives);
+            g.invulnTimer = 120;
             if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
             else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
           }
@@ -1055,10 +1057,11 @@ const CavemanVsDragonGame = () => {
                 g.score += 100; setScore(g.score);
               }
             }
-            if (g.invulnTimer === 0) {
+            if (g.invulnTimer === 0 && !g.dying) {
               const hit = appleHitsPlayer(l2Ref.current, hitbox);
               if (hit >= 0) {
                 g.lives--; setLives(g.lives);
+                g.invulnTimer = 120;
                 if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
                 else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
               }
@@ -1369,8 +1372,9 @@ const CavemanVsDragonGame = () => {
           // we don't take a hit from a barrel that happens to overlap during the arc.
           const bPlatY = findPlatformIndex(b.y + b.h, b.x + b.w / 2);
           const pPlatY = findPlatformIndex(p.y + p.h, p.x + p.w / 2);
-          if (rectsOverlap(p, b) && bPlatY === pPlatY && g.invulnTimer === 0 && p.onGround && !p.jumping) {
+          if (rectsOverlap(p, b) && bPlatY === pPlatY && g.invulnTimer === 0 && !g.dying && p.onGround && !p.jumping) {
             g.lives--; setLives(g.lives);
+            g.invulnTimer = 120;
             if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
             else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
             break;
@@ -1511,8 +1515,9 @@ const CavemanVsDragonGame = () => {
                 q.push(delay);
                 (g as any).l2RespawnQueue = q;
               }
-            } else if (g.invulnTimer === 0) {
+            } else if (g.invulnTimer === 0 && !g.dying) {
               g.lives--; setLives(g.lives);
+              g.invulnTimer = 120;
               if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
               else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
               break;

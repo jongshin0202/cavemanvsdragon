@@ -559,26 +559,24 @@ export function updateLevel2(
     fb.radius =
       LEVEL2_PARAMS.FIREBALL_START_RADIUS +
       (LEVEL2_PARAMS.FIREBALL_END_RADIUS - LEVEL2_PARAMS.FIREBALL_START_RADIUS) * grow;
-    // Check landing — only on the pre-chosen target platform (skips others).
-    let landedOnPlat = false;
+    // Check landing — always on the pre-chosen target platform. The fireball
+    // is force-landed at its targetX once its y reaches that platform's surface,
+    // regardless of horizontal drift. Guarantees every fireball makes a hole.
     const TOP_IDX = PLATFORMS.length - 1;
     const targetPi: number = fb.targetPlatIdx ?? -1;
     if (targetPi >= 0 && targetPi !== TOP_IDX) {
       const plat = PLATFORMS[targetPi];
-      if (fb.x > plat.x1 && fb.x < plat.x2) {
-        const platY = getPlatformY(plat, fb.x);
-        if (fb.y >= platY - 4 && fb.y <= platY + 12) {
-          // Snap landing x to the chosen targetX so it never lands next to a hole.
-          const landX = fb.targetX ?? fb.x;
-          addHoleAt(s, landX, platY);
-          (s as any)._lastFireballPlat = targetPi;
-          fb.landed = true;
-          landedOnPlat = true;
-        }
+      const landX = fb.targetX ?? fb.x;
+      const platY = getPlatformY(plat, landX);
+      if (fb.y >= platY - 4) {
+        addHoleAt(s, landX, platY);
+        (s as any)._lastFireballPlat = targetPi;
+        // Snap visual to the actual landing point.
+        fb.x = landX;
+        fb.y = platY;
+        fb.landed = true;
       }
-    }
-    if (!landedOnPlat && fb.y > CANVAS_H - 24) {
-      // Off-screen below — drop without punching a hole.
+    } else if (fb.y > CANVAS_H - 24) {
       fb.landed = true;
     }
   }
