@@ -1476,22 +1476,28 @@ const CavemanVsDragonGame = () => {
       const paulY = 112 - princessDrawH;          // feet on top platform (y=112)
       const princessImg = princessRef.current;
       if (princessImg && princessImg.complete && princessImg.naturalWidth > 0) {
-        // New sprite: 5 frames in a single row
         const PRINCESS_FRAMES = 5;
         const pFrameW = princessImg.naturalWidth / PRINCESS_FRAMES;
         const pFrameH = princessImg.naturalHeight;
-        // Pick frame: kiss → frame 0; otherwise alternate between idle (0) and "help" (2)
+        // During outro, princess slides right with the dragon (carried away).
+        // Otherwise, alternate idle / help-shout frames.
+        const princessOffset = wa.active ? (wa.princessX || 0) : 0;
         let frameIdx = 0;
-        if (!(wa.active && wa.showKiss)) {
+        if (wa.active) {
+          // "!" / shocked beat early in the grab, otherwise help frame
+          frameIdx = wa.showKiss ? 2 : 0;
+        } else {
           frameIdx = g.showHelp ? 2 : 0;
         }
-        ctx.drawImage(princessImg, frameIdx * pFrameW, 0, pFrameW, pFrameH, paulX, paulY, princessDrawW, princessDrawH);
+        ctx.drawImage(
+          princessImg,
+          frameIdx * pFrameW, 0, pFrameW, pFrameH,
+          paulX + princessOffset, paulY, princessDrawW, princessDrawH,
+        );
         if (wa.active && wa.showKiss) {
-          ctx.fillStyle = '#FF0000'; ctx.font = '12px serif';
-          ctx.fillText('❤', paulX + princessDrawW + 2, paulY + 8);
-          ctx.fillStyle = '#FF69B4'; ctx.font = 'bold 14px "Press Start 2P", monospace';
-          ctx.fillText('THANK YOU!', paulX - 30, paulY - 8);
-        } else if (g.showHelp) {
+          ctx.fillStyle = '#FFD700'; ctx.font = 'bold 14px "Press Start 2P", monospace';
+          ctx.fillText('!', paulX + princessOffset + princessDrawW / 2 - 3, paulY - 8);
+        } else if (!wa.active && g.showHelp) {
           ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 14px "Press Start 2P", monospace';
           ctx.fillText('HELP!', paulX - 4, paulY - 8);
         }
