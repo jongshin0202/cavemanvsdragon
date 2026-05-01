@@ -206,7 +206,13 @@ export function tickApples(
   const jackets: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
   const cd: number[] = (s as any)._appleCooldowns || [];
   const alive: boolean[] = (s as any)._hasAppleAlive || [];
+  const diff = getLevel2Difficulty(s.round);
 
+  // Iteration 1: apples are completely disabled.
+  if (!diff.applesEnabled) {
+    // Drain any in-flight apples (shouldn't exist, but be safe).
+    s.apples.length = 0;
+  } else {
   // Throw new apples
   for (let i = 0; i < hostRobots.length; i++) {
     if (!jackets[i]) continue;        // only colored monkeys throw
