@@ -1034,7 +1034,34 @@ const CavemanVsDragonGame = () => {
             else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
           }
 
-          // Watering can pickup
+          // ── Apples (colored monkeys throw them) ──
+          tickApples(l2Ref.current, g.robots);
+          {
+            // Build hitbox honoring duck (top half shaved off when ducking).
+            const ducked = (pl as any).duckTimer > 0;
+            const hitbox = ducked
+              ? { x: pl.x, y: pl.y + Math.floor(pl.h * 0.55), w: pl.w, h: Math.ceil(pl.h * 0.45) }
+              : { x: pl.x, y: pl.y, w: pl.w, h: pl.h };
+            // Track apples that have passed the player → award 100 each.
+            for (const a of l2Ref.current.apples as any[]) {
+              if (a._scored) continue;
+              const passedRight = a.vx > 0 && a.x > pl.x + pl.w + 2;
+              const passedLeft  = a.vx < 0 && a.x + a.w < pl.x - 2;
+              if (passedRight || passedLeft) {
+                a._scored = true;
+                g.score += 100; setScore(g.score);
+              }
+            }
+            if (g.invulnTimer === 0) {
+              const hit = appleHitsPlayer(l2Ref.current, hitbox);
+              if (hit >= 0) {
+                g.lives--; setLives(g.lives);
+                if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
+                else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
+              }
+            }
+          }
+
           const pickedColor = tryPickupCan(l2Ref.current, pl);
           if (pickedColor) playKeyGrabSound();
 
