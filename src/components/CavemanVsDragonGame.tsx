@@ -1121,36 +1121,34 @@ const CavemanVsDragonGame = () => {
           }
 
           // Respawn killed monkeys (so purple-jacket phase can occur).
-          // Enforce per-platform cap (MIN_MONKEYS_PER_PLATFORM in L2 = 1):
-          // only spawn onto a platform that currently has 0 monkeys.
-          if ((g as any).l2RespawnQueue && (g as any).l2RespawnQueue > 0) {
-            (g as any).l2RespawnTimer = ((g as any).l2RespawnTimer || 0) + 1;
-            if ((g as any).l2RespawnTimer > 60) {
+          // Each pending respawn has its own random 5–10s delay rolled at
+          // kill time. Enforce per-platform cap (1 monkey per platform).
+          const queue: number[] = (g as any).l2RespawnQueue || [];
+          if (queue.length > 0) {
+            // Decrement all pending timers each frame.
+            for (let qi = 0; qi < queue.length; qi++) queue[qi]--;
+            // Find a ready entry (timer ≤ 0) and try to spawn.
+            const readyIdx = queue.findIndex(t => t <= 0);
+            if (readyIdx >= 0) {
               const platSlots = [1, 2, 3, 4];
-              // Count current monkeys on each candidate platform.
               const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
               for (const rb of g.robots) {
                 const idx = findPlatformIndex(rb.y + rb.h, rb.x + rb.w / 2);
                 if (counts[idx] !== undefined) counts[idx]++;
               }
               const open = platSlots.filter(pi => counts[pi] === 0);
-              if (open.length === 0) {
-                // No room — wait until a platform clears. Don't decrement queue.
-              } else {
-                (g as any).l2RespawnTimer = 0;
-                (g as any).l2RespawnQueue--;
+              if (open.length > 0) {
+                queue.splice(readyIdx, 1);
                 const pi = open[Math.floor(Math.random() * open.length)];
                 const plat = PLATFORMS[pi];
                 // Walk in from whichever side touches the screen edge (no gap).
-                // If both sides do, pick randomly. Spawn just off-screen and
-                // face toward the center.
                 const leftAtEdge = plat.x1 <= 2;
                 const rightAtEdge = plat.x2 >= CANVAS_W - 2;
                 let fromLeft: boolean;
                 if (leftAtEdge && rightAtEdge) fromLeft = Math.random() < 0.5;
                 else if (leftAtEdge) fromLeft = true;
                 else if (rightAtEdge) fromLeft = false;
-                else fromLeft = (plat.x1 < CANVAS_W - plat.x2); // closer edge
+                else fromLeft = (plat.x1 < CANVAS_W - plat.x2);
                 const rx = fromLeft ? plat.x1 - 16 : plat.x2 + 2;
                 const ry = getPlatformY(plat, fromLeft ? plat.x1 + 1 : plat.x2 - 1) - 16;
                 const spd = ROBOT_SPEED * 0.6;
@@ -1162,7 +1160,9 @@ const CavemanVsDragonGame = () => {
                 });
                 pushJacket(l2Ref.current, newSpawnJacket(l2Ref.current));
               }
+              // If no platform open, the entry stays at ≤0 and will retry next frame.
             }
+            (g as any).l2RespawnQueue = queue;
           }
         }
 
@@ -1505,8 +1505,11 @@ const CavemanVsDragonGame = () => {
               g.monkeysKilled = (g.monkeysKilled || 0) + 1;
               if (g.round >= 2) {
                 onMonkeyKilled(l2Ref.current, i);
-                // L2: queue a respawn after a short delay
-                (g as any).l2RespawnQueue = ((g as any).l2RespawnQueue || 0) + 1;
+                // L2: queue a respawn with a random 5–10s delay (300–600 frames @60fps).
+                const q: number[] = (g as any).l2RespawnQueue || [];
+                const delay = 300 + Math.floor(Math.random() * 301); // 300..600
+                q.push(delay);
+                (g as any).l2RespawnQueue = q;
               }
             } else if (g.invulnTimer === 0) {
               g.lives--; setLives(g.lives);
