@@ -608,7 +608,7 @@ export function renderLevel2(
     ctx.fill();
   }
 
-  // ── Jacket overlays
+  // ── Full-body color tint on jacketed monkeys (was an overlay band before).
   if (hostRobots && hostRobots.length) {
     const jackets: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
     for (let i = 0; i < hostRobots.length; i++) {
@@ -619,13 +619,40 @@ export function renderLevel2(
       const drawH = 33;
       const dx = r.x + r.w / 2 - drawW / 2;
       const dy = r.y + r.h - drawH;
-      ctx.fillStyle = j === 'green' ? '#2e9b3a' : '#7a2bd1';
-      ctx.fillRect(dx + 9, dy + 14, 16, 8);
-      ctx.fillRect(dx + 7, dy + 14, 4, 5);
-      ctx.fillRect(dx + 23, dy + 14, 4, 5);
-      ctx.fillStyle = j === 'green' ? '#74e07f' : '#c79bff';
-      ctx.fillRect(dx + 13, dy + 14, 8, 2);
+      const fill = j === 'green' ? 'rgba(46, 155, 58, 0.6)' : 'rgba(122, 43, 209, 0.6)';
+      const outline = j === 'green' ? '#155a1c' : '#3a0e6a';
+      // Body silhouette block over the monkey sprite
+      ctx.fillStyle = fill;
+      ctx.fillRect(dx + 6, dy + 8, 21, 22);
+      // Head
+      ctx.beginPath();
+      ctx.arc(dx + drawW / 2, dy + 9, 8, 0, Math.PI * 2);
+      ctx.fill();
+      // Outline accent
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(dx + 6, dy + 8, 21, 22);
     }
+  }
+
+  // ── Apples thrown by colored monkeys
+  for (const a of s.apples) {
+    const cx = a.x + a.w / 2;
+    const cy = a.y + a.h / 2;
+    // body
+    ctx.fillStyle = '#d6201f';
+    ctx.beginPath();
+    ctx.arc(cx, cy, a.w / 2 + 1, 0, Math.PI * 2);
+    ctx.fill();
+    // shine
+    ctx.fillStyle = '#ff8a87';
+    ctx.fillRect(cx - 2, cy - 3, 2, 2);
+    // stem
+    ctx.fillStyle = '#5a2a08';
+    ctx.fillRect(cx, cy - a.h / 2 - 2, 1, 2);
+    // leaf
+    ctx.fillStyle = '#2e8b33';
+    ctx.fillRect(cx + 1, cy - a.h / 2 - 1, 2, 1);
   }
 
   // ── Fireballs
