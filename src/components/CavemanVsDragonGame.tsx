@@ -1015,7 +1015,7 @@ const CavemanVsDragonGame = () => {
         if (p.y > CANVAS_H && !g.dying && g.invulnTimer === 0) {
           g.lives--; setLives(g.lives);
           g.invulnTimer = 120;
-          if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
+          if (g.lives <= 0) { playHitSound(); g.dying = true; g.fatalDying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
           else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
         }
 
@@ -1135,7 +1135,7 @@ const CavemanVsDragonGame = () => {
           if (g.invulnTimer === 0 && !g.dying && fireballHitsPlayer(l2Ref.current, pl)) {
             g.lives--; setLives(g.lives);
             g.invulnTimer = 120;
-            if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
+            if (g.lives <= 0) { playHitSound(); g.dying = true; g.fatalDying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
             else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
           }
 
@@ -1162,7 +1162,7 @@ const CavemanVsDragonGame = () => {
               if (hit >= 0) {
                 g.lives--; setLives(g.lives);
                 g.invulnTimer = 120;
-                if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
+                if (g.lives <= 0) { playHitSound(); g.dying = true; g.fatalDying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
                 else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
               }
             }
@@ -1481,7 +1481,7 @@ const CavemanVsDragonGame = () => {
           if (rectsOverlap(p, b) && bPlatY === pPlatY && g.invulnTimer === 0 && !g.dying && p.onGround && !p.jumping) {
             g.lives--; setLives(g.lives);
             g.invulnTimer = 120;
-            if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
+            if (g.lives <= 0) { playHitSound(); g.dying = true; g.fatalDying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
             else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
             break;
           }
@@ -1641,7 +1641,7 @@ const CavemanVsDragonGame = () => {
             } else if (g.invulnTimer === 0 && !g.dying) {
               g.lives--; setLives(g.lives);
               g.invulnTimer = 120;
-              if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
+              if (g.lives <= 0) { playHitSound(); g.dying = true; g.fatalDying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
               else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
               break;
             }
