@@ -94,9 +94,9 @@ export const LEVEL2_PARAMS = {
   VOLCANO_ROCK_VY: -7,
   VOLCANO_ROCK_SIZE: 14,
 
-  // ─── MONKEY RESPAWN (iter 1: 50% slower → 450..900 frames) ───
-  MONKEY_RESPAWN_MIN_FRAMES: 450,
-  MONKEY_RESPAWN_MAX_FRAMES: 900,
+  // ─── MONKEY RESPAWN (random 2–5s delay before replacement spawns) ───
+  MONKEY_RESPAWN_MIN_FRAMES: 120, // 2s @ 60fps
+  MONKEY_RESPAWN_MAX_FRAMES: 300, // 5s @ 60fps
 
   // ─── (legacy ramp constants kept for reference) ─────────────
   RAMP_MONKEYS_PER_ROUND: 1,
