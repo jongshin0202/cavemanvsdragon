@@ -161,6 +161,7 @@ const CavemanVsDragonGame = () => {
     deathTimer: 0,
     deathFlashTimer: 0,
     dying: false,
+    fatalDying: false,
     frameCount: 0,
     playerHasMoved: true, // start spawning barrels and audio immediately
     barrelStartDelay: 0,
