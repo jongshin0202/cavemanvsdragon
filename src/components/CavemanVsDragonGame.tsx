@@ -161,6 +161,7 @@ const CavemanVsDragonGame = () => {
     deathTimer: 0,
     deathFlashTimer: 0,
     dying: false,
+    fatalDying: false,
     frameCount: 0,
     playerHasMoved: true, // start spawning barrels and audio immediately
     barrelStartDelay: 0,
@@ -220,7 +221,7 @@ const CavemanVsDragonGame = () => {
   // Resets the level only (for next level / death respawn). Preserves score & lives.
   const resetLevel = useCallback(() => {
     const g = gameRef.current;
-    g.state = 'playing'; g.dying = false; g.deathTimer = 0; g.deathFlashTimer = 0;
+    g.state = 'playing'; g.dying = false; g.fatalDying = false; g.deathTimer = 0; g.deathFlashTimer = 0;
     g.robots = [];
     g.robotSpawnTimer = 0;
     g.robotsInitialized = false;
@@ -798,15 +799,22 @@ const CavemanVsDragonGame = () => {
           g.dying = false;
           g.deathTimer = 0;
           g.deathFlashTimer = 0;
-          resetPlayer();
-          // Spawn first rock wheel immediately on respawn — Level 1 only.
-          // Level 2 manages its own hazards (fireballs/apples) and must
-          // never get a rolling rock.
-          if (!isLevel2Round(g.round)) {
-            const d = getRoundDifficulty(g.round);
-            const speed = BARREL_SPEED * (d.barrelSpeedMul + Math.random() * d.barrelSpeedJitter);
-            g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed, rollPhase: 0 });
-            playBarrelRollSound();
+          if (g.fatalDying) {
+            g.fatalDying = false;
+            g.state = 'gameover';
+            setGameState('gameover');
+            playGameOverSound();
+          } else {
+            resetPlayer();
+            // Spawn first rock wheel immediately on respawn — Level 1 only.
+            // Level 2 manages its own hazards (fireballs/apples) and must
+            // never get a rolling rock.
+            if (!isLevel2Round(g.round)) {
+              const d = getRoundDifficulty(g.round);
+              const speed = BARREL_SPEED * (d.barrelSpeedMul + Math.random() * d.barrelSpeedJitter);
+              g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed, rollPhase: 0 });
+              playBarrelRollSound();
+            }
           }
         }
       }
@@ -1007,7 +1015,7 @@ const CavemanVsDragonGame = () => {
         if (p.y > CANVAS_H && !g.dying && g.invulnTimer === 0) {
           g.lives--; setLives(g.lives);
           g.invulnTimer = 120;
-          if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
+          if (g.lives <= 0) { playHitSound(); g.dying = true; g.fatalDying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
           else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
         }
 
@@ -1127,7 +1135,7 @@ const CavemanVsDragonGame = () => {
           if (g.invulnTimer === 0 && !g.dying && fireballHitsPlayer(l2Ref.current, pl)) {
             g.lives--; setLives(g.lives);
             g.invulnTimer = 120;
-            if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
+            if (g.lives <= 0) { playHitSound(); g.dying = true; g.fatalDying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
             else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
           }
 
@@ -1154,7 +1162,7 @@ const CavemanVsDragonGame = () => {
               if (hit >= 0) {
                 g.lives--; setLives(g.lives);
                 g.invulnTimer = 120;
-                if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
+                if (g.lives <= 0) { playHitSound(); g.dying = true; g.fatalDying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
                 else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
               }
             }
@@ -1473,7 +1481,7 @@ const CavemanVsDragonGame = () => {
           if (rectsOverlap(p, b) && bPlatY === pPlatY && g.invulnTimer === 0 && !g.dying && p.onGround && !p.jumping) {
             g.lives--; setLives(g.lives);
             g.invulnTimer = 120;
-            if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
+            if (g.lives <= 0) { playHitSound(); g.dying = true; g.fatalDying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
             else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
             break;
           }
@@ -1633,7 +1641,7 @@ const CavemanVsDragonGame = () => {
             } else if (g.invulnTimer === 0 && !g.dying) {
               g.lives--; setLives(g.lives);
               g.invulnTimer = 120;
-              if (g.lives <= 0) { g.state = 'gameover'; setGameState('gameover'); playGameOverSound(); }
+              if (g.lives <= 0) { playHitSound(); g.dying = true; g.fatalDying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
               else { playHitSound(); g.dying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
               break;
             }
