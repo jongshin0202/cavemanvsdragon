@@ -595,9 +595,13 @@ const CavemanVsDragonGame = () => {
         if (now < continueArmedAtRef.current) return true;
         setNameInput('');
         setNameError('');
+        // Focus the hidden input synchronously within the user gesture so
+        // the mobile soft keyboard reliably opens on iOS/Android.
+        try { nameFieldRef.current?.focus({ preventScroll: true } as any); } catch { nameFieldRef.current?.focus(); }
         setGameState('enterName');
-        // Focus the hidden input on the next tick so mobile soft keyboard pops up
+        // Re-focus after the state update / re-render in case the browser drops it.
         setTimeout(() => nameFieldRef.current?.focus(), 0);
+        setTimeout(() => nameFieldRef.current?.focus(), 50);
         return true;
       }
 
