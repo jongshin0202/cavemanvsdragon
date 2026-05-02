@@ -595,9 +595,13 @@ const CavemanVsDragonGame = () => {
         if (now < continueArmedAtRef.current) return true;
         setNameInput('');
         setNameError('');
+        // Focus the hidden input synchronously within the user gesture so
+        // the mobile soft keyboard reliably opens on iOS/Android.
+        try { nameFieldRef.current?.focus({ preventScroll: true } as any); } catch { nameFieldRef.current?.focus(); }
         setGameState('enterName');
-        // Focus the hidden input on the next tick so mobile soft keyboard pops up
+        // Re-focus after the state update / re-render in case the browser drops it.
         setTimeout(() => nameFieldRef.current?.focus(), 0);
+        setTimeout(() => nameFieldRef.current?.focus(), 50);
         return true;
       }
 
@@ -2429,37 +2433,43 @@ const CavemanVsDragonGame = () => {
         />
 
         {/* Hidden text input — surfaces the OS soft keyboard during name entry.
-            Positioned over the on-canvas name field, kept visually transparent
-            so the canvas-rendered name is what the user sees. */}
-        {gameState === 'enterName' && (
-          <input
-            ref={nameFieldRef}
-            type="text"
-            value={nameInput}
-            onChange={(e) => {
-              const filtered = e.target.value
-                .replace(/[^A-Za-z0-9 ]/g, '')
-                .slice(0, NAME_MAX_LENGTH);
-              setNameInput(filtered);
-              if (nameError) setNameError('');
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                submitHighScore();
-              }
-            }}
-            autoFocus
-            autoCapitalize="characters"
-            autoCorrect="off"
-            spellCheck={false}
-            maxLength={NAME_MAX_LENGTH}
-            aria-label="Enter your name (up to 10 characters)"
-            placeholder=""
-            className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[14%] bg-transparent text-transparent caret-transparent border-0 outline-none focus:outline-none p-0 m-0 text-center"
-            style={{ WebkitAppearance: 'none', appearance: 'none' }}
-          />
-        )}
+            Always mounted so focus() called inside a user-gesture handler can
+            reliably open the mobile keyboard. Visually hidden when not in use. */}
+        <input
+          ref={nameFieldRef}
+          type="text"
+          value={nameInput}
+          onChange={(e) => {
+            const filtered = e.target.value
+              .replace(/[^A-Za-z0-9 ]/g, '')
+              .slice(0, NAME_MAX_LENGTH);
+            setNameInput(filtered);
+            if (nameError) setNameError('');
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              submitHighScore();
+            }
+          }}
+          autoFocus={gameState === 'enterName'}
+          autoCapitalize="characters"
+          autoCorrect="off"
+          spellCheck={false}
+          maxLength={NAME_MAX_LENGTH}
+          aria-label="Enter your name (up to 10 characters)"
+          placeholder=""
+          inputMode={gameState === 'enterName' ? 'text' : 'none'}
+          readOnly={gameState !== 'enterName'}
+          tabIndex={gameState === 'enterName' ? 0 : -1}
+          className={
+            gameState === 'enterName'
+              ? "absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[14%] bg-transparent text-transparent caret-transparent border-0 outline-none focus:outline-none p-0 m-0 text-center"
+              : "absolute opacity-0 pointer-events-none w-px h-px -left-[9999px] top-0 border-0 outline-none p-0 m-0"
+          }
+          style={{ WebkitAppearance: 'none', appearance: 'none' }}
+        />
+
         {/* Arcade-style intro / title screen overlay */}
         {gameState === 'intro' && (
           <button
