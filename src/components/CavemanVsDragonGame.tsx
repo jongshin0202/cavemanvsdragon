@@ -1606,12 +1606,11 @@ const CavemanVsDragonGame = () => {
             // the same frame. In that "descending landing" case (p.vy > 0,
             // not yet onGround), accept a more generous stomp window so the
             // landing counts as a kill instead of a fatal side-hit.
-            // While airborne, ANY overlap with a monkey counts as a stomp
-            // kill — the player committed to a jump, so reward it instead of
-            // killing them mid-air. Only grounded contact is a fatal side-hit.
+            // Stomp ONLY when descending onto the monkey's head (bonk on top).
+            // Rising into a monkey on the way up is a side-hit, not a kill.
             const isStomp =
-              !p.onGround ||
-              p.vy > 0 ||
+              !p.onGround &&
+              p.vy > 0 &&
               (p.y + p.h <= r.y + r.h * 0.6);
             if (isStomp) {
               const n = (g.comboKills || 0) + 1;
