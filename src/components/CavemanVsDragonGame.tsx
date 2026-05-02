@@ -221,7 +221,7 @@ const CavemanVsDragonGame = () => {
   // Resets the level only (for next level / death respawn). Preserves score & lives.
   const resetLevel = useCallback(() => {
     const g = gameRef.current;
-    g.state = 'playing'; g.dying = false; g.deathTimer = 0; g.deathFlashTimer = 0;
+    g.state = 'playing'; g.dying = false; g.fatalDying = false; g.deathTimer = 0; g.deathFlashTimer = 0;
     g.robots = [];
     g.robotSpawnTimer = 0;
     g.robotsInitialized = false;
