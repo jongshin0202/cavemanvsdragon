@@ -891,11 +891,17 @@ const CavemanVsDragonGame = () => {
         // This prevents getting "stuck" climbing in place at the top of a vine.
         const jumpPressed = keys.has(' ');
 
-        if (wantUp && nearestLadder && !jumpPressed) {
+        // To start climbing, the player must be CLOSELY aligned with the ladder
+        // (no large horizontal snap that would look like teleporting). Once
+        // climbing, the wider LADDER_SNAP keeps them stuck to the vine.
+        const MOUNT_SNAP = 12;
+        const canMountHere = !!nearestLadder && nearestLadderDist <= MOUNT_SNAP;
+
+        if (wantUp && nearestLadder && !jumpPressed && (p.climbing || canMountHere)) {
           p.climbing = true;
           p.x = nearestLadder.x + 7 - p.w / 2;
         } else if (wantDown) {
-          if (nearestLadder && p.y + p.h < nearestLadder.yBot - 4) {
+          if (nearestLadder && p.y + p.h < nearestLadder.yBot - 4 && (p.climbing || canMountHere)) {
             // Climb down ladder
             p.climbing = true;
             p.x = nearestLadder.x + 7 - p.w / 2;

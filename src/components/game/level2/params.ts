@@ -88,7 +88,9 @@ export const LEVEL2_PARAMS = {
   SPROUT_ALIVE_MAX_SEC: 14.25,
 
   // ─── TOP PLATFORM SPLIT ─────────────────────────────────────
-  TOP_GAP_WIDTH: 36,
+  // Wide enough that the player cannot jump across (max horizontal jump
+  // ≈ 50px with current physics); only the green top-sprout path crosses.
+  TOP_GAP_WIDTH: 72,
 
   // ─── VOLCANO ROCK ───────────────────────────────────────────
   VOLCANO_ROCK_VY: -7,
