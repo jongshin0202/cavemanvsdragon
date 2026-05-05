@@ -328,7 +328,17 @@ const CavemanVsDragonGame = () => {
     playLevelIntro(2, () => resetLevel());
   }, [resetLevel, playLevelIntro]);
 
-  // Start the next level — for now (only one level), restart the same layout
+  // DEV/TEST: jump straight into Level 3 (round 3 → L3 iter 1).
+  const startInLevel3Test = useCallback(() => {
+    if (!LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2) return;
+    const g = gameRef.current;
+    g.score = 0; g.lives = 3; g.round = 3;
+    setScore(0); setLives(3);
+    setGameState('playing');
+    recordRound();
+    recordLaunchAndMaybeFlush().catch(() => { /* logged in module */ });
+    playLevelIntro(3, () => resetLevel());
+  }, [resetLevel, playLevelIntro]);
   // with increased difficulty (next round) while preserving score and lives.
   const startNextLevel = useCallback(() => {
     const g = gameRef.current;
