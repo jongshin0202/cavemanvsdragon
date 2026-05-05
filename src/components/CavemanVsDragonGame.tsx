@@ -1041,6 +1041,14 @@ const CavemanVsDragonGame = () => {
               }
             }
           }
+          // L3: tick moving platforms; let player land on them and ride along.
+          if (isLevel3Round(g.round)) {
+            const dxs = tickMovingPlatforms();
+            const carry = landOnMovingPlatform(p as any, dxs);
+            if (carry !== 0) {
+              p.x = Math.max(0, Math.min(CANVAS_W - p.w, p.x + carry));
+            }
+          }
           // Advance jump frame animation while in air
           if (p.jumping) {
             p.jumpTimer++;
