@@ -1997,8 +1997,10 @@ const CavemanVsDragonGame = () => {
           wateringCan: wateringCanRef.current,
         }, g.robots);
       }
-
-      // Player (Caveman sprite) - flash 3 times when dying
+      // L3: draw moving platforms over the static layout.
+      if (isLevel3Round(g.round)) {
+        renderMovingPlatforms(ctx);
+      }
       // (toggle every 18 frames over 108 frames at 60fps → 3 on/off cycles)
       const pl = g.player;
       const showPlayer = g.dying
