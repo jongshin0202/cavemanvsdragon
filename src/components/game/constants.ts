@@ -48,14 +48,26 @@ export const DIFFICULTY = {
 export const MONKEY_CAP_ROUND =
   DIFFICULTY.monkeyTotalCap - DIFFICULTY.base.monkeyCount + 1; // = 19
 
-/** Total round → which level type plays (alternates L1, L2, L1, L2…). */
+/** Total round → which level type plays. Cycle: L1, L2, L3, L1, L2, L3 … */
+export function getLevelType(round: number): 1 | 2 | 3 {
+  const mod = ((round - 1) % 3 + 3) % 3;
+  return (mod === 0 ? 1 : mod === 1 ? 2 : 3);
+}
+/** True for L2 OR L3 — both share the L2 module's mechanics
+ *  (volcano, watering cans, sprouts, fireballs, holes, jacketed monkeys). */
 export function isLevel2Round(round: number): boolean {
-  return round % 2 === 0;
+  const t = getLevelType(round);
+  return t === 2 || t === 3;
+}
+/** True only for L3 rounds (adds moving platforms + L3 layout on top of L2 mechanics). */
+export function isLevel3Round(round: number): boolean {
+  return getLevelType(round) === 3;
 }
 /** Total round → which iteration of its level type this is.
- *  Round 1 → L1 #1, Round 2 → L2 #1, Round 3 → L1 #2, Round 4 → L2 #2 … */
+ *  Cycle of 3: rounds 1,4,7 → L1 iter 1,2,3; rounds 2,5,8 → L2 iter 1,2,3;
+ *  rounds 3,6,9 → L3 iter 1,2,3. */
 export function getLevelIteration(round: number): number {
-  return isLevel2Round(round) ? round / 2 : Math.ceil(round / 2);
+  return Math.floor((round - 1) / 3) + 1;
 }
 /** Difficulty for a given total round, mapped through the level iteration so
  *  that each subsequent visit to L1 (or L2) is one step harder than the

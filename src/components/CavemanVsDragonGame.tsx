@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   CANVAS_W, CANVAS_H, GRAVITY, JUMP_FORCE, MOVE_SPEED, BARREL_SPEED, CLIMB_SPEED, ROBOT_SPEED, getRoundDifficulty,
   PLATFORMS, LADDERS, getPlatformY, rectsOverlap, findPlatformIndex, findBestLadder, buildMonkeyDistribution,
-  isLevel2Round, getLevelIteration,
+  isLevel2Round, isLevel3Round, getLevelIteration,
   Barrel, Robot
 } from './game/constants';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarTracked, playPrincessHelpSound, isDragonRoaringNow, unlockAudio } from './game/sounds';
@@ -14,6 +14,7 @@ import { LEVEL2_PARAMS, getLevel2Difficulty } from './game/level2/params';
 import { initLevel2, updateLevel2, renderLevel2, spawnLevel2Robots, fireballHitsPlayer, tryPickupCan, tryPickupRock, trySealVolcano, maybeSpawnVolcanoRock, onMonkeyKilled, newSpawnJacket, pushJacket, isHoleAtPlatform, tickApples, appleHitsPlayer, type L2Sprites } from './game/level2/level2';
 import { makeEmptyL2State, type L2State } from './game/level2/types';
 import { applyLevel2Layout, restoreLevel1Layout, isLadderUsableL2, markSproutUsed, markSproutInUse, tickSprouts, getSprouts, waterTopSprout, isTopSproutGrown, GREEN_TOP_LADDER_IDX, PURPLE_TOP_LADDER_IDX, enableLevel1SproutMechanic } from './game/level2/layout';
+import { buildLevel3MovingPlatforms, clearLevel3MovingPlatforms, tickMovingPlatforms, renderMovingPlatforms, landOnMovingPlatform, getMovingPlatforms } from './game/level3/movingPlatforms';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   AlertDialog,
@@ -192,6 +193,9 @@ const CavemanVsDragonGame = () => {
   // Tracks the last intro-tap time so we can detect a double-tap shortcut
   // to jump straight to Level 2 (when LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2).
   const lastIntroTapRef = useRef<number>(0);
+  // Tap-count buffer for the intro shortcut: 2 taps → L2, 3 taps → L3.
+  const introTapCountRef = useRef<number>(0);
+  const introTapTimerRef = useRef<number | null>(null);
 
   const resetPlayer = useCallback(() => {
     const g = gameRef.current;
@@ -250,15 +254,22 @@ const CavemanVsDragonGame = () => {
     if (isLevel2Round(g.round)) {
       // Swap to L2 layout (flat platforms + sprout vines) BEFORE
       // initializing/spawning so monkey + sprite positions snap to it.
+      // L3 currently inherits the same layout, plus a moving-platform overlay.
       applyLevel2Layout();
-      initLevel2(l2Ref.current, getLevelIteration(g.round)); // L2 iteration #
+      initLevel2(l2Ref.current, getLevelIteration(g.round)); // iteration #
       // Spawn one monkey per P2..P5 (with 1-2 wearing green jackets)
       const { robots } = spawnLevel2Robots(l2Ref.current);
       g.robots.push(...robots);
       g.robotsInitialized = true; // prevent L1 spawner from also adding monkeys
+      if (isLevel3Round(g.round)) {
+        buildLevel3MovingPlatforms(getLevelIteration(g.round));
+      } else {
+        clearLevel3MovingPlatforms();
+      }
     } else {
       // L1: make sure layout is the original (in case we just came back).
       restoreLevel1Layout();
+      clearLevel3MovingPlatforms();
       // From L1 iter 5 onwards, enable the L2-style sprout dying mechanic
       // on L1 ladders. Map L1 iter 5 → L2 iter 1, L1 iter 6 → L2 iter 2, …
       const l1Iter = getLevelIteration(g.round);
@@ -320,7 +331,17 @@ const CavemanVsDragonGame = () => {
     playLevelIntro(2, () => resetLevel());
   }, [resetLevel, playLevelIntro]);
 
-  // Start the next level — for now (only one level), restart the same layout
+  // DEV/TEST: jump straight into Level 3 (round 3 → L3 iter 1).
+  const startInLevel3Test = useCallback(() => {
+    if (!LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2) return;
+    const g = gameRef.current;
+    g.score = 0; g.lives = 3; g.round = 3;
+    setScore(0); setLives(3);
+    setGameState('playing');
+    recordRound();
+    recordLaunchAndMaybeFlush().catch(() => { /* logged in module */ });
+    playLevelIntro(3, () => resetLevel());
+  }, [resetLevel, playLevelIntro]);
   // with increased difficulty (next round) while preserving score and lives.
   const startNextLevel = useCallback(() => {
     const g = gameRef.current;
@@ -536,7 +557,7 @@ const CavemanVsDragonGame = () => {
           }
           return true; // swallow C — don't start the game
         }
-        // DEV/TEST: PC presses "2" on intro to jump straight into Level 2.
+        // DEV/TEST: PC presses "2" → Level 2, "3" → Level 3.
         if (
           _source === 'keyboard' &&
           (gs === 'intro' || gs === 'attractControls') &&
@@ -546,8 +567,17 @@ const CavemanVsDragonGame = () => {
           startInLevel2Test();
           return true;
         }
-        // DEV/TEST: mobile/touch double-tap on intro/attract screens jumps
-        // straight into Level 2.
+        if (
+          _source === 'keyboard' &&
+          (gs === 'intro' || gs === 'attractControls') &&
+          key === '3' &&
+          LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2
+        ) {
+          startInLevel3Test();
+          return true;
+        }
+        // DEV/TEST: mobile tap-count shortcut on intro/attract:
+        //   2 taps within ~400ms → Level 2; 3 taps → Level 3.
         if (
           _source === 'pad' &&
           (gs === 'intro' ||
@@ -556,27 +586,24 @@ const CavemanVsDragonGame = () => {
             gs === 'attractControls') &&
           LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2
         ) {
-          const since = now - lastIntroTapRef.current;
-          lastIntroTapRef.current = now;
-          if (since > 0 && since <= LEVEL2_PARAMS.DOUBLE_TAP_MAX_GAP_MS) {
-            lastIntroTapRef.current = 0;
-            startInLevel2Test();
-            return true;
+          introTapCountRef.current += 1;
+          if (introTapTimerRef.current !== null) {
+            window.clearTimeout(introTapTimerRef.current);
+            introTapTimerRef.current = null;
           }
-          // First tap of a possible double — wait briefly to see if a
-          // second one arrives. If not, start the normal game.
-          window.setTimeout(() => {
-            // If still on intro/attract and no second tap fired the shortcut,
-            // begin the normal game.
-            if (lastIntroTapRef.current !== 0) {
-              const stillIntro =
-                gameStateRef.current === 'intro' ||
-                gameStateRef.current === 'attractLocalLeaderboard' ||
-                gameStateRef.current === 'attractGlobalLeaderboard' ||
-                gameStateRef.current === 'attractControls';
-              lastIntroTapRef.current = 0;
-              if (stillIntro) resetGame();
-            }
+          introTapTimerRef.current = window.setTimeout(() => {
+            const taps = introTapCountRef.current;
+            introTapCountRef.current = 0;
+            introTapTimerRef.current = null;
+            const stillIntro =
+              gameStateRef.current === 'intro' ||
+              gameStateRef.current === 'attractLocalLeaderboard' ||
+              gameStateRef.current === 'attractGlobalLeaderboard' ||
+              gameStateRef.current === 'attractControls';
+            if (!stillIntro) return;
+            if (taps >= 3) startInLevel3Test();
+            else if (taps === 2) startInLevel2Test();
+            else resetGame();
           }, LEVEL2_PARAMS.DOUBLE_TAP_MAX_GAP_MS + 20);
           return true;
         }
@@ -641,7 +668,7 @@ const CavemanVsDragonGame = () => {
 
       return false;
     };
-  }, [startNextLevel, submitHighScore, resetGame, startInLevel2Test, globalScores]);
+  }, [startNextLevel, submitHighScore, resetGame, startInLevel2Test, startInLevel3Test, globalScores]);
 
 
   useEffect(() => {
@@ -1012,6 +1039,14 @@ const CavemanVsDragonGame = () => {
                 p.jumpFrame = 0; p.jumpTimer = 0;
                 g.comboKills = 0;
               }
+            }
+          }
+          // L3: tick moving platforms; let player land on them and ride along.
+          if (isLevel3Round(g.round)) {
+            const dxs = tickMovingPlatforms();
+            const carry = landOnMovingPlatform(p as any, dxs);
+            if (carry !== 0) {
+              p.x = Math.max(0, Math.min(CANVAS_W - p.w, p.x + carry));
             }
           }
           // Advance jump frame animation while in air
@@ -1962,8 +1997,10 @@ const CavemanVsDragonGame = () => {
           wateringCan: wateringCanRef.current,
         }, g.robots);
       }
-
-      // Player (Caveman sprite) - flash 3 times when dying
+      // L3: draw moving platforms over the static layout.
+      if (isLevel3Round(g.round)) {
+        renderMovingPlatforms(ctx);
+      }
       // (toggle every 18 frames over 108 frames at 60fps → 3 on/off cycles)
       const pl = g.player;
       const showPlayer = g.dying
