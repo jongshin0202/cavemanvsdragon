@@ -193,6 +193,9 @@ const CavemanVsDragonGame = () => {
   // Tracks the last intro-tap time so we can detect a double-tap shortcut
   // to jump straight to Level 2 (when LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2).
   const lastIntroTapRef = useRef<number>(0);
+  // Tap-count buffer for the intro shortcut: 2 taps → L2, 3 taps → L3.
+  const introTapCountRef = useRef<number>(0);
+  const introTapTimerRef = useRef<number | null>(null);
 
   const resetPlayer = useCallback(() => {
     const g = gameRef.current;
