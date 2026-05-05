@@ -557,7 +557,7 @@ const CavemanVsDragonGame = () => {
           }
           return true; // swallow C — don't start the game
         }
-        // DEV/TEST: PC presses "2" on intro to jump straight into Level 2.
+        // DEV/TEST: PC presses "2" → Level 2, "3" → Level 3.
         if (
           _source === 'keyboard' &&
           (gs === 'intro' || gs === 'attractControls') &&
@@ -567,8 +567,17 @@ const CavemanVsDragonGame = () => {
           startInLevel2Test();
           return true;
         }
-        // DEV/TEST: mobile/touch double-tap on intro/attract screens jumps
-        // straight into Level 2.
+        if (
+          _source === 'keyboard' &&
+          (gs === 'intro' || gs === 'attractControls') &&
+          key === '3' &&
+          LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2
+        ) {
+          startInLevel3Test();
+          return true;
+        }
+        // DEV/TEST: mobile tap-count shortcut on intro/attract:
+        //   2 taps within ~400ms → Level 2; 3 taps → Level 3.
         if (
           _source === 'pad' &&
           (gs === 'intro' ||
@@ -577,27 +586,24 @@ const CavemanVsDragonGame = () => {
             gs === 'attractControls') &&
           LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2
         ) {
-          const since = now - lastIntroTapRef.current;
-          lastIntroTapRef.current = now;
-          if (since > 0 && since <= LEVEL2_PARAMS.DOUBLE_TAP_MAX_GAP_MS) {
-            lastIntroTapRef.current = 0;
-            startInLevel2Test();
-            return true;
+          introTapCountRef.current += 1;
+          if (introTapTimerRef.current !== null) {
+            window.clearTimeout(introTapTimerRef.current);
+            introTapTimerRef.current = null;
           }
-          // First tap of a possible double — wait briefly to see if a
-          // second one arrives. If not, start the normal game.
-          window.setTimeout(() => {
-            // If still on intro/attract and no second tap fired the shortcut,
-            // begin the normal game.
-            if (lastIntroTapRef.current !== 0) {
-              const stillIntro =
-                gameStateRef.current === 'intro' ||
-                gameStateRef.current === 'attractLocalLeaderboard' ||
-                gameStateRef.current === 'attractGlobalLeaderboard' ||
-                gameStateRef.current === 'attractControls';
-              lastIntroTapRef.current = 0;
-              if (stillIntro) resetGame();
-            }
+          introTapTimerRef.current = window.setTimeout(() => {
+            const taps = introTapCountRef.current;
+            introTapCountRef.current = 0;
+            introTapTimerRef.current = null;
+            const stillIntro =
+              gameStateRef.current === 'intro' ||
+              gameStateRef.current === 'attractLocalLeaderboard' ||
+              gameStateRef.current === 'attractGlobalLeaderboard' ||
+              gameStateRef.current === 'attractControls';
+            if (!stillIntro) return;
+            if (taps >= 3) startInLevel3Test();
+            else if (taps === 2) startInLevel2Test();
+            else resetGame();
           }, LEVEL2_PARAMS.DOUBLE_TAP_MAX_GAP_MS + 20);
           return true;
         }
