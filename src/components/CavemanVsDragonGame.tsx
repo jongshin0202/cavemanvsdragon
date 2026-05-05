@@ -251,15 +251,22 @@ const CavemanVsDragonGame = () => {
     if (isLevel2Round(g.round)) {
       // Swap to L2 layout (flat platforms + sprout vines) BEFORE
       // initializing/spawning so monkey + sprite positions snap to it.
+      // L3 currently inherits the same layout, plus a moving-platform overlay.
       applyLevel2Layout();
-      initLevel2(l2Ref.current, getLevelIteration(g.round)); // L2 iteration #
+      initLevel2(l2Ref.current, getLevelIteration(g.round)); // iteration #
       // Spawn one monkey per P2..P5 (with 1-2 wearing green jackets)
       const { robots } = spawnLevel2Robots(l2Ref.current);
       g.robots.push(...robots);
       g.robotsInitialized = true; // prevent L1 spawner from also adding monkeys
+      if (isLevel3Round(g.round)) {
+        buildLevel3MovingPlatforms(getLevelIteration(g.round));
+      } else {
+        clearLevel3MovingPlatforms();
+      }
     } else {
       // L1: make sure layout is the original (in case we just came back).
       restoreLevel1Layout();
+      clearLevel3MovingPlatforms();
       // From L1 iter 5 onwards, enable the L2-style sprout dying mechanic
       // on L1 ladders. Map L1 iter 5 → L2 iter 1, L1 iter 6 → L2 iter 2, …
       const l1Iter = getLevelIteration(g.round);
