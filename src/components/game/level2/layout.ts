@@ -35,6 +35,17 @@ export let PURPLE_TOP_LADDER_IDX = -1;
 export let TOP_GAP_X1 = 0;
 export let TOP_GAP_X2 = 0;
 
+/** External setter so non-L2 layouts (e.g. L3) can populate the same shared
+ *  sprout runtime / top-gap / top-ladder indices. */
+export function setSproutsRuntime(arr: SproutRuntime[]): void { sproutsRuntime = arr; }
+export function setTopGap(x1: number, x2: number): void { TOP_GAP_X1 = x1; TOP_GAP_X2 = x2; }
+export function setTopLadderIndices(green: number, purple: number): void {
+  GREEN_TOP_LADDER_IDX = green;
+  PURPLE_TOP_LADDER_IDX = purple;
+}
+/** Back up L1 PLATFORMS/LADDERS so a non-L2 layout (L3) can also restore. */
+export function backupL1LayoutOnce(): void { backupLayoutOnce(); }
+
 export type SproutPhase = 'idle' | 'wither' | 'dormant' | 'grow';
 
 export interface SproutRuntime {
