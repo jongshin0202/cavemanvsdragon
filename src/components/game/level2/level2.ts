@@ -734,9 +734,10 @@ export function updateLevel2(
   }
   s.fireballs = s.fireballs.filter((f: any) => !f.landed);
 
-  // Tick hole TTLs
+  // Tick hole TTLs (skip permanent holes with ttl < 0)
   for (let i = s.holes.length - 1; i >= 0; i--) {
     const h = s.holes[i];
+    if (h.ttl < 0) continue;
     h.ttl--;
     if (h.ttl <= 0) s.holes.splice(i, 1);
   }
