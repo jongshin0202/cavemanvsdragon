@@ -15,6 +15,7 @@ import { initLevel2, updateLevel2, renderLevel2, spawnLevel2Robots, fireballHits
 import { makeEmptyL2State, type L2State } from './game/level2/types';
 import { applyLevel2Layout, restoreLevel1Layout, isLadderUsableL2, markSproutUsed, markSproutInUse, tickSprouts, getSprouts, waterTopSprout, isTopSproutGrown, GREEN_TOP_LADDER_IDX, PURPLE_TOP_LADDER_IDX, enableLevel1SproutMechanic } from './game/level2/layout';
 import { buildLevel3MovingPlatforms, clearLevel3MovingPlatforms, tickMovingPlatforms, renderMovingPlatforms, landOnMovingPlatform, getMovingPlatforms } from './game/level3/movingPlatforms';
+import { applyLevel3Layout, getLevel3PermanentHoles } from './game/level3/layout';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   AlertDialog,
@@ -252,20 +253,22 @@ const CavemanVsDragonGame = () => {
     // its own hazards independently and the host's L1 barrel-spawn block
     // is gated on round===1 below in the loop.
     if (isLevel2Round(g.round)) {
-      // Swap to L2 layout (flat platforms + sprout vines) BEFORE
-      // initializing/spawning so monkey + sprite positions snap to it.
-      // L3 currently inherits the same layout, plus a moving-platform overlay.
-      applyLevel2Layout();
+      // L3 uses its own layout module; L2 uses applyLevel2Layout.
+      if (isLevel3Round(g.round)) {
+        applyLevel3Layout();
+      } else {
+        applyLevel2Layout();
+      }
       initLevel2(l2Ref.current, getLevelIteration(g.round)); // iteration #
-      // Spawn one monkey per P2..P5 (with 1-2 wearing green jackets)
+      // Push permanent holes for L3 (sprout-platform drop, 2-piece split)
+      if (isLevel3Round(g.round)) {
+        for (const h of getLevel3PermanentHoles()) l2Ref.current.holes.push(h as any);
+      }
       const { robots } = spawnLevel2Robots(l2Ref.current);
       g.robots.push(...robots);
-      g.robotsInitialized = true; // prevent L1 spawner from also adding monkeys
-      if (isLevel3Round(g.round)) {
-        buildLevel3MovingPlatforms(getLevelIteration(g.round));
-      } else {
-        clearLevel3MovingPlatforms();
-      }
+      g.robotsInitialized = true;
+      if (isLevel3Round(g.round)) buildLevel3MovingPlatforms(getLevelIteration(g.round));
+      else clearLevel3MovingPlatforms();
     } else {
       // L1: make sure layout is the original (in case we just came back).
       restoreLevel1Layout();
