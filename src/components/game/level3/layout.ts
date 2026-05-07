@@ -76,12 +76,10 @@ export function applyLevel3Layout(): void {
   //   Plus the two top-platform vines (purple → dragon side, green → volcano).
   const newLadders: { x: number; yTop: number; yBot: number }[] = [];
 
-  // 5 sprout vines, evenly spaced across full width but skipping the drop hole.
-  const vineXs = [40, 110, 175, 335, 410].map(x => {
-    // Avoid the center drop-hole zone
-    if (x > SPROUT_DROP_X1 - 14 && x < SPROUT_DROP_X2 + 4) return x < topGapCX ? SPROUT_DROP_X1 - 22 : SPROUT_DROP_X2 + 12;
-    return x;
-  });
+  // Donkey-Kong-Jr style: many densely-packed vines so the caveman can
+  // move LEFT/RIGHT between sprouts while climbing UP — no alternating
+  // empty slots. Skip the center drop-hole zone.
+  const vineXs = [30, 90, 150, 210, 302, 362, 422, 482];
   const sproutLadderRange: { from: number; to: number } = { from: 0, to: 0 };
   sproutLadderRange.from = newLadders.length;
   for (const vx of vineXs) {
