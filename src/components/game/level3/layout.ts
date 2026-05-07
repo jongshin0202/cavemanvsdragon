@@ -43,8 +43,10 @@ export function applyLevel3Layout(): void {
   PLATFORMS[0].x1 = 0;        PLATFORMS[0].x2 = CANVAS_W; PLATFORMS[0].y = 432;
   PLATFORMS[5].x1 = 0;        PLATFORMS[5].x2 = CANVAS_W; PLATFORMS[5].y = 112;
 
-  // ── P4 long sprout platform — full width
-  PLATFORMS[4].x1 = 0;        PLATFORMS[4].x2 = CANVAS_W; PLATFORMS[4].y = 240;
+  // ── P4 long sprout platform — full width. Sits HIGH so the top "seed"
+  //   region stays short (like L2) and the middle SPROUT-CLIMB region is
+  //   tall (Donkey-Kong-Jr style: vertical traversal + lateral movement).
+  PLATFORMS[4].x1 = 0;        PLATFORMS[4].x2 = CANVAS_W; PLATFORMS[4].y = 176;
 
   // ── P3 split (uses ONE slot; the visual split is provided by a permanent
   //   "hole" handed to the L2 hole system via PERMANENT_HOLES below)
