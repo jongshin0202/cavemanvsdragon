@@ -53,9 +53,9 @@ export function applyLevel3Layout(): void {
   // ── P2 unused — collapse to nothing
   PLATFORMS[2].x1 = 0;        PLATFORMS[2].x2 = 0;        PLATFORMS[2].y = 320;
 
-  // ── P1 small floating platform near the bottom
-  FLOAT_X1 = 200; FLOAT_X2 = 312;
-  PLATFORMS[1].x1 = FLOAT_X1; PLATFORMS[1].x2 = FLOAT_X2; PLATFORMS[1].y = 388;
+  // ── P1 unused — collapse (no static floating island in L3)
+  FLOAT_X1 = 0; FLOAT_X2 = 0;
+  PLATFORMS[1].x1 = 0; PLATFORMS[1].x2 = 0; PLATFORMS[1].y = 400;
 
   // ── Permanent gaps
   // Top platform split (between dragon side and volcano side)

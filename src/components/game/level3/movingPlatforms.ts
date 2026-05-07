@@ -1,15 +1,24 @@
 // ============================================================
-// Level 3 — Frogger-style moving platforms
+// Level 3 — Frogger-style moving platforms (3 rows)
 // ------------------------------------------------------------
-// Two rows live BETWEEN P3 (y=304) and the small floating P1 (y=388).
-// Players (and monkeys) can stand and ride them.
+// Row 1 (bottom): bidirectional, bounce off each other AND walls.
+// Row 2 (middle): all move LEFT continuously, wrap from right
+//                  with even spacing.
+// Row 3 (top):    all move RIGHT continuously, wrap from left
+//                  with even spacing.
+// All rows positioned so the player can jump from ground → row1
+// → row2 → row3 → P3 (mid split platform at y=304).
 // ============================================================
 
 import { CANVAS_W } from '../constants';
 
+export type RowMode = 'bounce' | 'wrapLeft' | 'wrapRight';
+
 export interface MovingPlatform {
   x: number; y: number; w: number; h: number;
-  vx: number; minX: number; maxX: number;
+  vx: number;
+  row: number;       // 0 = bottom (bounce), 1 = mid (wrapLeft), 2 = top (wrapRight)
+  mode: RowMode;
 }
 
 let platforms: MovingPlatform[] = [];
@@ -17,31 +26,121 @@ let platforms: MovingPlatform[] = [];
 export function getMovingPlatforms(): MovingPlatform[] { return platforms; }
 export function clearLevel3MovingPlatforms(): void { platforms = []; }
 
+const PLAT_W = 72;
+const PLAT_H = 8;
+const ROW_Y = [400, 360, 324]; // bottom → top; reachable jumps (~32-32-20-20 px)
+
 export function buildLevel3MovingPlatforms(iteration: number): void {
   const speedMul = 1 + 0.10 * Math.max(0, iteration - 1);
-  const pW = 64;
-  const pH = 8;
-  const rowA = 336; // upper row
-  const rowB = 372; // lower row
-  platforms = [
-    { x: 16,  y: rowA, w: pW, h: pH, vx:  0.7 * speedMul, minX: 0, maxX: CANVAS_W },
-    { x: 220, y: rowA, w: pW, h: pH, vx:  0.7 * speedMul, minX: 0, maxX: CANVAS_W },
-    { x: 420, y: rowA, w: pW, h: pH, vx:  0.7 * speedMul, minX: 0, maxX: CANVAS_W },
-    { x: 96,  y: rowB, w: pW, h: pH, vx: -0.9 * speedMul, minX: 0, maxX: CANVAS_W },
-    { x: 320, y: rowB, w: pW, h: pH, vx: -0.9 * speedMul, minX: 0, maxX: CANVAS_W },
-  ];
+  platforms = [];
+
+  // Row 0 (bottom): bouncing — 3 platforms, alternating directions.
+  const r0Count = 3;
+  const r0Spacing = (CANVAS_W - r0Count * PLAT_W) / (r0Count + 1);
+  for (let i = 0; i < r0Count; i++) {
+    const x = r0Spacing + i * (PLAT_W + r0Spacing);
+    platforms.push({
+      x, y: ROW_Y[0], w: PLAT_W, h: PLAT_H,
+      vx: (i % 2 === 0 ? 0.8 : -0.8) * speedMul,
+      row: 0, mode: 'bounce',
+    });
+  }
+
+  // Row 1 (middle): wrap LEFT — 3 platforms, evenly spaced.
+  const r1Count = 3;
+  const r1Pitch = CANVAS_W / r1Count;
+  for (let i = 0; i < r1Count; i++) {
+    platforms.push({
+      x: i * r1Pitch + (r1Pitch - PLAT_W) / 2,
+      y: ROW_Y[1], w: PLAT_W, h: PLAT_H,
+      vx: -1.0 * speedMul,
+      row: 1, mode: 'wrapLeft',
+    });
+  }
+
+  // Row 2 (top): wrap RIGHT — 3 platforms, evenly spaced.
+  const r2Count = 3;
+  const r2Pitch = CANVAS_W / r2Count;
+  for (let i = 0; i < r2Count; i++) {
+    platforms.push({
+      x: i * r2Pitch + (r2Pitch - PLAT_W) / 2,
+      y: ROW_Y[2], w: PLAT_W, h: PLAT_H,
+      vx: 1.0 * speedMul,
+      row: 2, mode: 'wrapRight',
+    });
+  }
 }
 
-/** Tick: bounce at canvas bounds. Returns per-frame dx for each platform. */
+/** Tick: advance positions per row mode. Returns per-platform dx. */
 export function tickMovingPlatforms(): number[] {
-  const dxs: number[] = [];
-  for (const mp of platforms) {
-    const oldX = mp.x;
-    mp.x += mp.vx;
-    if (mp.x < 8) { mp.x = 8; mp.vx = Math.abs(mp.vx); }
-    else if (mp.x + mp.w > CANVAS_W - 8) { mp.x = CANVAS_W - 8 - mp.w; mp.vx = -Math.abs(mp.vx); }
-    dxs.push(mp.x - oldX);
+  const dxs: number[] = new Array(platforms.length).fill(0);
+
+  // Group by row.
+  const byRow: Record<number, number[]> = { 0: [], 1: [], 2: [] };
+  platforms.forEach((p, i) => { byRow[p.row].push(i); });
+
+  // ── Row 0: bounce off walls and off neighbors.
+  const r0 = byRow[0];
+  // first move
+  for (const i of r0) {
+    const oldX = platforms[i].x;
+    platforms[i].x += platforms[i].vx;
+    dxs[i] = platforms[i].x - oldX;
   }
+  // wall bounce
+  for (const i of r0) {
+    const p = platforms[i];
+    if (p.x < 0) { p.x = 0; p.vx = Math.abs(p.vx); }
+    else if (p.x + p.w > CANVAS_W) { p.x = CANVAS_W - p.w; p.vx = -Math.abs(p.vx); }
+  }
+  // neighbor bounce (pairwise)
+  for (let a = 0; a < r0.length; a++) {
+    for (let b = a + 1; b < r0.length; b++) {
+      const pa = platforms[r0[a]]; const pb = platforms[r0[b]];
+      if (pa.x < pb.x + pb.w && pa.x + pa.w > pb.x) {
+        // overlap → push apart and swap directions
+        const overlap = Math.min(pa.x + pa.w - pb.x, pb.x + pb.w - pa.x);
+        if (pa.x < pb.x) { pa.x -= overlap / 2; pb.x += overlap / 2; }
+        else             { pa.x += overlap / 2; pb.x -= overlap / 2; }
+        // ensure they move apart
+        if (pa.x < pb.x) { pa.vx = -Math.abs(pa.vx); pb.vx = Math.abs(pb.vx); }
+        else             { pa.vx = Math.abs(pa.vx);  pb.vx = -Math.abs(pb.vx); }
+      }
+    }
+  }
+
+  // ── Row 1: wrap LEFT (continuous). When fully off left, reappear on right
+  //   maintaining even spacing relative to its row siblings.
+  const r1 = byRow[1];
+  for (const i of r1) {
+    const p = platforms[i];
+    const oldX = p.x;
+    p.x += p.vx;
+    dxs[i] = p.x - oldX;
+    if (p.x + p.w < 0) {
+      // place to the right of the rightmost sibling, with even pitch.
+      const pitch = CANVAS_W / r1.length;
+      let maxX = -Infinity;
+      for (const j of r1) if (j !== i && platforms[j].x > maxX) maxX = platforms[j].x;
+      p.x = maxX + pitch;
+    }
+  }
+
+  // ── Row 2: wrap RIGHT.
+  const r2 = byRow[2];
+  for (const i of r2) {
+    const p = platforms[i];
+    const oldX = p.x;
+    p.x += p.vx;
+    dxs[i] = p.x - oldX;
+    if (p.x > CANVAS_W) {
+      const pitch = CANVAS_W / r2.length;
+      let minX = Infinity;
+      for (const j of r2) if (j !== i && platforms[j].x < minX) minX = platforms[j].x;
+      p.x = minX - pitch;
+    }
+  }
+
   return dxs;
 }
 
@@ -54,7 +153,7 @@ export function renderMovingPlatforms(ctx: CanvasRenderingContext2D): void {
     ctx.fillStyle = '#0e3e9e';
     ctx.fillRect(mp.x, mp.y + mp.h - 2, mp.w, 2);
     // direction arrow
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
     const cx = mp.x + mp.w / 2;
     const cy = mp.y + mp.h / 2;
     if (mp.vx >= 0) { ctx.fillRect(cx, cy - 1, 6, 2); ctx.fillRect(cx + 4, cy - 2, 2, 4); }
