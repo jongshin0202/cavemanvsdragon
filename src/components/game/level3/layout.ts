@@ -126,6 +126,14 @@ export function applyLevel3Layout(): void {
       gapIdx: isTop ? -1 : 0,
     };
   });
+  // Stagger initial alive timers so the vines don't all wither/regrow in
+  // sync. Each non-top sprout starts at a random age within the alive
+  // range, plus a per-vine phase offset.
+  const aliveMaxFrames = LEVEL2_PARAMS.SPROUT_ALIVE_MAX_SEC * 60;
+  for (const r of runtime) {
+    if (r.isTop) continue;
+    (r as any).aliveTimer = Math.round(Math.random() * aliveMaxFrames);
+  }
   setSproutsRuntime(runtime);
 
   setCurrentLevel2Iteration(1);
