@@ -991,45 +991,56 @@ const CavemanVsDragonGame = () => {
             if (climbingLadder) p.y = climbingLadder.yBot - p.h;
             if (sproutMechanicActive(g.round) && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
           } else if (wantsHorizontal && climbingLadder) {
-            // L3 mid-sprout vines: lateral hop to adjacent GROWN vine in
-            // the same layer instead of dismounting (Donkey-Kong-Jr style).
-            // If no adjacent grown vine, the player is blocked from moving.
+            // L3 mid-sprout vines: lateral hop to IMMEDIATELY-adjacent vine
+            // in the same layer (Donkey-Kong-Jr style). Cannot skip a vine.
+            // Cannot move if the immediate neighbor is missing or not grown.
             const isL3MidVine = isLevel3Round(g.round)
               && nearestLadderIdx !== GREEN_TOP_LADDER_IDX
               && nearestLadderIdx !== PURPLE_TOP_LADDER_IDX;
             if (isL3MidVine) {
+              const dir = rawLeft ? -1 : 1;
+              const curL = climbingLadder;
+              // Find IMMEDIATE neighbor in same layer (by x order),
+              // regardless of grown state — cannot skip.
+              let neighborIdx = -1;
+              let neighborL: { x: number; yTop: number; yBot: number } | null = null;
+              let bestDx = Infinity;
+              for (let li = 0; li < LADDERS.length; li++) {
+                if (li === nearestLadderIdx) continue;
+                if (li === GREEN_TOP_LADDER_IDX || li === PURPLE_TOP_LADDER_IDX) continue;
+                const cand = LADDERS[li];
+                if (cand.yTop !== curL.yTop || cand.yBot !== curL.yBot) continue;
+                const dx = (cand.x - curL.x) * dir;
+                if (dx > 0 && dx < bestDx) { bestDx = dx; neighborIdx = li; neighborL = cand; }
+              }
+              const neighborGrown = neighborIdx >= 0 && isLadderUsable(g.round, neighborIdx);
               const cd = (p as any).lateralCD || 0;
+              p.facing = dir;
               if (cd > 0) {
                 (p as any).lateralCD = cd - 1;
                 p.vy = 0;
-                if (sproutMechanicActive(g.round)) markSproutInUse(nearestLadderIdx);
+              } else if (neighborL && neighborGrown) {
+                p.x = neighborL.x + 7 - p.w / 2;
+                (p as any).lateralCD = 10;
+                p.climbTimer++;
+                if (p.climbTimer > 3) { p.climbTimer = 0; p.climbFrame = (p.climbFrame + 1) % 4; }
               } else {
-                const dir = rawLeft ? -1 : 1;
-                p.facing = dir;
-                // Find next vine in same layer by x order that is grown.
-                const curL = climbingLadder;
-                let target: { x: number; yTop: number; yBot: number } | null = null;
-                let bestDx = Infinity;
+                // Blocked — no immediate neighbor or it isn't grown.
+                p.vy = 0;
+              }
+              // Allow current vine to die even with player on it, IF any
+              // other grown vine exists in the same layer (player has
+              // somewhere to go). Otherwise keep it alive.
+              if (sproutMechanicActive(g.round)) {
+                let hasOtherGrown = false;
                 for (let li = 0; li < LADDERS.length; li++) {
                   if (li === nearestLadderIdx) continue;
                   if (li === GREEN_TOP_LADDER_IDX || li === PURPLE_TOP_LADDER_IDX) continue;
                   const cand = LADDERS[li];
                   if (cand.yTop !== curL.yTop || cand.yBot !== curL.yBot) continue;
-                  if (!isLadderUsable(g.round, li)) continue;
-                  const dx = (cand.x - curL.x) * dir;
-                  if (dx > 0 && dx < bestDx) { bestDx = dx; target = cand; }
+                  if (isLadderUsable(g.round, li)) { hasOtherGrown = true; break; }
                 }
-                if (target) {
-                  p.x = target.x + 7 - p.w / 2;
-                  (p as any).lateralCD = 10;
-                  p.climbTimer++;
-                  if (p.climbTimer > 3) { p.climbTimer = 0; p.climbFrame = (p.climbFrame + 1) % 4; }
-                  if (sproutMechanicActive(g.round)) markSproutInUse(nearestLadderIdx);
-                } else {
-                  // Blocked — stay put.
-                  p.vy = 0;
-                  if (sproutMechanicActive(g.round)) markSproutInUse(nearestLadderIdx);
-                }
+                if (!hasOtherGrown) markSproutInUse(nearestLadderIdx);
               }
             } else {
               // Default: horizontal dismount at any height.
