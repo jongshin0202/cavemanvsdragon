@@ -67,8 +67,8 @@ export function buildLevel3MovingPlatforms(iteration: number): void {
     platforms.push({
       x: i * r1Pitch + (r1Pitch - W) / 2,
       y: ROW_Y[1], w: W, h: H,
-      vx: -randInRange(LEVEL3_PARAMS.row1.minSpeed, LEVEL3_PARAMS.row1.maxSpeed) * mul,
-      row: 1, mode: 'wrapLeft',
+      vx: randInRange(LEVEL3_PARAMS.row1.minSpeed, LEVEL3_PARAMS.row1.maxSpeed) * mul,
+      row: 1, mode: 'wrapRight',
     });
   }
 
