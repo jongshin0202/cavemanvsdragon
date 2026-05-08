@@ -130,20 +130,21 @@ export function tickMovingPlatforms(): number[] {
     }
   }
 
-  // ── Row 1: wrap LEFT
+  // ── Row 1: wrap RIGHT (was wrap LEFT) — moves L→R
   const r1 = byRow[1];
   for (const i of r1) {
     const p = platforms[i];
     const oldX = p.x;
     p.x += p.vx;
     dxs[i] = p.x - oldX;
-    if (p.x + p.w < 0) {
+    if (p.x > CANVAS_W) {
       const pitch = CANVAS_W / r1.length;
-      let maxX = -Infinity;
-      for (const j of r1) if (j !== i && platforms[j].x > maxX) maxX = platforms[j].x;
-      p.x = maxX + pitch;
+      let minX = Infinity;
+      for (const j of r1) if (j !== i && platforms[j].x < minX) minX = platforms[j].x;
+      p.x = minX - pitch;
     }
   }
+  enforceMinSpacing(r1);
 
   // ── Row 2: wrap RIGHT
   const r2 = byRow[2];
@@ -159,8 +160,24 @@ export function tickMovingPlatforms(): number[] {
       p.x = minX - pitch;
     }
   }
+  enforceMinSpacing(r2);
 
   return dxs;
+}
+
+/** Ensure platforms in a row never overlap and never get closer than
+ *  MIN_GAP px. The trailing (right-most or left-most) platform is held
+ *  back so it stays at least MIN_GAP behind the leader. */
+function enforceMinSpacing(rowIdxs: number[]): void {
+  if (rowIdxs.length < 2) return;
+  // Sort by x ascending.
+  const sorted = [...rowIdxs].sort((a, b) => platforms[a].x - platforms[b].x);
+  for (let k = 1; k < sorted.length; k++) {
+    const prev = platforms[sorted[k - 1]];
+    const cur = platforms[sorted[k]];
+    const minX = prev.x + prev.w + MIN_GAP;
+    if (cur.x < minX) cur.x = minX;
+  }
 }
 
 export function renderMovingPlatforms(ctx: CanvasRenderingContext2D): void {
