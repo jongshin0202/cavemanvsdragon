@@ -26,7 +26,10 @@ let platforms: MovingPlatform[] = [];
 export function getMovingPlatforms(): MovingPlatform[] { return platforms; }
 export function clearLevel3MovingPlatforms(): void { platforms = []; }
 
-const ROW_Y = [400, 360, 324]; // bottom → top
+const ROW_Y = [432, 388, 344]; // bottom (ground level) → top
+// Minimum gap between platforms in the SAME row (≈ jump distance, so two
+// adjacent platforms can never overlap or touch — closest = jumpable).
+const MIN_GAP = 50;
 
 export function buildLevel3MovingPlatforms(iteration: number): void {
   const W = LEVEL3_PARAMS.platformWidth;
@@ -64,8 +67,8 @@ export function buildLevel3MovingPlatforms(iteration: number): void {
     platforms.push({
       x: i * r1Pitch + (r1Pitch - W) / 2,
       y: ROW_Y[1], w: W, h: H,
-      vx: -randInRange(LEVEL3_PARAMS.row1.minSpeed, LEVEL3_PARAMS.row1.maxSpeed) * mul,
-      row: 1, mode: 'wrapLeft',
+      vx: randInRange(LEVEL3_PARAMS.row1.minSpeed, LEVEL3_PARAMS.row1.maxSpeed) * mul,
+      row: 1, mode: 'wrapRight',
     });
   }
 
@@ -127,20 +130,21 @@ export function tickMovingPlatforms(): number[] {
     }
   }
 
-  // ── Row 1: wrap LEFT
+  // ── Row 1: wrap RIGHT (was wrap LEFT) — moves L→R
   const r1 = byRow[1];
   for (const i of r1) {
     const p = platforms[i];
     const oldX = p.x;
     p.x += p.vx;
     dxs[i] = p.x - oldX;
-    if (p.x + p.w < 0) {
+    if (p.x > CANVAS_W) {
       const pitch = CANVAS_W / r1.length;
-      let maxX = -Infinity;
-      for (const j of r1) if (j !== i && platforms[j].x > maxX) maxX = platforms[j].x;
-      p.x = maxX + pitch;
+      let minX = Infinity;
+      for (const j of r1) if (j !== i && platforms[j].x < minX) minX = platforms[j].x;
+      p.x = minX - pitch;
     }
   }
+  enforceMinSpacing(r1);
 
   // ── Row 2: wrap RIGHT
   const r2 = byRow[2];
@@ -156,8 +160,24 @@ export function tickMovingPlatforms(): number[] {
       p.x = minX - pitch;
     }
   }
+  enforceMinSpacing(r2);
 
   return dxs;
+}
+
+/** Ensure platforms in a row never overlap and never get closer than
+ *  MIN_GAP px. The trailing (right-most or left-most) platform is held
+ *  back so it stays at least MIN_GAP behind the leader. */
+function enforceMinSpacing(rowIdxs: number[]): void {
+  if (rowIdxs.length < 2) return;
+  // Sort by x ascending.
+  const sorted = [...rowIdxs].sort((a, b) => platforms[a].x - platforms[b].x);
+  for (let k = 1; k < sorted.length; k++) {
+    const prev = platforms[sorted[k - 1]];
+    const cur = platforms[sorted[k]];
+    const minX = prev.x + prev.w + MIN_GAP;
+    if (cur.x < minX) cur.x = minX;
+  }
 }
 
 export function renderMovingPlatforms(ctx: CanvasRenderingContext2D): void {

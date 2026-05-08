@@ -263,6 +263,9 @@ const CavemanVsDragonGame = () => {
       // Push permanent holes for L3 (sprout-platform drop, 2-piece split)
       if (isLevel3Round(g.round)) {
         for (const h of getLevel3PermanentHoles()) l2Ref.current.holes.push(h as any);
+        (l2Ref.current as any)._isL3 = true;
+      } else {
+        (l2Ref.current as any)._isL3 = false;
       }
       const { robots } = spawnLevel2Robots(l2Ref.current);
       g.robots.push(...robots);
@@ -960,6 +963,15 @@ const CavemanVsDragonGame = () => {
           if ((p as any).duckTimer > 0) (p as any).duckTimer--;
         }
 
+        // L3: ALWAYS tick moving platforms, regardless of climbing/jumping
+        //   state. Storing the per-frame dx array on `g` so the landing
+        //   block (in the !climbing path) can apply carry.
+        if (isLevel3Round(g.round)) {
+          (g as any)._l3Dxs = tickMovingPlatforms();
+        } else {
+          (g as any)._l3Dxs = undefined;
+        }
+
         if (p.climbing) {
           const climbingLadder = nearestLadder;
           // Define a generous "near end" zone: the top/bottom 10% of the
@@ -1095,12 +1107,16 @@ const CavemanVsDragonGame = () => {
               }
             }
           }
-          // L3: tick moving platforms; let player land on them and ride along.
+          // L3: let player land on moving platforms and ride along.
+          //   (Movers are TICKED unconditionally below, even while climbing,
+          //    so they never freeze.)
           if (isLevel3Round(g.round)) {
-            const dxs = tickMovingPlatforms();
-            const carry = landOnMovingPlatform(p as any, dxs);
-            if (carry !== 0) {
-              p.x = Math.max(0, Math.min(CANVAS_W - p.w, p.x + carry));
+            const dxs = (g as any)._l3Dxs as number[] | undefined;
+            if (dxs) {
+              const carry = landOnMovingPlatform(p as any, dxs);
+              if (carry !== 0) {
+                p.x = Math.max(0, Math.min(CANVAS_W - p.w, p.x + carry));
+              }
             }
           }
           // Advance jump frame animation while in air

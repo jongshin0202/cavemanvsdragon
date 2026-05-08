@@ -39,8 +39,12 @@ export function applyLevel3Layout(): void {
   // Flatten everything.
   for (const p of PLATFORMS) p.slope = 0;
 
-  // ── P0 (ground), P5 (top): full width
-  PLATFORMS[0].x1 = 0;        PLATFORMS[0].x2 = CANVAS_W; PLATFORMS[0].y = 432;
+  // ── P0 (ground): only a small LEFT ledge for spawn. The rest of the
+  //   bottom is open → player falls and dies. The "bottom row" of moving
+  //   platforms (built by movingPlatforms.ts) lives at y=432 and is the
+  //   only way to traverse across the bottom.
+  PLATFORMS[0].x1 = 0;        PLATFORMS[0].x2 = 88;        PLATFORMS[0].y = 432;
+  // ── P5 (top): full width
   PLATFORMS[5].x1 = 0;        PLATFORMS[5].x2 = CANVAS_W; PLATFORMS[5].y = 112;
 
   // ── P4 long sprout platform — full width. Sits HIGH so the top "seed"
@@ -52,8 +56,9 @@ export function applyLevel3Layout(): void {
   //   "hole" handed to the L2 hole system via PERMANENT_HOLES below)
   PLATFORMS[3].x1 = 0;        PLATFORMS[3].x2 = CANVAS_W; PLATFORMS[3].y = 304;
 
-  // ── P2 unused — collapse to nothing
-  PLATFORMS[2].x1 = 0;        PLATFORMS[2].x2 = 0;        PLATFORMS[2].y = 320;
+  // ── P2 — used as RIGHT-edge ground ledge so the player has a place to
+  //   land on the far-right side of the bottom row.
+  PLATFORMS[2].x1 = 424;      PLATFORMS[2].x2 = CANVAS_W; PLATFORMS[2].y = 432;
 
   // ── P1 unused — collapse (no static floating island in L3)
   FLOAT_X1 = 0; FLOAT_X2 = 0;
@@ -121,6 +126,14 @@ export function applyLevel3Layout(): void {
       gapIdx: isTop ? -1 : 0,
     };
   });
+  // Stagger initial alive timers so the vines don't all wither/regrow in
+  // sync. Each non-top sprout starts at a random age within the alive
+  // range, plus a per-vine phase offset.
+  const aliveMaxFrames = LEVEL2_PARAMS.SPROUT_ALIVE_MAX_SEC * 60;
+  for (const r of runtime) {
+    if (r.isTop) continue;
+    (r as any).aliveTimer = Math.round(Math.random() * aliveMaxFrames);
+  }
   setSproutsRuntime(runtime);
 
   setCurrentLevel2Iteration(1);
