@@ -960,6 +960,15 @@ const CavemanVsDragonGame = () => {
           if ((p as any).duckTimer > 0) (p as any).duckTimer--;
         }
 
+        // L3: ALWAYS tick moving platforms, regardless of climbing/jumping
+        //   state. Storing the per-frame dx array on `g` so the landing
+        //   block (in the !climbing path) can apply carry.
+        if (isLevel3Round(g.round)) {
+          (g as any)._l3Dxs = tickMovingPlatforms();
+        } else {
+          (g as any)._l3Dxs = undefined;
+        }
+
         if (p.climbing) {
           const climbingLadder = nearestLadder;
           // Define a generous "near end" zone: the top/bottom 10% of the
