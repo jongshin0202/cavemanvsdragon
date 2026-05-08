@@ -263,6 +263,9 @@ const CavemanVsDragonGame = () => {
       // Push permanent holes for L3 (sprout-platform drop, 2-piece split)
       if (isLevel3Round(g.round)) {
         for (const h of getLevel3PermanentHoles()) l2Ref.current.holes.push(h as any);
+        (l2Ref.current as any)._isL3 = true;
+      } else {
+        (l2Ref.current as any)._isL3 = false;
       }
       const { robots } = spawnLevel2Robots(l2Ref.current);
       g.robots.push(...robots);
