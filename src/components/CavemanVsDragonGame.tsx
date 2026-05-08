@@ -1095,12 +1095,16 @@ const CavemanVsDragonGame = () => {
               }
             }
           }
-          // L3: tick moving platforms; let player land on them and ride along.
+          // L3: let player land on moving platforms and ride along.
+          //   (Movers are TICKED unconditionally below, even while climbing,
+          //    so they never freeze.)
           if (isLevel3Round(g.round)) {
-            const dxs = tickMovingPlatforms();
-            const carry = landOnMovingPlatform(p as any, dxs);
-            if (carry !== 0) {
-              p.x = Math.max(0, Math.min(CANVAS_W - p.w, p.x + carry));
+            const dxs = (g as any)._l3Dxs as number[] | undefined;
+            if (dxs) {
+              const carry = landOnMovingPlatform(p as any, dxs);
+              if (carry !== 0) {
+                p.x = Math.max(0, Math.min(CANVAS_W - p.w, p.x + carry));
+              }
             }
           }
           // Advance jump frame animation while in air
