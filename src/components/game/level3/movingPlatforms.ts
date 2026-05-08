@@ -26,7 +26,10 @@ let platforms: MovingPlatform[] = [];
 export function getMovingPlatforms(): MovingPlatform[] { return platforms; }
 export function clearLevel3MovingPlatforms(): void { platforms = []; }
 
-const ROW_Y = [400, 360, 324]; // bottom → top
+const ROW_Y = [432, 388, 344]; // bottom (ground level) → top
+// Minimum gap between platforms in the SAME row (≈ jump distance, so two
+// adjacent platforms can never overlap or touch — closest = jumpable).
+const MIN_GAP = 50;
 
 export function buildLevel3MovingPlatforms(iteration: number): void {
   const W = LEVEL3_PARAMS.platformWidth;
