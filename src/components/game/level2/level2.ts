@@ -80,28 +80,46 @@ export function spawnLevel2Robots(
 
   // Initial: only green jackets exist (purple appears after volcano sealed).
   const diff = getLevel2Difficulty(s.round);
-  const platCount = MONKEY_PLAT_INDICES.length;
-  // How many monkeys to spawn at level start = min(maxMonkeys, platCount).
-  // Iteration 1 = 2 monkeys; +1 per iter up to 4 here (rest fill via respawn).
-  const initialCount = Math.max(1, Math.min(diff.maxMonkeys, platCount));
-  // Pick which platforms get a monkey (random, no duplicates).
+  // L3 override: 2 monkeys on the sprout platform (idx 4) + 1 on the split
+  //   platform (idx 3). One sprout-monkey starts on the LEFT half, the
+  //   other on the RIGHT half (per design spec).
+  const isL3 = !!(s as any)._isL3;
+  const platSlots: number[] = isL3 ? [4, 4, 3] : MONKEY_PLAT_INDICES.slice();
+  const platCount = platSlots.length;
+  const initialCount = isL3
+    ? platCount
+    : Math.max(1, Math.min(diff.maxMonkeys, platCount));
+  // Pick which slots get a monkey (random, no duplicates by index position).
   const platOrder = [...Array(platCount).keys()];
-  for (let i = platOrder.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [platOrder[i], platOrder[j]] = [platOrder[j], platOrder[i]];
+  if (!isL3) {
+    for (let i = platOrder.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [platOrder[i], platOrder[j]] = [platOrder[j], platOrder[i]];
+    }
   }
-  const chosenPlats = platOrder.slice(0, initialCount);
+  const chosenSlots = platOrder.slice(0, initialCount);
   // Of the chosen monkeys, mark up to greenJacketCount as green.
   const greenCount = Math.min(diff.greenJacketCount, initialCount);
-  const greenSet = new Set<number>(); // indices into chosenPlats
+  const greenSet = new Set<number>(); // indices into chosenSlots
   while (greenSet.size < greenCount) {
-    greenSet.add(Math.floor(rng() * chosenPlats.length));
+    greenSet.add(Math.floor(rng() * chosenSlots.length));
   }
 
-  for (let i = 0; i < chosenPlats.length; i++) {
-    const pi = MONKEY_PLAT_INDICES[chosenPlats[i]];
+  for (let i = 0; i < chosenSlots.length; i++) {
+    const pi = platSlots[chosenSlots[i]];
     const plat = PLATFORMS[pi];
-    const rx = plat.x1 + 30 + rng() * (plat.x2 - plat.x1 - 60);
+    let rx: number;
+    if (isL3 && pi === 4) {
+      // First sprout monkey → LEFT half, second → RIGHT half.
+      const sproutCount = chosenSlots.filter((s, k) => platSlots[s] === 4 && k <= i).length;
+      const half = (plat.x2 - plat.x1) / 2;
+      const leftHalf = sproutCount === 1;
+      rx = leftHalf
+        ? plat.x1 + 30 + rng() * (half - 60)
+        : plat.x1 + half + 30 + rng() * (half - 60);
+    } else {
+      rx = plat.x1 + 30 + rng() * (plat.x2 - plat.x1 - 60);
+    }
     const ry = getPlatformY(plat, rx) - 16;
     const spd = ROBOT_SPEED * (diff.monkeySpeedMul + rng() * diff.monkeySpeedJitter);
     robots.push({
