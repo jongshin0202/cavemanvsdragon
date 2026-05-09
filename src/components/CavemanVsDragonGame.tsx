@@ -2409,7 +2409,68 @@ const CavemanVsDragonGame = () => {
     };
   }, [resetGame, resetPlayer]);
 
-  // Direct, synchronous vibrate — Android is more reliable with a cleared pattern
+  // ============= Gamepad API polling (PC + browsers that expose it) =============
+  // Standard mapping: 0=A (jump), 9=Start (R), 12/13/14/15 = DPAD up/down/left/right.
+  // Left stick: axes[0] (x), axes[1] (y). Threshold 0.4.
+  useEffect(() => {
+    let raf = 0;
+    const prev: Record<string, boolean> = {};
+    const send = (key: string, down: boolean, isStart = false) => {
+      if (down === !!prev[key]) return;
+      prev[key] = down;
+      if (down) {
+        markGamepadActive();
+        keysRef.current.add(key);
+        anyInputHandlerRef.current?.(key, 'pad');
+        if (isStart && key === 'r') {
+          // Match keyboard 'R' behavior: if not consumed by menus, reset.
+          // anyInputHandlerRef already had a chance above.
+        }
+      } else {
+        keysRef.current.delete(key);
+      }
+    };
+    const poll = () => {
+      const pads = (typeof navigator !== 'undefined' && navigator.getGamepads) ? navigator.getGamepads() : [];
+      let anyConnected = false;
+      for (const gp of pads) {
+        if (!gp) continue;
+        anyConnected = true;
+        const b = gp.buttons;
+        const ax = gp.axes || [];
+        const x = ax[0] ?? 0;
+        const y = ax[1] ?? 0;
+        const up    = (b[12]?.pressed) || y < -0.4;
+        const down  = (b[13]?.pressed) || y >  0.4;
+        const left  = (b[14]?.pressed) || x < -0.4;
+        const right = (b[15]?.pressed) || x >  0.4;
+        const jump  = !!b[0]?.pressed;
+        const start = !!b[9]?.pressed;
+        send('ArrowUp', up);
+        send('ArrowDown', down);
+        send('ArrowLeft', left);
+        send('ArrowRight', right);
+        send(' ', jump);
+        send('r', start, true);
+        if (up || down || left || right || jump || start) markGamepadActive();
+        break; // first connected gamepad wins
+      }
+      if (!anyConnected) {
+        // release any latched keys
+        for (const k of Object.keys(prev)) if (prev[k]) send(k, false);
+      }
+      raf = requestAnimationFrame(poll);
+    };
+    const onConnect = () => { markGamepadActive(); };
+    window.addEventListener('gamepadconnected', onConnect);
+    raf = requestAnimationFrame(poll);
+    return () => {
+      window.removeEventListener('gamepadconnected', onConnect);
+      cancelAnimationFrame(raf);
+    };
+  }, [markGamepadActive]);
+
+
   // and a slightly longer minimum pulse fired directly from touch/pointer handlers.
   const vibrateNow = (ms: number) => {
     try {
