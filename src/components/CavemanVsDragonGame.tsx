@@ -733,6 +733,12 @@ const CavemanVsDragonGame = () => {
     canImg.src = wateringCanUrl;
     wateringCanRef.current = canImg;
 
+    // Android gamepad keyCode → standard web key mapping.
+    // 19=DPAD_UP, 20=DPAD_DOWN, 21=DPAD_LEFT, 22=DPAD_RIGHT, 96=BUTTON_A (jump), 108=BUTTON_START (R).
+    const ANDROID_PAD_KEYS: Record<number, string> = {
+      19: 'ArrowUp', 20: 'ArrowDown', 21: 'ArrowLeft', 22: 'ArrowRight',
+      96: ' ', 108: 'r',
+    };
     const handleKeyDown = (e: KeyboardEvent) => {
       unlockAudio();
       // When the user is typing into the name input, let the input handle the
@@ -740,17 +746,23 @@ const CavemanVsDragonGame = () => {
       if (e.target === nameFieldRef.current) {
         return;
       }
-      keysRef.current.add(e.key);
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
+      // Translate Android controller keycodes to standard keys + flag gamepad.
+      let key = e.key;
+      const padKey = ANDROID_PAD_KEYS[e.keyCode];
+      if (padKey) { key = padKey; markGamepadActive(); e.preventDefault(); }
+      keysRef.current.add(key);
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(key)) e.preventDefault();
       // Route input through the unified handler. It returns true if it consumed the key.
-      const consumed = anyInputHandlerRef.current?.(e.key, 'keyboard');
+      const consumed = anyInputHandlerRef.current?.(key, padKey ? 'pad' : 'keyboard');
       if (consumed) { e.preventDefault(); return; }
-      if (e.key === 'r' || e.key === 'R' || e.code === 'KeyR') { e.preventDefault(); resetGame(); }
+      if (key === 'r' || key === 'R' || e.code === 'KeyR') { e.preventDefault(); resetGame(); }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
-      keysRef.current.delete(e.key);
+      const padKey = ANDROID_PAD_KEYS[e.keyCode];
+      const key = padKey ?? e.key;
+      keysRef.current.delete(key);
       // Releasing C cancels the pending hold-to-clear timer.
-      if (e.key === 'c' || e.key === 'C') {
+      if (key === 'c' || key === 'C') {
         if (cHoldTimerRef.current !== null) {
           window.clearTimeout(cHoldTimerRef.current);
           cHoldTimerRef.current = null;
