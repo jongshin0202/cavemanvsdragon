@@ -26,7 +26,10 @@ let platforms: MovingPlatform[] = [];
 export function getMovingPlatforms(): MovingPlatform[] { return platforms; }
 export function clearLevel3MovingPlatforms(): void { platforms = []; }
 
-const ROW_Y = [432, 388, 344]; // bottom (ground level) → top
+// Bottom (row 0) → top (row 3). Spaced by ~36px so the player can jump
+// row-to-row. Sprout platform is at y=176, split at y=304, so rows live
+// between 432 and ~324.
+const ROW_Y = [432, 396, 360, 324];
 // Minimum gap between platforms in the SAME row (≈ jump distance, so two
 // adjacent platforms can never overlap or touch — closest = jumpable).
 const MIN_GAP = 50;
