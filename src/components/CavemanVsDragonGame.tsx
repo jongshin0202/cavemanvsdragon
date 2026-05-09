@@ -141,6 +141,16 @@ const CavemanVsDragonGame = () => {
   // PC: hold-C-for-10s on the local-leaderboard attract screen to clear it.
   const cHoldTimerRef = useRef<number | null>(null);
   const cHoldFiredRef = useRef<boolean>(false);
+  // Hardware gamepad detection (PC Gamepad API or Android key events from a controller).
+  // When true on mobile, on-screen D-pad/JUMP/R buttons are hidden.
+  const gamepadActiveRef = useRef<boolean>(false);
+  const [gamepadActive, setGamepadActive] = useState<boolean>(false);
+  const markGamepadActive = useCallback(() => {
+    if (!gamepadActiveRef.current) {
+      gamepadActiveRef.current = true;
+      setGamepadActive(true);
+    }
+  }, []);
   const gameRef = useRef({
     player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0, duckTimer: 0 },
     barrels: [] as Barrel[],
