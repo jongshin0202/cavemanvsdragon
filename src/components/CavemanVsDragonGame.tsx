@@ -1032,35 +1032,63 @@ const CavemanVsDragonGame = () => {
               && nearestLadderIdx !== GREEN_TOP_LADDER_IDX
               && nearestLadderIdx !== PURPLE_TOP_LADDER_IDX;
             if (isL3MidVine) {
-              const dir = rawLeft ? -1 : 1;
               const curL = climbingLadder;
-              // Find IMMEDIATE neighbor in same layer (by x order),
-              // regardless of grown state — cannot skip.
-              let neighborIdx = -1;
-              let neighborL: { x: number; yTop: number; yBot: number } | null = null;
-              let bestDx = Infinity;
-              for (let li = 0; li < LADDERS.length; li++) {
-                if (li === nearestLadderIdx) continue;
-                if (li === GREEN_TOP_LADDER_IDX || li === PURPLE_TOP_LADDER_IDX) continue;
-                const cand = LADDERS[li];
-                if (cand.yTop !== curL.yTop || cand.yBot !== curL.yBot) continue;
-                const dx = (cand.x - curL.x) * dir;
-                if (dx > 0 && dx < bestDx) { bestDx = dx; neighborIdx = li; neighborL = cand; }
-              }
-              const neighborGrown = neighborIdx >= 0 && isLadderUsable(g.round, neighborIdx);
+              // Detect edge presses (tap = one press) so the lateral hop
+              // becomes a TWO-STEP gesture:
+              //   1st tap in a direction → "reaching" pose (left hand on
+              //     current vine, right hand on neighbor vine — frame 3).
+              //   2nd tap in the same direction → actually move to that vine.
+              const prev = (p as any)._prevLat || { l: false, r: false };
+              const edgeL = rawLeft && !prev.l;
+              const edgeR = rawRight && !prev.r;
+              (p as any)._prevLat = { l: rawLeft, r: rawRight };
+
+              const findNeighbor = (dir: -1 | 1) => {
+                let idx = -1;
+                let L: { x: number; yTop: number; yBot: number } | null = null;
+                let best = Infinity;
+                for (let li = 0; li < LADDERS.length; li++) {
+                  if (li === nearestLadderIdx) continue;
+                  if (li === GREEN_TOP_LADDER_IDX || li === PURPLE_TOP_LADDER_IDX) continue;
+                  const cand = LADDERS[li];
+                  if (cand.yTop !== curL.yTop || cand.yBot !== curL.yBot) continue;
+                  const dx = (cand.x - curL.x) * dir;
+                  if (dx > 0 && dx < best) { best = dx; idx = li; L = cand; }
+                }
+                return { idx, L };
+              };
+
               const cd = (p as any).lateralCD || 0;
-              p.facing = dir;
+              const phase = ((p as any).lateralPhase as 'idle' | 'reachL' | 'reachR' | undefined) || 'idle';
+              p.vy = 0;
+              const REACH_FRAME = 3; // widest "reach across" pose
+              const HOLD_FRAME = 0;  // standing on a vine
+
+              const tryStep = (dir: -1 | 1, want: 'reachL' | 'reachR') => {
+                const { idx, L } = findNeighbor(dir);
+                const grown = idx >= 0 && isLadderUsable(g.round, idx);
+                if (!grown || !L) return; // blocked: no neighbor or not grown
+                p.facing = dir;
+                if (phase === want) {
+                  // Commit the hop on the second tap in the same direction.
+                  p.x = L.x + 7 - p.w / 2;
+                  (p as any).lateralPhase = 'idle';
+                  (p as any).lateralCD = 6;
+                  p.climbFrame = HOLD_FRAME;
+                } else {
+                  // First tap → reach pose.
+                  (p as any).lateralPhase = want;
+                  p.climbFrame = REACH_FRAME;
+                  p.climbTimer = 0;
+                }
+              };
+
               if (cd > 0) {
                 (p as any).lateralCD = cd - 1;
-                p.vy = 0;
-              } else if (neighborL && neighborGrown) {
-                p.x = neighborL.x + 7 - p.w / 2;
-                (p as any).lateralCD = 10;
-                p.climbTimer++;
-                if (p.climbTimer > 3) { p.climbTimer = 0; p.climbFrame = (p.climbFrame + 1) % 4; }
-              } else {
-                // Blocked — no immediate neighbor or it isn't grown.
-                p.vy = 0;
+              } else if (edgeL) {
+                tryStep(-1, 'reachL');
+              } else if (edgeR) {
+                tryStep(1, 'reachR');
               }
               // Allow current vine to die even with player on it, IF any
               // other grown vine exists in the same layer (player has
