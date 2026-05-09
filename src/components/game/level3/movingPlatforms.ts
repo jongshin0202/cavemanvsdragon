@@ -104,7 +104,7 @@ export function buildLevel3MovingPlatforms(iteration: number): void {
 export function tickMovingPlatforms(): number[] {
   const dxs: number[] = new Array(platforms.length).fill(0);
 
-  const byRow: Record<number, number[]> = { 0: [], 1: [], 2: [] };
+  const byRow: Record<number, number[]> = { 0: [], 1: [], 2: [], 3: [] };
   platforms.forEach((p, i) => { byRow[p.row].push(i); });
 
   // ── Row 0: bouncers vs walls AND vs the static island.
@@ -116,14 +116,12 @@ export function tickMovingPlatforms(): number[] {
     p.x += p.vx;
     dxs[i] = p.x - oldX;
   }
-  // wall bounce
   for (const i of r0) {
     const p = platforms[i];
     if (p.mode === 'static') continue;
     if (p.x < 0) { p.x = 0; p.vx = Math.abs(p.vx); }
     else if (p.x + p.w > CANVAS_W) { p.x = CANVAS_W - p.w; p.vx = -Math.abs(p.vx); }
   }
-  // bouncer vs island (and bouncer vs bouncer just in case)
   for (let a = 0; a < r0.length; a++) {
     for (let b = a + 1; b < r0.length; b++) {
       const pa = platforms[r0[a]]; const pb = platforms[r0[b]];
@@ -145,37 +143,28 @@ export function tickMovingPlatforms(): number[] {
     }
   }
 
-  // ── Row 1: wrap RIGHT (was wrap LEFT) — moves L→R
-  const r1 = byRow[1];
-  for (const i of r1) {
-    const p = platforms[i];
-    const oldX = p.x;
-    p.x += p.vx;
-    dxs[i] = p.x - oldX;
-    if (p.x > CANVAS_W) {
-      const pitch = CANVAS_W / r1.length;
-      let minX = Infinity;
-      for (const j of r1) if (j !== i && platforms[j].x < minX) minX = platforms[j].x;
-      p.x = minX - pitch;
+  // Generic wrap rows (1, 2, 3) — direction depends on mode.
+  for (const rowIdx of [1, 2, 3]) {
+    const r = byRow[rowIdx];
+    if (!r || r.length === 0) continue;
+    const pitch = CANVAS_W / r.length;
+    for (const i of r) {
+      const p = platforms[i];
+      const oldX = p.x;
+      p.x += p.vx;
+      dxs[i] = p.x - oldX;
+      if (p.mode === 'wrapRight' && p.x > CANVAS_W) {
+        let minX = Infinity;
+        for (const j of r) if (j !== i && platforms[j].x < minX) minX = platforms[j].x;
+        p.x = minX - pitch;
+      } else if (p.mode === 'wrapLeft' && p.x + p.w < 0) {
+        let maxX = -Infinity;
+        for (const j of r) if (j !== i && platforms[j].x > maxX) maxX = platforms[j].x;
+        p.x = maxX + pitch;
+      }
     }
+    enforceMinSpacing(r);
   }
-  enforceMinSpacing(r1);
-
-  // ── Row 2: wrap RIGHT
-  const r2 = byRow[2];
-  for (const i of r2) {
-    const p = platforms[i];
-    const oldX = p.x;
-    p.x += p.vx;
-    dxs[i] = p.x - oldX;
-    if (p.x > CANVAS_W) {
-      const pitch = CANVAS_W / r2.length;
-      let minX = Infinity;
-      for (const j of r2) if (j !== i && platforms[j].x < minX) minX = platforms[j].x;
-      p.x = minX - pitch;
-    }
-  }
-  enforceMinSpacing(r2);
 
   return dxs;
 }
