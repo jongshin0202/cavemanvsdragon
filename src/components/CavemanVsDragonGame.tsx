@@ -141,6 +141,16 @@ const CavemanVsDragonGame = () => {
   // PC: hold-C-for-10s on the local-leaderboard attract screen to clear it.
   const cHoldTimerRef = useRef<number | null>(null);
   const cHoldFiredRef = useRef<boolean>(false);
+  // Hardware gamepad detection (PC Gamepad API or Android key events from a controller).
+  // When true on mobile, on-screen D-pad/JUMP/R buttons are hidden.
+  const gamepadActiveRef = useRef<boolean>(false);
+  const [gamepadActive, setGamepadActive] = useState<boolean>(false);
+  const markGamepadActive = useCallback(() => {
+    if (!gamepadActiveRef.current) {
+      gamepadActiveRef.current = true;
+      setGamepadActive(true);
+    }
+  }, []);
   const gameRef = useRef({
     player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0, duckTimer: 0 },
     barrels: [] as Barrel[],
@@ -723,6 +733,12 @@ const CavemanVsDragonGame = () => {
     canImg.src = wateringCanUrl;
     wateringCanRef.current = canImg;
 
+    // Android gamepad keyCode → standard web key mapping.
+    // 19=DPAD_UP, 20=DPAD_DOWN, 21=DPAD_LEFT, 22=DPAD_RIGHT, 96=BUTTON_A (jump), 108=BUTTON_START (R).
+    const ANDROID_PAD_KEYS: Record<number, string> = {
+      19: 'ArrowUp', 20: 'ArrowDown', 21: 'ArrowLeft', 22: 'ArrowRight',
+      96: ' ', 108: 'r',
+    };
     const handleKeyDown = (e: KeyboardEvent) => {
       unlockAudio();
       // When the user is typing into the name input, let the input handle the
@@ -730,17 +746,23 @@ const CavemanVsDragonGame = () => {
       if (e.target === nameFieldRef.current) {
         return;
       }
-      keysRef.current.add(e.key);
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
+      // Translate Android controller keycodes to standard keys + flag gamepad.
+      let key = e.key;
+      const padKey = ANDROID_PAD_KEYS[e.keyCode];
+      if (padKey) { key = padKey; markGamepadActive(); e.preventDefault(); }
+      keysRef.current.add(key);
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(key)) e.preventDefault();
       // Route input through the unified handler. It returns true if it consumed the key.
-      const consumed = anyInputHandlerRef.current?.(e.key, 'keyboard');
+      const consumed = anyInputHandlerRef.current?.(key, padKey ? 'pad' : 'keyboard');
       if (consumed) { e.preventDefault(); return; }
-      if (e.key === 'r' || e.key === 'R' || e.code === 'KeyR') { e.preventDefault(); resetGame(); }
+      if (key === 'r' || key === 'R' || e.code === 'KeyR') { e.preventDefault(); resetGame(); }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
-      keysRef.current.delete(e.key);
+      const padKey = ANDROID_PAD_KEYS[e.keyCode];
+      const key = padKey ?? e.key;
+      keysRef.current.delete(key);
       // Releasing C cancels the pending hold-to-clear timer.
-      if (e.key === 'c' || e.key === 'C') {
+      if (key === 'c' || key === 'C') {
         if (cHoldTimerRef.current !== null) {
           window.clearTimeout(cHoldTimerRef.current);
           cHoldTimerRef.current = null;
@@ -2387,6 +2409,66 @@ const CavemanVsDragonGame = () => {
     };
   }, [resetGame, resetPlayer]);
 
+  // ============= Gamepad API polling (PC + browsers that expose it) =============
+  // Standard mapping: 0=A (jump), 9=Start (R), 12/13/14/15 = DPAD up/down/left/right.
+  // Left stick: axes[0] (x), axes[1] (y). Threshold 0.4.
+  useEffect(() => {
+    let raf = 0;
+    const prev: Record<string, boolean> = {};
+    const send = (key: string, down: boolean, isStart = false) => {
+      if (down === !!prev[key]) return;
+      prev[key] = down;
+      if (down) {
+        markGamepadActive();
+        keysRef.current.add(key);
+        anyInputHandlerRef.current?.(key, 'pad');
+        if (isStart && key === 'r') {
+          // Match keyboard 'R' behavior: if not consumed by menus, reset.
+          // anyInputHandlerRef already had a chance above.
+        }
+      } else {
+        keysRef.current.delete(key);
+      }
+    };
+    const poll = () => {
+      const pads = (typeof navigator !== 'undefined' && navigator.getGamepads) ? navigator.getGamepads() : [];
+      let anyConnected = false;
+      for (const gp of pads) {
+        if (!gp) continue;
+        anyConnected = true;
+        const b = gp.buttons;
+        const ax = gp.axes || [];
+        const x = ax[0] ?? 0;
+        const y = ax[1] ?? 0;
+        const up    = (b[12]?.pressed) || y < -0.4;
+        const down  = (b[13]?.pressed) || y >  0.4;
+        const left  = (b[14]?.pressed) || x < -0.4;
+        const right = (b[15]?.pressed) || x >  0.4;
+        const jump  = !!b[0]?.pressed;
+        const start = !!b[9]?.pressed;
+        send('ArrowUp', up);
+        send('ArrowDown', down);
+        send('ArrowLeft', left);
+        send('ArrowRight', right);
+        send(' ', jump);
+        send('r', start, true);
+        if (up || down || left || right || jump || start) markGamepadActive();
+        break; // first connected gamepad wins
+      }
+      if (!anyConnected) {
+        // release any latched keys
+        for (const k of Object.keys(prev)) if (prev[k]) send(k, false);
+      }
+      raf = requestAnimationFrame(poll);
+    };
+    const onConnect = () => { markGamepadActive(); };
+    window.addEventListener('gamepadconnected', onConnect);
+    raf = requestAnimationFrame(poll);
+    return () => {
+      window.removeEventListener('gamepadconnected', onConnect);
+      cancelAnimationFrame(raf);
+    };
+  }, [markGamepadActive]);
   // Direct, synchronous vibrate — Android is more reliable with a cleared pattern
   // and a slightly longer minimum pulse fired directly from touch/pointer handlers.
   const vibrateNow = (ms: number) => {
@@ -2641,6 +2723,17 @@ const CavemanVsDragonGame = () => {
                   }}
                 />
               </div>
+              <div
+                className="text-center font-caveman"
+                style={{
+                  fontSize: 'clamp(0.75rem, 2vw, 1.15rem)',
+                  color: 'hsl(var(--foreground))',
+                  textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
+                  letterSpacing: '0.08em',
+                }}
+              >
+                Created by Jong-Wook Shin
+              </div>
             </div>
           </button>
         )}
@@ -2750,8 +2843,8 @@ const CavemanVsDragonGame = () => {
         )}
       </div>
 
-      {/* Controls — hidden on desktop (md+); also hidden on mobile during intro/attract screens */}
-      {!(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls') && (
+      {/* Controls — hidden on desktop (md+); on mobile, also hidden during intro/attract screens or when a hardware gamepad is detected */}
+      {!gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls') && (
       <div className="md:hidden w-full shrink-0 overflow-hidden px-2 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] touch-none">
         <div className="grid h-[152px] w-full grid-cols-[minmax(0,1fr)_3rem_minmax(7.5rem,38vw)] items-stretch gap-2">
           {/* Locked D-pad shape: box-style arrows only, wide Up/Down, L/R centered and slightly taller */}
@@ -3037,6 +3130,17 @@ const AttractLeaderboardScreen = ({
               height: 'clamp(40px, 7vw, 64px)',
             }}
           />
+        </div>
+        <div
+          className="text-center font-caveman"
+          style={{
+            fontSize: 'clamp(0.75rem, 2vw, 1.15rem)',
+            color: 'hsl(var(--foreground))',
+            textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
+            letterSpacing: '0.08em',
+          }}
+        >
+          Created by Jong-Wook Shin
         </div>
       </div>
     </button>
