@@ -3131,6 +3131,17 @@ const AttractLeaderboardScreen = ({
             }}
           />
         </div>
+        <div
+          className="text-center font-caveman"
+          style={{
+            fontSize: 'clamp(0.75rem, 2vw, 1.15rem)',
+            color: 'hsl(var(--foreground))',
+            textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
+            letterSpacing: '0.08em',
+          }}
+        >
+          Created by Jong-Wook Shin
+        </div>
       </div>
     </button>
   );
