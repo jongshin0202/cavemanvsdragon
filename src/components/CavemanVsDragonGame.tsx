@@ -2469,8 +2469,7 @@ const CavemanVsDragonGame = () => {
       cancelAnimationFrame(raf);
     };
   }, [markGamepadActive]);
-
-
+  // Direct, synchronous vibrate — Android is more reliable with a cleared pattern
   // and a slightly longer minimum pulse fired directly from touch/pointer handlers.
   const vibrateNow = (ms: number) => {
     try {
