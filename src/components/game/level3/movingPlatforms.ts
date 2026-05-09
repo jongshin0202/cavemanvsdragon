@@ -63,7 +63,7 @@ export function buildLevel3MovingPlatforms(iteration: number): void {
     row: 0, mode: 'bounce',
   });
 
-  // ── Row 1: wrap LEFT
+  // ── Row 1: wrap RIGHT (L → R)
   const r1n = LEVEL3_PARAMS.row1Count;
   const r1Pitch = CANVAS_W / r1n;
   for (let i = 0; i < r1n; i++) {
@@ -75,15 +75,27 @@ export function buildLevel3MovingPlatforms(iteration: number): void {
     });
   }
 
-  // ── Row 2: wrap RIGHT
+  // ── Row 2: wrap LEFT (R → L)
   const r2n = LEVEL3_PARAMS.row2Count;
   const r2Pitch = CANVAS_W / r2n;
   for (let i = 0; i < r2n; i++) {
     platforms.push({
       x: i * r2Pitch + (r2Pitch - W) / 2,
       y: ROW_Y[2], w: W, h: H,
-      vx: randInRange(LEVEL3_PARAMS.row2.minSpeed, LEVEL3_PARAMS.row2.maxSpeed) * mul,
-      row: 2, mode: 'wrapRight',
+      vx: -randInRange(LEVEL3_PARAMS.row2.minSpeed, LEVEL3_PARAMS.row2.maxSpeed) * mul,
+      row: 2, mode: 'wrapLeft',
+    });
+  }
+
+  // ── Row 3: wrap RIGHT (L → R)
+  const r3n = LEVEL3_PARAMS.row3Count;
+  const r3Pitch = CANVAS_W / r3n;
+  for (let i = 0; i < r3n; i++) {
+    platforms.push({
+      x: i * r3Pitch + (r3Pitch - W) / 2,
+      y: ROW_Y[3], w: W, h: H,
+      vx: randInRange(LEVEL3_PARAMS.row3.minSpeed, LEVEL3_PARAMS.row3.maxSpeed) * mul,
+      row: 3, mode: 'wrapRight',
     });
   }
 }
