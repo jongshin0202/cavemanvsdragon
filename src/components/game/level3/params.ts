@@ -13,13 +13,18 @@ export const LEVEL3_PARAMS = {
     minSpeed: 0.4,
     maxSpeed: 1.2,
   },
-  // Middle row (row 1): all platforms move LEFT, wrap from right.
+  // Middle row (row 1): all platforms move LEFT→RIGHT, wrap from right.
   row1: {
     minSpeed: 0.7,
     maxSpeed: 1.4,
   },
-  // Top row (row 2): all platforms move RIGHT, wrap from left.
+  // Row 2: all platforms move RIGHT→LEFT, wrap from left.
   row2: {
+    minSpeed: 0.8,
+    maxSpeed: 1.5,
+  },
+  // Top row (row 3): all platforms move LEFT→RIGHT, wrap from right.
+  row3: {
     minSpeed: 0.9,
     maxSpeed: 1.7,
   },
@@ -30,9 +35,10 @@ export const LEVEL3_PARAMS = {
   platformWidth: 72,
   platformHeight: 8,
 
-  // # of moving platforms in mid/top rows.
+  // # of moving platforms in each upper row.
   row1Count: 3,
   row2Count: 3,
+  row3Count: 3,
 };
 
 export function l3IterSpeedMul(iteration: number): number {
