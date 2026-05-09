@@ -54,9 +54,8 @@ export function applyLevel3Layout(): void {
   //   "hole" handed to the L2 hole system via PERMANENT_HOLES below)
   PLATFORMS[3].x1 = 0;        PLATFORMS[3].x2 = CANVAS_W; PLATFORMS[3].y = 304;
 
-  // ── P2 — used as RIGHT-edge ground ledge so the player has a place to
-  //   land on the far-right side of the bottom row.
-  PLATFORMS[2].x1 = 424;      PLATFORMS[2].x2 = CANVAS_W; PLATFORMS[2].y = 432;
+  // ── P2 — unused (no right-edge ledge); the bottom row is fully moving.
+  PLATFORMS[2].x1 = 0;        PLATFORMS[2].x2 = 0;         PLATFORMS[2].y = 432;
 
   // ── P1 unused — collapse (no static floating island in L3)
   FLOAT_X1 = 0; FLOAT_X2 = 0;
