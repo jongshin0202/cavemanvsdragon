@@ -39,11 +39,9 @@ export function applyLevel3Layout(): void {
   // Flatten everything.
   for (const p of PLATFORMS) p.slope = 0;
 
-  // ── P0 (ground): only a small LEFT ledge for spawn. The rest of the
-  //   bottom is open → player falls and dies. The "bottom row" of moving
-  //   platforms (built by movingPlatforms.ts) lives at y=432 and is the
-  //   only way to traverse across the bottom.
-  PLATFORMS[0].x1 = 0;        PLATFORMS[0].x2 = 88;        PLATFORMS[0].y = 432;
+  // ── P0 (ground): no static ledge — the entire bottom row is moving
+  //   platforms. Player falls into the gap and dies if missed.
+  PLATFORMS[0].x1 = 0;        PLATFORMS[0].x2 = 0;         PLATFORMS[0].y = 432;
   // ── P5 (top): full width
   PLATFORMS[5].x1 = 0;        PLATFORMS[5].x2 = CANVAS_W; PLATFORMS[5].y = 112;
 
