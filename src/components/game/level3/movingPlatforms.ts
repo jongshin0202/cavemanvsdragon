@@ -145,13 +145,11 @@ export function tickMovingPlatforms(): number[] {
       p.x += p.vx;
       dxs[i] = p.x - oldX;
       if (p.mode === 'wrapRight' && p.x > CANVAS_W) {
-        let minX = Infinity;
-        for (const j of r) if (j !== i && platforms[j].x < minX) minX = platforms[j].x;
-        p.x = minX - pitch;
+        // Re-enter from the LEFT edge of the screen.
+        p.x = -p.w;
       } else if (p.mode === 'wrapLeft' && p.x + p.w < 0) {
-        let maxX = -Infinity;
-        for (const j of r) if (j !== i && platforms[j].x > maxX) maxX = platforms[j].x;
-        p.x = maxX + pitch;
+        // Re-enter from the RIGHT edge of the screen.
+        p.x = CANVAS_W;
       }
     }
     enforceMinSpacing(r);
