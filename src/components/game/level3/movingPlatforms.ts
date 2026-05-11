@@ -40,23 +40,14 @@ export function buildLevel3MovingPlatforms(iteration: number): void {
   const mul = l3IterSpeedMul(iteration);
   platforms = [];
 
-  // ── Row 0: center static island + two bouncers.
-  const islandX = (CANVAS_W - W) / 2;
-  // Static center island
-  platforms.push({
-    x: islandX, y: ROW_Y[0], w: W, h: H,
-    vx: 0, row: 0, mode: 'static',
-  });
-  // Left mover — sits between left edge and island
-  const leftSpawnX = (islandX - W) / 2; // centered in left zone
+  // ── Row 0: two bouncers, no center island — player can fall through.
+  const leftSpawnX = (CANVAS_W * 0.25) - W / 2;
   platforms.push({
     x: Math.max(0, leftSpawnX), y: ROW_Y[0], w: W, h: H,
     vx: -randInRange(LEVEL3_PARAMS.row0.minSpeed, LEVEL3_PARAMS.row0.maxSpeed) * mul,
     row: 0, mode: 'bounce',
   });
-  // Right mover — sits between island and right edge
-  const rightZoneStart = islandX + W;
-  const rightSpawnX = rightZoneStart + ((CANVAS_W - rightZoneStart) - W) / 2;
+  const rightSpawnX = (CANVAS_W * 0.75) - W / 2;
   platforms.push({
     x: Math.min(CANVAS_W - W, rightSpawnX), y: ROW_Y[0], w: W, h: H,
     vx: randInRange(LEVEL3_PARAMS.row0.minSpeed, LEVEL3_PARAMS.row0.maxSpeed) * mul,
