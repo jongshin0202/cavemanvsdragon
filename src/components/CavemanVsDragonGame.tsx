@@ -1926,44 +1926,65 @@ const CavemanVsDragonGame = () => {
       //     the vine growing up from the seed once the regrow timer expires.
       if (isLevel2Round(g.round)) {
         const sprouts = getSprouts();
+        const ceilingMode = isLevel3Round(g.round);
         for (let li = 0; li < LADDERS.length; li++) {
           // (no top-vine skip in L2: green/purple top sprouts are real entries here)
           const sr = sprouts[li];
           if (!sr || sr.grown) continue;
           const l = LADDERS[li];
+          // For L3 mid-vines, seed is on the CEILING (yTop) and the vine
+          // grows DOWNWARD. Top vines (green/purple) keep the original
+          // ground-up behaviour.
+          const isMidVineL3 = ceilingMode
+            && li !== GREEN_TOP_LADDER_IDX
+            && li !== PURPLE_TOP_LADDER_IDX;
           const sx = l.x + 7;
-          const sy = l.yBot - 2;
+          const sy = isMidVineL3 ? l.yTop + 2 : l.yBot - 2;
 
-          // Animated portion: vine growing from seed up toward top platform
+          // Animated portion: vine growing from seed toward the opposite end
           if (sr.growProgress > 0) {
             const fullH = l.yBot - l.yTop;
-            const grownTop = l.yBot - fullH * sr.growProgress;
-            drawVine(l.x, grownTop, l.yBot);
+            if (isMidVineL3) {
+              const grownBot = l.yTop + fullH * sr.growProgress;
+              drawVine(l.x, l.yTop, grownBot);
+            } else {
+              const grownTop = l.yBot - fullH * sr.growProgress;
+              drawVine(l.x, grownTop, l.yBot);
+            }
             // Sparkles only while regrowing — withering is silent (no water).
             if (sr.growProgress < 1 && sr.phase === 'grow') {
               for (let i = 0; i < 5; i++) {
                 const dx = sx + Math.cos(g.sparkleTimer * 0.18 + i * 1.3 + li) * 7;
-                const dy = grownTop - 4 + ((g.sparkleTimer * 0.6 + i * 5 + li * 3) % 18);
+                const baseY = isMidVineL3
+                  ? l.yTop + fullH * sr.growProgress - 4
+                  : l.yBot - fullH * sr.growProgress - 4;
+                const dy = baseY + ((g.sparkleTimer * 0.6 + i * 5 + li * 3) % 18);
                 ctx.fillStyle = ['#4FC3F7', '#B3E5FC', '#81D4FA', '#FFFFFF', '#4FC3F7'][i];
                 ctx.fillRect(dx, dy, 2, 2);
               }
             }
           } else {
             // Dormant seed: small mound of dirt with tiny green sprout leaves.
-            // No colored halo — the halo previously made the seed look like a
-            // pickup item, which confused players.
+            // For ceiling-mounted (L3) sprouts, flip the leaves to point DOWN.
             ctx.fillStyle = '#5D4037';
             ctx.fillRect(sx - 6, sy - 2, 12, 4);
             ctx.fillStyle = '#3E2723';
-            ctx.fillRect(sx - 6, sy + 1, 12, 1);
-            // Two tiny leaves poking out of the dirt
+            ctx.fillRect(sx - 6, isMidVineL3 ? sy + 2 : sy + 1, 12, 1);
             const leafColor = sr.topColor === 'purple' ? '#9C27B0' : '#66BB6A';
             ctx.fillStyle = leafColor;
-            ctx.fillRect(sx - 3, sy - 5, 2, 3);
-            ctx.fillRect(sx + 1, sy - 5, 2, 3);
-            ctx.fillStyle = sr.topColor === 'purple' ? '#7B1FA2' : '#4CAF50';
-            ctx.fillRect(sx - 4, sy - 6, 1, 1);
-            ctx.fillRect(sx + 2, sy - 6, 1, 1);
+            if (isMidVineL3) {
+              ctx.fillRect(sx - 3, sy + 4, 2, 3);
+              ctx.fillRect(sx + 1, sy + 4, 2, 3);
+              ctx.fillStyle = sr.topColor === 'purple' ? '#7B1FA2' : '#4CAF50';
+              ctx.fillRect(sx - 4, sy + 6, 1, 1);
+              ctx.fillRect(sx + 2, sy + 6, 1, 1);
+            } else {
+              ctx.fillRect(sx - 3, sy - 5, 2, 3);
+              ctx.fillRect(sx + 1, sy - 5, 2, 3);
+              ctx.fillStyle = sr.topColor === 'purple' ? '#7B1FA2' : '#4CAF50';
+              ctx.fillRect(sx - 4, sy - 6, 1, 1);
+              ctx.fillRect(sx + 2, sy - 6, 1, 1);
+            }
           }
         }
         // Keep sparkle timer ticking so the grow droplets animate.

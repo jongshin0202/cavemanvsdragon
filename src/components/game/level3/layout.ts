@@ -50,9 +50,10 @@ export function applyLevel3Layout(): void {
   //   tall (Donkey-Kong-Jr style: vertical traversal + lateral movement).
   PLATFORMS[4].x1 = 0;        PLATFORMS[4].x2 = CANVAS_W; PLATFORMS[4].y = 176;
 
-  // ── P3 split (uses ONE slot; the visual split is provided by a permanent
-  //   "hole" handed to the L2 hole system via PERMANENT_HOLES below)
-  PLATFORMS[3].x1 = 0;        PLATFORMS[3].x2 = CANVAS_W; PLATFORMS[3].y = 304;
+  // ── P3 — REMOVED. No floor under the sprout section; the vines hang
+  //   freely from P4 and the player drops into the moving-platform area
+  //   if they fall off the bottom.
+  PLATFORMS[3].x1 = 0;        PLATFORMS[3].x2 = 0;         PLATFORMS[3].y = 304;
 
   // ── P2 — unused (no right-edge ledge); the bottom row is fully moving.
   PLATFORMS[2].x1 = 0;        PLATFORMS[2].x2 = 0;         PLATFORMS[2].y = 432;
@@ -78,17 +79,13 @@ export function applyLevel3Layout(): void {
   //   Plus the two top-platform vines (purple → dragon side, green → volcano).
   const newLadders: { x: number; yTop: number; yBot: number }[] = [];
 
-  // Donkey-Kong-Jr style: densely-packed vines, evenly spaced, so the
-  // caveman can move LEFT/RIGHT between adjacent sprouts. A sprout can
-  // ONLY exist where there is ground both above (P4 sprout platform,
-  // skipping its drop-hole 232..280) AND below (P3, skipping its
-  // mid-split 200..312). The combined no-ground zone is 200..312.
+  // Donkey-Kong-Jr style: densely-packed vines hanging from the CEILING
+  // (P4) down to the same length as before. There is no floor under them
+  // anymore — sprouts only require an anchor on P4 (skipping its drop-hole).
   const VINE_SPACING = 32;
   const VINE_MARGIN = 24;
   const candidateXs: number[] = [];
   for (let x = VINE_MARGIN; x <= CANVAS_W - VINE_MARGIN; x += VINE_SPACING) {
-    // Need ground on P3 directly below
-    if (x >= MID_SPLIT_X1 - 4 && x <= MID_SPLIT_X2 + 4) continue;
     // Need anchor on P4 (skip sprout drop-hole)
     if (x >= SPROUT_DROP_X1 - 4 && x <= SPROUT_DROP_X2 + 4) continue;
     candidateXs.push(x);
@@ -156,7 +153,5 @@ export function getLevel3PermanentHoles(): {
   return [
     // Sprout platform drop-hole
     { platformIdx: 4, centerX: (SPROUT_DROP_X1 + SPROUT_DROP_X2) / 2, width: SPROUT_DROP_X2 - SPROUT_DROP_X1, ttl: -1 },
-    // 2-piece P3 split
-    { platformIdx: 3, centerX: (MID_SPLIT_X1 + MID_SPLIT_X2) / 2, width: MID_SPLIT_X2 - MID_SPLIT_X1, ttl: -1 },
   ];
 }
