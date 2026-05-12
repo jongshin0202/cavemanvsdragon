@@ -54,6 +54,14 @@ export function buildLevel3MovingPlatforms(iteration: number): void {
     row: 0, mode: 'bounce',
   });
 
+  // Use a single uniform speed per row so platforms in the same row never
+  // catch up to one another. This eliminates the "jolts" caused by spacing
+  // enforcement when faster platforms ran into slower ones (or when a
+  // wrapped platform got shoved forward to satisfy MIN_GAP).
+  const row1Speed = randInRange(LEVEL3_PARAMS.row1.minSpeed, LEVEL3_PARAMS.row1.maxSpeed) * mul;
+  const row2Speed = randInRange(LEVEL3_PARAMS.row2.minSpeed, LEVEL3_PARAMS.row2.maxSpeed) * mul;
+  const row3Speed = randInRange(LEVEL3_PARAMS.row3.minSpeed, LEVEL3_PARAMS.row3.maxSpeed) * mul;
+
   // ── Row 1: wrap RIGHT (L → R)
   const r1n = LEVEL3_PARAMS.row1Count;
   const r1Pitch = CANVAS_W / r1n;
@@ -61,7 +69,7 @@ export function buildLevel3MovingPlatforms(iteration: number): void {
     platforms.push({
       x: i * r1Pitch + (r1Pitch - W) / 2,
       y: ROW_Y[1], w: W, h: H,
-      vx: randInRange(LEVEL3_PARAMS.row1.minSpeed, LEVEL3_PARAMS.row1.maxSpeed) * mul,
+      vx: row1Speed,
       row: 1, mode: 'wrapRight',
     });
   }
@@ -73,7 +81,7 @@ export function buildLevel3MovingPlatforms(iteration: number): void {
     platforms.push({
       x: i * r2Pitch + (r2Pitch - W) / 2,
       y: ROW_Y[2], w: W, h: H,
-      vx: -randInRange(LEVEL3_PARAMS.row2.minSpeed, LEVEL3_PARAMS.row2.maxSpeed) * mul,
+      vx: -row2Speed,
       row: 2, mode: 'wrapLeft',
     });
   }
@@ -85,7 +93,7 @@ export function buildLevel3MovingPlatforms(iteration: number): void {
     platforms.push({
       x: i * r3Pitch + (r3Pitch - W) / 2,
       y: ROW_Y[3], w: W, h: H,
-      vx: randInRange(LEVEL3_PARAMS.row3.minSpeed, LEVEL3_PARAMS.row3.maxSpeed) * mul,
+      vx: row3Speed,
       row: 3, mode: 'wrapRight',
     });
   }
