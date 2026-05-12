@@ -79,17 +79,13 @@ export function applyLevel3Layout(): void {
   //   Plus the two top-platform vines (purple → dragon side, green → volcano).
   const newLadders: { x: number; yTop: number; yBot: number }[] = [];
 
-  // Donkey-Kong-Jr style: densely-packed vines, evenly spaced, so the
-  // caveman can move LEFT/RIGHT between adjacent sprouts. A sprout can
-  // ONLY exist where there is ground both above (P4 sprout platform,
-  // skipping its drop-hole 232..280) AND below (P3, skipping its
-  // mid-split 200..312). The combined no-ground zone is 200..312.
+  // Donkey-Kong-Jr style: densely-packed vines hanging from the CEILING
+  // (P4) down to the same length as before. There is no floor under them
+  // anymore — sprouts only require an anchor on P4 (skipping its drop-hole).
   const VINE_SPACING = 32;
   const VINE_MARGIN = 24;
   const candidateXs: number[] = [];
   for (let x = VINE_MARGIN; x <= CANVAS_W - VINE_MARGIN; x += VINE_SPACING) {
-    // Need ground on P3 directly below
-    if (x >= MID_SPLIT_X1 - 4 && x <= MID_SPLIT_X2 + 4) continue;
     // Need anchor on P4 (skip sprout drop-hole)
     if (x >= SPROUT_DROP_X1 - 4 && x <= SPROUT_DROP_X2 + 4) continue;
     candidateXs.push(x);
