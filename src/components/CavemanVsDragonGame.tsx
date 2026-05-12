@@ -1010,8 +1010,25 @@ const CavemanVsDragonGame = () => {
           (g as any)._l3Dxs = undefined;
         }
 
+        // L3: if the sprout the player is climbing on dies, drop them.
+        if (p.climbing && isLevel3Round(g.round)) {
+          const trackedIdx = (p as any).climbLadderIdx;
+          const onMidVine = typeof trackedIdx === 'number'
+            && trackedIdx >= 0
+            && trackedIdx !== GREEN_TOP_LADDER_IDX
+            && trackedIdx !== PURPLE_TOP_LADDER_IDX;
+          if (onMidVine && !isLadderUsable(g.round, trackedIdx)) {
+            p.climbing = false;
+            p.vy = 0;
+            p.onGround = false;
+            (p as any).lateralPhase = 'idle';
+            (p as any).climbLadderIdx = -1;
+          }
+        }
+
         if (p.climbing) {
           const climbingLadder = nearestLadder;
+          if (nearestLadderIdx >= 0) (p as any).climbLadderIdx = nearestLadderIdx;
           // Define a generous "near end" zone: the top/bottom 10% of the
           // ladder length counts as "at the end", so the player can dismount
           // (snap to the platform, or step off sideways) once they're 90%
@@ -1075,36 +1092,36 @@ const CavemanVsDragonGame = () => {
               };
 
               const cd = (p as any).lateralCD || 0;
-              const phase = ((p as any).lateralPhase as 'idle' | 'reachL' | 'reachR' | undefined) || 'idle';
               p.vy = 0;
               const REACH_FRAME = 3; // widest "reach across" pose
               const HOLD_FRAME = 0;  // standing on a vine
 
-              const tryStep = (dir: -1 | 1, want: 'reachL' | 'reachR') => {
+              const tryStep = (dir: -1 | 1) => {
                 const { idx, L } = findNeighbor(dir);
                 const grown = idx >= 0 && isLadderUsable(g.round, idx);
                 if (!grown || !L) return; // blocked: no neighbor or not grown
                 p.facing = dir;
-                if (phase === want) {
-                  // Commit the hop on the second tap in the same direction.
-                  p.x = L.x + 7 - p.w / 2;
-                  (p as any).lateralPhase = 'idle';
-                  (p as any).lateralCD = 6;
-                  p.climbFrame = HOLD_FRAME;
-                } else {
-                  // First tap → reach pose.
-                  (p as any).lateralPhase = want;
-                  p.climbFrame = REACH_FRAME;
-                  p.climbTimer = 0;
-                }
+                // Commit the hop immediately (single-tap) and show the
+                // "reach across" pose for a few frames as the swing animation.
+                p.x = L.x + 7 - p.w / 2;
+                (p as any).climbLadderIdx = idx;
+                (p as any).lateralCD = 10;
+                (p as any).lateralReachFrames = 6;
+                p.climbFrame = REACH_FRAME;
+                p.climbTimer = 0;
               };
 
               if (cd > 0) {
                 (p as any).lateralCD = cd - 1;
-              } else if (edgeL) {
-                tryStep(-1, 'reachL');
-              } else if (edgeR) {
-                tryStep(1, 'reachR');
+                const rf = (p as any).lateralReachFrames || 0;
+                if (rf > 0) {
+                  (p as any).lateralReachFrames = rf - 1;
+                  if (rf - 1 === 0) p.climbFrame = HOLD_FRAME;
+                }
+              } else if (edgeL || (rawLeft && !edgeR)) {
+                if (edgeL) tryStep(-1);
+              } else if (edgeR || (rawRight && !edgeL)) {
+                if (edgeR) tryStep(1);
               }
               // Allow current vine to die even with player on it, IF any
               // other grown vine exists in the same layer (player has
