@@ -13,20 +13,20 @@ export const LEVEL3_PARAMS = {
     minSpeed: 0.4,
     maxSpeed: 1.2,
   },
-  // Middle row (row 1): all platforms move LEFT→RIGHT, wrap from right.
+  // Middle row (row 1 / "platform level 2"): slow LEFT→RIGHT.
   row1: {
-    minSpeed: 0.7,
-    maxSpeed: 1.4,
+    minSpeed: 0.5,
+    maxSpeed: 0.7,
   },
-  // Row 2: all platforms move RIGHT→LEFT, wrap from left.
+  // Row 2 / "platform level 3": medium RIGHT→LEFT.
   row2: {
-    minSpeed: 0.8,
-    maxSpeed: 1.5,
+    minSpeed: 1.0,
+    maxSpeed: 1.2,
   },
-  // Top row (row 3): all platforms move LEFT→RIGHT, wrap from right.
+  // Top row (row 3 / "platform level 4"): fast LEFT→RIGHT.
   row3: {
-    minSpeed: 0.9,
-    maxSpeed: 1.7,
+    minSpeed: 1.5,
+    maxSpeed: 1.8,
   },
   // Multiplicative speed bump per L3 iteration (iter 1 = 1.0).
   speedScalePerIter: 0.10,
