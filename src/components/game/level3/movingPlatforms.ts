@@ -75,13 +75,16 @@ export function buildLevel3MovingPlatforms(iteration: number): void {
   }
 
   // ── Row 2: wrap LEFT (R → L)
+  // Row 2 wants per-platform varied speeds AND wider spread. Spawn them at
+  // staggered offsets across the full width so they aren't side-by-side.
   const r2n = LEVEL3_PARAMS.row2Count;
   const r2Pitch = CANVAS_W / r2n;
   for (let i = 0; i < r2n; i++) {
+    const sp = randInRange(LEVEL3_PARAMS.row2.minSpeed, LEVEL3_PARAMS.row2.maxSpeed) * mul;
     platforms.push({
       x: i * r2Pitch + (r2Pitch - W) / 2,
       y: ROW_Y[2], w: W, h: H,
-      vx: -row2Speed,
+      vx: -sp,
       row: 2, mode: 'wrapLeft',
     });
   }
