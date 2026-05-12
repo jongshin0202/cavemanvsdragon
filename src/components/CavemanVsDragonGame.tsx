@@ -1010,8 +1010,25 @@ const CavemanVsDragonGame = () => {
           (g as any)._l3Dxs = undefined;
         }
 
+        // L3: if the sprout the player is climbing on dies, drop them.
+        if (p.climbing && isLevel3Round(g.round)) {
+          const trackedIdx = (p as any).climbLadderIdx;
+          const onMidVine = typeof trackedIdx === 'number'
+            && trackedIdx >= 0
+            && trackedIdx !== GREEN_TOP_LADDER_IDX
+            && trackedIdx !== PURPLE_TOP_LADDER_IDX;
+          if (onMidVine && !isLadderUsable(g.round, trackedIdx)) {
+            p.climbing = false;
+            p.vy = 0;
+            p.onGround = false;
+            (p as any).lateralPhase = 'idle';
+            (p as any).climbLadderIdx = -1;
+          }
+        }
+
         if (p.climbing) {
           const climbingLadder = nearestLadder;
+          if (nearestLadderIdx >= 0) (p as any).climbLadderIdx = nearestLadderIdx;
           // Define a generous "near end" zone: the top/bottom 10% of the
           // ladder length counts as "at the end", so the player can dismount
           // (snap to the platform, or step off sideways) once they're 90%
