@@ -153,7 +153,5 @@ export function getLevel3PermanentHoles(): {
   return [
     // Sprout platform drop-hole
     { platformIdx: 4, centerX: (SPROUT_DROP_X1 + SPROUT_DROP_X2) / 2, width: SPROUT_DROP_X2 - SPROUT_DROP_X1, ttl: -1 },
-    // 2-piece P3 split
-    { platformIdx: 3, centerX: (MID_SPLIT_X1 + MID_SPLIT_X2) / 2, width: MID_SPLIT_X2 - MID_SPLIT_X1, ttl: -1 },
   ];
 }
