@@ -160,7 +160,8 @@ export function tickMovingPlatforms(): number[] {
         p.x = CANVAS_W;
       }
     }
-    enforceMinSpacing(r);
+    // No spacing enforcement: all platforms in a row share the same speed,
+    // so their initial pitch is preserved forever (no jolts on wrap).
   }
 
   return dxs;
