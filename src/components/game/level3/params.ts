@@ -18,10 +18,11 @@ export const LEVEL3_PARAMS = {
     minSpeed: 0.5,
     maxSpeed: 0.7,
   },
-  // Row 2 / "platform level 3": medium RIGHT→LEFT.
+  // Row 2 / "platform level 3": each platform picks its own speed in this
+  // range so they spread apart naturally over time.
   row2: {
-    minSpeed: 1.0,
-    maxSpeed: 1.2,
+    minSpeed: 0.6,
+    maxSpeed: 1.6,
   },
   // Top row (row 3 / "platform level 4"): fast LEFT→RIGHT.
   row3: {
