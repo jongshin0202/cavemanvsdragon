@@ -50,9 +50,10 @@ export function applyLevel3Layout(): void {
   //   tall (Donkey-Kong-Jr style: vertical traversal + lateral movement).
   PLATFORMS[4].x1 = 0;        PLATFORMS[4].x2 = CANVAS_W; PLATFORMS[4].y = 176;
 
-  // ── P3 split (uses ONE slot; the visual split is provided by a permanent
-  //   "hole" handed to the L2 hole system via PERMANENT_HOLES below)
-  PLATFORMS[3].x1 = 0;        PLATFORMS[3].x2 = CANVAS_W; PLATFORMS[3].y = 304;
+  // ── P3 — REMOVED. No floor under the sprout section; the vines hang
+  //   freely from P4 and the player drops into the moving-platform area
+  //   if they fall off the bottom.
+  PLATFORMS[3].x1 = 0;        PLATFORMS[3].x2 = 0;         PLATFORMS[3].y = 304;
 
   // ── P2 — unused (no right-edge ledge); the bottom row is fully moving.
   PLATFORMS[2].x1 = 0;        PLATFORMS[2].x2 = 0;         PLATFORMS[2].y = 432;
