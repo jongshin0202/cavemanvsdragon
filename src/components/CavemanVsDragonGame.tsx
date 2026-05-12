@@ -865,6 +865,22 @@ const CavemanVsDragonGame = () => {
             playGameOverSound();
           } else {
             resetPlayer();
+            // L3 has no static ground — rebuild the moving platforms so a
+            // platform is guaranteed near spawn, and place the player on
+            // top of the leftmost row-0 platform so they don't fall into
+            // an endless death loop.
+            if (isLevel3Round(g.round)) {
+              buildLevel3MovingPlatforms(getLevelIteration(g.round));
+              const mps = getMovingPlatforms();
+              const r0 = mps.filter(m => m.row === 0).sort((a, b) => a.x - b.x);
+              if (r0.length > 0) {
+                const target = r0[0];
+                g.player.x = target.x + target.w / 2 - g.player.w / 2;
+                g.player.y = target.y - g.player.h;
+                g.player.vy = 0;
+                g.player.onGround = true;
+              }
+            }
             // Spawn first rock wheel immediately on respawn — Level 1 only.
             // Level 2 manages its own hazards (fireballs/apples) and must
             // never get a rolling rock.
