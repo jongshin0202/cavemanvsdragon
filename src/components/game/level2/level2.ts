@@ -85,18 +85,44 @@ export function spawnLevel2Robots(
   // split/floor platform was removed, so spawning there made monkeys fall
   // and collect on the left middle side.
   const isL3 = !!(s as any)._isL3;
-  const platSlots: number[] = isL3 ? [4, 4] : MONKEY_PLAT_INDICES.slice();
+
+  // ── L3: 1 monkey on each moving-platform row (4 rows total).
+  //   Sprout-section monkeys come later from PLATFORMS[4] via respawn.
+  if (isL3) {
+    const mps = getMovingPlatforms();
+    // Pick one platform per row (row 0..3). Prefer the first platform in each row.
+    const byRow: Record<number, typeof mps> = { 0: [], 1: [], 2: [], 3: [] };
+    for (const mp of mps) { if (byRow[mp.row]) byRow[mp.row].push(mp); }
+    const rowList = [0, 1, 2, 3];
+    for (const row of rowList) {
+      const list = byRow[row];
+      if (!list || list.length === 0) continue;
+      const mp = list[Math.floor(rng() * list.length)];
+      const rx = mp.x + (mp.w - 14) / 2;
+      const ry = mp.y - 16;
+      const spd = ROBOT_SPEED * (diff.monkeySpeedMul + rng() * diff.monkeySpeedJitter);
+      robots.push({
+        x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0,
+        onGround: true, climbing: false, targetLadder: null,
+        direction: rng() > 0.5 ? 1 : -1,
+        frame: 0, frameTimer: 0, speed: spd,
+      });
+      jackets.push(null);
+    }
+    (s as any)._jackets = jackets;
+    (s as any)._appleCooldowns = jackets.map(() => randomCooldownFrames());
+    (s as any)._hasAppleAlive = jackets.map(() => false);
+    return { robots, jackets };
+  }
+
+  const platSlots: number[] = MONKEY_PLAT_INDICES.slice();
   const platCount = platSlots.length;
-  const initialCount = isL3
-    ? platCount
-    : Math.max(1, Math.min(diff.maxMonkeys, platCount));
+  const initialCount = Math.max(1, Math.min(diff.maxMonkeys, platCount));
   // Pick which slots get a monkey (random, no duplicates by index position).
   const platOrder = [...Array(platCount).keys()];
-  if (!isL3) {
-    for (let i = platOrder.length - 1; i > 0; i--) {
-      const j = Math.floor(rng() * (i + 1));
-      [platOrder[i], platOrder[j]] = [platOrder[j], platOrder[i]];
-    }
+  for (let i = platOrder.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [platOrder[i], platOrder[j]] = [platOrder[j], platOrder[i]];
   }
   const chosenSlots = platOrder.slice(0, initialCount);
   // Of the chosen monkeys, mark up to greenJacketCount as green.
@@ -109,21 +135,7 @@ export function spawnLevel2Robots(
   for (let i = 0; i < chosenSlots.length; i++) {
     const pi = platSlots[chosenSlots[i]];
     const plat = PLATFORMS[pi];
-    let rx: number;
-    if (isL3 && pi === 4) {
-      // First sprout monkey → LEFT platform segment, second → RIGHT segment.
-      const sproutCount = chosenSlots.filter((s, k) => platSlots[s] === 4 && k <= i).length;
-      const leftX1 = plat.x1;
-      const leftX2 = TOP_GAP_X1;
-      const rightX1 = TOP_GAP_X2;
-      const rightX2 = plat.x2;
-      const leftHalf = sproutCount === 1;
-      const x1 = leftHalf ? leftX1 : rightX1;
-      const x2 = leftHalf ? leftX2 : rightX2;
-      rx = x1 + 24 + rng() * Math.max(1, x2 - x1 - 48);
-    } else {
-      rx = plat.x1 + 30 + rng() * (plat.x2 - plat.x1 - 60);
-    }
+    const rx = plat.x1 + 30 + rng() * (plat.x2 - plat.x1 - 60);
     const ry = getPlatformY(plat, rx) - 16;
     const spd = ROBOT_SPEED * (diff.monkeySpeedMul + rng() * diff.monkeySpeedJitter);
     robots.push({
