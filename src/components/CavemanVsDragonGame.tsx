@@ -1570,6 +1570,7 @@ const CavemanVsDragonGame = () => {
                       frame: 0, frameTimer: 0, speed: spd,
                       _mpsL3: true,
                       _rideMp: mp,
+                      _mpRow: mp.row,
                       _lastMpX: mp.x,
                       wanderDir: dir,
                     };
