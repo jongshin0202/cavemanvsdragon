@@ -1454,14 +1454,15 @@ const CavemanVsDragonGame = () => {
               const l2Diff = getLevel2Difficulty(getLevelIteration(g.round));
               const aliveTotal = g.robots.length;
               if (aliveTotal < l2Diff.maxMonkeys) {
-                const platSlots = [1, 2, 3, 4];
+                const platSlots = isLevel3Round(g.round) ? [4] : [1, 2, 3, 4];
                 const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
                 for (const rb of g.robots) {
                   const idx = findPlatformIndex(rb.y + rb.h, rb.x + rb.w / 2);
                   if (counts[idx] !== undefined) counts[idx]++;
                 }
                 // Open platforms = those under per-platform cap.
-                const open = platSlots.filter(pi => counts[pi] < l2Diff.maxMonkeysPerPlatform);
+                const perPlatformCap = isLevel3Round(g.round) ? 2 : l2Diff.maxMonkeysPerPlatform;
+                const open = platSlots.filter(pi => counts[pi] < perPlatformCap);
                 if (open.length > 0) {
                   queue.splice(readyIdx, 1);
                   // Prefer least-populated platforms first.
@@ -1477,7 +1478,13 @@ const CavemanVsDragonGame = () => {
                   else if (leftAtEdge) fromLeft = true;
                   else if (rightAtEdge) fromLeft = false;
                   else fromLeft = (plat.x1 < CANVAS_W - plat.x2);
-                  const rx = fromLeft ? plat.x1 - 16 : plat.x2 + 2;
+                  let rx = fromLeft ? plat.x1 - 16 : plat.x2 + 2;
+                  if (isLevel3Round(g.round) && pi === 4) {
+                    const leftOpen = counts[4] % 2 === 0;
+                    const x1 = leftOpen ? 0 : 280;
+                    const x2 = leftOpen ? 232 : CANVAS_W;
+                    rx = x1 + 24 + Math.random() * Math.max(1, x2 - x1 - 48);
+                  }
                   const ry = getPlatformY(plat, fromLeft ? plat.x1 + 1 : plat.x2 - 1) - 16;
                   const spd = ROBOT_SPEED * (l2Diff.monkeySpeedMul + Math.random() * l2Diff.monkeySpeedJitter);
                   g.robots.push({
