@@ -1862,7 +1862,23 @@ const CavemanVsDragonGame = () => {
                   r.direction = 1;
                 }
               }
-              r.vy += GRAVITY;
+              // L3 MPS monkey edge-bounce: if currently riding a moving
+              // platform, never walk off — reverse at the platform's edges.
+              if (isLevel3Round(g.round) && (r as any)._mpsL3 && r.onGround) {
+                const mps = getMovingPlatforms();
+                let curMp: typeof mps[number] | null = null;
+                for (const mp of mps) {
+                  if (Math.abs((r.y + r.h) - mp.y) < 4
+                      && r.x + r.w / 2 >= mp.x - 2
+                      && r.x + r.w / 2 <= mp.x + mp.w + 2) {
+                    curMp = mp; break;
+                  }
+                }
+                if (curMp) {
+                  if (r.x <= curMp.x + 1) { r.x = curMp.x + 1; r.wanderDir = 1; r.direction = 1; r.vx = r.speed; }
+                  else if (r.x + r.w >= curMp.x + curMp.w - 1) { r.x = curMp.x + curMp.w - r.w - 1; r.wanderDir = -1; r.direction = -1; r.vx = -r.speed; }
+                }
+              }
               r.y += r.vy;
               r.onGround = false;
 
