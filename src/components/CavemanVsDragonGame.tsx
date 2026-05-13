@@ -1159,6 +1159,19 @@ const CavemanVsDragonGame = () => {
             const climbMoving = rawUp || rawDown;
             if (rawUp) p.y -= CLIMB_SPEED;
             if (rawDown) p.y += CLIMB_SPEED;
+            // L3 mid-vines: clamp to the vine's effective (visible) bottom
+            // since vines now grow to a random length.
+            if (climbingLadder && isLevel3Round(g.round)
+                && nearestLadderIdx !== GREEN_TOP_LADDER_IDX
+                && nearestLadderIdx !== PURPLE_TOP_LADDER_IDX
+                && nearestLadderIdx >= 0) {
+              const sr = getSprouts()[nearestLadderIdx];
+              if (sr) {
+                const fullH = climbingLadder.yBot - climbingLadder.yTop;
+                const effBot = climbingLadder.yTop + fullH * sr.growProgress;
+                if (p.y + p.h > effBot) p.y = effBot - p.h;
+              }
+            }
             if (climbMoving) {
               p.climbTimer++;
               if (p.climbTimer > 6) { p.climbTimer = 0; p.climbFrame = (p.climbFrame + 1) % 4; }
