@@ -144,8 +144,8 @@ export function applyLevel3Layout(iter: number = 1): void {
   });
   setSproutsRuntime(runtime);
 
-  // Reset L3 stage FSM for the new round.
-  resetL3Stage();
+  // Reset L3 stage FSM for the new round (iter 1 starts in sproutsGrowing).
+  resetL3Stage(iter);
 
   setCurrentLevel2Iteration(1);
 }
