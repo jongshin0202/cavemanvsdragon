@@ -357,12 +357,14 @@ export function tickApples(
       ah = 7;
       ay = (r.y + r.h) - 31; // top = platY - 31, bottom = platY - 24
     }
+    const isSs = !!(hostRobots[i] as any)._ssL3;
     s.apples.push({
       x: ax, y: ay, w: aw, h: ah,
       vx: dir * diff.appleSpeed,
       ownerId: i,
       ...(heightTier === 'high' ? { _high: true } : {}),
       ...(heightTier === 'middle' ? { _mid: true } : {}),
+      ...(isSs ? { _drop: true, vy: -1.2 } : {}),
     } as any);
 
     alive[i] = true;
@@ -370,9 +372,13 @@ export function tickApples(
 
   // Update apples: travel horizontally; remove when off-screen; refresh cooldown.
   for (let i = s.apples.length - 1; i >= 0; i--) {
-    const a = s.apples[i];
+    const a = s.apples[i] as any;
     a.x += a.vx;
-    if (a.x + a.w < -8 || a.x > CANVAS_W + 8) {
+    if (a._drop) {
+      a.vy = (a.vy ?? 0) + 0.18;
+      a.y += a.vy;
+    }
+    if (a.x + a.w < -8 || a.x > CANVAS_W + 8 || a.y > CANVAS_H + 8) {
       // Apple safely passed — release thrower's cooldown.
       if (a.ownerId >= 0 && a.ownerId < alive.length) {
         alive[a.ownerId] = false;
