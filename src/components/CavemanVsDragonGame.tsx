@@ -1524,12 +1524,16 @@ const CavemanVsDragonGame = () => {
                     const rx = mp.x + (mp.w - 14) / 2;
                     const ry = mp.y - 16;
                     const spd = ROBOT_SPEED * (l2Diff.monkeySpeedMul + Math.random() * l2Diff.monkeySpeedJitter);
+                    const dir = Math.random() > 0.5 ? 1 : -1;
                     newR = {
                       x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0,
                       onGround: true, climbing: false, targetLadder: null,
-                      direction: Math.random() > 0.5 ? 1 : -1,
+                      direction: dir,
                       frame: 0, frameTimer: 0, speed: spd,
                       _mpsL3: true,
+                      _rideMp: mp,
+                      _lastMpX: mp.x,
+                      wanderDir: dir,
                     };
                   } else {
                     open.sort((a, b) => counts[a] - counts[b]);
