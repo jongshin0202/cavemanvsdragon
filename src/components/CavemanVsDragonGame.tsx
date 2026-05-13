@@ -1452,6 +1452,17 @@ const CavemanVsDragonGame = () => {
           if (l2Ref.current.carryingRock) {
             if (trySealVolcano(l2Ref.current, pl.x + pl.w / 2, pl.y + pl.h)) {
               playWinSound();
+              // L3: queue iter*2 respawns split between SS + MPS rows.
+              if (isLevel3Round(g.round)) {
+                const total = notifyVolcanoSealedL3(l2Ref.current);
+                const l2D = getLevel2Difficulty(getLevelIteration(g.round));
+                const q: number[] = (g as any).l2RespawnQueue || [];
+                const span = Math.max(1, l2D.respawnMaxFrames - l2D.respawnMinFrames);
+                for (let k = 0; k < total; k++) {
+                  q.push(l2D.respawnMinFrames + Math.floor(Math.random() * (span + 1)));
+                }
+                (g as any).l2RespawnQueue = q;
+              }
             }
           }
 
