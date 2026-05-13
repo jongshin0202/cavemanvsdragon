@@ -83,6 +83,10 @@ export interface SproutRuntime {
 let sproutsRuntime: SproutRuntime[] = [];
 
 const GROW_FRAMES = 68;
+/** Roll a per-sprout grow duration: GROW_FRAMES ±20%. */
+function rollGrowFrames(): number {
+  return Math.max(1, Math.round(GROW_FRAMES * (0.8 + Math.random() * 0.4)));
+}
 
 function rollAliveFrames(): number {
   const d = getCurrentLevel2Difficulty();
