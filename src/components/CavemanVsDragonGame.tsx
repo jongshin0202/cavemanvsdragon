@@ -283,6 +283,10 @@ const CavemanVsDragonGame = () => {
       const { robots } = spawnLevel2Robots(l2Ref.current);
       g.robots.push(...robots);
       g.robotsInitialized = true;
+      if (isLevel3Round(g.round)) {
+        const mpsCount = (l2Ref.current as any)._l3MpsCount ?? 0;
+        setMpsMonkeyTarget(mpsCount);
+      }
     } else {
       // L1: make sure layout is the original (in case we just came back).
       restoreLevel1Layout();
