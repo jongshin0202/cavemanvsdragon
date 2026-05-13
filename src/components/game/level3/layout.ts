@@ -85,9 +85,12 @@ export function applyLevel3Layout(): void {
   const VINE_SPACING = 32;
   const VINE_MARGIN = 24;
   const candidateXs: number[] = [];
+  let parity = 0;
   for (let x = VINE_MARGIN; x <= CANVAS_W - VINE_MARGIN; x += VINE_SPACING) {
     // Need anchor on P4 (skip sprout drop-hole)
     if (x >= SPROUT_DROP_X1 - 4 && x <= SPROUT_DROP_X2 + 4) continue;
+    // Sparse pattern: sprout / no-sprout / sprout / no-sprout …
+    if ((parity++ % 2) !== 0) continue;
     candidateXs.push(x);
   }
   const vineXs = candidateXs;
@@ -119,17 +122,20 @@ export function applyLevel3Layout(): void {
   // ── Sprout runtime
   const runtime: SproutRuntime[] = LADDERS.map((_l, i) => {
     const isTop = i === greenIdx || i === purpleIdx;
+    // Variable max grow length per non-top sprout (50%–100% of full).
+    const maxGrow = isTop ? 1 : (0.5 + Math.random() * 0.5);
     return {
       ladderIdx: i,
       grown: !isTop,
       regrowTimer: 0,
-      growProgress: isTop ? 0 : 1,
+      growProgress: isTop ? 0 : maxGrow,
       phase: (isTop ? 'dormant' : 'idle') as SproutRuntime['phase'],
       isTop,
       topColor: i === greenIdx ? 'green' : i === purpleIdx ? 'purple' : undefined,
       watered: false,
       // All 5 sprout vines share gap 0 (single sprout platform).
       gapIdx: isTop ? -1 : 0,
+      maxGrow,
     };
   });
   // Stagger initial alive timers so the vines don't all wither/regrow in
