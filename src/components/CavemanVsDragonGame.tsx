@@ -1941,7 +1941,8 @@ const CavemanVsDragonGame = () => {
               if (isLevel3Round(g.round) && !(r as any)._ssL3 && li !== GREEN_TOP_LADDER_IDX && li !== PURPLE_TOP_LADDER_IDX) continue;
               const l = LADDERS[li];
               const ladderCenterX = l.x + 7;
-              if (Math.abs(rCenterX - ladderCenterX) > r.speed + 4) continue;
+              const alignTol = (isLevel3Round(g.round) && (r as any)._ssL3) ? r.speed + 10 : r.speed + 4;
+              if (Math.abs(rCenterX - ladderCenterX) > alignTol) continue;
               const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
               const botPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 12);
               if (botPlatIdx === rPlatIdx && topPlatIdx >= 0 && topPlatIdx < rPlatIdx) {
