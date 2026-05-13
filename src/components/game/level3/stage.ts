@@ -43,10 +43,17 @@ function makeInitial(): L3StageState {
 export function resetL3Stage(iter: number = 1): void {
   state = makeInitial();
   // Iter 1: sprouts grow from the very start (no MPS-clear gate).
-  // Iter 2+: must clear all 4 MPS monkeys first.
+  // Iter 2+: must clear all MPS monkeys first.
   if (iter <= 1) {
     state.stage = 'sproutsGrowing';
     state.mpsMonkeysKilled = state.mpsMonkeyTarget;
+  }
+}
+
+export function setMpsMonkeyTarget(n: number): void {
+  state.mpsMonkeyTarget = Math.max(0, n);
+  if (state.mpsMonkeysKilled >= state.mpsMonkeyTarget && state.stage === 'mps') {
+    state.stage = 'sproutsGrowing';
   }
 }
 
