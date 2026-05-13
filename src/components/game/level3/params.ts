@@ -33,14 +33,14 @@ export const LEVEL3_PARAMS = {
   speedScalePerIter: 0.10,
 
   // Geometry
-  platformWidth: 72,
+  platformWidth: 82,
   platformHeight: 8,
 
   // Starting # of moving platforms in each upper row at iter 1.
   // (Per-iteration the counts decrease — see getL3RowCounts below.)
-  row1Count: 3,
-  row2Count: 3,
-  row3Count: 3,
+  row1Count: 4,
+  row2Count: 4,
+  row3Count: 4,
 };
 
 export function l3IterSpeedMul(iteration: number): number {
@@ -55,7 +55,7 @@ export function getL3RowCounts(iteration: number): [number, number, number] {
     + LEVEL3_PARAMS.row2Count
     + LEVEL3_PARAMS.row3Count;
   const removed = Math.max(0, iteration - 1);
-  const total = Math.max(3, start - removed); // min 1 per row → 3 total
+  const total = Math.max(6, start - removed); // min 2 per row keeps Frogger lanes active
   const base = Math.floor(total / 3);
   const extra = total - base * 3;
   // Distribute leftover so highest-count rows are the LOWER rows first
