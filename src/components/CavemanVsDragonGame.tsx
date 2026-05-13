@@ -1918,11 +1918,12 @@ const CavemanVsDragonGame = () => {
               g.score += 300 * (2 * n - 1); setScore(g.score);
               playRobotKillSound();
               p.vy = -4;
+              const wasMps = !!(r as any)._mpsL3;
               g.robots.splice(i, 1);
               g.monkeysKilled = (g.monkeysKilled || 0) + 1;
               if (isLevel2Round(g.round)) {
                 onMonkeyKilled(l2Ref.current, i);
-                if (isLevel3Round(g.round)) notifyMpsMonkeyKilled();
+                if (isLevel3Round(g.round) && wasMps) notifyMpsMonkeyKilled();
                 // L2: queue a respawn with iteration-tuned random delay.
                 const l2D = getLevel2Difficulty(getLevelIteration(g.round));
                 const q: number[] = (g as any).l2RespawnQueue || [];
