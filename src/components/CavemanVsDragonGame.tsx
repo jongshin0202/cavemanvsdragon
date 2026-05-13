@@ -73,8 +73,15 @@ const isLadderUsable = (round: number, idx: number): boolean => {
 };
 
 type MovingPlatformRide = ReturnType<typeof getMovingPlatforms>[number];
+type MpsRobot = Robot & {
+  _mpsL3?: boolean;
+  _rideMp?: MovingPlatformRide;
+  _mpRow?: number;
+  _lastMpX?: number;
+  wanderDir?: number;
+};
 
-const findMonkeyRidePlatform = (r: Robot & Record<string, any>): MovingPlatformRide | null => {
+const findMonkeyRidePlatform = (r: MpsRobot): MovingPlatformRide | null => {
   const mps = getMovingPlatforms();
   if (mps.length === 0) return null;
   if (r._rideMp && mps.includes(r._rideMp)) return r._rideMp;
