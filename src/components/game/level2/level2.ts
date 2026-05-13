@@ -87,31 +87,45 @@ export function spawnLevel2Robots(
   // and collect on the left middle side.
   const isL3 = !!(s as any)._isL3;
 
-  // ── L3: 1 monkey on each moving-platform (excluding the MP the
-  //   main character starts on), plus 2 sprout-section (SS) monkeys
-  //   on the top sprout platform (PLATFORMS[4]) at iter 1.
+  // ── L3: per-iteration distribution across MPLs (rows 0..3).
+  //   Iter 1: [0,1,0,1] (one monkey on MPL 2 and one on MPL 4).
+  //   +1 monkey per iteration, filling lowest-count MPL first, max 3/MPL.
+  //   The MP the main character starts on is excluded from spawn pool.
   if (isL3) {
     const mps = getMovingPlatforms();
-    // MC start = x:80, w:16, lands on row 0.
     const MC_X = 80, MC_W = 16;
     const isMcMp = (mp: typeof mps[number]) =>
       mp.row === 0 && MC_X + MC_W > mp.x && MC_X < mp.x + mp.w;
+    const iter = Math.max(1, s.round | 0);
+    const counts = getL3MpsMonkeyCounts(iter);
     let mpsCount = 0;
-    for (const mp of mps) {
-      if (isMcMp(mp)) continue;
-      const rx = mp.x + (mp.w - 14) / 2;
-      const ry = mp.y - 16;
-      const spd = ROBOT_SPEED * (diff.monkeySpeedMul + rng() * diff.monkeySpeedJitter);
-      const r: Robot & { wanderTimer?: number; wanderDir?: number } = {
-        x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0,
-        onGround: true, climbing: false, targetLadder: null,
-        direction: rng() > 0.5 ? 1 : -1,
-        frame: 0, frameTimer: 0, speed: spd,
-      };
-      (r as any)._mpsL3 = true;
-      robots.push(r);
-      jackets.push(null);
-      mpsCount++;
+    for (let row = 0; row < 4; row++) {
+      const want = counts[row] || 0;
+      if (want <= 0) continue;
+      // Eligible MPs in this row (exclude MC's starting MP).
+      const eligible = mps.filter(mp => mp.row === row && !isMcMp(mp));
+      if (eligible.length === 0) continue;
+      // Shuffle + take `want` (clamped).
+      for (let i = eligible.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [eligible[i], eligible[j]] = [eligible[j], eligible[i]];
+      }
+      const pick = eligible.slice(0, Math.min(want, eligible.length));
+      for (const mp of pick) {
+        const rx = mp.x + (mp.w - 14) / 2;
+        const ry = mp.y - 16;
+        const spd = ROBOT_SPEED * (diff.monkeySpeedMul + rng() * diff.monkeySpeedJitter);
+        const r: Robot & { wanderTimer?: number; wanderDir?: number } = {
+          x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0,
+          onGround: true, climbing: false, targetLadder: null,
+          direction: rng() > 0.5 ? 1 : -1,
+          frame: 0, frameTimer: 0, speed: spd,
+        };
+        (r as any)._mpsL3 = true;
+        robots.push(r);
+        jackets.push(null);
+        mpsCount++;
+      }
     }
     // Two SS monkeys on PLATFORMS[4] (top sprout platform).
     const tsp = PLATFORMS[4];
