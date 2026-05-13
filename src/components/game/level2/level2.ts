@@ -132,9 +132,10 @@ export function spawnLevel2Robots(
         mpsCount++;
       }
     }
-    // SS monkeys on PLATFORMS[4] (top sprout platform). Count = iter (cap 2).
+    // SS monkeys on PLATFORMS[4] (top sprout platform).
+    // Per spec: number of green monkeys at each iteration = iteration number.
     const tsp = PLATFORMS[4];
-    const ssCount = Math.max(1, Math.min(2, iter));
+    const ssCount = Math.max(1, Math.min(4, iter));
     if (tsp.x2 - tsp.x1 > 0) {
       for (let k = 0; k < ssCount; k++) {
         const frac = ssCount === 1 ? 0.5 : (k === 0 ? 0.25 : 0.75);
