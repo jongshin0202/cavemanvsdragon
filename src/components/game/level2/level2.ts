@@ -80,11 +80,11 @@ export function spawnLevel2Robots(
 
   // Initial: only green jackets exist (purple appears after volcano sealed).
   const diff = getLevel2Difficulty(s.round);
-  // L3 override: 2 monkeys on the sprout platform (idx 4) + 1 on the split
-  //   platform (idx 3). One sprout-monkey starts on the LEFT half, the
-  //   other on the RIGHT half (per design spec).
+  // L3 override: keep monkeys on the ceiling sprout platform only. The old
+  // split/floor platform was removed, so spawning there made monkeys fall
+  // and collect on the left middle side.
   const isL3 = !!(s as any)._isL3;
-  const platSlots: number[] = isL3 ? [4, 4, 3] : MONKEY_PLAT_INDICES.slice();
+  const platSlots: number[] = isL3 ? [4, 4] : MONKEY_PLAT_INDICES.slice();
   const platCount = platSlots.length;
   const initialCount = isL3
     ? platCount
@@ -110,13 +110,16 @@ export function spawnLevel2Robots(
     const plat = PLATFORMS[pi];
     let rx: number;
     if (isL3 && pi === 4) {
-      // First sprout monkey → LEFT half, second → RIGHT half.
+      // First sprout monkey → LEFT platform segment, second → RIGHT segment.
       const sproutCount = chosenSlots.filter((s, k) => platSlots[s] === 4 && k <= i).length;
-      const half = (plat.x2 - plat.x1) / 2;
+      const leftX1 = plat.x1;
+      const leftX2 = TOP_GAP_X1;
+      const rightX1 = TOP_GAP_X2;
+      const rightX2 = plat.x2;
       const leftHalf = sproutCount === 1;
-      rx = leftHalf
-        ? plat.x1 + 30 + rng() * (half - 60)
-        : plat.x1 + half + 30 + rng() * (half - 60);
+      const x1 = leftHalf ? leftX1 : rightX1;
+      const x2 = leftHalf ? leftX2 : rightX2;
+      rx = x1 + 24 + rng() * Math.max(1, x2 - x1 - 48);
     } else {
       rx = plat.x1 + 30 + rng() * (plat.x2 - plat.x1 - 60);
     }
