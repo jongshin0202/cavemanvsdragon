@@ -1085,6 +1085,7 @@ const CavemanVsDragonGame = () => {
                 let idx = -1;
                 let L: { x: number; yTop: number; yBot: number } | null = null;
                 let best = Infinity;
+                const curCX = curL.x + 7;
                 for (let li = 0; li < LADDERS.length; li++) {
                   if (li === nearestLadderIdx) continue;
                   if (li === GREEN_TOP_LADDER_IDX || li === PURPLE_TOP_LADDER_IDX) continue;
@@ -1096,7 +1097,7 @@ const CavemanVsDragonGame = () => {
                   if (!isLadderUsable(g.round, li)) continue;
                   // Candidate must extend down to (or below) the player's feet.
                   if (effBottomFor(li, cand) < (p.y + p.h) - 4) continue;
-                  const dx = (cand.x - curL.x) * dir;
+                  const dx = ((cand.x + 7) - curCX) * dir;
                   if (dx > 0 && dx < best) { best = dx; idx = li; L = cand; }
                 }
                 return { idx, L };
