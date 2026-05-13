@@ -22,6 +22,7 @@ import {
   type SproutRuntime,
 } from '../level2/layout';
 import { LEVEL2_PARAMS, setCurrentLevel2Iteration } from '../level2/params';
+import { resetL3Stage } from './stage';
 
 /** X-bounds of the permanent split in the 2-piece P3 platform. */
 export let MID_SPLIT_X1 = 0;
@@ -121,36 +122,30 @@ export function applyLevel3Layout(): void {
   for (const l of newLadders) LADDERS.push(l);
   setTopLadderIndices(greenIdx, purpleIdx);
 
-  // ── Sprout runtime
+  // ── Sprout runtime — Stage A: NO non-top sprouts are grown until the
+  //   player clears the MPS monkeys. They sit dormant with a huge regrow
+  //   timer that the stage FSM zeroes out when the stage advances.
   const runtime: SproutRuntime[] = LADDERS.map((_l, i) => {
     const isTop = i === greenIdx || i === purpleIdx;
-    // Variable max grow length per non-top sprout, but never so short that
-    // adjacent-vine movement becomes a hidden dead end.
     const maxGrow = isTop ? 1 : (L3_MIN_VINE_GROW + Math.random() * (1 - L3_MIN_VINE_GROW));
     return {
       ladderIdx: i,
-      grown: !isTop,
-      regrowTimer: 0,
-      growProgress: isTop ? 0 : maxGrow,
-      phase: (isTop ? 'dormant' : 'idle') as SproutRuntime['phase'],
+      grown: false,
+      regrowTimer: isTop ? 0 : 999999,
+      growProgress: 0,
+      phase: 'dormant' as SproutRuntime['phase'],
       isTop,
       topColor: i === greenIdx ? 'green' : i === purpleIdx ? 'purple' : undefined,
       watered: false,
-      // All 5 sprout vines share gap 0 (single sprout platform).
       gapIdx: isTop ? -1 : 0,
       maxGrow,
       minGrow: isTop ? undefined : L3_MIN_VINE_GROW,
     };
   });
-  // Stagger initial alive timers so the vines don't all wither/regrow in
-  // sync. Each non-top sprout starts at a random age within the alive
-  // range, plus a per-vine phase offset.
-  const aliveMaxFrames = LEVEL2_PARAMS.SPROUT_ALIVE_MAX_SEC * 60;
-  for (const r of runtime) {
-    if (r.isTop) continue;
-    (r as any).aliveTimer = Math.round(Math.random() * aliveMaxFrames);
-  }
   setSproutsRuntime(runtime);
+
+  // Reset L3 stage FSM for the new round.
+  resetL3Stage();
 
   setCurrentLevel2Iteration(1);
 }

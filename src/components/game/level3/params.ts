@@ -36,8 +36,25 @@ export const LEVEL3_PARAMS = {
   platformWidth: 82,
   platformHeight: 8,
 
-  // Starting # of moving platforms in each upper row at iter 1.
-  // (Per-iteration the counts decrease — see getL3RowCounts below.)
+  // Number of moving platforms PER ROW (all 4 platform-levels share this).
+  // Tunable per the redesign — default 2.
+  MPS_PER_ROW: 2,
+
+  // ── Top-platform monkeys (TP)
+  TP_MONKEYS_BASE: 2,                   // monkeys at start, iter 1
+  TP_MONKEY_SPEED_SCALE_PER_ITER: 0.10, // +10%/iter
+  APPLE_SPEED_SCALE_PER_ITER: 0.10,     // +10%/iter
+
+  // ── Wave respawn (Stage D)
+  RESPAWN_MIN_MS: 3000,
+  RESPAWN_MAX_MS: 5000,
+
+  // ── Bat-swing (when MC is in sprout section)
+  BAT_SWING_FRAMES: 18,
+  BAT_COOLDOWN_FRAMES: 10,
+  BAT_REACH_PX: 22,
+
+  // (Deprecated — kept for back-compat with getL3RowCounts callers.)
   row1Count: 4,
   row2Count: 4,
   row3Count: 4,

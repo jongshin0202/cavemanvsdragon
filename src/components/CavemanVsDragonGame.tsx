@@ -16,6 +16,7 @@ import { makeEmptyL2State, type L2State } from './game/level2/types';
 import { applyLevel2Layout, restoreLevel1Layout, isLadderUsableL2, markSproutUsed, markSproutInUse, tickSprouts, getSprouts, waterTopSprout, isTopSproutGrown, GREEN_TOP_LADDER_IDX, PURPLE_TOP_LADDER_IDX, enableLevel1SproutMechanic } from './game/level2/layout';
 import { buildLevel3MovingPlatforms, clearLevel3MovingPlatforms, tickMovingPlatforms, renderMovingPlatforms, landOnMovingPlatform, getMovingPlatforms } from './game/level3/movingPlatforms';
 import { applyLevel3Layout, getLevel3PermanentHoles, SPROUT_DROP_X1, SPROUT_DROP_X2 } from './game/level3/layout';
+import { getL3Stage, notifyMpsMonkeyKilled, sproutsAllowedToGrow } from './game/level3/stage';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   AlertDialog,
@@ -1340,7 +1341,17 @@ const CavemanVsDragonGame = () => {
         // Tick the sprout lifecycle whenever the dying-sprout mechanic is
         // active (always for L2 rounds; from L1 iter 5 onwards as well).
         if (sproutMechanicActive(g.round)) {
-          tickSprouts();
+          // L3 Stage A: keep non-top sprouts paused until MPS monkeys cleared.
+          if (isLevel3Round(g.round) && sproutsAllowedToGrow()) {
+            for (const s of getSprouts()) {
+              if (!s.isTop && s.phase === 'dormant' && s.regrowTimer > 1000) {
+                s.regrowTimer = 0;
+              }
+            }
+          }
+          if (!isLevel3Round(g.round) || sproutsAllowedToGrow() || true) {
+            tickSprouts();
+          }
         }
 
         // === LEVEL 2 UPDATE ===
@@ -1883,6 +1894,7 @@ const CavemanVsDragonGame = () => {
               g.monkeysKilled = (g.monkeysKilled || 0) + 1;
               if (isLevel2Round(g.round)) {
                 onMonkeyKilled(l2Ref.current, i);
+                if (isLevel3Round(g.round)) notifyMpsMonkeyKilled();
                 // L2: queue a respawn with iteration-tuned random delay.
                 const l2D = getLevel2Difficulty(getLevelIteration(g.round));
                 const q: number[] = (g as any).l2RespawnQueue || [];

@@ -40,38 +40,26 @@ export function buildLevel3MovingPlatforms(iteration: number): void {
   const mul = l3IterSpeedMul(iteration);
   platforms = [];
 
-  // ── Row 0: three bouncers across the full width — still dangerous, but
-  // not so sparse that the player waits forever after every respawn.
-  const leftSpawnX = (CANVAS_W * 0.18) - W / 2;
-  platforms.push({
-    x: Math.max(0, leftSpawnX), y: ROW_Y[0], w: W, h: H,
-    vx: -randInRange(LEVEL3_PARAMS.row0.minSpeed, LEVEL3_PARAMS.row0.maxSpeed) * mul,
-    row: 0, mode: 'bounce',
-  });
-  platforms.push({
-    x: (CANVAS_W * 0.5) - W / 2, y: ROW_Y[0], w: W, h: H,
-    vx: randInRange(LEVEL3_PARAMS.row0.minSpeed, LEVEL3_PARAMS.row0.maxSpeed) * mul,
-    row: 0, mode: 'bounce',
-  });
-  const rightSpawnX = (CANVAS_W * 0.82) - W / 2;
-  platforms.push({
-    x: Math.min(CANVAS_W - W, rightSpawnX), y: ROW_Y[0], w: W, h: H,
-    vx: randInRange(LEVEL3_PARAMS.row0.minSpeed, LEVEL3_PARAMS.row0.maxSpeed) * mul,
-    row: 0, mode: 'bounce',
-  });
+  const N = Math.max(1, LEVEL3_PARAMS.MPS_PER_ROW);
 
-  // Use a single uniform speed per row so platforms in the same row never
-  // catch up to one another. This eliminates the "jolts" caused by spacing
-  // enforcement when faster platforms ran into slower ones (or when a
-  // wrapped platform got shoved forward to satisfy MIN_GAP).
+  // ── Row 0: N bouncers across the full width.
+  for (let i = 0; i < N; i++) {
+    const cx = ((i + 0.5) / N) * CANVAS_W;
+    const dir = i % 2 === 0 ? -1 : 1;
+    platforms.push({
+      x: cx - W / 2, y: ROW_Y[0], w: W, h: H,
+      vx: dir * randInRange(LEVEL3_PARAMS.row0.minSpeed, LEVEL3_PARAMS.row0.maxSpeed) * mul,
+      row: 0, mode: 'bounce',
+    });
+  }
+
+  // Use a single uniform speed per wrap-row so platforms don't catch up.
   const row1Speed = randInRange(LEVEL3_PARAMS.row1.minSpeed, LEVEL3_PARAMS.row1.maxSpeed) * mul;
   const row3Speed = randInRange(LEVEL3_PARAMS.row3.minSpeed, LEVEL3_PARAMS.row3.maxSpeed) * mul;
 
-  const [r1n, r2n, r3n] = getL3RowCounts(iteration);
-
   // ── Row 1: wrap RIGHT (L → R)
-  const r1Pitch = CANVAS_W / r1n;
-  for (let i = 0; i < r1n; i++) {
+  const r1Pitch = CANVAS_W / N;
+  for (let i = 0; i < N; i++) {
     platforms.push({
       x: i * r1Pitch + (r1Pitch - W) / 2,
       y: ROW_Y[1], w: W, h: H,
@@ -80,9 +68,9 @@ export function buildLevel3MovingPlatforms(iteration: number): void {
     });
   }
 
-  // ── Row 2: wrap LEFT (R → L) — per-platform speeds for visible spread.
-  const r2Pitch = CANVAS_W / r2n;
-  for (let i = 0; i < r2n; i++) {
+  // ── Row 2: wrap LEFT (R → L) — per-platform speeds.
+  const r2Pitch = CANVAS_W / N;
+  for (let i = 0; i < N; i++) {
     const sp = randInRange(LEVEL3_PARAMS.row2.minSpeed, LEVEL3_PARAMS.row2.maxSpeed) * mul;
     platforms.push({
       x: i * r2Pitch + (r2Pitch - W) / 2,
@@ -93,8 +81,8 @@ export function buildLevel3MovingPlatforms(iteration: number): void {
   }
 
   // ── Row 3: wrap RIGHT (L → R)
-  const r3Pitch = CANVAS_W / r3n;
-  for (let i = 0; i < r3n; i++) {
+  const r3Pitch = CANVAS_W / N;
+  for (let i = 0; i < N; i++) {
     platforms.push({
       x: i * r3Pitch + (r3Pitch - W) / 2,
       y: ROW_Y[3], w: W, h: H,
