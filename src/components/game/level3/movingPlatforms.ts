@@ -27,9 +27,9 @@ export function getMovingPlatforms(): MovingPlatform[] { return platforms; }
 export function clearLevel3MovingPlatforms(): void { platforms = []; }
 
 // Bottom (row 0) → top (row 3). Spaced by ~36px so the player can jump
-// row-to-row. Sprout platform is at y=176, split at y=304, so rows live
-// between 432 and ~324.
-const ROW_Y = [432, 396, 360, 324];
+// row-to-row, with the top lane close enough to the hanging sprouts for a
+// Frogger-style handoff instead of a blind fall.
+const ROW_Y = [432, 396, 360, 328];
 // Minimum gap between platforms in the SAME row (≈ jump distance, so two
 // adjacent platforms can never overlap or touch — closest = jumpable).
 const MIN_GAP = 50;
@@ -40,14 +40,20 @@ export function buildLevel3MovingPlatforms(iteration: number): void {
   const mul = l3IterSpeedMul(iteration);
   platforms = [];
 
-  // ── Row 0: two bouncers, no center island — player can fall through.
-  const leftSpawnX = (CANVAS_W * 0.25) - W / 2;
+  // ── Row 0: three bouncers across the full width — still dangerous, but
+  // not so sparse that the player waits forever after every respawn.
+  const leftSpawnX = (CANVAS_W * 0.18) - W / 2;
   platforms.push({
     x: Math.max(0, leftSpawnX), y: ROW_Y[0], w: W, h: H,
     vx: -randInRange(LEVEL3_PARAMS.row0.minSpeed, LEVEL3_PARAMS.row0.maxSpeed) * mul,
     row: 0, mode: 'bounce',
   });
-  const rightSpawnX = (CANVAS_W * 0.75) - W / 2;
+  platforms.push({
+    x: (CANVAS_W * 0.5) - W / 2, y: ROW_Y[0], w: W, h: H,
+    vx: randInRange(LEVEL3_PARAMS.row0.minSpeed, LEVEL3_PARAMS.row0.maxSpeed) * mul,
+    row: 0, mode: 'bounce',
+  });
+  const rightSpawnX = (CANVAS_W * 0.82) - W / 2;
   platforms.push({
     x: Math.min(CANVAS_W - W, rightSpawnX), y: ROW_Y[0], w: W, h: H,
     vx: randInRange(LEVEL3_PARAMS.row0.minSpeed, LEVEL3_PARAMS.row0.maxSpeed) * mul,

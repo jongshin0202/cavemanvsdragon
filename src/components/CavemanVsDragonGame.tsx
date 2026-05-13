@@ -15,7 +15,7 @@ import { initLevel2, updateLevel2, renderLevel2, spawnLevel2Robots, fireballHits
 import { makeEmptyL2State, type L2State } from './game/level2/types';
 import { applyLevel2Layout, restoreLevel1Layout, isLadderUsableL2, markSproutUsed, markSproutInUse, tickSprouts, getSprouts, waterTopSprout, isTopSproutGrown, GREEN_TOP_LADDER_IDX, PURPLE_TOP_LADDER_IDX, enableLevel1SproutMechanic } from './game/level2/layout';
 import { buildLevel3MovingPlatforms, clearLevel3MovingPlatforms, tickMovingPlatforms, renderMovingPlatforms, landOnMovingPlatform, getMovingPlatforms } from './game/level3/movingPlatforms';
-import { applyLevel3Layout, getLevel3PermanentHoles } from './game/level3/layout';
+import { applyLevel3Layout, getLevel3PermanentHoles, SPROUT_DROP_X1, SPROUT_DROP_X2 } from './game/level3/layout';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   AlertDialog,
@@ -1033,12 +1033,19 @@ const CavemanVsDragonGame = () => {
           // ladder length counts as "at the end", so the player can dismount
           // (snap to the platform, or step off sideways) once they're 90%
           // of the way up/down.
-          const ladderLen = climbingLadder ? Math.max(1, climbingLadder.yBot - climbingLadder.yTop) : 0;
+          const visibleBot = (() => {
+            if (!climbingLadder || !isLevel3Round(g.round) || nearestLadderIdx === GREEN_TOP_LADDER_IDX || nearestLadderIdx === PURPLE_TOP_LADDER_IDX) return climbingLadder?.yBot ?? 0;
+            const sr = getSprouts()[nearestLadderIdx];
+            const fullH = climbingLadder.yBot - climbingLadder.yTop;
+            return climbingLadder.yTop + fullH * (sr?.growProgress ?? 1);
+          })();
+          const ladderLen = climbingLadder ? Math.max(1, visibleBot - climbingLadder.yTop) : 0;
           const endZone = Math.max(8, ladderLen * 0.10);
           const feetY = p.y + p.h;
           const nearTop = !!climbingLadder && feetY < climbingLadder.yTop + endZone;
-          const nearBot = !!climbingLadder && feetY > climbingLadder.yBot - endZone;
+          const nearBot = !!climbingLadder && feetY > visibleBot - endZone;
           const wantsHorizontal = rawLeft || rawRight;
+          if (!wantsHorizontal) (p as any)._prevLat = { l: false, r: false };
 
           // No jump-off mid-climb. The player can leave the ladder by
           // pressing up/down at the corresponding end, OR by pressing
@@ -1055,7 +1062,7 @@ const CavemanVsDragonGame = () => {
           } else if (nearBot && rawDown) {
             // Reached the bottom via Down — dismount onto the lower platform.
             p.climbing = false;
-            if (climbingLadder) p.y = climbingLadder.yBot - p.h;
+            if (climbingLadder) p.y = visibleBot - p.h;
             if (sproutMechanicActive(g.round) && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
           } else if (wantsHorizontal && climbingLadder) {
             // L3 mid-sprout vines: lateral hop to nearest USABLE vine in the
@@ -1085,6 +1092,7 @@ const CavemanVsDragonGame = () => {
                 let idx = -1;
                 let L: { x: number; yTop: number; yBot: number } | null = null;
                 let best = Infinity;
+                const curCX = curL.x + 7;
                 for (let li = 0; li < LADDERS.length; li++) {
                   if (li === nearestLadderIdx) continue;
                   if (li === GREEN_TOP_LADDER_IDX || li === PURPLE_TOP_LADDER_IDX) continue;
@@ -1094,9 +1102,11 @@ const CavemanVsDragonGame = () => {
                   // the variable visible length).
                   if (cand.yTop !== curL.yTop) continue;
                   if (!isLadderUsable(g.round, li)) continue;
-                  // Candidate must extend down to (or below) the player's feet.
-                  if (effBottomFor(li, cand) < (p.y + p.h) - 4) continue;
-                  const dx = (cand.x - curL.x) * dir;
+                  // Candidate must be visibly reachable near this height. Use a
+                  // generous hand-reach window so tiny length differences don't
+                  // make adjacent sprouts feel randomly blocked.
+                  if (effBottomFor(li, cand) < (p.y + p.h) - 18) continue;
+                  const dx = ((cand.x + 7) - curCX) * dir;
                   if (dx > 0 && dx < best) { best = dx; idx = li; L = cand; }
                 }
                 return { idx, L };
@@ -1453,14 +1463,15 @@ const CavemanVsDragonGame = () => {
               const l2Diff = getLevel2Difficulty(getLevelIteration(g.round));
               const aliveTotal = g.robots.length;
               if (aliveTotal < l2Diff.maxMonkeys) {
-                const platSlots = [1, 2, 3, 4];
+                const platSlots = isLevel3Round(g.round) ? [4] : [1, 2, 3, 4];
                 const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
                 for (const rb of g.robots) {
                   const idx = findPlatformIndex(rb.y + rb.h, rb.x + rb.w / 2);
                   if (counts[idx] !== undefined) counts[idx]++;
                 }
                 // Open platforms = those under per-platform cap.
-                const open = platSlots.filter(pi => counts[pi] < l2Diff.maxMonkeysPerPlatform);
+                const perPlatformCap = isLevel3Round(g.round) ? 2 : l2Diff.maxMonkeysPerPlatform;
+                const open = platSlots.filter(pi => counts[pi] < perPlatformCap);
                 if (open.length > 0) {
                   queue.splice(readyIdx, 1);
                   // Prefer least-populated platforms first.
@@ -1476,7 +1487,13 @@ const CavemanVsDragonGame = () => {
                   else if (leftAtEdge) fromLeft = true;
                   else if (rightAtEdge) fromLeft = false;
                   else fromLeft = (plat.x1 < CANVAS_W - plat.x2);
-                  const rx = fromLeft ? plat.x1 - 16 : plat.x2 + 2;
+                  let rx = fromLeft ? plat.x1 - 16 : plat.x2 + 2;
+                  if (isLevel3Round(g.round) && pi === 4) {
+                    const leftOpen = counts[4] % 2 === 0;
+                    const x1 = leftOpen ? 0 : SPROUT_DROP_X2;
+                    const x2 = leftOpen ? SPROUT_DROP_X1 : CANVAS_W;
+                    rx = x1 + 24 + Math.random() * Math.max(1, x2 - x1 - 48);
+                  }
                   const ry = getPlatformY(plat, fromLeft ? plat.x1 + 1 : plat.x2 - 1) - 16;
                   const spd = ROBOT_SPEED * (l2Diff.monkeySpeedMul + Math.random() * l2Diff.monkeySpeedJitter);
                   g.robots.push({
@@ -1762,6 +1779,7 @@ const CavemanVsDragonGame = () => {
             for (let li = 0; li < LADDERS.length; li++) {
               if (!isLevel2Round(g.round) && li === getTopVineIdx() && !g.topVineUnlocked) continue;
               if (!isLadderUsable(g.round, li)) continue;
+              if (isLevel3Round(g.round) && li !== GREEN_TOP_LADDER_IDX && li !== PURPLE_TOP_LADDER_IDX) continue;
               const l = LADDERS[li];
               const ladderCenterX = l.x + 7;
               if (Math.abs(rCenterX - ladderCenterX) > r.speed + 4) continue;
@@ -1793,6 +1811,18 @@ const CavemanVsDragonGame = () => {
               r.direction = r.wanderDir;
               r.vx = r.direction * r.speed;
               r.x += r.vx;
+              if (isLevel3Round(g.round) && rPlatIdx === 4 && r.onGround) {
+                const nextCenter = r.x + r.w / 2;
+                if (r.vx > 0 && nextCenter >= SPROUT_DROP_X1 - 4 && nextCenter < SPROUT_DROP_X2) {
+                  r.x = SPROUT_DROP_X1 - r.w - 2;
+                  r.wanderDir = -1;
+                  r.direction = -1;
+                } else if (r.vx < 0 && nextCenter <= SPROUT_DROP_X2 + 4 && nextCenter > SPROUT_DROP_X1) {
+                  r.x = SPROUT_DROP_X2 + 2;
+                  r.wanderDir = 1;
+                  r.direction = 1;
+                }
+              }
               r.vy += GRAVITY;
               r.y += r.vy;
               r.onGround = false;
@@ -1938,7 +1968,10 @@ const CavemanVsDragonGame = () => {
         if (!isLevel2Round(g.round) && li === getTopVineIdx()) continue; // L1: top vine drawn separately
         if (!isLadderUsable(g.round, li)) continue; // hide ungrown sprouts
         const l = LADDERS[li];
-        drawVine(l.x, l.yTop, l.yBot);
+        const sr = isLevel3Round(g.round) ? getSprouts()[li] : null;
+        const isMidVineL3 = sr && li !== GREEN_TOP_LADDER_IDX && li !== PURPLE_TOP_LADDER_IDX;
+        const visibleBot = isMidVineL3 ? l.yTop + (l.yBot - l.yTop) * sr.growProgress : l.yBot;
+        drawVine(l.x, l.yTop, visibleBot);
       }
 
       // L2: for each non-top sprout that is currently NOT grown, draw the

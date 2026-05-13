@@ -33,6 +33,9 @@ export let SPROUT_DROP_X2 = 0;
 export let FLOAT_X1 = 0;
 export let FLOAT_X2 = 0;
 
+const L3_VINE_BOTTOM_Y = 324;
+const L3_MIN_VINE_GROW = 0.86;
+
 export function applyLevel3Layout(): void {
   backupL1LayoutOnce();
 
@@ -50,10 +53,9 @@ export function applyLevel3Layout(): void {
   //   tall (Donkey-Kong-Jr style: vertical traversal + lateral movement).
   PLATFORMS[4].x1 = 0;        PLATFORMS[4].x2 = CANVAS_W; PLATFORMS[4].y = 176;
 
-  // ── P3 — REMOVED. No floor under the sprout section; the vines hang
-  //   freely from P4 and the player drops into the moving-platform area
-  //   if they fall off the bottom.
-  PLATFORMS[3].x1 = 0;        PLATFORMS[3].x2 = 0;         PLATFORMS[3].y = 304;
+  // ── P3 — REMOVED. Its y is kept as the sprout endpoint only: vines now
+  //   reach the top moving-platform lane so the player can transfer cleanly.
+  PLATFORMS[3].x1 = 0;        PLATFORMS[3].x2 = 0;         PLATFORMS[3].y = L3_VINE_BOTTOM_Y;
 
   // ── P2 — unused (no right-edge ledge); the bottom row is fully moving.
   PLATFORMS[2].x1 = 0;        PLATFORMS[2].x2 = 0;         PLATFORMS[2].y = 432;
@@ -122,8 +124,9 @@ export function applyLevel3Layout(): void {
   // ── Sprout runtime
   const runtime: SproutRuntime[] = LADDERS.map((_l, i) => {
     const isTop = i === greenIdx || i === purpleIdx;
-    // Variable max grow length per non-top sprout (50%–100% of full).
-    const maxGrow = isTop ? 1 : (0.5 + Math.random() * 0.5);
+    // Variable max grow length per non-top sprout, but never so short that
+    // adjacent-vine movement becomes a hidden dead end.
+    const maxGrow = isTop ? 1 : (L3_MIN_VINE_GROW + Math.random() * (1 - L3_MIN_VINE_GROW));
     return {
       ladderIdx: i,
       grown: !isTop,
@@ -136,6 +139,7 @@ export function applyLevel3Layout(): void {
       // All 5 sprout vines share gap 0 (single sprout platform).
       gapIdx: isTop ? -1 : 0,
       maxGrow,
+      minGrow: isTop ? undefined : L3_MIN_VINE_GROW,
     };
   });
   // Stagger initial alive timers so the vines don't all wither/regrow in
