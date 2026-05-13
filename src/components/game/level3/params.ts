@@ -78,6 +78,28 @@ export function getL3RowCounts(iteration: number): [number, number, number] {
   return counts;
 }
 
+/** Per-iteration MPS monkey distribution across the 4 moving-platform
+ *  levels (rows 0..3 → MPL 1..4). Iter 1 = [0,1,0,1]: one monkey on
+ *  MPL 2 and one on MPL 4. From iter 2 each iteration adds 1 monkey to
+ *  the MPL with the lowest current count (max 3 per MPL, hard cap 12). */
+export function getL3MpsMonkeyCounts(iteration: number): [number, number, number, number] {
+  const counts: [number, number, number, number] = [0, 1, 0, 1];
+  const cap = 3;
+  const totalCap = cap * 4;
+  let total = counts.reduce((a, b) => a + b, 0);
+  const target = Math.min(totalCap, total + Math.max(0, iteration - 1));
+  while (total < target) {
+    let min = Infinity;
+    for (let i = 0; i < 4; i++) if (counts[i] < cap && counts[i] < min) min = counts[i];
+    const cands: number[] = [];
+    for (let i = 0; i < 4; i++) if (counts[i] === min && counts[i] < cap) cands.push(i);
+    if (cands.length === 0) break;
+    counts[cands[Math.floor(Math.random() * cands.length)]]++;
+    total++;
+  }
+  return counts;
+}
+
 export function randInRange(min: number, max: number): number {
   return min + Math.random() * (max - min);
 }
