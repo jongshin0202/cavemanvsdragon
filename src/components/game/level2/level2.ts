@@ -123,6 +123,7 @@ export function spawnLevel2Robots(
         };
         (r as any)._mpsL3 = true;
         (r as any)._rideMp = mp;
+        (r as any)._mpRow = mp.row;
         (r as any)._lastMpX = mp.x;
         (r as any).wanderDir = r.direction;
         robots.push(r);
