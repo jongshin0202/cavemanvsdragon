@@ -1033,11 +1033,17 @@ const CavemanVsDragonGame = () => {
           // ladder length counts as "at the end", so the player can dismount
           // (snap to the platform, or step off sideways) once they're 90%
           // of the way up/down.
-          const ladderLen = climbingLadder ? Math.max(1, climbingLadder.yBot - climbingLadder.yTop) : 0;
+          const visibleBot = (() => {
+            if (!climbingLadder || !isLevel3Round(g.round) || nearestLadderIdx === GREEN_TOP_LADDER_IDX || nearestLadderIdx === PURPLE_TOP_LADDER_IDX) return climbingLadder?.yBot ?? 0;
+            const sr = getSprouts()[nearestLadderIdx];
+            const fullH = climbingLadder.yBot - climbingLadder.yTop;
+            return climbingLadder.yTop + fullH * (sr?.growProgress ?? 1);
+          })();
+          const ladderLen = climbingLadder ? Math.max(1, visibleBot - climbingLadder.yTop) : 0;
           const endZone = Math.max(8, ladderLen * 0.10);
           const feetY = p.y + p.h;
           const nearTop = !!climbingLadder && feetY < climbingLadder.yTop + endZone;
-          const nearBot = !!climbingLadder && feetY > climbingLadder.yBot - endZone;
+          const nearBot = !!climbingLadder && feetY > visibleBot - endZone;
           const wantsHorizontal = rawLeft || rawRight;
           if (!wantsHorizontal) (p as any)._prevLat = { l: false, r: false };
 
@@ -1056,7 +1062,7 @@ const CavemanVsDragonGame = () => {
           } else if (nearBot && rawDown) {
             // Reached the bottom via Down — dismount onto the lower platform.
             p.climbing = false;
-            if (climbingLadder) p.y = climbingLadder.yBot - p.h;
+            if (climbingLadder) p.y = visibleBot - p.h;
             if (sproutMechanicActive(g.round) && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
           } else if (wantsHorizontal && climbingLadder) {
             // L3 mid-sprout vines: lateral hop to nearest USABLE vine in the
