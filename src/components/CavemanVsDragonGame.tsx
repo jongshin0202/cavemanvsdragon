@@ -1773,6 +1773,7 @@ const CavemanVsDragonGame = () => {
             for (let li = 0; li < LADDERS.length; li++) {
               if (!isLevel2Round(g.round) && li === getTopVineIdx() && !g.topVineUnlocked) continue;
               if (!isLadderUsable(g.round, li)) continue;
+              if (isLevel3Round(g.round) && li !== GREEN_TOP_LADDER_IDX && li !== PURPLE_TOP_LADDER_IDX) continue;
               const l = LADDERS[li];
               const ladderCenterX = l.x + 7;
               if (Math.abs(rCenterX - ladderCenterX) > r.speed + 4) continue;
