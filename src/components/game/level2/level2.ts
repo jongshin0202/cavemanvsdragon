@@ -86,32 +86,55 @@ export function spawnLevel2Robots(
   // and collect on the left middle side.
   const isL3 = !!(s as any)._isL3;
 
-  // ── L3: 1 monkey on each moving-platform row (4 rows total).
-  //   Sprout-section monkeys come later from PLATFORMS[4] via respawn.
+  // ── L3: 1 monkey on each moving-platform (excluding the MP the
+  //   main character starts on), plus 2 sprout-section (SS) monkeys
+  //   on the top sprout platform (PLATFORMS[4]) at iter 1.
   if (isL3) {
     const mps = getMovingPlatforms();
-    // Pick one platform per row (row 0..3). Prefer the first platform in each row.
-    const byRow: Record<number, typeof mps> = { 0: [], 1: [], 2: [], 3: [] };
-    for (const mp of mps) { if (byRow[mp.row]) byRow[mp.row].push(mp); }
-    const rowList = [0, 1, 2, 3];
-    for (const row of rowList) {
-      const list = byRow[row];
-      if (!list || list.length === 0) continue;
-      const mp = list[Math.floor(rng() * list.length)];
+    // MC start = x:80, w:16, lands on row 0.
+    const MC_X = 80, MC_W = 16;
+    const isMcMp = (mp: typeof mps[number]) =>
+      mp.row === 0 && MC_X + MC_W > mp.x && MC_X < mp.x + mp.w;
+    let mpsCount = 0;
+    for (const mp of mps) {
+      if (isMcMp(mp)) continue;
       const rx = mp.x + (mp.w - 14) / 2;
       const ry = mp.y - 16;
       const spd = ROBOT_SPEED * (diff.monkeySpeedMul + rng() * diff.monkeySpeedJitter);
-      robots.push({
+      const r: Robot & { wanderTimer?: number; wanderDir?: number } = {
         x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0,
         onGround: true, climbing: false, targetLadder: null,
         direction: rng() > 0.5 ? 1 : -1,
         frame: 0, frameTimer: 0, speed: spd,
-      });
+      };
+      (r as any)._mpsL3 = true;
+      robots.push(r);
       jackets.push(null);
+      mpsCount++;
+    }
+    // Two SS monkeys on PLATFORMS[4] (top sprout platform).
+    const tsp = PLATFORMS[4];
+    if (tsp.x2 - tsp.x1 > 0) {
+      for (let k = 0; k < 2; k++) {
+        const frac = k === 0 ? 0.25 : 0.75;
+        const rx = tsp.x1 + (tsp.x2 - tsp.x1) * frac - 7;
+        const ry = tsp.y - 16;
+        const spd = ROBOT_SPEED * (diff.monkeySpeedMul + rng() * diff.monkeySpeedJitter);
+        const r: Robot & { wanderTimer?: number; wanderDir?: number } = {
+          x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0,
+          onGround: true, climbing: false, targetLadder: null,
+          direction: k === 0 ? 1 : -1,
+          frame: 0, frameTimer: 0, speed: spd,
+        };
+        (r as any)._ssL3 = true;
+        robots.push(r);
+        jackets.push('green');
+      }
     }
     (s as any)._jackets = jackets;
     (s as any)._appleCooldowns = jackets.map(() => randomCooldownFrames());
     (s as any)._hasAppleAlive = jackets.map(() => false);
+    (s as any)._l3MpsCount = mpsCount;
     return { robots, jackets };
   }
 
