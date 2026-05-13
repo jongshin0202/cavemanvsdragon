@@ -1805,7 +1805,23 @@ const CavemanVsDragonGame = () => {
           r.frameTimer++;
           if (r.frameTimer >= 5) { r.frameTimer = 0; r.frame = (r.frame + 1) % ROBOT_WALK_FRAMES; }
 
-          if (r.climbing) {
+          // L3 MPS monkey: locked to its assigned moving platform — never falls off,
+          // wanders left/right within the MP's bounds and is carried with it.
+          const mpsRide = (r as any)._mpsL3 ? (r as any)._rideMp : null;
+          if (mpsRide) {
+            r.y = mpsRide.y - r.h;
+            r.vy = 0;
+            r.onGround = true;
+            r.climbing = false;
+            if ((r as any).wanderDir === undefined) (r as any).wanderDir = r.direction || 1;
+            r.direction = (r as any).wanderDir;
+            r.vx = r.direction * r.speed;
+            r.x += r.vx;
+            const minX = mpsRide.x + 1;
+            const maxX = mpsRide.x + mpsRide.w - r.w - 1;
+            if (r.x <= minX) { r.x = minX; (r as any).wanderDir = 1; r.direction = 1; }
+            else if (r.x >= maxX) { r.x = maxX; (r as any).wanderDir = -1; r.direction = -1; }
+          } else if (r.climbing) {
             r.y += r.vy;
             r.vx = 0;
             if (r.targetLadder !== null) {
