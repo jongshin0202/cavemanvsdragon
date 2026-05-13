@@ -1341,7 +1341,17 @@ const CavemanVsDragonGame = () => {
         // Tick the sprout lifecycle whenever the dying-sprout mechanic is
         // active (always for L2 rounds; from L1 iter 5 onwards as well).
         if (sproutMechanicActive(g.round)) {
-          tickSprouts();
+          // L3 Stage A: keep non-top sprouts paused until MPS monkeys cleared.
+          if (isLevel3Round(g.round) && sproutsAllowedToGrow()) {
+            for (const s of getSprouts()) {
+              if (!s.isTop && s.phase === 'dormant' && s.regrowTimer > 1000) {
+                s.regrowTimer = 0;
+              }
+            }
+          }
+          if (!isLevel3Round(g.round) || sproutsAllowedToGrow() || true) {
+            tickSprouts();
+          }
         }
 
         // === LEVEL 2 UPDATE ===
