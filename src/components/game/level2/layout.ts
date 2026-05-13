@@ -69,6 +69,9 @@ export interface SproutRuntime {
   inUse?: boolean;
   /** Which platform-gap this sprout belongs to (0..3). -1 for top sprouts. */
   gapIdx: number;
+  /** Maximum visible growth (0..1). Defaults to 1. Used by L3 to make
+   *  vines grow to a random length, not always all the way down. */
+  maxGrow?: number;
 }
 
 let sproutsRuntime: SproutRuntime[] = [];
@@ -184,17 +187,30 @@ export function tickSprouts(): void {
         if (grownInGap(s.gapIdx, idx) === 0 && s.regrowTimer > 0) {
           s.regrowTimer = 0;
         }
-        if (s.regrowTimer <= 0) { s.regrowTimer = 0; s.phase = 'grow'; }
-        break;
-      case 'grow':
-        s.growProgress = Math.min(1, s.growProgress + 1 / GROW_FRAMES);
-        if (s.growProgress >= 1) {
-          s.growProgress = 1;
-          s.phase = 'idle';
-          s.grown = true;
-          if (!s.isTop) s.aliveTimer = rollAliveFrames();
+        if (s.regrowTimer <= 0) {
+          s.regrowTimer = 0;
+          s.phase = 'grow';
+          // Reroll a fresh max length per regrow so vines don't always
+          // come back the same length (L3 visual variety).
+          if (s.maxGrow !== undefined && !s.isTop) {
+            s.maxGrow = 0.5 + Math.random() * 0.5;
+          }
         }
         break;
+      case 'grow': {
+        const cap = s.maxGrow ?? 1;
+        s.growProgress = Math.min(cap, s.growProgress + 1 / GROW_FRAMES);
+        if (s.growProgress >= cap) {
+          s.growProgress = cap;
+          s.phase = 'idle';
+          s.grown = true;
+          if (!s.isTop) {
+            // Reroll length on next regrow so each cycle is a different length.
+            s.aliveTimer = rollAliveFrames();
+          }
+        }
+        break;
+      }
     }
     // Clear per-frame in-use flag; host re-asserts each frame while climbing.
     s.inUse = false;

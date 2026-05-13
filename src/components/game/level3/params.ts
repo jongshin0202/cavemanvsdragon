@@ -36,7 +36,8 @@ export const LEVEL3_PARAMS = {
   platformWidth: 72,
   platformHeight: 8,
 
-  // # of moving platforms in each upper row.
+  // Starting # of moving platforms in each upper row at iter 1.
+  // (Per-iteration the counts decrease — see getL3RowCounts below.)
   row1Count: 3,
   row2Count: 3,
   row3Count: 3,
@@ -44,6 +45,24 @@ export const LEVEL3_PARAMS = {
 
 export function l3IterSpeedMul(iteration: number): number {
   return 1 + LEVEL3_PARAMS.speedScalePerIter * Math.max(0, iteration - 1);
+}
+
+/** Per-iteration row counts. Iter 1 = [3,3,3]. Each iteration removes 1
+ *  platform from the row with the highest count (so all rows stay within
+ *  ±1 of each other). Minimum is 1 per row → floor at [1,1,1]. */
+export function getL3RowCounts(iteration: number): [number, number, number] {
+  const start = LEVEL3_PARAMS.row1Count
+    + LEVEL3_PARAMS.row2Count
+    + LEVEL3_PARAMS.row3Count;
+  const removed = Math.max(0, iteration - 1);
+  const total = Math.max(3, start - removed); // min 1 per row → 3 total
+  const base = Math.floor(total / 3);
+  const extra = total - base * 3;
+  // Distribute leftover so highest-count rows are the LOWER rows first
+  // (row1 gets extra before row2, etc.). Visually consistent with iter 1.
+  const counts: [number, number, number] = [base, base, base];
+  for (let i = 0; i < extra; i++) counts[i] += 1;
+  return counts;
 }
 
 export function randInRange(min: number, max: number): number {

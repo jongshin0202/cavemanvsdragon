@@ -1058,19 +1058,24 @@ const CavemanVsDragonGame = () => {
             if (climbingLadder) p.y = climbingLadder.yBot - p.h;
             if (sproutMechanicActive(g.round) && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
           } else if (wantsHorizontal && climbingLadder) {
-            // L3 mid-sprout vines: lateral hop to IMMEDIATELY-adjacent vine
-            // in the same layer (Donkey-Kong-Jr style). Cannot skip a vine.
-            // Cannot move if the immediate neighbor is missing or not grown.
+            // L3 mid-sprout vines: lateral hop to nearest USABLE vine in the
+            // pressed direction (Donkey-Kong-Jr style). Variable vine lengths
+            // are supported — the candidate must reach the player's current
+            // feet height. Single-tap commits the hop; sprite swings during
+            // the brief "reach across" pose.
             const isL3MidVine = isLevel3Round(g.round)
               && nearestLadderIdx !== GREEN_TOP_LADDER_IDX
               && nearestLadderIdx !== PURPLE_TOP_LADDER_IDX;
             if (isL3MidVine) {
               const curL = climbingLadder;
-              // Detect edge presses (tap = one press) so the lateral hop
-              // becomes a TWO-STEP gesture:
-              //   1st tap in a direction → "reaching" pose (left hand on
-              //     current vine, right hand on neighbor vine — frame 3).
-              //   2nd tap in the same direction → actually move to that vine.
+              const sprouts = getSprouts();
+              const effBottomFor = (li: number, l: { yTop: number; yBot: number }) => {
+                const sr = sprouts[li];
+                const fullH = l.yBot - l.yTop;
+                const prog = sr ? sr.growProgress : 1;
+                return l.yTop + fullH * prog;
+              };
+
               const prev = (p as any)._prevLat || { l: false, r: false };
               const edgeL = rawLeft && !prev.l;
               const edgeR = rawRight && !prev.r;
@@ -1084,7 +1089,13 @@ const CavemanVsDragonGame = () => {
                   if (li === nearestLadderIdx) continue;
                   if (li === GREEN_TOP_LADDER_IDX || li === PURPLE_TOP_LADDER_IDX) continue;
                   const cand = LADDERS[li];
-                  if (cand.yTop !== curL.yTop || cand.yBot !== curL.yBot) continue;
+                  // All mid vines share the same ceiling yTop — match on
+                  // ceiling only (yBot in LADDERS is the FULL length, not
+                  // the variable visible length).
+                  if (cand.yTop !== curL.yTop) continue;
+                  if (!isLadderUsable(g.round, li)) continue;
+                  // Candidate must extend down to (or below) the player's feet.
+                  if (effBottomFor(li, cand) < (p.y + p.h) - 4) continue;
                   const dx = (cand.x - curL.x) * dir;
                   if (dx > 0 && dx < best) { best = dx; idx = li; L = cand; }
                 }
@@ -1093,16 +1104,13 @@ const CavemanVsDragonGame = () => {
 
               const cd = (p as any).lateralCD || 0;
               p.vy = 0;
-              const REACH_FRAME = 3; // widest "reach across" pose
-              const HOLD_FRAME = 0;  // standing on a vine
+              const REACH_FRAME = 3;
+              const HOLD_FRAME = 0;
 
               const tryStep = (dir: -1 | 1) => {
                 const { idx, L } = findNeighbor(dir);
-                const grown = idx >= 0 && isLadderUsable(g.round, idx);
-                if (!grown || !L) return; // blocked: no neighbor or not grown
+                if (idx < 0 || !L) return;
                 p.facing = dir;
-                // Commit the hop immediately (single-tap) and show the
-                // "reach across" pose for a few frames as the swing animation.
                 p.x = L.x + 7 - p.w / 2;
                 (p as any).climbLadderIdx = idx;
                 (p as any).lateralCD = 10;
@@ -1118,21 +1126,20 @@ const CavemanVsDragonGame = () => {
                   (p as any).lateralReachFrames = rf - 1;
                   if (rf - 1 === 0) p.climbFrame = HOLD_FRAME;
                 }
-              } else if (edgeL || (rawLeft && !edgeR)) {
+              } else {
                 if (edgeL) tryStep(-1);
-              } else if (edgeR || (rawRight && !edgeL)) {
-                if (edgeR) tryStep(1);
+                else if (edgeR) tryStep(1);
               }
-              // Allow current vine to die even with player on it, IF any
-              // other grown vine exists in the same layer (player has
-              // somewhere to go). Otherwise keep it alive.
+
+              // Allow current vine to die only if any other usable vine in
+              // the same layer can hold the player.
               if (sproutMechanicActive(g.round)) {
                 let hasOtherGrown = false;
                 for (let li = 0; li < LADDERS.length; li++) {
                   if (li === nearestLadderIdx) continue;
                   if (li === GREEN_TOP_LADDER_IDX || li === PURPLE_TOP_LADDER_IDX) continue;
                   const cand = LADDERS[li];
-                  if (cand.yTop !== curL.yTop || cand.yBot !== curL.yBot) continue;
+                  if (cand.yTop !== curL.yTop) continue;
                   if (isLadderUsable(g.round, li)) { hasOtherGrown = true; break; }
                 }
                 if (!hasOtherGrown) markSproutInUse(nearestLadderIdx);
@@ -1152,6 +1159,19 @@ const CavemanVsDragonGame = () => {
             const climbMoving = rawUp || rawDown;
             if (rawUp) p.y -= CLIMB_SPEED;
             if (rawDown) p.y += CLIMB_SPEED;
+            // L3 mid-vines: clamp to the vine's effective (visible) bottom
+            // since vines now grow to a random length.
+            if (climbingLadder && isLevel3Round(g.round)
+                && nearestLadderIdx !== GREEN_TOP_LADDER_IDX
+                && nearestLadderIdx !== PURPLE_TOP_LADDER_IDX
+                && nearestLadderIdx >= 0) {
+              const sr = getSprouts()[nearestLadderIdx];
+              if (sr) {
+                const fullH = climbingLadder.yBot - climbingLadder.yTop;
+                const effBot = climbingLadder.yTop + fullH * sr.growProgress;
+                if (p.y + p.h > effBot) p.y = effBot - p.h;
+              }
+            }
             if (climbMoving) {
               p.climbTimer++;
               if (p.climbTimer > 6) { p.climbTimer = 0; p.climbFrame = (p.climbFrame + 1) % 4; }
