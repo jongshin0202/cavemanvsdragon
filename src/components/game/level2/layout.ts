@@ -74,6 +74,10 @@ export interface SproutRuntime {
   maxGrow?: number;
   /** Optional floor for rerolled growth length. */
   minGrow?: number;
+  /** Per-cycle randomized grow duration in frames (±20% of base GROW_FRAMES).
+   *  Rolled fresh each time the sprout enters the 'grow' phase, and reused
+   *  by the 'wither' phase so wither speed matches grow speed. */
+  growFrames?: number;
 }
 
 let sproutsRuntime: SproutRuntime[] = [];
