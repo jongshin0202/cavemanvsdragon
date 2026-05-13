@@ -1968,7 +1968,10 @@ const CavemanVsDragonGame = () => {
         if (!isLevel2Round(g.round) && li === getTopVineIdx()) continue; // L1: top vine drawn separately
         if (!isLadderUsable(g.round, li)) continue; // hide ungrown sprouts
         const l = LADDERS[li];
-        drawVine(l.x, l.yTop, l.yBot);
+        const sr = isLevel3Round(g.round) ? getSprouts()[li] : null;
+        const isMidVineL3 = sr && li !== GREEN_TOP_LADDER_IDX && li !== PURPLE_TOP_LADDER_IDX;
+        const visibleBot = isMidVineL3 ? l.yTop + (l.yBot - l.yTop) * sr.growProgress : l.yBot;
+        drawVine(l.x, l.yTop, visibleBot);
       }
 
       // L2: for each non-top sprout that is currently NOT grown, draw the
