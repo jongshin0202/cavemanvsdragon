@@ -53,40 +53,41 @@ export function buildLevel3MovingPlatforms(iteration: number): void {
     });
   }
 
-  // Use a single uniform speed per wrap-row so platforms don't catch up.
-  const row1Speed = randInRange(LEVEL3_PARAMS.row1.minSpeed, LEVEL3_PARAMS.row1.maxSpeed) * mul;
-  const row3Speed = randInRange(LEVEL3_PARAMS.row3.minSpeed, LEVEL3_PARAMS.row3.maxSpeed) * mul;
+  // Per-platform random speed within 20% of the iteration's max for that row.
+  const pickSpeed = (maxSpd: number) => {
+    const top = maxSpd * mul;
+    return top * (0.8 + Math.random() * 0.2);
+  };
 
-  // ── Row 1: wrap RIGHT (L → R)
+  // ── Row 1: wrap RIGHT (L → R) — per-platform random speeds.
   const r1Pitch = CANVAS_W / N;
   for (let i = 0; i < N; i++) {
     platforms.push({
       x: i * r1Pitch + (r1Pitch - W) / 2,
       y: ROW_Y[1], w: W, h: H,
-      vx: row1Speed,
+      vx: pickSpeed(LEVEL3_PARAMS.row1.maxSpeed),
       row: 1, mode: 'wrapRight',
     });
   }
 
-  // ── Row 2: wrap LEFT (R → L) — per-platform speeds.
+  // ── Row 2: wrap LEFT (R → L) — per-platform random speeds.
   const r2Pitch = CANVAS_W / N;
   for (let i = 0; i < N; i++) {
-    const sp = randInRange(LEVEL3_PARAMS.row2.minSpeed, LEVEL3_PARAMS.row2.maxSpeed) * mul;
     platforms.push({
       x: i * r2Pitch + (r2Pitch - W) / 2,
       y: ROW_Y[2], w: W, h: H,
-      vx: -sp,
+      vx: -pickSpeed(LEVEL3_PARAMS.row2.maxSpeed),
       row: 2, mode: 'wrapLeft',
     });
   }
 
-  // ── Row 3: wrap RIGHT (L → R)
+  // ── Row 3: wrap RIGHT (L → R) — per-platform random speeds.
   const r3Pitch = CANVAS_W / N;
   for (let i = 0; i < N; i++) {
     platforms.push({
       x: i * r3Pitch + (r3Pitch - W) / 2,
       y: ROW_Y[3], w: W, h: H,
-      vx: row3Speed,
+      vx: pickSpeed(LEVEL3_PARAMS.row3.maxSpeed),
       row: 3, mode: 'wrapRight',
     });
   }
