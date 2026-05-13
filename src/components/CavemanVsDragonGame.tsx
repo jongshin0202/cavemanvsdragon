@@ -15,7 +15,7 @@ import { initLevel2, updateLevel2, renderLevel2, spawnLevel2Robots, fireballHits
 import { makeEmptyL2State, type L2State } from './game/level2/types';
 import { applyLevel2Layout, restoreLevel1Layout, isLadderUsableL2, markSproutUsed, markSproutInUse, tickSprouts, getSprouts, waterTopSprout, isTopSproutGrown, GREEN_TOP_LADDER_IDX, PURPLE_TOP_LADDER_IDX, enableLevel1SproutMechanic } from './game/level2/layout';
 import { buildLevel3MovingPlatforms, clearLevel3MovingPlatforms, tickMovingPlatforms, renderMovingPlatforms, landOnMovingPlatform, getMovingPlatforms } from './game/level3/movingPlatforms';
-import { applyLevel3Layout, getLevel3PermanentHoles } from './game/level3/layout';
+import { applyLevel3Layout, getLevel3PermanentHoles, SPROUT_DROP_X1, SPROUT_DROP_X2 } from './game/level3/layout';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   AlertDialog,
@@ -1801,6 +1801,18 @@ const CavemanVsDragonGame = () => {
               r.direction = r.wanderDir;
               r.vx = r.direction * r.speed;
               r.x += r.vx;
+              if (isLevel3Round(g.round) && rPlatIdx === 4 && r.onGround) {
+                const nextCenter = r.x + r.w / 2;
+                if (r.vx > 0 && nextCenter >= SPROUT_DROP_X1 - 4 && nextCenter < SPROUT_DROP_X2) {
+                  r.x = SPROUT_DROP_X1 - r.w - 2;
+                  r.wanderDir = -1;
+                  r.direction = -1;
+                } else if (r.vx < 0 && nextCenter <= SPROUT_DROP_X2 + 4 && nextCenter > SPROUT_DROP_X1) {
+                  r.x = SPROUT_DROP_X2 + 2;
+                  r.wanderDir = 1;
+                  r.direction = 1;
+                }
+              }
               r.vy += GRAVITY;
               r.y += r.vy;
               r.onGround = false;
