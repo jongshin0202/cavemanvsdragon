@@ -266,7 +266,7 @@ const CavemanVsDragonGame = () => {
     if (isLevel2Round(g.round)) {
       // L3 uses its own layout module; L2 uses applyLevel2Layout.
       if (isLevel3Round(g.round)) {
-        applyLevel3Layout();
+        applyLevel3Layout(getLevelIteration(g.round));
       } else {
         applyLevel2Layout();
       }
@@ -1843,20 +1843,39 @@ const CavemanVsDragonGame = () => {
               r.y += r.vy;
               r.onGround = false;
 
+              let landed = false;
               for (let plIdx = 0; plIdx < PLATFORMS.length; plIdx++) {
                 const plat = PLATFORMS[plIdx];
+                if (plat.x2 - plat.x1 <= 0) continue;
                 if (r.x + r.w > plat.x1 && r.x < plat.x2) {
                   const platY = getPlatformY(plat, r.x + r.w / 2);
                   if (r.y + r.h >= platY && r.y + r.h <= platY + 12 && r.vy >= 0) {
                     if (isLevel2Round(g.round) && isHoleAtPlatform(l2Ref.current, plIdx, r.x + r.w / 2)) continue;
-                    r.y = platY - r.h; r.vy = 0; r.onGround = true; break;
+                    r.y = platY - r.h; r.vy = 0; r.onGround = true; landed = true; break;
+                  }
+                }
+              }
+
+              // L3: monkeys can ride moving platforms (carry with dx).
+              if (!landed && isLevel3Round(g.round)) {
+                const mps = getMovingPlatforms();
+                const dxs: number[] = (g as any)._l3Dxs || [];
+                for (let mi = 0; mi < mps.length; mi++) {
+                  const mp = mps[mi];
+                  if (r.x + r.w > mp.x && r.x < mp.x + mp.w) {
+                    if (r.y + r.h >= mp.y && r.y + r.h <= mp.y + 12 && r.vy >= 0) {
+                      r.y = mp.y - r.h; r.vy = 0; r.onGround = true;
+                      r.x += dxs[mi] || 0;
+                      landed = true;
+                      break;
+                    }
                   }
                 }
               }
 
               // Bounce off walls / platform edges so it keeps moving
               const curPlat = PLATFORMS[rPlatIdx];
-              if (curPlat) {
+              if (curPlat && curPlat.x2 - curPlat.x1 > 0) {
                 if (r.x <= curPlat.x1 + 2) { r.wanderDir = 1; r.x = curPlat.x1 + 2; }
                 else if (r.x + r.w >= curPlat.x2 - 2) { r.wanderDir = -1; r.x = curPlat.x2 - r.w - 2; }
               }
@@ -1864,6 +1883,11 @@ const CavemanVsDragonGame = () => {
             }
           }
 
+          // Stricter fall cull for L3 — any monkey that passes the bottom row
+          // without finding ground is removed (prevents stuck-off-screen).
+          if (isLevel3Round(g.round) && r.y > 460 && !r.onGround && !r.climbing) {
+            g.robots.splice(i, 1); continue;
+          }
           if (r.y > CANVAS_H + 20) { g.robots.splice(i, 1); continue; }
 
           const rPlatY = findPlatformIndex(r.y + r.h, r.x + r.w / 2);

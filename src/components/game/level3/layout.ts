@@ -37,7 +37,7 @@ export let FLOAT_X2 = 0;
 const L3_VINE_BOTTOM_Y = 324;
 const L3_MIN_VINE_GROW = 0.86;
 
-export function applyLevel3Layout(): void {
+export function applyLevel3Layout(iter: number = 1): void {
   backupL1LayoutOnce();
 
   // Flatten everything.
@@ -144,8 +144,8 @@ export function applyLevel3Layout(): void {
   });
   setSproutsRuntime(runtime);
 
-  // Reset L3 stage FSM for the new round.
-  resetL3Stage();
+  // Reset L3 stage FSM for the new round (iter 1 starts in sproutsGrowing).
+  resetL3Stage(iter);
 
   setCurrentLevel2Iteration(1);
 }
