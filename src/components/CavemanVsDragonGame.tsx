@@ -11,7 +11,7 @@ import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal
 import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/deviceStats';
 import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
 import { LEVEL2_PARAMS, getLevel2Difficulty } from './game/level2/params';
-import { initLevel2, updateLevel2, renderLevel2, spawnLevel2Robots, fireballHitsPlayer, tryPickupCan, tryPickupRock, trySealVolcano, maybeSpawnVolcanoRock, onMonkeyKilled, newSpawnJacket, pushJacket, isHoleAtPlatform, tickApples, appleHitsPlayer, type L2Sprites } from './game/level2/level2';
+import { initLevel2, updateLevel2, renderLevel2, spawnLevel2Robots, fireballHitsPlayer, tryPickupCan, tryPickupRock, trySealVolcano, maybeSpawnVolcanoRock, onMonkeyKilled, newSpawnJacket, pushJacket, isHoleAtPlatform, tickApples, appleHitsPlayer, notifyVolcanoSealedL3, type L2Sprites } from './game/level2/level2';
 import { makeEmptyL2State, type L2State } from './game/level2/types';
 import { applyLevel2Layout, restoreLevel1Layout, isLadderUsableL2, markSproutUsed, markSproutInUse, tickSprouts, getSprouts, waterTopSprout, isTopSproutGrown, GREEN_TOP_LADDER_IDX, PURPLE_TOP_LADDER_IDX, enableLevel1SproutMechanic } from './game/level2/layout';
 import { buildLevel3MovingPlatforms, clearLevel3MovingPlatforms, tickMovingPlatforms, renderMovingPlatforms, landOnMovingPlatform, getMovingPlatforms } from './game/level3/movingPlatforms';
@@ -1452,6 +1452,17 @@ const CavemanVsDragonGame = () => {
           if (l2Ref.current.carryingRock) {
             if (trySealVolcano(l2Ref.current, pl.x + pl.w / 2, pl.y + pl.h)) {
               playWinSound();
+              // L3: queue iter*2 respawns split between SS + MPS rows.
+              if (isLevel3Round(g.round)) {
+                const total = notifyVolcanoSealedL3(l2Ref.current);
+                const l2D = getLevel2Difficulty(getLevelIteration(g.round));
+                const q: number[] = (g as any).l2RespawnQueue || [];
+                const span = Math.max(1, l2D.respawnMaxFrames - l2D.respawnMinFrames);
+                for (let k = 0; k < total; k++) {
+                  q.push(l2D.respawnMinFrames + Math.floor(Math.random() * (span + 1)));
+                }
+                (g as any).l2RespawnQueue = q;
+              }
             }
           }
 
@@ -1492,37 +1503,64 @@ const CavemanVsDragonGame = () => {
                 // Open platforms = those under per-platform cap.
                 const perPlatformCap = isLevel3Round(g.round) ? 2 : l2Diff.maxMonkeysPerPlatform;
                 const open = platSlots.filter(pi => counts[pi] < perPlatformCap);
-                if (open.length > 0) {
+                // L3 post-seal: also allow MPS rows as spawn targets.
+                const l3Sealed = isLevel3Round(g.round) && l2Ref.current.volcanoSealed;
+                const mps = l3Sealed ? getMovingPlatforms() : [];
+                const mpOpen = mps.filter(mp => {
+                  // Skip MP if a robot already stands on it.
+                  return !g.robots.some(rb =>
+                    Math.abs((rb.y + rb.h) - mp.y) < 4 &&
+                    rb.x + rb.w / 2 >= mp.x - 2 &&
+                    rb.x + rb.w / 2 <= mp.x + mp.w + 2
+                  );
+                });
+                if (open.length > 0 || mpOpen.length > 0) {
                   queue.splice(readyIdx, 1);
-                  // Prefer least-populated platforms first.
-                  open.sort((a, b) => counts[a] - counts[b]);
-                  const minCount = counts[open[0]];
-                  const leastFilled = open.filter(pi => counts[pi] === minCount);
-                  const pi = leastFilled[Math.floor(Math.random() * leastFilled.length)];
-                  const plat = PLATFORMS[pi];
-                  const leftAtEdge = plat.x1 <= 2;
-                  const rightAtEdge = plat.x2 >= CANVAS_W - 2;
-                  let fromLeft: boolean;
-                  if (leftAtEdge && rightAtEdge) fromLeft = Math.random() < 0.5;
-                  else if (leftAtEdge) fromLeft = true;
-                  else if (rightAtEdge) fromLeft = false;
-                  else fromLeft = (plat.x1 < CANVAS_W - plat.x2);
-                  let rx = fromLeft ? plat.x1 - 16 : plat.x2 + 2;
-                  if (isLevel3Round(g.round) && pi === 4) {
-                    const leftOpen = counts[4] % 2 === 0;
-                    const x1 = leftOpen ? 0 : SPROUT_DROP_X2;
-                    const x2 = leftOpen ? SPROUT_DROP_X1 : CANVAS_W;
-                    rx = x1 + 24 + Math.random() * Math.max(1, x2 - x1 - 48);
+                  // 50/50 between SS-platform and MPS when both available; else fallback.
+                  const useMp = mpOpen.length > 0 && (open.length === 0 || Math.random() < 0.5);
+                  let newR: any;
+                  if (useMp) {
+                    const mp = mpOpen[Math.floor(Math.random() * mpOpen.length)];
+                    const rx = mp.x + (mp.w - 14) / 2;
+                    const ry = mp.y - 16;
+                    const spd = ROBOT_SPEED * (l2Diff.monkeySpeedMul + Math.random() * l2Diff.monkeySpeedJitter);
+                    newR = {
+                      x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0,
+                      onGround: true, climbing: false, targetLadder: null,
+                      direction: Math.random() > 0.5 ? 1 : -1,
+                      frame: 0, frameTimer: 0, speed: spd,
+                      _mpsL3: true,
+                    };
+                  } else {
+                    open.sort((a, b) => counts[a] - counts[b]);
+                    const minCount = counts[open[0]];
+                    const leastFilled = open.filter(pi => counts[pi] === minCount);
+                    const pi = leastFilled[Math.floor(Math.random() * leastFilled.length)];
+                    const plat = PLATFORMS[pi];
+                    const leftAtEdge = plat.x1 <= 2;
+                    const rightAtEdge = plat.x2 >= CANVAS_W - 2;
+                    let fromLeft: boolean;
+                    if (leftAtEdge && rightAtEdge) fromLeft = Math.random() < 0.5;
+                    else if (leftAtEdge) fromLeft = true;
+                    else if (rightAtEdge) fromLeft = false;
+                    else fromLeft = (plat.x1 < CANVAS_W - plat.x2);
+                    let rx = fromLeft ? plat.x1 - 16 : plat.x2 + 2;
+                    if (isLevel3Round(g.round) && pi === 4) {
+                      const leftOpen = counts[4] % 2 === 0;
+                      const x1 = leftOpen ? 0 : SPROUT_DROP_X2;
+                      const x2 = leftOpen ? SPROUT_DROP_X1 : CANVAS_W;
+                      rx = x1 + 24 + Math.random() * Math.max(1, x2 - x1 - 48);
+                    }
+                    const ry = getPlatformY(plat, fromLeft ? plat.x1 + 1 : plat.x2 - 1) - 16;
+                    const spd = ROBOT_SPEED * (l2Diff.monkeySpeedMul + Math.random() * l2Diff.monkeySpeedJitter);
+                    newR = {
+                      x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0,
+                      onGround: true, climbing: false, targetLadder: null,
+                      direction: fromLeft ? 1 : -1,
+                      frame: 0, frameTimer: 0, speed: spd,
+                    };
+                    if (isLevel3Round(g.round) && pi === 4) newR._ssL3 = true;
                   }
-                  const ry = getPlatformY(plat, fromLeft ? plat.x1 + 1 : plat.x2 - 1) - 16;
-                  const spd = ROBOT_SPEED * (l2Diff.monkeySpeedMul + Math.random() * l2Diff.monkeySpeedJitter);
-                  const newR: any = {
-                    x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0,
-                    onGround: true, climbing: false, targetLadder: null,
-                    direction: fromLeft ? 1 : -1,
-                    frame: 0, frameTimer: 0, speed: spd,
-                  };
-                  if (isLevel3Round(g.round) && pi === 4) newR._ssL3 = true;
                   g.robots.push(newR);
                   pushJacket(l2Ref.current, newSpawnJacket(l2Ref.current));
                 }
