@@ -1879,6 +1879,7 @@ const CavemanVsDragonGame = () => {
                   else if (r.x + r.w >= curMp.x + curMp.w - 1) { r.x = curMp.x + curMp.w - r.w - 1; r.wanderDir = -1; r.direction = -1; r.vx = -r.speed; }
                 }
               }
+              r.vy += GRAVITY;
               r.y += r.vy;
               r.onGround = false;
 
