@@ -1849,11 +1849,16 @@ const CavemanVsDragonGame = () => {
 
           // L3 MPS monkey: locked to its assigned moving platform — never falls off,
           // wanders left/right within the MP's bounds and is carried with it.
-          const mpsRide = (r as any)._mpsL3 ? (r as any)._rideMp : null;
+          const mpsRide = isLevel3Round(g.round) && (r as any)._mpsL3
+            ? findMonkeyRidePlatform(r as Robot & Record<string, any>)
+            : null;
           if (mpsRide) {
             // Carry with the moving platform (so monkey rides instead of slipping).
             const lastMpX = (r as any)._lastMpX;
             if (typeof lastMpX === 'number') r.x += mpsRide.x - lastMpX;
+            const minX = mpsRide.x + 1;
+            const maxX = mpsRide.x + mpsRide.w - r.w - 1;
+            r.x = Math.max(minX, Math.min(maxX, r.x));
             r.y = mpsRide.y - r.h;
             r.vy = 0;
             r.onGround = true;
@@ -1862,8 +1867,6 @@ const CavemanVsDragonGame = () => {
             r.direction = (r as any).wanderDir;
             r.vx = r.direction * r.speed;
             r.x += r.vx;
-            const minX = mpsRide.x + 1;
-            const maxX = mpsRide.x + mpsRide.w - r.w - 1;
             if (r.x <= minX) { r.x = minX; (r as any).wanderDir = 1; r.direction = 1; }
             else if (r.x >= maxX) { r.x = maxX; (r as any).wanderDir = -1; r.direction = -1; }
             (r as any)._lastMpX = mpsRide.x;
