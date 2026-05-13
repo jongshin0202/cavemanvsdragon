@@ -123,17 +123,20 @@ export function spawnLevel2Robots(
         };
         (r as any)._mpsL3 = true;
         (r as any)._rideMp = mp;
+        (r as any)._lastMpX = mp.x;
         (r as any).wanderDir = r.direction;
         robots.push(r);
-        jackets.push(null);
+        // From iter 3, MPS monkeys throw apples (green jacket).
+        jackets.push(iter >= 3 ? 'green' : null);
         mpsCount++;
       }
     }
-    // Two SS monkeys on PLATFORMS[4] (top sprout platform).
+    // SS monkeys on PLATFORMS[4] (top sprout platform). Count = iter (cap 2).
     const tsp = PLATFORMS[4];
+    const ssCount = Math.max(1, Math.min(2, iter));
     if (tsp.x2 - tsp.x1 > 0) {
-      for (let k = 0; k < 2; k++) {
-        const frac = k === 0 ? 0.25 : 0.75;
+      for (let k = 0; k < ssCount; k++) {
+        const frac = ssCount === 1 ? 0.5 : (k === 0 ? 0.25 : 0.75);
         const rx = tsp.x1 + (tsp.x2 - tsp.x1) * frac - 7;
         const ry = tsp.y - 16;
         const spd = ROBOT_SPEED * (diff.monkeySpeedMul + rng() * diff.monkeySpeedJitter);
