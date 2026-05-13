@@ -10,20 +10,20 @@ export const LEVEL3_PARAMS = {
   // Iter 1 baseline speeds — kept slow so the player can ease into the
   // Frogger lanes. +10% per iteration via `l3IterSpeedMul`.
   row0: {
-    minSpeed: 0.18,
-    maxSpeed: 0.45,
+    minSpeed: 0.198,
+    maxSpeed: 0.495,
   },
   row1: {
-    minSpeed: 0.20,
-    maxSpeed: 0.30,
+    minSpeed: 0.22,
+    maxSpeed: 0.33,
   },
   row2: {
-    minSpeed: 0.25,
-    maxSpeed: 0.55,
+    minSpeed: 0.275,
+    maxSpeed: 0.605,
   },
   row3: {
-    minSpeed: 0.45,
-    maxSpeed: 0.65,
+    minSpeed: 0.495,
+    maxSpeed: 0.715,
   },
   // Multiplicative speed bump per L3 iteration (iter 1 = 1.0).
   speedScalePerIter: 0.10,
