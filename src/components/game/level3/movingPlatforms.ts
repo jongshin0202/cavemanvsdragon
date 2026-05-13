@@ -59,11 +59,11 @@ export function buildLevel3MovingPlatforms(iteration: number): void {
   // enforcement when faster platforms ran into slower ones (or when a
   // wrapped platform got shoved forward to satisfy MIN_GAP).
   const row1Speed = randInRange(LEVEL3_PARAMS.row1.minSpeed, LEVEL3_PARAMS.row1.maxSpeed) * mul;
-  const row2Speed = randInRange(LEVEL3_PARAMS.row2.minSpeed, LEVEL3_PARAMS.row2.maxSpeed) * mul;
   const row3Speed = randInRange(LEVEL3_PARAMS.row3.minSpeed, LEVEL3_PARAMS.row3.maxSpeed) * mul;
 
+  const [r1n, r2n, r3n] = getL3RowCounts(iteration);
+
   // ── Row 1: wrap RIGHT (L → R)
-  const r1n = LEVEL3_PARAMS.row1Count;
   const r1Pitch = CANVAS_W / r1n;
   for (let i = 0; i < r1n; i++) {
     platforms.push({
@@ -74,10 +74,7 @@ export function buildLevel3MovingPlatforms(iteration: number): void {
     });
   }
 
-  // ── Row 2: wrap LEFT (R → L)
-  // Row 2 wants per-platform varied speeds AND wider spread. Spawn them at
-  // staggered offsets across the full width so they aren't side-by-side.
-  const r2n = LEVEL3_PARAMS.row2Count;
+  // ── Row 2: wrap LEFT (R → L) — per-platform speeds for visible spread.
   const r2Pitch = CANVAS_W / r2n;
   for (let i = 0; i < r2n; i++) {
     const sp = randInRange(LEVEL3_PARAMS.row2.minSpeed, LEVEL3_PARAMS.row2.maxSpeed) * mul;
@@ -90,7 +87,6 @@ export function buildLevel3MovingPlatforms(iteration: number): void {
   }
 
   // ── Row 3: wrap RIGHT (L → R)
-  const r3n = LEVEL3_PARAMS.row3Count;
   const r3Pitch = CANVAS_W / r3n;
   for (let i = 0; i < r3n; i++) {
     platforms.push({
