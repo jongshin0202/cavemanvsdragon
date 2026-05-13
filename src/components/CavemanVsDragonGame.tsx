@@ -1484,8 +1484,8 @@ const CavemanVsDragonGame = () => {
                   let rx = fromLeft ? plat.x1 - 16 : plat.x2 + 2;
                   if (isLevel3Round(g.round) && pi === 4) {
                     const leftOpen = counts[4] % 2 === 0;
-                    const x1 = leftOpen ? 0 : 280;
-                    const x2 = leftOpen ? 232 : CANVAS_W;
+                    const x1 = leftOpen ? 0 : SPROUT_DROP_X2;
+                    const x2 = leftOpen ? SPROUT_DROP_X1 : CANVAS_W;
                     rx = x1 + 24 + Math.random() * Math.max(1, x2 - x1 - 48);
                   }
                   const ry = getPlatformY(plat, fromLeft ? plat.x1 + 1 : plat.x2 - 1) - 16;
