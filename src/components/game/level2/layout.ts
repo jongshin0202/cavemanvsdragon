@@ -174,7 +174,7 @@ export function tickSprouts(): void {
         }
         break;
       case 'wither':
-        s.growProgress = Math.max(0, s.growProgress - 1 / GROW_FRAMES);
+        s.growProgress = Math.max(0, s.growProgress - 1 / (s.growFrames ?? GROW_FRAMES));
         if (s.growProgress <= 0) {
           s.growProgress = 0;
           if (s.isTop) {
