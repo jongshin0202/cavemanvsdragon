@@ -11,7 +11,7 @@ import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal
 import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/deviceStats';
 import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
 import { LEVEL2_PARAMS, getLevel2Difficulty } from './game/level2/params';
-import { initLevel2, updateLevel2, renderLevel2, spawnLevel2Robots, fireballHitsPlayer, tryPickupCan, tryPickupRock, trySealVolcano, maybeSpawnVolcanoRock, onMonkeyKilled, newSpawnJacket, pushJacket, isHoleAtPlatform, tickApples, appleHitsPlayer, type L2Sprites } from './game/level2/level2';
+import { initLevel2, updateLevel2, renderLevel2, spawnLevel2Robots, fireballHitsPlayer, tryPickupCan, tryPickupRock, trySealVolcano, maybeSpawnVolcanoRock, onMonkeyKilled, newSpawnJacket, pushJacket, isHoleAtPlatform, tickApples, appleHitsPlayer, notifyVolcanoSealedL3, type L2Sprites } from './game/level2/level2';
 import { makeEmptyL2State, type L2State } from './game/level2/types';
 import { applyLevel2Layout, restoreLevel1Layout, isLadderUsableL2, markSproutUsed, markSproutInUse, tickSprouts, getSprouts, waterTopSprout, isTopSproutGrown, GREEN_TOP_LADDER_IDX, PURPLE_TOP_LADDER_IDX, enableLevel1SproutMechanic } from './game/level2/layout';
 import { buildLevel3MovingPlatforms, clearLevel3MovingPlatforms, tickMovingPlatforms, renderMovingPlatforms, landOnMovingPlatform, getMovingPlatforms } from './game/level3/movingPlatforms';
