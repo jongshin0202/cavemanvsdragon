@@ -22,6 +22,7 @@ import {
   type SproutRuntime,
 } from '../level2/layout';
 import { LEVEL2_PARAMS, setCurrentLevel2Iteration } from '../level2/params';
+import { resetL3Stage } from './stage';
 
 /** X-bounds of the permanent split in the 2-piece P3 platform. */
 export let MID_SPLIT_X1 = 0;
