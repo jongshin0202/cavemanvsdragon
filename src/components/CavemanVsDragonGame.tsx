@@ -266,7 +266,7 @@ const CavemanVsDragonGame = () => {
     if (isLevel2Round(g.round)) {
       // L3 uses its own layout module; L2 uses applyLevel2Layout.
       if (isLevel3Round(g.round)) {
-        applyLevel3Layout();
+        applyLevel3Layout(getLevelIteration(g.round));
       } else {
         applyLevel2Layout();
       }
