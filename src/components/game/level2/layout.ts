@@ -72,6 +72,8 @@ export interface SproutRuntime {
   /** Maximum visible growth (0..1). Defaults to 1. Used by L3 to make
    *  vines grow to a random length, not always all the way down. */
   maxGrow?: number;
+  /** Optional floor for rerolled growth length. */
+  minGrow?: number;
 }
 
 let sproutsRuntime: SproutRuntime[] = [];
@@ -193,7 +195,8 @@ export function tickSprouts(): void {
           // Reroll a fresh max length per regrow so vines don't always
           // come back the same length (L3 visual variety).
           if (s.maxGrow !== undefined && !s.isTop) {
-            s.maxGrow = 0.5 + Math.random() * 0.5;
+            const minGrow = s.minGrow ?? 0.5;
+            s.maxGrow = minGrow + Math.random() * (1 - minGrow);
           }
         }
         break;
