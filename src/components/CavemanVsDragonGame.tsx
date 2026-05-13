@@ -72,6 +72,38 @@ const isLadderUsable = (round: number, idx: number): boolean => {
   return true;
 };
 
+type MovingPlatformRide = ReturnType<typeof getMovingPlatforms>[number];
+type MpsRobot = Robot & {
+  _mpsL3?: boolean;
+  _rideMp?: MovingPlatformRide;
+  _mpRow?: number;
+  _lastMpX?: number;
+  wanderDir?: number;
+};
+
+const findMonkeyRidePlatform = (r: MpsRobot): MovingPlatformRide | null => {
+  const mps = getMovingPlatforms();
+  if (mps.length === 0) return null;
+  if (r._rideMp && mps.includes(r._rideMp)) return r._rideMp;
+
+  const savedRow = typeof r._mpRow === 'number' ? r._mpRow : undefined;
+  const pool = savedRow === undefined ? mps : mps.filter(mp => mp.row === savedRow);
+  const candidates = pool.length ? pool : mps;
+  const cx = r.x + r.w / 2;
+  const feetY = r.y + r.h;
+  let best = candidates[0];
+  let bestScore = Infinity;
+  for (const mp of candidates) {
+    const mpCx = mp.x + mp.w / 2;
+    const score = Math.abs(mp.y - feetY) * 1000 + Math.abs(mpCx - cx);
+    if (score < bestScore) { bestScore = score; best = mp; }
+  }
+  r._rideMp = best;
+  r._mpRow = best.row;
+  r._lastMpX = best.x;
+  return best;
+};
+
 type GameState =
   | 'intro'
   | 'playing'
@@ -876,6 +908,19 @@ const CavemanVsDragonGame = () => {
             // an endless death loop.
             if (isLevel3Round(g.round)) {
               buildLevel3MovingPlatforms(getLevelIteration(g.round));
+              for (const rb of g.robots as MpsRobot[]) {
+                if (!rb._mpsL3) continue;
+                rb._rideMp = undefined;
+                rb._lastMpX = undefined;
+                const mp = findMonkeyRidePlatform(rb);
+                if (!mp) continue;
+                rb.x = Math.max(mp.x + 1, Math.min(mp.x + mp.w - rb.w - 1, rb.x));
+                rb.y = mp.y - rb.h;
+                rb.vx = 0;
+                rb.vy = 0;
+                rb.onGround = true;
+                rb.climbing = false;
+              }
               const mps = getMovingPlatforms();
               const r0 = mps.filter(m => m.row === 0).sort((a, b) => a.x - b.x);
               if (r0.length > 0) {
@@ -1532,6 +1577,7 @@ const CavemanVsDragonGame = () => {
                       frame: 0, frameTimer: 0, speed: spd,
                       _mpsL3: true,
                       _rideMp: mp,
+                      _mpRow: mp.row,
                       _lastMpX: mp.x,
                       wanderDir: dir,
                     };
@@ -1811,11 +1857,16 @@ const CavemanVsDragonGame = () => {
 
           // L3 MPS monkey: locked to its assigned moving platform — never falls off,
           // wanders left/right within the MP's bounds and is carried with it.
-          const mpsRide = (r as any)._mpsL3 ? (r as any)._rideMp : null;
+          const mpsRide = isLevel3Round(g.round) && (r as any)._mpsL3
+            ? findMonkeyRidePlatform(r as MpsRobot)
+            : null;
           if (mpsRide) {
             // Carry with the moving platform (so monkey rides instead of slipping).
             const lastMpX = (r as any)._lastMpX;
             if (typeof lastMpX === 'number') r.x += mpsRide.x - lastMpX;
+            const minX = mpsRide.x + 1;
+            const maxX = mpsRide.x + mpsRide.w - r.w - 1;
+            r.x = Math.max(minX, Math.min(maxX, r.x));
             r.y = mpsRide.y - r.h;
             r.vy = 0;
             r.onGround = true;
@@ -1824,8 +1875,6 @@ const CavemanVsDragonGame = () => {
             r.direction = (r as any).wanderDir;
             r.vx = r.direction * r.speed;
             r.x += r.vx;
-            const minX = mpsRide.x + 1;
-            const maxX = mpsRide.x + mpsRide.w - r.w - 1;
             if (r.x <= minX) { r.x = minX; (r as any).wanderDir = 1; r.direction = 1; }
             else if (r.x >= maxX) { r.x = maxX; (r as any).wanderDir = -1; r.direction = -1; }
             (r as any)._lastMpX = mpsRide.x;
