@@ -74,11 +74,19 @@ export interface SproutRuntime {
   maxGrow?: number;
   /** Optional floor for rerolled growth length. */
   minGrow?: number;
+  /** Per-cycle randomized grow duration in frames (±20% of base GROW_FRAMES).
+   *  Rolled fresh each time the sprout enters the 'grow' phase, and reused
+   *  by the 'wither' phase so wither speed matches grow speed. */
+  growFrames?: number;
 }
 
 let sproutsRuntime: SproutRuntime[] = [];
 
 const GROW_FRAMES = 68;
+/** Roll a per-sprout grow duration: GROW_FRAMES ±20%. */
+function rollGrowFrames(): number {
+  return Math.max(1, Math.round(GROW_FRAMES * (0.8 + Math.random() * 0.4)));
+}
 
 function rollAliveFrames(): number {
   const d = getCurrentLevel2Difficulty();
@@ -117,6 +125,7 @@ export function waterTopSprout(color: 'green' | 'purple'): boolean {
   s.watered = true;
   s.phase = 'grow';
   s.growProgress = 0;
+  s.growFrames = rollGrowFrames();
   return true;
 }
 
@@ -165,7 +174,7 @@ export function tickSprouts(): void {
         }
         break;
       case 'wither':
-        s.growProgress = Math.max(0, s.growProgress - 1 / GROW_FRAMES);
+        s.growProgress = Math.max(0, s.growProgress - 1 / (s.growFrames ?? GROW_FRAMES));
         if (s.growProgress <= 0) {
           s.growProgress = 0;
           if (s.isTop) {
@@ -192,6 +201,8 @@ export function tickSprouts(): void {
         if (s.regrowTimer <= 0) {
           s.regrowTimer = 0;
           s.phase = 'grow';
+          // Roll a fresh per-cycle grow speed (±20% jitter).
+          s.growFrames = rollGrowFrames();
           // Reroll a fresh max length per regrow so vines don't always
           // come back the same length (L3 visual variety).
           if (s.maxGrow !== undefined && !s.isTop) {
@@ -202,7 +213,7 @@ export function tickSprouts(): void {
         break;
       case 'grow': {
         const cap = s.maxGrow ?? 1;
-        s.growProgress = Math.min(cap, s.growProgress + 1 / GROW_FRAMES);
+        s.growProgress = Math.min(cap, s.growProgress + 1 / (s.growFrames ?? GROW_FRAMES));
         if (s.growProgress >= cap) {
           s.growProgress = cap;
           s.phase = 'idle';
