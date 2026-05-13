@@ -7,27 +7,23 @@
 // ============================================================
 
 export const LEVEL3_PARAMS = {
-  // Bottom row (row 0): center is a STATIC island; one mover left,
-  // one mover right. They bounce off the island and the screen edges.
+  // Iter 1 baseline speeds — kept slow so the player can ease into the
+  // Frogger lanes. +10% per iteration via `l3IterSpeedMul`.
   row0: {
-    minSpeed: 0.4,
-    maxSpeed: 1.2,
+    minSpeed: 0.18,
+    maxSpeed: 0.45,
   },
-  // Middle row (row 1 / "platform level 2"): slow LEFT→RIGHT.
   row1: {
-    minSpeed: 0.5,
-    maxSpeed: 0.7,
+    minSpeed: 0.20,
+    maxSpeed: 0.30,
   },
-  // Row 2 / "platform level 3": each platform picks its own speed in this
-  // range so they spread apart naturally over time.
   row2: {
-    minSpeed: 0.6,
-    maxSpeed: 1.6,
+    minSpeed: 0.25,
+    maxSpeed: 0.55,
   },
-  // Top row (row 3 / "platform level 4"): fast LEFT→RIGHT.
   row3: {
-    minSpeed: 1.5,
-    maxSpeed: 1.8,
+    minSpeed: 0.45,
+    maxSpeed: 0.65,
   },
   // Multiplicative speed bump per L3 iteration (iter 1 = 1.0).
   speedScalePerIter: 0.10,
