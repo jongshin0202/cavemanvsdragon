@@ -16,7 +16,7 @@ import { makeEmptyL2State, type L2State } from './game/level2/types';
 import { applyLevel2Layout, restoreLevel1Layout, isLadderUsableL2, markSproutUsed, markSproutInUse, tickSprouts, getSprouts, waterTopSprout, isTopSproutGrown, GREEN_TOP_LADDER_IDX, PURPLE_TOP_LADDER_IDX, enableLevel1SproutMechanic } from './game/level2/layout';
 import { buildLevel3MovingPlatforms, clearLevel3MovingPlatforms, tickMovingPlatforms, renderMovingPlatforms, landOnMovingPlatform, getMovingPlatforms } from './game/level3/movingPlatforms';
 import { applyLevel3Layout, getLevel3PermanentHoles, SPROUT_DROP_X1, SPROUT_DROP_X2 } from './game/level3/layout';
-import { getL3Stage, notifyMpsMonkeyKilled, sproutsAllowedToGrow } from './game/level3/stage';
+import { getL3Stage, notifyMpsMonkeyKilled, sproutsAllowedToGrow, setMpsMonkeyTarget } from './game/level3/stage';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   AlertDialog,
