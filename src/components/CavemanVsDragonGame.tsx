@@ -16,7 +16,7 @@ import { makeEmptyL2State, type L2State } from './game/level2/types';
 import { applyLevel2Layout, restoreLevel1Layout, isLadderUsableL2, markSproutUsed, markSproutInUse, tickSprouts, getSprouts, waterTopSprout, isTopSproutGrown, GREEN_TOP_LADDER_IDX, PURPLE_TOP_LADDER_IDX, enableLevel1SproutMechanic } from './game/level2/layout';
 import { buildLevel3MovingPlatforms, clearLevel3MovingPlatforms, tickMovingPlatforms, renderMovingPlatforms, landOnMovingPlatform, getMovingPlatforms } from './game/level3/movingPlatforms';
 import { applyLevel3Layout, getLevel3PermanentHoles, SPROUT_DROP_X1, SPROUT_DROP_X2 } from './game/level3/layout';
-import { getL3Stage, notifyMpsMonkeyKilled, sproutsAllowedToGrow } from './game/level3/stage';
+import { getL3Stage, notifyMpsMonkeyKilled, sproutsAllowedToGrow, setMpsMonkeyTarget } from './game/level3/stage';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   AlertDialog,
@@ -283,6 +283,10 @@ const CavemanVsDragonGame = () => {
       const { robots } = spawnLevel2Robots(l2Ref.current);
       g.robots.push(...robots);
       g.robotsInitialized = true;
+      if (isLevel3Round(g.round)) {
+        const mpsCount = (l2Ref.current as any)._l3MpsCount ?? 0;
+        setMpsMonkeyTarget(mpsCount);
+      }
     } else {
       // L1: make sure layout is the original (in case we just came back).
       restoreLevel1Layout();
@@ -1512,12 +1516,14 @@ const CavemanVsDragonGame = () => {
                   }
                   const ry = getPlatformY(plat, fromLeft ? plat.x1 + 1 : plat.x2 - 1) - 16;
                   const spd = ROBOT_SPEED * (l2Diff.monkeySpeedMul + Math.random() * l2Diff.monkeySpeedJitter);
-                  g.robots.push({
+                  const newR: any = {
                     x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0,
                     onGround: true, climbing: false, targetLadder: null,
                     direction: fromLeft ? 1 : -1,
                     frame: 0, frameTimer: 0, speed: spd,
-                  });
+                  };
+                  if (isLevel3Round(g.round) && pi === 4) newR._ssL3 = true;
+                  g.robots.push(newR);
                   pushJacket(l2Ref.current, newSpawnJacket(l2Ref.current));
                 }
               }
@@ -1770,8 +1776,17 @@ const CavemanVsDragonGame = () => {
                 r.y = l.yTop - r.h;
                 r.vy = 0; r.climbing = false; r.targetLadder = null;
               } else if (r.vy > 0 && r.y + r.h >= l.yBot) {
-                r.y = l.yBot - r.h;
-                r.vy = 0; r.climbing = false; r.targetLadder = null;
+                // L3 SS monkey: no platform at vine bottom — reverse and climb back up
+                // instead of dismounting (would fall and die).
+                const isL3SsVine = isLevel3Round(g.round) && (r as any)._ssL3
+                  && PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 12) < 0;
+                if (isL3SsVine) {
+                  r.y = l.yBot - r.h - 1;
+                  r.vy = -Math.abs(r.vy || r.speed);
+                } else {
+                  r.y = l.yBot - r.h;
+                  r.vy = 0; r.climbing = false; r.targetLadder = null;
+                }
               }
             } else {
               r.vy = 0; r.climbing = false;
@@ -1795,7 +1810,7 @@ const CavemanVsDragonGame = () => {
             for (let li = 0; li < LADDERS.length; li++) {
               if (!isLevel2Round(g.round) && li === getTopVineIdx() && !g.topVineUnlocked) continue;
               if (!isLadderUsable(g.round, li)) continue;
-              if (isLevel3Round(g.round) && li !== GREEN_TOP_LADDER_IDX && li !== PURPLE_TOP_LADDER_IDX) continue;
+              if (isLevel3Round(g.round) && !(r as any)._ssL3 && li !== GREEN_TOP_LADDER_IDX && li !== PURPLE_TOP_LADDER_IDX) continue;
               const l = LADDERS[li];
               const ladderCenterX = l.x + 7;
               if (Math.abs(rCenterX - ladderCenterX) > r.speed + 4) continue;
@@ -1808,6 +1823,14 @@ const CavemanVsDragonGame = () => {
                 }
               }
               if (topPlatIdx === rPlatIdx && botPlatIdx >= 0 && botPlatIdx > rPlatIdx) {
+                const scoreDown = scoreToPlayer(ladderCenterX, l.yBot);
+                if (scoreDown < continueScore && (!climbChoice || scoreDown < climbChoice.score)) {
+                  climbChoice = { ladderIdx: li, climbVy: r.speed, score: scoreDown };
+                }
+              }
+              // L3 SS sprout vine: yBot has no platform — allow virtual climb-down
+              // so SS monkeys can chase the player into the sprout section.
+              if (isLevel3Round(g.round) && (r as any)._ssL3 && topPlatIdx === rPlatIdx && botPlatIdx < 0) {
                 const scoreDown = scoreToPlayer(ladderCenterX, l.yBot);
                 if (scoreDown < continueScore && (!climbChoice || scoreDown < climbChoice.score)) {
                   climbChoice = { ladderIdx: li, climbVy: r.speed, score: scoreDown };
@@ -1837,6 +1860,23 @@ const CavemanVsDragonGame = () => {
                   r.x = SPROUT_DROP_X2 + 2;
                   r.wanderDir = 1;
                   r.direction = 1;
+                }
+              }
+              // L3 MPS monkey edge-bounce: if currently riding a moving
+              // platform, never walk off — reverse at the platform's edges.
+              if (isLevel3Round(g.round) && (r as any)._mpsL3 && r.onGround) {
+                const mps = getMovingPlatforms();
+                let curMp: typeof mps[number] | null = null;
+                for (const mp of mps) {
+                  if (Math.abs((r.y + r.h) - mp.y) < 4
+                      && r.x + r.w / 2 >= mp.x - 2
+                      && r.x + r.w / 2 <= mp.x + mp.w + 2) {
+                    curMp = mp; break;
+                  }
+                }
+                if (curMp) {
+                  if (r.x <= curMp.x + 1) { r.x = curMp.x + 1; r.wanderDir = 1; r.direction = 1; r.vx = r.speed; }
+                  else if (r.x + r.w >= curMp.x + curMp.w - 1) { r.x = curMp.x + curMp.w - r.w - 1; r.wanderDir = -1; r.direction = -1; r.vx = -r.speed; }
                 }
               }
               r.vy += GRAVITY;
@@ -1914,11 +1954,12 @@ const CavemanVsDragonGame = () => {
               g.score += 300 * (2 * n - 1); setScore(g.score);
               playRobotKillSound();
               p.vy = -4;
+              const wasMps = !!(r as any)._mpsL3;
               g.robots.splice(i, 1);
               g.monkeysKilled = (g.monkeysKilled || 0) + 1;
               if (isLevel2Round(g.round)) {
                 onMonkeyKilled(l2Ref.current, i);
-                if (isLevel3Round(g.round)) notifyMpsMonkeyKilled();
+                if (isLevel3Round(g.round) && wasMps) notifyMpsMonkeyKilled();
                 // L2: queue a respawn with iteration-tuned random delay.
                 const l2D = getLevel2Difficulty(getLevelIteration(g.round));
                 const q: number[] = (g as any).l2RespawnQueue || [];
