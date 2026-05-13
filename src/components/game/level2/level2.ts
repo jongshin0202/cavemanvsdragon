@@ -14,6 +14,7 @@ import { LEVEL2_PARAMS, getLevel2Difficulty, setCurrentLevel2Iteration } from '.
 import { L2State, makeEmptyL2State, L2VolcanoRock } from './types';
 import { TOP_GAP_X1, TOP_GAP_X2, getSprouts } from './layout';
 import { LADDERS } from '../constants';
+import { getMovingPlatforms } from '../level3/movingPlatforms';
 
 /** Returns true if punching a hole of width HOLE_W centered at `x` on
  *  platform `platIdx` would overlap any sprout location — either the
