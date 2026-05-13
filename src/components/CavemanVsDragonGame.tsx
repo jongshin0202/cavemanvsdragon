@@ -1845,6 +1845,21 @@ const CavemanVsDragonGame = () => {
         }
 
         // === UPDATE ROBOTS (always moving — random wander biased toward player) ===
+        // Precompute ladder→platform index map once per frame (perf: avoids
+        // O(robots × ladders × platforms) findIndex calls every tick).
+        const ladderTopPlat: number[] = [];
+        const ladderBotPlat: number[] = [];
+        for (let li = 0; li < LADDERS.length; li++) {
+          const l = LADDERS[li];
+          let tp = -1, bp = -1;
+          for (let pi = 0; pi < PLATFORMS.length; pi++) {
+            if (tp < 0 && Math.abs(PLATFORMS[pi].y - l.yTop) < 12) tp = pi;
+            if (bp < 0 && Math.abs(PLATFORMS[pi].y - l.yBot) < 12) bp = pi;
+            if (tp >= 0 && bp >= 0) break;
+          }
+          ladderTopPlat[li] = tp;
+          ladderBotPlat[li] = bp;
+        }
         for (let i = g.robots.length - 1; i >= 0; i--) {
           const r = g.robots[i];
           const rCenterX = r.x + r.w / 2;
@@ -1908,7 +1923,24 @@ const CavemanVsDragonGame = () => {
             if (r.wanderTimer === undefined) r.wanderTimer = 0;
             if (r.wanderDir === undefined) r.wanderDir = r.direction || 1;
             r.wanderTimer--;
-            if (r.wanderTimer <= 0) {
+            // L3 SS monkey: actively seek nearest usable top-sprout vine so
+            // it can descend into the sprout section to chase the player.
+            const isSsSeek = isLevel3Round(g.round) && (r as any)._ssL3 && rPlatIdx === 4;
+            if (isSsSeek) {
+              let targetX: number | null = null;
+              for (const li of [GREEN_TOP_LADDER_IDX, PURPLE_TOP_LADDER_IDX]) {
+                if (li < 0 || !isLadderUsable(g.round, li)) continue;
+                const lx = LADDERS[li].x + 7;
+                if (targetX === null || Math.abs(lx - rCenterX) < Math.abs(targetX - rCenterX)) targetX = lx;
+              }
+              if (targetX !== null) {
+                r.wanderDir = targetX > rCenterX ? 1 : -1;
+                r.wanderTimer = 10;
+              } else if (r.wanderTimer <= 0) {
+                r.wanderTimer = 30 + Math.floor(Math.random() * 60);
+                r.wanderDir = playerCenterX >= rCenterX ? 1 : -1;
+              }
+            } else if (r.wanderTimer <= 0) {
               r.wanderTimer = 30 + Math.floor(Math.random() * 60); // 0.7-2s at 45fps
               const towardPlayer = playerCenterX >= rCenterX ? 1 : -1;
               // 70% bias toward player, 30% random — never stop
@@ -1924,9 +1956,10 @@ const CavemanVsDragonGame = () => {
               if (isLevel3Round(g.round) && !(r as any)._ssL3 && li !== GREEN_TOP_LADDER_IDX && li !== PURPLE_TOP_LADDER_IDX) continue;
               const l = LADDERS[li];
               const ladderCenterX = l.x + 7;
-              if (Math.abs(rCenterX - ladderCenterX) > r.speed + 4) continue;
-              const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
-              const botPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 12);
+              const alignTol = (isLevel3Round(g.round) && (r as any)._ssL3) ? r.speed + 10 : r.speed + 4;
+              if (Math.abs(rCenterX - ladderCenterX) > alignTol) continue;
+              const topPlatIdx = ladderTopPlat[li];
+              const botPlatIdx = ladderBotPlat[li];
               if (botPlatIdx === rPlatIdx && topPlatIdx >= 0 && topPlatIdx < rPlatIdx) {
                 const scoreUp = scoreToPlayer(ladderCenterX, l.yTop);
                 if (scoreUp < continueScore && (!climbChoice || scoreUp < climbChoice.score)) {
@@ -1949,7 +1982,9 @@ const CavemanVsDragonGame = () => {
               }
             }
 
-            if (climbChoice && Math.random() < 0.6) {
+            // SS monkeys: commit to climbing whenever a vine is in range (no 60% gate).
+            const isSsCommit = isLevel3Round(g.round) && (r as any)._ssL3;
+            if (climbChoice && (isSsCommit || Math.random() < 0.6)) {
               const l = LADDERS[climbChoice.ladderIdx];
               r.climbing = true;
               r.targetLadder = climbChoice.ladderIdx;
