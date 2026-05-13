@@ -1958,8 +1958,8 @@ const CavemanVsDragonGame = () => {
               const ladderCenterX = l.x + 7;
               const alignTol = (isLevel3Round(g.round) && (r as any)._ssL3) ? r.speed + 10 : r.speed + 4;
               if (Math.abs(rCenterX - ladderCenterX) > alignTol) continue;
-              const topPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yTop) < 12);
-              const botPlatIdx = PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 12);
+              const topPlatIdx = ladderTopPlat[li];
+              const botPlatIdx = ladderBotPlat[li];
               if (botPlatIdx === rPlatIdx && topPlatIdx >= 0 && topPlatIdx < rPlatIdx) {
                 const scoreUp = scoreToPlayer(ladderCenterX, l.yTop);
                 if (scoreUp < continueScore && (!climbChoice || scoreUp < climbChoice.score)) {
