@@ -1819,6 +1819,14 @@ const CavemanVsDragonGame = () => {
                   climbChoice = { ladderIdx: li, climbVy: r.speed, score: scoreDown };
                 }
               }
+              // L3 SS sprout vine: yBot has no platform — allow virtual climb-down
+              // so SS monkeys can chase the player into the sprout section.
+              if (isLevel3Round(g.round) && (r as any)._ssL3 && topPlatIdx === rPlatIdx && botPlatIdx < 0) {
+                const scoreDown = scoreToPlayer(ladderCenterX, l.yBot);
+                if (scoreDown < continueScore && (!climbChoice || scoreDown < climbChoice.score)) {
+                  climbChoice = { ladderIdx: li, climbVy: r.speed, score: scoreDown };
+                }
+              }
             }
 
             if (climbChoice && Math.random() < 0.6) {
