@@ -14,8 +14,8 @@ export const LEVEL3_PARAMS = {
     maxSpeed: 0.545,
   },
   row1: {
-    minSpeed: 0.242,
-    maxSpeed: 0.363,
+    minSpeed: 0.4796,
+    maxSpeed: 0.5995,
   },
   row2: {
     minSpeed: 0.303,
