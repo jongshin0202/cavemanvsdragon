@@ -2961,15 +2961,18 @@ const CavemanVsDragonGame = () => {
       simulateKey(key, 'down');
     },
     onPointerUp: (e: React.PointerEvent) => { e.preventDefault(); simulateKey(key, 'up'); },
-    onPointerCancel: () => simulateKey(key, 'up'),
-    onTouchStart: (e: React.TouchEvent) => {
-      e.preventDefault();
-      ensureVibrateUnlocked();
-      pulseHaptic(vibMs);
-      simulateKey(key, 'down');
+    onPointerCancel: (e: React.PointerEvent) => { e.preventDefault(); simulateKey(key, 'up'); },
+    onPointerLeave: (e: React.PointerEvent) => {
+      // Only release if the pointer is no longer pressed (finger lifted off-button).
+      if (e.buttons === 0) simulateKey(key, 'up');
     },
-    onTouchEnd: (e: React.TouchEvent) => { e.preventDefault(); simulateKey(key, 'up'); },
-    onTouchCancel: () => simulateKey(key, 'up'),
+    // Prevent the browser from synthesizing duplicate mouse/touch events
+    // after pointerdown — those can fire a spurious pointercancel that
+    // releases the held key (e.g. JUMP only triggering once while held).
+    onTouchStart: (e: React.TouchEvent) => { e.preventDefault(); },
+    onTouchEnd: (e: React.TouchEvent) => { e.preventDefault(); },
+    onTouchCancel: (e: React.TouchEvent) => { e.preventDefault(); },
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
   });
 
   return (
