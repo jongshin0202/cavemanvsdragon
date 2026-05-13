@@ -201,6 +201,8 @@ export function tickSprouts(): void {
         if (s.regrowTimer <= 0) {
           s.regrowTimer = 0;
           s.phase = 'grow';
+          // Roll a fresh per-cycle grow speed (±20% jitter).
+          s.growFrames = rollGrowFrames();
           // Reroll a fresh max length per regrow so vines don't always
           // come back the same length (L3 visual variety).
           if (s.maxGrow !== undefined && !s.isTop) {
@@ -211,7 +213,7 @@ export function tickSprouts(): void {
         break;
       case 'grow': {
         const cap = s.maxGrow ?? 1;
-        s.growProgress = Math.min(cap, s.growProgress + 1 / GROW_FRAMES);
+        s.growProgress = Math.min(cap, s.growProgress + 1 / (s.growFrames ?? GROW_FRAMES));
         if (s.growProgress >= cap) {
           s.growProgress = cap;
           s.phase = 'idle';
