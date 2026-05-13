@@ -278,11 +278,11 @@ const CavemanVsDragonGame = () => {
       } else {
         (l2Ref.current as any)._isL3 = false;
       }
+      if (isLevel3Round(g.round)) buildLevel3MovingPlatforms(getLevelIteration(g.round));
+      else clearLevel3MovingPlatforms();
       const { robots } = spawnLevel2Robots(l2Ref.current);
       g.robots.push(...robots);
       g.robotsInitialized = true;
-      if (isLevel3Round(g.round)) buildLevel3MovingPlatforms(getLevelIteration(g.round));
-      else clearLevel3MovingPlatforms();
     } else {
       // L1: make sure layout is the original (in case we just came back).
       restoreLevel1Layout();
