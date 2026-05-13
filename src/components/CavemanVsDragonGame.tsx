@@ -908,7 +908,7 @@ const CavemanVsDragonGame = () => {
             // an endless death loop.
             if (isLevel3Round(g.round)) {
               buildLevel3MovingPlatforms(getLevelIteration(g.round));
-              for (const rb of g.robots as (Robot & Record<string, any>)[]) {
+              for (const rb of g.robots as MpsRobot[]) {
                 if (!rb._mpsL3) continue;
                 rb._rideMp = undefined;
                 rb._lastMpX = undefined;
@@ -1858,7 +1858,7 @@ const CavemanVsDragonGame = () => {
           // L3 MPS monkey: locked to its assigned moving platform — never falls off,
           // wanders left/right within the MP's bounds and is carried with it.
           const mpsRide = isLevel3Round(g.round) && (r as any)._mpsL3
-            ? findMonkeyRidePlatform(r as Robot & Record<string, any>)
+            ? findMonkeyRidePlatform(r as MpsRobot)
             : null;
           if (mpsRide) {
             // Carry with the moving platform (so monkey rides instead of slipping).
