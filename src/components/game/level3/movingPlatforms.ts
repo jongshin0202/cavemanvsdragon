@@ -42,22 +42,22 @@ export function buildLevel3MovingPlatforms(iteration: number): void {
 
   const N = Math.max(1, LEVEL3_PARAMS.MPS_PER_ROW);
 
+  // Per-platform random speed within 20% of the iteration's max for that row.
+  const pickSpeed = (maxSpd: number) => {
+    const top = maxSpd * mul;
+    return top * (0.8 + Math.random() * 0.2);
+  };
+
   // ── Row 0: N bouncers across the full width.
   for (let i = 0; i < N; i++) {
     const cx = ((i + 0.5) / N) * CANVAS_W;
     const dir = i % 2 === 0 ? -1 : 1;
     platforms.push({
       x: cx - W / 2, y: ROW_Y[0], w: W, h: H,
-      vx: dir * randInRange(LEVEL3_PARAMS.row0.minSpeed, LEVEL3_PARAMS.row0.maxSpeed) * mul,
+      vx: dir * pickSpeed(LEVEL3_PARAMS.row0.maxSpeed),
       row: 0, mode: 'bounce',
     });
   }
-
-  // Per-platform random speed within 20% of the iteration's max for that row.
-  const pickSpeed = (maxSpd: number) => {
-    const top = maxSpd * mul;
-    return top * (0.8 + Math.random() * 0.2);
-  };
 
   // ── Row 1: wrap RIGHT (L → R) — per-platform random speeds.
   const r1Pitch = CANVAS_W / N;
