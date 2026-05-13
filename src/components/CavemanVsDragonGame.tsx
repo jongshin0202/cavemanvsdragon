@@ -1845,6 +1845,21 @@ const CavemanVsDragonGame = () => {
         }
 
         // === UPDATE ROBOTS (always moving — random wander biased toward player) ===
+        // Precompute ladder→platform index map once per frame (perf: avoids
+        // O(robots × ladders × platforms) findIndex calls every tick).
+        const ladderTopPlat: number[] = [];
+        const ladderBotPlat: number[] = [];
+        for (let li = 0; li < LADDERS.length; li++) {
+          const l = LADDERS[li];
+          let tp = -1, bp = -1;
+          for (let pi = 0; pi < PLATFORMS.length; pi++) {
+            if (tp < 0 && Math.abs(PLATFORMS[pi].y - l.yTop) < 12) tp = pi;
+            if (bp < 0 && Math.abs(PLATFORMS[pi].y - l.yBot) < 12) bp = pi;
+            if (tp >= 0 && bp >= 0) break;
+          }
+          ladderTopPlat[li] = tp;
+          ladderBotPlat[li] = bp;
+        }
         for (let i = g.robots.length - 1; i >= 0; i--) {
           const r = g.robots[i];
           const rCenterX = r.x + r.w / 2;
