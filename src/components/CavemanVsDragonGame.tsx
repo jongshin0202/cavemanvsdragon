@@ -72,6 +72,31 @@ const isLadderUsable = (round: number, idx: number): boolean => {
   return true;
 };
 
+type MovingPlatformRide = ReturnType<typeof getMovingPlatforms>[number];
+
+const findMonkeyRidePlatform = (r: Robot & Record<string, any>): MovingPlatformRide | null => {
+  const mps = getMovingPlatforms();
+  if (mps.length === 0) return null;
+  if (r._rideMp && mps.includes(r._rideMp)) return r._rideMp;
+
+  const savedRow = typeof r._mpRow === 'number' ? r._mpRow : undefined;
+  const pool = savedRow === undefined ? mps : mps.filter(mp => mp.row === savedRow);
+  const candidates = pool.length ? pool : mps;
+  const cx = r.x + r.w / 2;
+  const feetY = r.y + r.h;
+  let best = candidates[0];
+  let bestScore = Infinity;
+  for (const mp of candidates) {
+    const mpCx = mp.x + mp.w / 2;
+    const score = Math.abs(mp.y - feetY) * 1000 + Math.abs(mpCx - cx);
+    if (score < bestScore) { bestScore = score; best = mp; }
+  }
+  r._rideMp = best;
+  r._mpRow = best.row;
+  r._lastMpX = best.x;
+  return best;
+};
+
 type GameState =
   | 'intro'
   | 'playing'
