@@ -1107,7 +1107,12 @@ const CavemanVsDragonGame = () => {
                   // make adjacent sprouts feel randomly blocked.
                   if (effBottomFor(li, cand) < (p.y + p.h) - 18) continue;
                   const dx = ((cand.x + 7) - curCX) * dir;
-                  if (dx > 0 && dx < best) { best = dx; idx = li; L = cand; }
+                  // Only allow hopping to an immediately-adjacent vine slot.
+                  // Vines are placed every 32px with every-other parity, so
+                  // adjacent live sprouts sit ~64px apart. If the next live
+                  // sprout in this direction is farther (gap or dead vine in
+                  // between), the player cannot reach it.
+                  if (dx > 0 && dx <= 72 && dx < best) { best = dx; idx = li; L = cand; }
                 }
                 return { idx, L };
               };
