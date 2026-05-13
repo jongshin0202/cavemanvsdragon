@@ -10,7 +10,7 @@
 // ============================================================
 
 import { CANVAS_W } from '../constants';
-import { LEVEL3_PARAMS, l3IterSpeedMul, randInRange } from './params';
+import { LEVEL3_PARAMS, l3IterSpeedMul, randInRange, getL3RowCounts } from './params';
 
 export type RowMode = 'bounce' | 'wrapLeft' | 'wrapRight' | 'static';
 
