@@ -125,6 +125,7 @@ export function waterTopSprout(color: 'green' | 'purple'): boolean {
   s.watered = true;
   s.phase = 'grow';
   s.growProgress = 0;
+  s.growFrames = rollGrowFrames();
   return true;
 }
 
