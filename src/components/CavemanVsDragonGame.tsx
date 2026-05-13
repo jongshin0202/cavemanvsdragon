@@ -1966,7 +1966,9 @@ const CavemanVsDragonGame = () => {
               }
             }
 
-            if (climbChoice && Math.random() < 0.6) {
+            // SS monkeys: commit to climbing whenever a vine is in range (no 60% gate).
+            const isSsCommit = isLevel3Round(g.round) && (r as any)._ssL3;
+            if (climbChoice && (isSsCommit || Math.random() < 0.6)) {
               const l = LADDERS[climbChoice.ladderIdx];
               r.climbing = true;
               r.targetLadder = climbChoice.ladderIdx;
