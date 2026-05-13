@@ -1039,6 +1039,7 @@ const CavemanVsDragonGame = () => {
           const nearTop = !!climbingLadder && feetY < climbingLadder.yTop + endZone;
           const nearBot = !!climbingLadder && feetY > climbingLadder.yBot - endZone;
           const wantsHorizontal = rawLeft || rawRight;
+          if (!wantsHorizontal) (p as any)._prevLat = { l: false, r: false };
 
           // No jump-off mid-climb. The player can leave the ladder by
           // pressing up/down at the corresponding end, OR by pressing
@@ -1095,8 +1096,10 @@ const CavemanVsDragonGame = () => {
                   // the variable visible length).
                   if (cand.yTop !== curL.yTop) continue;
                   if (!isLadderUsable(g.round, li)) continue;
-                  // Candidate must extend down to (or below) the player's feet.
-                  if (effBottomFor(li, cand) < (p.y + p.h) - 4) continue;
+                  // Candidate must be visibly reachable near this height. Use a
+                  // generous hand-reach window so tiny length differences don't
+                  // make adjacent sprouts feel randomly blocked.
+                  if (effBottomFor(li, cand) < (p.y + p.h) - 18) continue;
                   const dx = ((cand.x + 7) - curCX) * dir;
                   if (dx > 0 && dx < best) { best = dx; idx = li; L = cand; }
                 }
