@@ -187,7 +187,15 @@ export function tickSprouts(): void {
         if (grownInGap(s.gapIdx, idx) === 0 && s.regrowTimer > 0) {
           s.regrowTimer = 0;
         }
-        if (s.regrowTimer <= 0) { s.regrowTimer = 0; s.phase = 'grow'; }
+        if (s.regrowTimer <= 0) {
+          s.regrowTimer = 0;
+          s.phase = 'grow';
+          // Reroll a fresh max length per regrow so vines don't always
+          // come back the same length (L3 visual variety).
+          if (s.maxGrow !== undefined && !s.isTop) {
+            s.maxGrow = 0.5 + Math.random() * 0.5;
+          }
+        }
         break;
       case 'grow': {
         const cap = s.maxGrow ?? 1;
