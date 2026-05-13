@@ -1894,6 +1894,7 @@ const CavemanVsDragonGame = () => {
               g.monkeysKilled = (g.monkeysKilled || 0) + 1;
               if (isLevel2Round(g.round)) {
                 onMonkeyKilled(l2Ref.current, i);
+                if (isLevel3Round(g.round)) notifyMpsMonkeyKilled();
                 // L2: queue a respawn with iteration-tuned random delay.
                 const l2D = getLevel2Difficulty(getLevelIteration(g.round));
                 const q: number[] = (g as any).l2RespawnQueue || [];
