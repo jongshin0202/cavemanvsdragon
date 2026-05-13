@@ -7,27 +7,23 @@
 // ============================================================
 
 export const LEVEL3_PARAMS = {
-  // Bottom row (row 0): center is a STATIC island; one mover left,
-  // one mover right. They bounce off the island and the screen edges.
+  // Iter 1 baseline speeds — kept slow so the player can ease into the
+  // Frogger lanes. +10% per iteration via `l3IterSpeedMul`.
   row0: {
-    minSpeed: 0.4,
-    maxSpeed: 1.2,
+    minSpeed: 0.18,
+    maxSpeed: 0.45,
   },
-  // Middle row (row 1 / "platform level 2"): slow LEFT→RIGHT.
   row1: {
-    minSpeed: 0.5,
-    maxSpeed: 0.7,
+    minSpeed: 0.20,
+    maxSpeed: 0.30,
   },
-  // Row 2 / "platform level 3": each platform picks its own speed in this
-  // range so they spread apart naturally over time.
   row2: {
-    minSpeed: 0.6,
-    maxSpeed: 1.6,
+    minSpeed: 0.25,
+    maxSpeed: 0.55,
   },
-  // Top row (row 3 / "platform level 4"): fast LEFT→RIGHT.
   row3: {
-    minSpeed: 1.5,
-    maxSpeed: 1.8,
+    minSpeed: 0.45,
+    maxSpeed: 0.65,
   },
   // Multiplicative speed bump per L3 iteration (iter 1 = 1.0).
   speedScalePerIter: 0.10,
@@ -79,6 +75,28 @@ export function getL3RowCounts(iteration: number): [number, number, number] {
   // (row1 gets extra before row2, etc.). Visually consistent with iter 1.
   const counts: [number, number, number] = [base, base, base];
   for (let i = 0; i < extra; i++) counts[i] += 1;
+  return counts;
+}
+
+/** Per-iteration MPS monkey distribution across the 4 moving-platform
+ *  levels (rows 0..3 → MPL 1..4). Iter 1 = [0,1,0,1]: one monkey on
+ *  MPL 2 and one on MPL 4. From iter 2 each iteration adds 1 monkey to
+ *  the MPL with the lowest current count (max 3 per MPL, hard cap 12). */
+export function getL3MpsMonkeyCounts(iteration: number): [number, number, number, number] {
+  const counts: [number, number, number, number] = [0, 1, 0, 1];
+  const cap = 3;
+  const totalCap = cap * 4;
+  let total = counts.reduce((a, b) => a + b, 0);
+  const target = Math.min(totalCap, total + Math.max(0, iteration - 1));
+  while (total < target) {
+    let min = Infinity;
+    for (let i = 0; i < 4; i++) if (counts[i] < cap && counts[i] < min) min = counts[i];
+    const cands: number[] = [];
+    for (let i = 0; i < 4; i++) if (counts[i] === min && counts[i] < cap) cands.push(i);
+    if (cands.length === 0) break;
+    counts[cands[Math.floor(Math.random() * cands.length)]]++;
+    total++;
+  }
   return counts;
 }
 
