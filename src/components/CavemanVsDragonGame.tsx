@@ -1776,8 +1776,17 @@ const CavemanVsDragonGame = () => {
                 r.y = l.yTop - r.h;
                 r.vy = 0; r.climbing = false; r.targetLadder = null;
               } else if (r.vy > 0 && r.y + r.h >= l.yBot) {
-                r.y = l.yBot - r.h;
-                r.vy = 0; r.climbing = false; r.targetLadder = null;
+                // L3 SS monkey: no platform at vine bottom — reverse and climb back up
+                // instead of dismounting (would fall and die).
+                const isL3SsVine = isLevel3Round(g.round) && (r as any)._ssL3
+                  && PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 12) < 0;
+                if (isL3SsVine) {
+                  r.y = l.yBot - r.h - 1;
+                  r.vy = -Math.abs(r.vy || r.speed);
+                } else {
+                  r.y = l.yBot - r.h;
+                  r.vy = 0; r.climbing = false; r.targetLadder = null;
+                }
               }
             } else {
               r.vy = 0; r.climbing = false;
