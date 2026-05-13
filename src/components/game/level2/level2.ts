@@ -264,9 +264,11 @@ export function tickApples(
   const cd: number[] = (s as any)._appleCooldowns || [];
   const alive: boolean[] = (s as any)._hasAppleAlive || [];
   const diff = getLevel2Difficulty(s.round);
+  // L3: jacketed sprout-section monkeys throw apples from iter 1.
+  const applesEnabled = diff.applesEnabled || isLevel3Round(s.round);
 
-  // Iteration 1: apples are completely disabled.
-  if (!diff.applesEnabled) {
+  // Iteration 1 (L2 only): apples are completely disabled.
+  if (!applesEnabled) {
     // Drain any in-flight apples (shouldn't exist, but be safe).
     s.apples.length = 0;
   } else {
