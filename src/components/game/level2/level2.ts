@@ -8,7 +8,7 @@
 
 import {
   CANVAS_W, CANVAS_H, PLATFORMS, getPlatformY,
-  ROBOT_SPEED, type Robot, GRAVITY,
+  ROBOT_SPEED, type Robot, GRAVITY, isLevel3Round, getLevelIteration,
 } from '../constants';
 import { LEVEL2_PARAMS, getLevel2Difficulty, setCurrentLevel2Iteration } from './params';
 import { L2State, makeEmptyL2State, L2VolcanoRock } from './types';
