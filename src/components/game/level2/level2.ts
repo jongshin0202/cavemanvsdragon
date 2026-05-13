@@ -122,6 +122,8 @@ export function spawnLevel2Robots(
           frame: 0, frameTimer: 0, speed: spd,
         };
         (r as any)._mpsL3 = true;
+        (r as any)._rideMp = mp;
+        (r as any).wanderDir = r.direction;
         robots.push(r);
         jackets.push(null);
         mpsCount++;
