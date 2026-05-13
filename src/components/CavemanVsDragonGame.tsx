@@ -1516,12 +1516,14 @@ const CavemanVsDragonGame = () => {
                   }
                   const ry = getPlatformY(plat, fromLeft ? plat.x1 + 1 : plat.x2 - 1) - 16;
                   const spd = ROBOT_SPEED * (l2Diff.monkeySpeedMul + Math.random() * l2Diff.monkeySpeedJitter);
-                  g.robots.push({
+                  const newR: any = {
                     x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0,
                     onGround: true, climbing: false, targetLadder: null,
                     direction: fromLeft ? 1 : -1,
                     frame: 0, frameTimer: 0, speed: spd,
-                  });
+                  };
+                  if (isLevel3Round(g.round) && pi === 4) newR._ssL3 = true;
+                  g.robots.push(newR);
                   pushJacket(l2Ref.current, newSpawnJacket(l2Ref.current));
                 }
               }
