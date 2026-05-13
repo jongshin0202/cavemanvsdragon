@@ -217,6 +217,10 @@ export function onMonkeyKilled(s: L2State, idx: number): void {
 /** Returns the jacket color a newly-spawned monkey should wear given
  *  current state. Honors caps for both green and purple. */
 export function newSpawnJacket(s: L2State): 'green' | 'purple' | null {
+  // L3 post-seal: pop from a fixed shuffled queue of (iter green + iter purple).
+  const q: ('green' | 'purple')[] | undefined = (s as any)._l3RespawnJackets;
+  if (q && q.length > 0) return q.shift()!;
+
   const arr: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
   const greenAlive = arr.filter(j => j === 'green').length;
   const purpleAlive = arr.filter(j => j === 'purple').length;
@@ -233,6 +237,25 @@ export function newSpawnJacket(s: L2State): 'green' | 'purple' | null {
     if (Math.random() < 0.4) return 'green';
   }
   return null;
+}
+
+/** Called when the player seals the volcano in L3. Builds a shuffled queue
+ *  of (iter green + iter purple) jackets to assign to upcoming respawns,
+ *  and returns the total count for the host to push respawn delays. */
+export function notifyVolcanoSealedL3(s: L2State): number {
+  const iter = Math.max(1, getLevelIteration(s.round));
+  const q: ('green' | 'purple')[] = [];
+  for (let i = 0; i < iter; i++) q.push('green');
+  for (let i = 0; i < iter; i++) q.push('purple');
+  // Fisher-Yates shuffle
+  for (let i = q.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [q[i], q[j]] = [q[j], q[i]];
+  }
+  (s as any)._l3RespawnJackets = q;
+  // Bump targets so newSpawnJacket / kill counts gate correctly.
+  s.purpleTarget = iter;
+  return q.length;
 }
 
 /** Push a jacket assignment for a newly-added monkey (called by host
