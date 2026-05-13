@@ -123,17 +123,20 @@ export function spawnLevel2Robots(
         };
         (r as any)._mpsL3 = true;
         (r as any)._rideMp = mp;
+        (r as any)._lastMpX = mp.x;
         (r as any).wanderDir = r.direction;
         robots.push(r);
-        jackets.push(null);
+        // From iter 3, MPS monkeys throw apples (green jacket).
+        jackets.push(iter >= 3 ? 'green' : null);
         mpsCount++;
       }
     }
-    // Two SS monkeys on PLATFORMS[4] (top sprout platform).
+    // SS monkeys on PLATFORMS[4] (top sprout platform). Count = iter (cap 2).
     const tsp = PLATFORMS[4];
+    const ssCount = Math.max(1, Math.min(2, iter));
     if (tsp.x2 - tsp.x1 > 0) {
-      for (let k = 0; k < 2; k++) {
-        const frac = k === 0 ? 0.25 : 0.75;
+      for (let k = 0; k < ssCount; k++) {
+        const frac = ssCount === 1 ? 0.5 : (k === 0 ? 0.25 : 0.75);
         const rx = tsp.x1 + (tsp.x2 - tsp.x1) * frac - 7;
         const ry = tsp.y - 16;
         const spd = ROBOT_SPEED * (diff.monkeySpeedMul + rng() * diff.monkeySpeedJitter);
@@ -354,12 +357,14 @@ export function tickApples(
       ah = 7;
       ay = (r.y + r.h) - 31; // top = platY - 31, bottom = platY - 24
     }
+    const isSs = !!(hostRobots[i] as any)._ssL3;
     s.apples.push({
       x: ax, y: ay, w: aw, h: ah,
       vx: dir * diff.appleSpeed,
       ownerId: i,
       ...(heightTier === 'high' ? { _high: true } : {}),
       ...(heightTier === 'middle' ? { _mid: true } : {}),
+      ...(isSs ? { _drop: true, vy: -1.2 } : {}),
     } as any);
 
     alive[i] = true;
@@ -367,9 +372,13 @@ export function tickApples(
 
   // Update apples: travel horizontally; remove when off-screen; refresh cooldown.
   for (let i = s.apples.length - 1; i >= 0; i--) {
-    const a = s.apples[i];
+    const a = s.apples[i] as any;
     a.x += a.vx;
-    if (a.x + a.w < -8 || a.x > CANVAS_W + 8) {
+    if (a._drop) {
+      a.vy = (a.vy ?? 0) + 0.18;
+      a.y += a.vy;
+    }
+    if (a.x + a.w < -8 || a.x > CANVAS_W + 8 || a.y > CANVAS_H + 8) {
       // Apple safely passed — release thrower's cooldown.
       if (a.ownerId >= 0 && a.ownerId < alive.length) {
         alive[a.ownerId] = false;

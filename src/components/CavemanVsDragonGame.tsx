@@ -1809,6 +1809,9 @@ const CavemanVsDragonGame = () => {
           // wanders left/right within the MP's bounds and is carried with it.
           const mpsRide = (r as any)._mpsL3 ? (r as any)._rideMp : null;
           if (mpsRide) {
+            // Carry with the moving platform (so monkey rides instead of slipping).
+            const lastMpX = (r as any)._lastMpX;
+            if (typeof lastMpX === 'number') r.x += mpsRide.x - lastMpX;
             r.y = mpsRide.y - r.h;
             r.vy = 0;
             r.onGround = true;
@@ -1821,6 +1824,7 @@ const CavemanVsDragonGame = () => {
             const maxX = mpsRide.x + mpsRide.w - r.w - 1;
             if (r.x <= minX) { r.x = minX; (r as any).wanderDir = 1; r.direction = 1; }
             else if (r.x >= maxX) { r.x = maxX; (r as any).wanderDir = -1; r.direction = -1; }
+            (r as any)._lastMpX = mpsRide.x;
           } else if (r.climbing) {
             r.y += r.vy;
             r.vx = 0;
