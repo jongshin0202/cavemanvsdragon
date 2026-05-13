@@ -1908,7 +1908,24 @@ const CavemanVsDragonGame = () => {
             if (r.wanderTimer === undefined) r.wanderTimer = 0;
             if (r.wanderDir === undefined) r.wanderDir = r.direction || 1;
             r.wanderTimer--;
-            if (r.wanderTimer <= 0) {
+            // L3 SS monkey: actively seek nearest usable top-sprout vine so
+            // it can descend into the sprout section to chase the player.
+            const isSsSeek = isLevel3Round(g.round) && (r as any)._ssL3 && rPlatIdx === 4;
+            if (isSsSeek) {
+              let targetX: number | null = null;
+              for (const li of [GREEN_TOP_LADDER_IDX, PURPLE_TOP_LADDER_IDX]) {
+                if (li < 0 || !isLadderUsable(g.round, li)) continue;
+                const lx = LADDERS[li].x + 7;
+                if (targetX === null || Math.abs(lx - rCenterX) < Math.abs(targetX - rCenterX)) targetX = lx;
+              }
+              if (targetX !== null) {
+                r.wanderDir = targetX > rCenterX ? 1 : -1;
+                r.wanderTimer = 10;
+              } else if (r.wanderTimer <= 0) {
+                r.wanderTimer = 30 + Math.floor(Math.random() * 60);
+                r.wanderDir = playerCenterX >= rCenterX ? 1 : -1;
+              }
+            } else if (r.wanderTimer <= 0) {
               r.wanderTimer = 30 + Math.floor(Math.random() * 60); // 0.7-2s at 45fps
               const towardPlayer = playerCenterX >= rCenterX ? 1 : -1;
               // 70% bias toward player, 30% random — never stop
