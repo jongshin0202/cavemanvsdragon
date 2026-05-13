@@ -901,6 +901,19 @@ const CavemanVsDragonGame = () => {
             // an endless death loop.
             if (isLevel3Round(g.round)) {
               buildLevel3MovingPlatforms(getLevelIteration(g.round));
+              for (const rb of g.robots as (Robot & Record<string, any>)[]) {
+                if (!rb._mpsL3) continue;
+                rb._rideMp = undefined;
+                rb._lastMpX = undefined;
+                const mp = findMonkeyRidePlatform(rb);
+                if (!mp) continue;
+                rb.x = Math.max(mp.x + 1, Math.min(mp.x + mp.w - rb.w - 1, rb.x));
+                rb.y = mp.y - rb.h;
+                rb.vx = 0;
+                rb.vy = 0;
+                rb.onGround = true;
+                rb.climbing = false;
+              }
               const mps = getMovingPlatforms();
               const r0 = mps.filter(m => m.row === 0).sort((a, b) => a.x - b.x);
               if (r0.length > 0) {
