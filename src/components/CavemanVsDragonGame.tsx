@@ -83,6 +83,7 @@ type MpsRobot = Robot & {
 };
 
 const findSproutSectionVineTarget = (
+  round: number,
   rCenterX: number,
   playerCenterX: number,
   playerFeetY: number,
@@ -93,7 +94,7 @@ const findSproutSectionVineTarget = (
   let bestScore = Infinity;
   for (let li = 0; li < LADDERS.length; li++) {
     if (li === GREEN_TOP_LADDER_IDX || li === PURPLE_TOP_LADDER_IDX) continue;
-    if (mustBeUsable && !isLadderUsable(gRoundForLadderCheck, li)) continue;
+    if (mustBeUsable && !isLadderUsable(round, li)) continue;
     const l = LADDERS[li];
     if (Math.abs(l.yTop - PLATFORMS[4].y) > 12) continue;
     const lx = l.x + 7;
