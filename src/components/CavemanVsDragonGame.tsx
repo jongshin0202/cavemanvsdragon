@@ -769,6 +769,10 @@ const CavemanVsDragonGame = () => {
     climbImg.src = cavemanClimbUrl;
     climbSpriteRef.current = climbImg;
 
+    const sproutReachImg = new Image();
+    sproutReachImg.src = cavemanSproutReachUrl;
+    sproutReachSpriteRef.current = sproutReachImg;
+
     const winImg = new Image();
     winImg.src = cavemanWinUrl;
     winSpriteRef.current = winImg;
