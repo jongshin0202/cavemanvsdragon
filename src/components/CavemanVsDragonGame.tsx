@@ -3572,6 +3572,7 @@ interface AttractLeaderboardScreenProps {
   logo: string;
   onStart: () => void;
   onRequestClearLocal: () => void;
+  onLogoTap?: (e?: React.SyntheticEvent) => void;
 }
 
 const LONG_PRESS_MS = 10_000;
