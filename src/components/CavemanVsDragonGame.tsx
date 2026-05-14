@@ -1983,7 +1983,15 @@ const CavemanVsDragonGame = () => {
             if (r.targetLadder !== null) {
               const l = LADDERS[r.targetLadder];
               const isSsMonkey = isLevel3Round(g.round) && (r as any)._ssL3;
-              const visibleBot = isSsMonkey ? getVisibleSproutBottomY(r.targetLadder) : l.yBot;
+              const visibleBot = getVisibleSproutBottomY(r.targetLadder);
+              // Keep this sprout alive while the monkey is on it.
+              if (r.targetLadder !== GREEN_TOP_LADDER_IDX && r.targetLadder !== PURPLE_TOP_LADDER_IDX) {
+                markSproutInUse(r.targetLadder);
+              }
+              // Never let a monkey hang in the air below the visible sprout.
+              if (r.y + r.h > visibleBot + 1) {
+                r.y = visibleBot - r.h;
+              }
               if (r.vy < 0 && r.y + r.h <= l.yTop + 2) {
                 r.y = l.yTop - r.h;
                 r.vy = 0; r.climbing = false; r.targetLadder = null;

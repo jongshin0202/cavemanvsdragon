@@ -174,6 +174,13 @@ export function tickSprouts(): void {
         }
         break;
       case 'wither':
+        // Pause wither (and revive sprout) while something is actively climbing it.
+        if (s.inUse) {
+          s.phase = 'idle';
+          s.grown = true;
+          if (!s.isTop && s.aliveTimer === undefined) s.aliveTimer = rollAliveFrames();
+          break;
+        }
         s.growProgress = Math.max(0, s.growProgress - 1 / (s.growFrames ?? GROW_FRAMES));
         if (s.growProgress <= 0) {
           s.growProgress = 0;
