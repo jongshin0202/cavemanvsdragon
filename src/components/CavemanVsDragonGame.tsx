@@ -41,6 +41,8 @@ import rockWheelUrl from '@/assets/rock-wheel.png';
 import wateringCanUrl from '@/assets/watering-can.png';
 import introBackgroundUrl from '@/assets/intro-background.jpg';
 import team2goLogoUrl from '@/assets/team2go-logo.png';
+import dedicationMobileUrl from '@/assets/dedication-mobile.png';
+import dedicationPcUrl from '@/assets/dedication-pc.png';
 
 const ROBOT_WALK_FRAMES = 5;
 
