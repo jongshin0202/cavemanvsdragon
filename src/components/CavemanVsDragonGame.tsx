@@ -2107,15 +2107,17 @@ const CavemanVsDragonGame = () => {
                 if (r.x + r.w < 0) r.x = CANVAS_W - 1;
                 else if (r.x > CANVAS_W) r.x = 1 - r.w;
               }
-              if (isLevel3Round(g.round) && !isSsCommit && rPlatIdx === 4 && r.onGround) {
+              // Top-platform hole: blocks BOTH non-SS and SS L3 monkeys
+              // from walking across. SS monkeys must wrap via screen edges.
+              if (isLevel3Round(g.round) && rPlatIdx === 4 && r.onGround) {
                 const nextCenter = r.x + r.w / 2;
                 if (r.vx > 0 && nextCenter >= SPROUT_DROP_X1 - 4 && nextCenter < SPROUT_DROP_X2) {
                   r.x = SPROUT_DROP_X1 - r.w - 2;
-                  r.wanderDir = -1;
+                  r.wanderDir = isSsCommit ? -1 : -1;
                   r.direction = -1;
                 } else if (r.vx < 0 && nextCenter <= SPROUT_DROP_X2 + 4 && nextCenter > SPROUT_DROP_X1) {
                   r.x = SPROUT_DROP_X2 + 2;
-                  r.wanderDir = 1;
+                  r.wanderDir = isSsCommit ? 1 : 1;
                   r.direction = 1;
                 }
               }
