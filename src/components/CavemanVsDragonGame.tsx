@@ -1298,6 +1298,7 @@ const CavemanVsDragonGame = () => {
               if (p.climbTimer > 6) { p.climbTimer = 0; p.climbFrame = (p.climbFrame + 1) % 4; }
             }
           }
+          } // end else (no active lateralReach)
         }
 
         if (!p.climbing) {
