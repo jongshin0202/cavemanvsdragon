@@ -180,6 +180,7 @@ const CavemanVsDragonGame = () => {
   const walkSpriteRef = useRef<HTMLImageElement | null>(null);
   const jumpSpriteRef = useRef<HTMLImageElement | null>(null);
   const climbSpriteRef = useRef<HTMLImageElement | null>(null);
+  const sproutReachSpriteRef = useRef<HTMLImageElement | null>(null);
   const winSpriteRef = useRef<HTMLImageElement | null>(null);
   const dragonFireRef = useRef<HTMLImageElement | null>(null);
   const dragonAngryRef = useRef<HTMLImageElement | null>(null);
