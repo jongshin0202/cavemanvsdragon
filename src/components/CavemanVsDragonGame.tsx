@@ -2335,10 +2335,15 @@ const CavemanVsDragonGame = () => {
             // landing counts as a kill instead of a fatal side-hit.
             // Stomp ONLY when descending onto the monkey's head (bonk on top).
             // Rising into a monkey on the way up is a side-hit, not a kill.
+            // Climbing monkey on a sprout: only killable if the ENTIRE monkey
+            // is above the top sprout platform. Any part below = no kill.
+            const topSproutY = PLATFORMS[4].y;
+            const climbingBlocksKill = r.climbing && (r.y + r.h) > topSproutY;
             const isStomp =
               !p.onGround &&
               p.vy > 0 &&
-              (p.y + p.h <= r.y + r.h * 0.6);
+              (p.y + p.h <= r.y + r.h * 0.6) &&
+              !climbingBlocksKill;
             if (isStomp) {
               // Find any OTHER monkeys overlapping the same monkey position
               // (clustered at same spot). Player kills all in one stomp.
