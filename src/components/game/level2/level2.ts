@@ -127,8 +127,9 @@ export function spawnLevel2Robots(
         (r as any)._lastMpX = mp.x;
         (r as any).wanderDir = r.direction;
         robots.push(r);
-        // From iter 3, MPS monkeys throw apples (green jacket).
-        jackets.push(iter >= 3 ? 'green' : null);
+        // L3: MPS monkeys never wear jackets in initial spawn — total green
+        // count is capped at `iter` (handled by SS spawn + post-seal queue).
+        jackets.push(null);
         mpsCount++;
       }
     }

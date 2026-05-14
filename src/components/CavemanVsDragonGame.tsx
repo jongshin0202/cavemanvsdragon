@@ -1639,10 +1639,18 @@ const CavemanVsDragonGame = () => {
                     if (isLevel3Round(g.round) && pi === 4) newR._ssL3 = true;
                   }
                   g.robots.push(newR);
-                  // L3 SS monkeys must always be jacketed (green) so they
-                  // throw apples — overrides newSpawnJacket's quota gate.
+                  // L3 jacket caps: max alive greens = iter, max alive purples = iter.
+                  const jArr: ('green' | 'purple' | null)[] = (l2Ref.current as any)._jackets || [];
+                  const aliveGreens = jArr.filter(j => j === 'green').length;
+                  const alivePurples = jArr.filter(j => j === 'purple').length;
+                  const itr = Math.max(1, getLevelIteration(g.round));
                   let jacket = newSpawnJacket(l2Ref.current);
-                  if (isLevel3Round(g.round) && newR._ssL3 && !jacket) jacket = 'green';
+                  if (isLevel3Round(g.round)) {
+                    if (jacket === 'green' && aliveGreens >= itr) jacket = null;
+                    if (jacket === 'purple' && alivePurples >= itr) jacket = null;
+                    // SS monkeys must throw apples — assign green only if cap allows.
+                    if (newR._ssL3 && !jacket && aliveGreens < itr) jacket = 'green';
+                  }
                   pushJacket(l2Ref.current, jacket);
                 }
               }
@@ -1933,13 +1941,11 @@ const CavemanVsDragonGame = () => {
                 r.y = l.yTop - r.h;
                 r.vy = 0; r.climbing = false; r.targetLadder = null;
               } else if (r.vy > 0 && r.y + r.h >= l.yBot) {
-                // L3 SS monkey: the vine bottom opens into the moving-platform
-                // section, so release here instead of bouncing back up forever.
-                const isL3SsVine = isLevel3Round(g.round) && (r as any)._ssL3
-                  && PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 12) < 0;
-                if (isL3SsVine) {
-                  r.y = l.yBot - r.h;
-                  r.vy = 0; r.climbing = false; r.targetLadder = null; r.onGround = false;
+                // L3 SS monkeys must NEVER drop into MPS — if somehow climbing
+                // down, snap them back to platform 4 instead of releasing.
+                if (isLevel3Round(g.round) && (r as any)._ssL3) {
+                  r.y = PLATFORMS[4].y - r.h;
+                  r.vy = 0; r.climbing = false; r.targetLadder = null; r.onGround = true;
                 } else {
                   r.y = l.yBot - r.h;
                   r.vy = 0; r.climbing = false; r.targetLadder = null;
@@ -2063,12 +2069,18 @@ const CavemanVsDragonGame = () => {
               r.onGround = false;
 
               let landed = false;
+              const isSsMonkey = isLevel3Round(g.round) && (r as any)._ssL3;
               for (let plIdx = 0; plIdx < PLATFORMS.length; plIdx++) {
+                // L3 SS monkeys can ONLY land on platform 4 (top sprout
+                // platform) — never drop into MPS levels.
+                if (isSsMonkey && plIdx !== 4) continue;
                 const plat = PLATFORMS[plIdx];
                 if (plat.x2 - plat.x1 <= 0) continue;
                 if (r.x + r.w > plat.x1 && r.x < plat.x2) {
                   const platY = getPlatformY(plat, r.x + r.w / 2);
                   if (r.y + r.h >= platY && r.y + r.h <= platY + 12 && r.vy >= 0) {
+                    // Holes only apply to L2; L3 SS monkeys treat the platform-4
+                    // hole as solid so they cannot fall through it.
                     if (isLevel2Round(g.round) && isHoleAtPlatform(l2Ref.current, plIdx, r.x + r.w / 2)) continue;
                     r.y = platY - r.h; r.vy = 0; r.onGround = true; landed = true; break;
                   }
@@ -2076,7 +2088,8 @@ const CavemanVsDragonGame = () => {
               }
 
               // L3: monkeys can ride moving platforms (carry with dx).
-              if (!landed && isLevel3Round(g.round)) {
+              // SS monkeys are excluded — they must stay on platform 4.
+              if (!landed && isLevel3Round(g.round) && !isSsMonkey) {
                 const mps = getMovingPlatforms();
                 const dxs: number[] = (g as any)._l3Dxs || [];
                 for (let mi = 0; mi < mps.length; mi++) {
