@@ -2023,7 +2023,7 @@ const CavemanVsDragonGame = () => {
             // L3 SS monkey: actively seek a grown sprout vine near the player,
             // then climb down into the sprout / moving-platform section.
             const isSsSeek = isLevel3Round(g.round) && (r as any)._ssL3 && rPlatIdx === 4;
-            if (isSsSeek) {
+            if (isSsSeek && r.wanderTimer <= 0) {
               const playerOnSproutPlatform = playerFeetY <= PLATFORMS[4].y + 24;
               // If player is on platform 4 on the OPPOSITE side of the hole,
               // monkey can't cross the hole — head toward nearest screen edge
@@ -2038,28 +2038,28 @@ const CavemanVsDragonGame = () => {
               if (crossHole) {
                 // Walk toward the closer screen edge → wrap to player's side.
                 r.wanderDir = monkeyOnLeft ? -1 : 1;
-                r.wanderTimer = 10;
+                r.wanderTimer = 40 + Math.floor(Math.random() * 40);
               } else {
                 const targetLi = playerOnSproutPlatform ? -1 : findSproutSectionVineTarget(g.round, rCenterX, playerCenterX, playerFeetY, true);
                 if (targetLi >= 0) {
                   const targetX = LADDERS[targetLi].x + 7;
                   r.wanderDir = targetX > rCenterX ? 1 : -1;
-                  r.wanderTimer = 10;
+                  r.wanderTimer = 30 + Math.floor(Math.random() * 30);
                 } else {
                   const fallbackLi = playerOnSproutPlatform ? -1 : findSproutSectionVineTarget(g.round, rCenterX, playerCenterX, playerFeetY, false);
                   if (fallbackLi >= 0) {
                     const targetX = LADDERS[fallbackLi].x + 7;
                     r.wanderDir = targetX > rCenterX ? 1 : -1;
-                    r.wanderTimer = 10;
+                    r.wanderTimer = 30 + Math.floor(Math.random() * 30);
                   } else {
-                    r.wanderTimer = playerOnSproutPlatform ? 10 : 30 + Math.floor(Math.random() * 60);
+                    r.wanderTimer = 30 + Math.floor(Math.random() * 60);
                     // Add random jitter so movement doesn't look patterned.
                     const toward = playerCenterX >= rCenterX ? 1 : -1;
                     r.wanderDir = Math.random() < 0.75 ? toward : -toward;
                   }
                 }
               }
-            } else if (r.wanderTimer <= 0) {
+            } else if (!isSsSeek && r.wanderTimer <= 0) {
               r.wanderTimer = 30 + Math.floor(Math.random() * 60); // 0.7-2s at 45fps
               const towardPlayer = playerCenterX >= rCenterX ? 1 : -1;
               // 70% bias toward player, 30% random — never stop
