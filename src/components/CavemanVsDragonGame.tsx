@@ -1639,10 +1639,18 @@ const CavemanVsDragonGame = () => {
                     if (isLevel3Round(g.round) && pi === 4) newR._ssL3 = true;
                   }
                   g.robots.push(newR);
-                  // L3 SS monkeys must always be jacketed (green) so they
-                  // throw apples — overrides newSpawnJacket's quota gate.
+                  // L3 jacket caps: max alive greens = iter, max alive purples = iter.
+                  const jArr: ('green' | 'purple' | null)[] = (l2Ref.current as any)._jackets || [];
+                  const aliveGreens = jArr.filter(j => j === 'green').length;
+                  const alivePurples = jArr.filter(j => j === 'purple').length;
+                  const itr = Math.max(1, getLevelIteration(g.round));
                   let jacket = newSpawnJacket(l2Ref.current);
-                  if (isLevel3Round(g.round) && newR._ssL3 && !jacket) jacket = 'green';
+                  if (isLevel3Round(g.round)) {
+                    if (jacket === 'green' && aliveGreens >= itr) jacket = null;
+                    if (jacket === 'purple' && alivePurples >= itr) jacket = null;
+                    // SS monkeys must throw apples — assign green only if cap allows.
+                    if (newR._ssL3 && !jacket && aliveGreens < itr) jacket = 'green';
+                  }
                   pushJacket(l2Ref.current, jacket);
                 }
               }
