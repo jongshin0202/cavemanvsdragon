@@ -498,25 +498,40 @@ function addHoleAt(s: L2State, x: number, y: number): void {
 // WATERING CANS
 // ============================================================
 
-function pickRandomPlatformPos(): { x: number; y: number; platIdx: number } {
-  const idx = 1 + Math.floor(Math.random() * 4); // P2..P5
-  const plat = PLATFORMS[idx];
-  const margin = 24;
-  const x = plat.x1 + margin + Math.random() * Math.max(1, plat.x2 - plat.x1 - margin * 2);
-  const y = getPlatformY(plat, x) - 16;
-  return { x, y, platIdx: idx };
+function pickRandomPlatformPos(s: L2State): { x: number; y: number; platIdx: number } {
+  const margin = 28;
+  const candidates = PLATFORMS
+    .map((plat, idx) => ({ plat, idx }))
+    .filter(({ plat, idx }) => idx >= 1 && idx <= 4 && plat.x2 - plat.x1 > margin * 2 + 22);
+  const pool = (s as any)._isL3
+    ? candidates.filter(({ idx }) => idx === 4)
+    : candidates;
+  const choices = pool.length ? pool : candidates;
+  const fallback = choices[0] || { plat: PLATFORMS[4], idx: 4 };
+
+  for (let attempt = 0; attempt < 24; attempt++) {
+    const { plat, idx } = choices[Math.floor(Math.random() * choices.length)] || fallback;
+    const x = plat.x1 + margin + Math.random() * Math.max(1, plat.x2 - plat.x1 - margin * 2);
+    if (isHoleAtPlatform(s, idx, x)) continue;
+    const y = getPlatformY(plat, x) - 16;
+    return { x, y, platIdx: idx };
+  }
+
+  const x = fallback.plat.x1 + margin;
+  const y = getPlatformY(fallback.plat, x) - 16;
+  return { x, y, platIdx: fallback.idx };
 }
 
 function spawnGreenCan(s: L2State): void {
   if (s.greenCanSpawned) return;
-  const p = pickRandomPlatformPos();
+  const p = pickRandomPlatformPos(s);
   s.greenCan = { x: p.x, y: p.y, w: 22, h: 18, color: 'green', collected: false };
   s.greenCanSpawned = true;
 }
 
 function spawnPurpleCan(s: L2State): void {
   if (s.purpleCanSpawned) return;
-  const p = pickRandomPlatformPos();
+  const p = pickRandomPlatformPos(s);
   s.purpleCan = { x: p.x, y: p.y, w: 22, h: 18, color: 'purple', collected: false };
   s.purpleCanSpawned = true;
 }
@@ -552,12 +567,16 @@ export function maybeSpawnVolcanoRock(s: L2State): void {
   if (s.rockSpawned || s.volcanoSealed) return;
   const mouth = getVolcanoMouth();
   const sz = LEVEL2_PARAMS.VOLCANO_ROCK_SIZE;
+  const isL3 = !!(s as any)._isL3;
 
   // Pick a random target platform from P1..P4 (indices 0..3) — exclude
   // the top platform (where the volcano sits) AND P5 (index 4, directly
   // below the volcano), so the rock visibly arcs DOWN like a fireball
   // instead of plopping right next to the mouth.
-  const candidates = [0, 1, 2, 3];
+  // L3 removes those lower static platforms, so land on the sprout platform
+  // instead; collapsed platform targets can leave the required grey rock
+  // hanging beside vines where monkeys can block it.
+  const candidates = isL3 ? [4] : [0, 1, 2, 3];
   let targetX = mouth.x;
   let targetY = mouth.y + 100;
   for (let attempt = 0; attempt < 8; attempt++) {
