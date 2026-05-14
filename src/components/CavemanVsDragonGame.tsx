@@ -1983,7 +1983,6 @@ const CavemanVsDragonGame = () => {
             else if (r.x >= maxX) { r.x = maxX; (r as any).wanderDir = -1; r.direction = -1; }
             (r as any)._lastMpX = mpsRide.x;
           } else if (r.climbing) {
-            r.y += r.vy;
             r.vx = 0;
             if (r.targetLadder !== null) {
               const l = LADDERS[r.targetLadder];
@@ -1993,6 +1992,21 @@ const CavemanVsDragonGame = () => {
               if (r.targetLadder !== GREEN_TOP_LADDER_IDX && r.targetLadder !== PURPLE_TOP_LADDER_IDX) {
                 markSproutInUse(r.targetLadder);
               }
+              // SS monkey: track player vertically while climbing a sprout.
+              // - If player is above monkey (or on top sprout platform), climb up.
+              // - If player is below monkey, climb down.
+              if (isSsMonkey
+                  && r.targetLadder !== GREEN_TOP_LADDER_IDX
+                  && r.targetLadder !== PURPLE_TOP_LADDER_IDX) {
+                const monkeyMidY = r.y + r.h / 2;
+                const playerOnTop = playerFeetY <= PLATFORMS[4].y + 24;
+                if (playerOnTop || playerFeetY < monkeyMidY - 4) {
+                  r.vy = -r.speed;
+                } else if (playerFeetY > monkeyMidY + 4) {
+                  r.vy = r.speed;
+                }
+              }
+              r.y += r.vy;
               // Never let a monkey hang in the air below the visible sprout.
               if (r.y + r.h > visibleBot + 1) {
                 r.y = visibleBot - r.h;
