@@ -2327,7 +2327,9 @@ const CavemanVsDragonGame = () => {
 
           const rPlatY = findPlatformIndex(r.y + r.h, r.x + r.w / 2);
           const pPlatY = findPlatformIndex(p.y + p.h, p.x + p.w / 2);
-          if (rectsOverlap(p, r) && rPlatY === pPlatY) {
+          const topSproutY = PLATFORMS[4].y;
+          const climbingAboveTopSprout = r.climbing && r.y < topSproutY;
+          if (rectsOverlap(p, r) && (rPlatY === pPlatY || climbingAboveTopSprout)) {
             // Stomp = player's feet are above the monkey's upper portion.
             // Don't require p.vy > 0: after a chain stomp we set p.vy = -4
             // (rising), and the next overlapping monkey in the same airborne
@@ -2339,13 +2341,15 @@ const CavemanVsDragonGame = () => {
             // landing counts as a kill instead of a fatal side-hit.
             // Stomp ONLY when descending onto the monkey's head (bonk on top).
             // Rising into a monkey on the way up is a side-hit, not a kill.
-            // Climbing monkey on a sprout: only killable if the ENTIRE monkey
-            // is above the top sprout platform. Any part below = no kill.
-            const topSproutY = PLATFORMS[4].y;
-            const climbingBlocksKill = r.climbing && r.y >= topSproutY;
+            // Climbing monkey on a sprout: killable as soon as ANY part of the
+            // monkey is above the top sprout platform.
+            const prevP = (g as any)._playerPrevFrame || p;
+            const prevFeet = prevP.y + prevP.h;
+            const feet = p.y + p.h;
+            const descendingIntoHead = (prevP.vy > 0 || p.vy > 0 || feet >= prevFeet) && prevFeet <= r.y + r.h * 0.75;
+            const climbingBlocksKill = r.climbing && !climbingAboveTopSprout;
             const isStomp =
-              !p.onGround &&
-              p.vy > 0 &&
+              descendingIntoHead &&
               (p.y + p.h <= r.y + r.h * 0.6) &&
               !climbingBlocksKill;
             if (isStomp) {
