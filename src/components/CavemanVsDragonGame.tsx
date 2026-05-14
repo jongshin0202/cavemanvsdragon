@@ -166,6 +166,45 @@ const findMonkeyRidePlatform = (r: MpsRobot): MovingPlatformRide | null => {
   return best;
 };
 
+const REQUIRED_ITEM_CLEARANCE = 38;
+
+const getRequiredItemZones = (s: L2State): { x: number; y: number; w: number; h: number }[] => {
+  const zones: { x: number; y: number; w: number; h: number }[] = [];
+  if (s.greenCan && !s.greenCan.collected) zones.push(s.greenCan);
+  if (s.purpleCan && !s.purpleCan.collected) zones.push(s.purpleCan);
+  if (s.volcanoRock && s.volcanoRock.landed && !s.volcanoRock.collected) zones.push(s.volcanoRock);
+  return zones;
+};
+
+const keepMonkeyAwayFromRequiredItems = (r: Robot & { wanderDir?: number }, s: L2State): void => {
+  const rcx = r.x + r.w / 2;
+  const rFeet = r.y + r.h;
+  for (const item of getRequiredItemZones(s)) {
+    const icx = item.x + item.w / 2;
+    const iFeet = item.y + item.h;
+    const sameLevel = Math.abs(rFeet - iFeet) < 24;
+    const tooClose = sameLevel && Math.abs(rcx - icx) < REQUIRED_ITEM_CLEARANCE;
+    const overlapping = rectsOverlap(r, {
+      x: item.x - 12,
+      y: item.y - 18,
+      w: item.w + 24,
+      h: item.h + 28,
+    });
+    if (!tooClose && !overlapping) continue;
+
+    const dir = rcx <= icx ? -1 : 1;
+    r.wanderDir = dir;
+    r.direction = dir;
+    if (r.climbing) {
+      r.vy = rFeet <= iFeet ? -Math.max(r.speed, 0.45) : Math.max(r.speed, 0.45);
+      r.y += r.vy;
+    } else {
+      r.vx = dir * Math.max(r.speed, 0.45);
+      r.x += r.vx;
+    }
+  }
+};
+
 type GameState =
   | 'intro'
   | 'playing'
