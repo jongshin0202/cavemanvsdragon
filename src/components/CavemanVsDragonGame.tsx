@@ -1594,12 +1594,14 @@ const CavemanVsDragonGame = () => {
                     else if (leftAtEdge) fromLeft = true;
                     else if (rightAtEdge) fromLeft = false;
                     else fromLeft = (plat.x1 < CANVAS_W - plat.x2);
-                    let rx = fromLeft ? plat.x1 - 16 : plat.x2 + 2;
+                    // L3 sprout platform — always enter from the leftmost or
+                    // rightmost edge of the screen (no random middle spawns).
+                    let rx: number;
                     if (isLevel3Round(g.round) && pi === 4) {
-                      const leftOpen = counts[4] % 2 === 0;
-                      const x1 = leftOpen ? 0 : SPROUT_DROP_X2;
-                      const x2 = leftOpen ? SPROUT_DROP_X1 : CANVAS_W;
-                      rx = x1 + 24 + Math.random() * Math.max(1, x2 - x1 - 48);
+                      fromLeft = Math.random() < 0.5;
+                      rx = fromLeft ? plat.x1 + 1 : plat.x2 - 15;
+                    } else {
+                      rx = fromLeft ? plat.x1 - 16 : plat.x2 + 2;
                     }
                     const ry = getPlatformY(plat, fromLeft ? plat.x1 + 1 : plat.x2 - 1) - 16;
                     const spd = ROBOT_SPEED * (l2Diff.monkeySpeedMul + Math.random() * l2Diff.monkeySpeedJitter);
@@ -1612,7 +1614,11 @@ const CavemanVsDragonGame = () => {
                     if (isLevel3Round(g.round) && pi === 4) newR._ssL3 = true;
                   }
                   g.robots.push(newR);
-                  pushJacket(l2Ref.current, newSpawnJacket(l2Ref.current));
+                  // L3 SS monkeys must always be jacketed (green) so they
+                  // throw apples — overrides newSpawnJacket's quota gate.
+                  let jacket = newSpawnJacket(l2Ref.current);
+                  if (isLevel3Round(g.round) && newR._ssL3 && !jacket) jacket = 'green';
+                  pushJacket(l2Ref.current, jacket);
                 }
               }
             }

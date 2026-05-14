@@ -134,18 +134,20 @@ export function spawnLevel2Robots(
     }
     // SS monkeys on PLATFORMS[4] (top sprout platform).
     // Per spec: number of green monkeys at each iteration = iteration number.
+    // Spawn from the LEFTMOST or RIGHTMOST edge of the platform (alternating);
+    // monkeys then walk inward.
     const tsp = PLATFORMS[4];
     const ssCount = Math.max(1, Math.min(4, iter));
     if (tsp.x2 - tsp.x1 > 0) {
       for (let k = 0; k < ssCount; k++) {
-        const frac = ssCount === 1 ? 0.5 : (k === 0 ? 0.25 : 0.75);
-        const rx = tsp.x1 + (tsp.x2 - tsp.x1) * frac - 7;
+        const fromLeft = (k % 2 === 0);
+        const rx = fromLeft ? tsp.x1 + 1 : tsp.x2 - 15;
         const ry = tsp.y - 16;
         const spd = ROBOT_SPEED * (diff.monkeySpeedMul + rng() * diff.monkeySpeedJitter);
         const r: Robot & { wanderTimer?: number; wanderDir?: number } = {
           x: rx, y: ry, w: 14, h: 16, vx: 0, vy: 0,
           onGround: true, climbing: false, targetLadder: null,
-          direction: k === 0 ? 1 : -1,
+          direction: fromLeft ? 1 : -1,
           frame: 0, frameTimer: 0, speed: spd,
         };
         (r as any)._ssL3 = true;
