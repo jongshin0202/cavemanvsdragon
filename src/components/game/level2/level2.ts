@@ -419,18 +419,23 @@ export function tickApples(
 export function appleHitsPlayer(
   s: L2State,
   p: { x: number; y: number; w: number; h: number },
+  prevP?: { x: number; y: number; w: number; h: number },
 ): number {
   for (let i = 0; i < s.apples.length; i++) {
     const a = s.apples[i] as any;
-    // Swept AABB along apple's travel this frame to prevent tunneling
-    // through the player when apple speed exceeds player width per frame.
+    // Swept AABB along both apple and player travel this frame to prevent
+    // tunneling when the player is walking/riding a moving platform.
     const vx = a.vx ?? 0;
     const vy = a.vy ?? 0;
     const x0 = a.x - vx, y0 = a.y - vy;
-    const sx1 = Math.min(x0, a.x), sx2 = Math.max(x0, a.x) + a.w;
-    const sy1 = Math.min(y0, a.y), sy2 = Math.max(y0, a.y) + a.h;
-    if (p.x < sx2 && p.x + p.w > sx1 &&
-        p.y < sy2 && p.y + p.h > sy1) {
+    const pad = 2;
+    const sx1 = Math.min(x0, a.x) - pad, sx2 = Math.max(x0, a.x) + a.w + pad;
+    const sy1 = Math.min(y0, a.y) - pad, sy2 = Math.max(y0, a.y) + a.h + pad;
+    const px1 = prevP ? Math.min(prevP.x, p.x) : p.x;
+    const py1 = prevP ? Math.min(prevP.y, p.y) : p.y;
+    const px2 = prevP ? Math.max(prevP.x + prevP.w, p.x + p.w) : p.x + p.w;
+    const py2 = prevP ? Math.max(prevP.y + prevP.h, p.y + p.h) : p.y + p.h;
+    if (px1 < sx2 && px2 > sx1 && py1 < sy2 && py2 > sy1) {
       return i;
     }
   }
