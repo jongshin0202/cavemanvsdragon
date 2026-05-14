@@ -107,6 +107,31 @@ const findSproutSectionVineTarget = (
   return bestLi;
 };
 
+/** Lifelike random pick among the closest sprouts to the player (chasing down). */
+const findSproutSectionVineTargetRandom = (
+  round: number,
+  rCenterX: number,
+  playerCenterX: number,
+  mustBeUsable: boolean,
+): number => {
+  const candidates: { li: number; d: number }[] = [];
+  for (let li = 0; li < LADDERS.length; li++) {
+    if (li === GREEN_TOP_LADDER_IDX || li === PURPLE_TOP_LADDER_IDX) continue;
+    if (mustBeUsable && !isLadderUsable(round, li)) continue;
+    const l = LADDERS[li];
+    if (Math.abs(l.yTop - PLATFORMS[4].y) > 12) continue;
+    const lx = l.x + 7;
+    if (rCenterX < SPROUT_DROP_X1 && lx > SPROUT_DROP_X2) continue;
+    if (rCenterX > SPROUT_DROP_X2 && lx < SPROUT_DROP_X1) continue;
+    candidates.push({ li, d: Math.abs(lx - playerCenterX) });
+  }
+  if (candidates.length === 0) return -1;
+  candidates.sort((a, b) => a.d - b.d);
+  // Pick randomly among the 3 closest to the player for lifelike variety.
+  const pool = candidates.slice(0, Math.min(3, candidates.length));
+  return pool[Math.floor(Math.random() * pool.length)].li;
+};
+
 const getVisibleSproutBottomY = (ladderIdx: number): number => {
   const l = LADDERS[ladderIdx];
   if (!l) return 0;
@@ -1241,14 +1266,14 @@ const CavemanVsDragonGame = () => {
                 const fromX = p.x;
                 const toX = L.x + 7 - p.w / 2;
                 // Begin reach-across pose: hold the spread caveman sprite
-                // for 30 frames (~0.5s @ 60fps), then snap to the target vine.
+                // for 15 frames (~0.25s @ 60fps), then snap to the target vine.
                 (p as any).lateralReach = {
                   fromX, toX, dir,
                   fromIdx: nearestLadderIdx,
                   targetIdx: idx,
-                  timer: 30,
+                  timer: 15,
                 };
-                (p as any).lateralCD = 30;
+                (p as any).lateralCD = 15;
                 p.climbFrame = REACH_FRAME;
                 p.climbTimer = 0;
               };
@@ -1983,7 +2008,6 @@ const CavemanVsDragonGame = () => {
             else if (r.x >= maxX) { r.x = maxX; (r as any).wanderDir = -1; r.direction = -1; }
             (r as any)._lastMpX = mpsRide.x;
           } else if (r.climbing) {
-            r.y += r.vy;
             r.vx = 0;
             if (r.targetLadder !== null) {
               const l = LADDERS[r.targetLadder];
@@ -1993,6 +2017,21 @@ const CavemanVsDragonGame = () => {
               if (r.targetLadder !== GREEN_TOP_LADDER_IDX && r.targetLadder !== PURPLE_TOP_LADDER_IDX) {
                 markSproutInUse(r.targetLadder);
               }
+              // SS monkey: track player vertically while climbing a sprout.
+              // - If player is above monkey (or on top sprout platform), climb up.
+              // - If player is below monkey, climb down.
+              if (isSsMonkey
+                  && r.targetLadder !== GREEN_TOP_LADDER_IDX
+                  && r.targetLadder !== PURPLE_TOP_LADDER_IDX) {
+                const monkeyMidY = r.y + r.h / 2;
+                const playerOnTop = playerFeetY <= PLATFORMS[4].y + 24;
+                if (playerOnTop || playerFeetY < monkeyMidY - 4) {
+                  r.vy = -r.speed;
+                } else if (playerFeetY > monkeyMidY + 4) {
+                  r.vy = r.speed;
+                }
+              }
+              r.y += r.vy;
               // Never let a monkey hang in the air below the visible sprout.
               if (r.y + r.h > visibleBot + 1) {
                 r.y = visibleBot - r.h;
@@ -2040,13 +2079,13 @@ const CavemanVsDragonGame = () => {
                 r.wanderDir = monkeyOnLeft ? -1 : 1;
                 r.wanderTimer = 40 + Math.floor(Math.random() * 40);
               } else {
-                const targetLi = playerOnSproutPlatform ? -1 : findSproutSectionVineTarget(g.round, rCenterX, playerCenterX, playerFeetY, true);
+                const targetLi = playerOnSproutPlatform ? -1 : findSproutSectionVineTargetRandom(g.round, rCenterX, playerCenterX, true);
                 if (targetLi >= 0) {
                   const targetX = LADDERS[targetLi].x + 7;
                   r.wanderDir = targetX > rCenterX ? 1 : -1;
                   r.wanderTimer = 30 + Math.floor(Math.random() * 30);
                 } else {
-                  const fallbackLi = playerOnSproutPlatform ? -1 : findSproutSectionVineTarget(g.round, rCenterX, playerCenterX, playerFeetY, false);
+                  const fallbackLi = playerOnSproutPlatform ? -1 : findSproutSectionVineTargetRandom(g.round, rCenterX, playerCenterX, false);
                   if (fallbackLi >= 0) {
                     const targetX = LADDERS[fallbackLi].x + 7;
                     r.wanderDir = targetX > rCenterX ? 1 : -1;
