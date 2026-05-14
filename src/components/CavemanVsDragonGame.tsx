@@ -2020,20 +2020,38 @@ const CavemanVsDragonGame = () => {
             const isSsSeek = isLevel3Round(g.round) && (r as any)._ssL3 && rPlatIdx === 4;
             if (isSsSeek) {
               const playerOnSproutPlatform = playerFeetY <= PLATFORMS[4].y + 24;
-              const targetLi = playerOnSproutPlatform ? -1 : findSproutSectionVineTarget(g.round, rCenterX, playerCenterX, playerFeetY, true);
-              if (targetLi >= 0) {
-                const targetX = LADDERS[targetLi].x + 7;
-                r.wanderDir = targetX > rCenterX ? 1 : -1;
+              // If player is on platform 4 on the OPPOSITE side of the hole,
+              // monkey can't cross the hole — head toward nearest screen edge
+              // to wrap around to the player's side.
+              const monkeyOnLeft = rCenterX < SPROUT_DROP_X1;
+              const monkeyOnRight = rCenterX > SPROUT_DROP_X2;
+              const playerOnLeft = playerCenterX < SPROUT_DROP_X1;
+              const playerOnRight = playerCenterX > SPROUT_DROP_X2;
+              const crossHole = playerOnSproutPlatform && (
+                (monkeyOnLeft && playerOnRight) || (monkeyOnRight && playerOnLeft)
+              );
+              if (crossHole) {
+                // Walk toward the closer screen edge → wrap to player's side.
+                r.wanderDir = monkeyOnLeft ? -1 : 1;
                 r.wanderTimer = 10;
               } else {
-                const fallbackLi = playerOnSproutPlatform ? -1 : findSproutSectionVineTarget(g.round, rCenterX, playerCenterX, playerFeetY, false);
-                if (fallbackLi >= 0) {
-                  const targetX = LADDERS[fallbackLi].x + 7;
+                const targetLi = playerOnSproutPlatform ? -1 : findSproutSectionVineTarget(g.round, rCenterX, playerCenterX, playerFeetY, true);
+                if (targetLi >= 0) {
+                  const targetX = LADDERS[targetLi].x + 7;
                   r.wanderDir = targetX > rCenterX ? 1 : -1;
                   r.wanderTimer = 10;
                 } else {
-                  r.wanderTimer = playerOnSproutPlatform ? 10 : 30 + Math.floor(Math.random() * 60);
-                  r.wanderDir = playerCenterX >= rCenterX ? 1 : -1;
+                  const fallbackLi = playerOnSproutPlatform ? -1 : findSproutSectionVineTarget(g.round, rCenterX, playerCenterX, playerFeetY, false);
+                  if (fallbackLi >= 0) {
+                    const targetX = LADDERS[fallbackLi].x + 7;
+                    r.wanderDir = targetX > rCenterX ? 1 : -1;
+                    r.wanderTimer = 10;
+                  } else {
+                    r.wanderTimer = playerOnSproutPlatform ? 10 : 30 + Math.floor(Math.random() * 60);
+                    // Add random jitter so movement doesn't look patterned.
+                    const toward = playerCenterX >= rCenterX ? 1 : -1;
+                    r.wanderDir = Math.random() < 0.75 ? toward : -toward;
+                  }
                 }
               }
             } else if (r.wanderTimer <= 0) {
