@@ -3442,6 +3442,21 @@ const CavemanVsDragonGame = () => {
           </button>
         )}
 
+        {/* Hidden dedication overlay (3 quick logo taps, or "i" x3 on PC) */}
+        {showDedication && (
+          <div
+            className="absolute inset-0 z-50 bg-black flex items-center justify-center cursor-pointer"
+            onPointerDown={(e) => { e.preventDefault(); setShowDedication(false); }}
+          >
+            <img
+              src={isMobile ? dedicationMobileUrl : dedicationPcUrl}
+              alt="Dedication"
+              className="max-h-full max-w-full object-contain select-none"
+              draggable={false}
+            />
+          </div>
+        )}
+
         {/* Level intro overlay: "Level N" for 3s, then full black for 0.5s */}
         {levelIntro && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-black">
