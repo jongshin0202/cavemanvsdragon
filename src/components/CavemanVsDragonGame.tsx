@@ -2085,7 +2085,7 @@ const CavemanVsDragonGame = () => {
                   r.wanderDir = targetX > rCenterX ? 1 : -1;
                   r.wanderTimer = 30 + Math.floor(Math.random() * 30);
                 } else {
-                  const fallbackLi = playerOnSproutPlatform ? -1 : findSproutSectionVineTarget(g.round, rCenterX, playerCenterX, playerFeetY, false);
+                  const fallbackLi = playerOnSproutPlatform ? -1 : findSproutSectionVineTargetRandom(g.round, rCenterX, playerCenterX, false);
                   if (fallbackLi >= 0) {
                     const targetX = LADDERS[fallbackLi].x + 7;
                     r.wanderDir = targetX > rCenterX ? 1 : -1;
