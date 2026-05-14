@@ -1963,9 +1963,16 @@ const CavemanVsDragonGame = () => {
                 const targetX = LADDERS[targetLi].x + 7;
                 r.wanderDir = targetX > rCenterX ? 1 : -1;
                 r.wanderTimer = 10;
-              } else if (r.wanderTimer <= 0) {
+              } else {
+                const fallbackLi = findSproutSectionVineTarget(g.round, rCenterX, playerCenterX, playerFeetY, false);
+                if (fallbackLi >= 0) {
+                  const targetX = LADDERS[fallbackLi].x + 7;
+                  r.wanderDir = targetX > rCenterX ? 1 : -1;
+                  r.wanderTimer = 10;
+                } else if (r.wanderTimer <= 0) {
                 r.wanderTimer = 30 + Math.floor(Math.random() * 60);
                 r.wanderDir = playerCenterX >= rCenterX ? 1 : -1;
+                }
               }
             } else if (r.wanderTimer <= 0) {
               r.wanderTimer = 30 + Math.floor(Math.random() * 60); // 0.7-2s at 45fps
