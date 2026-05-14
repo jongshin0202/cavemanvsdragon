@@ -31,6 +31,7 @@ import {
 import cavemanWalkUrl from '@/assets/caveman-walk.png';
 import cavemanJumpUrl from '@/assets/caveman-jump.png';
 import cavemanClimbUrl from '@/assets/caveman-climb.png';
+import cavemanSproutReachUrl from '@/assets/MainChar-MovingBetweenSprouts-NoBG.png';
 import cavemanWinUrl from '@/assets/caveman-win.png';
 import dragonFireUrl from '@/assets/dragon-fire.png';
 import dragonAngryUrl from '@/assets/dragon-angry.png';
@@ -179,6 +180,7 @@ const CavemanVsDragonGame = () => {
   const walkSpriteRef = useRef<HTMLImageElement | null>(null);
   const jumpSpriteRef = useRef<HTMLImageElement | null>(null);
   const climbSpriteRef = useRef<HTMLImageElement | null>(null);
+  const sproutReachSpriteRef = useRef<HTMLImageElement | null>(null);
   const winSpriteRef = useRef<HTMLImageElement | null>(null);
   const dragonFireRef = useRef<HTMLImageElement | null>(null);
   const dragonAngryRef = useRef<HTMLImageElement | null>(null);
@@ -767,6 +769,10 @@ const CavemanVsDragonGame = () => {
     climbImg.src = cavemanClimbUrl;
     climbSpriteRef.current = climbImg;
 
+    const sproutReachImg = new Image();
+    sproutReachImg.src = cavemanSproutReachUrl;
+    sproutReachSpriteRef.current = sproutReachImg;
+
     const winImg = new Image();
     winImg.src = cavemanWinUrl;
     winSpriteRef.current = winImg;
@@ -1102,6 +1108,24 @@ const CavemanVsDragonGame = () => {
         }
 
         if (p.climbing) {
+          // Active sprout-to-sprout reach pose: hold for ~0.5s at midpoint
+          // between the two vines, then snap to the target vine.
+          const reach = (p as any).lateralReach;
+          if (reach) {
+            p.x = (reach.fromX + reach.toX) / 2;
+            p.facing = reach.dir;
+            p.vy = 0;
+            if (sproutMechanicActive(g.round)) {
+              if (typeof reach.fromIdx === 'number' && reach.fromIdx >= 0) markSproutInUse(reach.fromIdx);
+              if (typeof reach.targetIdx === 'number' && reach.targetIdx >= 0) markSproutInUse(reach.targetIdx);
+            }
+            reach.timer--;
+            if (reach.timer <= 0) {
+              p.x = reach.toX;
+              (p as any).climbLadderIdx = reach.targetIdx;
+              (p as any).lateralReach = null;
+            }
+          } else {
           const climbingLadder = nearestLadder;
           if (nearestLadderIdx >= 0) (p as any).climbLadderIdx = nearestLadderIdx;
           // Define a generous "near end" zone: the top/bottom 10% of the
@@ -1201,10 +1225,17 @@ const CavemanVsDragonGame = () => {
                 const { idx, L } = findNeighbor(dir);
                 if (idx < 0 || !L) return;
                 p.facing = dir;
-                p.x = L.x + 7 - p.w / 2;
-                (p as any).climbLadderIdx = idx;
-                (p as any).lateralCD = 10;
-                (p as any).lateralReachFrames = 6;
+                const fromX = p.x;
+                const toX = L.x + 7 - p.w / 2;
+                // Begin reach-across pose: hold the spread caveman sprite
+                // for 30 frames (~0.5s @ 60fps), then snap to the target vine.
+                (p as any).lateralReach = {
+                  fromX, toX, dir,
+                  fromIdx: nearestLadderIdx,
+                  targetIdx: idx,
+                  timer: 30,
+                };
+                (p as any).lateralCD = 30;
                 p.climbFrame = REACH_FRAME;
                 p.climbTimer = 0;
               };
@@ -1267,6 +1298,7 @@ const CavemanVsDragonGame = () => {
               if (p.climbTimer > 6) { p.climbTimer = 0; p.climbFrame = (p.climbFrame + 1) % 4; }
             }
           }
+          } // end else (no active lateralReach)
         }
 
         if (!p.climbing) {
@@ -2535,12 +2567,21 @@ const CavemanVsDragonGame = () => {
         const drawH = 54;
         ctx.drawImage(winSprite, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
       } else if (showPlayer && useClimb) {
-        const sw = climbSprite.naturalWidth / 4;
-        const sh = climbSprite.naturalHeight;
-        const sx = pl.climbFrame * sw;
-        const drawW = 42;
-        const drawH = 48;
-        ctx.drawImage(climbSprite, sx, 0, sw, sh, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
+        const reachSprite = sproutReachSpriteRef.current;
+        const inReach = !!(pl as any).lateralReach
+          && reachSprite && reachSprite.complete && reachSprite.naturalWidth > 0;
+        if (inReach) {
+          const drawW = 52;
+          const drawH = 48;
+          ctx.drawImage(reachSprite!, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
+        } else {
+          const sw = climbSprite.naturalWidth / 4;
+          const sh = climbSprite.naturalHeight;
+          const sx = pl.climbFrame * sw;
+          const drawW = 42;
+          const drawH = 48;
+          ctx.drawImage(climbSprite, sx, 0, sw, sh, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
+        }
       } else if (showPlayer && useJump) {
         const sw = jumpSprite.naturalWidth / 5;
         const sh = jumpSprite.naturalHeight;
