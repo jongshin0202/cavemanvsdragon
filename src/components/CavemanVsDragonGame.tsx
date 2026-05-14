@@ -1108,6 +1108,24 @@ const CavemanVsDragonGame = () => {
         }
 
         if (p.climbing) {
+          // Active sprout-to-sprout reach pose: hold for ~0.5s at midpoint
+          // between the two vines, then snap to the target vine.
+          const reach = (p as any).lateralReach;
+          if (reach) {
+            p.x = (reach.fromX + reach.toX) / 2;
+            p.facing = reach.dir;
+            p.vy = 0;
+            if (sproutMechanicActive(g.round)) {
+              if (typeof reach.fromIdx === 'number' && reach.fromIdx >= 0) markSproutInUse(reach.fromIdx);
+              if (typeof reach.targetIdx === 'number' && reach.targetIdx >= 0) markSproutInUse(reach.targetIdx);
+            }
+            reach.timer--;
+            if (reach.timer <= 0) {
+              p.x = reach.toX;
+              (p as any).climbLadderIdx = reach.targetIdx;
+              (p as any).lateralReach = null;
+            }
+          } else {
           const climbingLadder = nearestLadder;
           if (nearestLadderIdx >= 0) (p as any).climbLadderIdx = nearestLadderIdx;
           // Define a generous "near end" zone: the top/bottom 10% of the
