@@ -98,6 +98,8 @@ const findSproutSectionVineTarget = (
     const l = LADDERS[li];
     if (Math.abs(l.yTop - PLATFORMS[4].y) > 12) continue;
     const lx = l.x + 7;
+    if (rCenterX < SPROUT_DROP_X1 && lx > SPROUT_DROP_X2) continue;
+    if (rCenterX > SPROUT_DROP_X2 && lx < SPROUT_DROP_X1) continue;
     const score = Math.abs(lx - (chasingDown ? playerCenterX : rCenterX)) + (chasingDown ? Math.abs(lx - rCenterX) * 0.25 : 0);
     if (score < bestScore) { bestScore = score; bestLi = li; }
   }
