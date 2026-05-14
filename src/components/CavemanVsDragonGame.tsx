@@ -266,6 +266,32 @@ const CavemanVsDragonGame = () => {
       setGamepadActive(true);
     }
   }, []);
+
+  // Hidden dedication: press "i" 3 times within 1s on PC.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (showDedication) return; // dismissal handled by overlay's own listener
+      if (e.key !== 'i' && e.key !== 'I') return;
+      const now = Date.now();
+      const arr = iKeyTimesRef.current;
+      arr.push(now);
+      while (arr.length > 3) arr.shift();
+      if (arr.length === 3 && now - arr[0] <= 1000) {
+        arr.length = 0;
+        triggerDedication();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showDedication, triggerDedication]);
+
+  // Dismiss dedication overlay on any key (PC) — pointer dismissal handled inline.
+  useEffect(() => {
+    if (!showDedication) return;
+    const onKey = () => setShowDedication(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showDedication]);
   const gameRef = useRef({
     player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0, duckTimer: 0 },
     barrels: [] as Barrel[],
