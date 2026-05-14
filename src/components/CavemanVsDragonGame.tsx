@@ -1684,8 +1684,10 @@ const CavemanVsDragonGame = () => {
           // Enforce per-iteration TOTAL monkey cap and per-platform cap.
           const queue: number[] = (g as any).l2RespawnQueue || [];
           if (queue.length > 0) {
-            for (let qi = 0; qi < queue.length; qi++) queue[qi]--;
-            const readyIdx = queue.findIndex(t => t <= 0);
+            // Sequential respawn timer: only the head-of-queue ticks.
+            // After a successful spawn, the next entry begins its own 2–5s wait.
+            queue[0]--;
+            const readyIdx = queue[0] <= 0 ? 0 : -1;
             if (readyIdx >= 0) {
               const l2Diff = getLevel2Difficulty(getLevelIteration(g.round));
               const aliveTotal = g.robots.length;
