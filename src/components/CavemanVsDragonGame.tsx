@@ -2020,20 +2020,38 @@ const CavemanVsDragonGame = () => {
             const isSsSeek = isLevel3Round(g.round) && (r as any)._ssL3 && rPlatIdx === 4;
             if (isSsSeek) {
               const playerOnSproutPlatform = playerFeetY <= PLATFORMS[4].y + 24;
-              const targetLi = playerOnSproutPlatform ? -1 : findSproutSectionVineTarget(g.round, rCenterX, playerCenterX, playerFeetY, true);
-              if (targetLi >= 0) {
-                const targetX = LADDERS[targetLi].x + 7;
-                r.wanderDir = targetX > rCenterX ? 1 : -1;
+              // If player is on platform 4 on the OPPOSITE side of the hole,
+              // monkey can't cross the hole — head toward nearest screen edge
+              // to wrap around to the player's side.
+              const monkeyOnLeft = rCenterX < SPROUT_DROP_X1;
+              const monkeyOnRight = rCenterX > SPROUT_DROP_X2;
+              const playerOnLeft = playerCenterX < SPROUT_DROP_X1;
+              const playerOnRight = playerCenterX > SPROUT_DROP_X2;
+              const crossHole = playerOnSproutPlatform && (
+                (monkeyOnLeft && playerOnRight) || (monkeyOnRight && playerOnLeft)
+              );
+              if (crossHole) {
+                // Walk toward the closer screen edge → wrap to player's side.
+                r.wanderDir = monkeyOnLeft ? -1 : 1;
                 r.wanderTimer = 10;
               } else {
-                const fallbackLi = playerOnSproutPlatform ? -1 : findSproutSectionVineTarget(g.round, rCenterX, playerCenterX, playerFeetY, false);
-                if (fallbackLi >= 0) {
-                  const targetX = LADDERS[fallbackLi].x + 7;
+                const targetLi = playerOnSproutPlatform ? -1 : findSproutSectionVineTarget(g.round, rCenterX, playerCenterX, playerFeetY, true);
+                if (targetLi >= 0) {
+                  const targetX = LADDERS[targetLi].x + 7;
                   r.wanderDir = targetX > rCenterX ? 1 : -1;
                   r.wanderTimer = 10;
                 } else {
-                  r.wanderTimer = playerOnSproutPlatform ? 10 : 30 + Math.floor(Math.random() * 60);
-                  r.wanderDir = playerCenterX >= rCenterX ? 1 : -1;
+                  const fallbackLi = playerOnSproutPlatform ? -1 : findSproutSectionVineTarget(g.round, rCenterX, playerCenterX, playerFeetY, false);
+                  if (fallbackLi >= 0) {
+                    const targetX = LADDERS[fallbackLi].x + 7;
+                    r.wanderDir = targetX > rCenterX ? 1 : -1;
+                    r.wanderTimer = 10;
+                  } else {
+                    r.wanderTimer = playerOnSproutPlatform ? 10 : 30 + Math.floor(Math.random() * 60);
+                    // Add random jitter so movement doesn't look patterned.
+                    const toward = playerCenterX >= rCenterX ? 1 : -1;
+                    r.wanderDir = Math.random() < 0.75 ? toward : -toward;
+                  }
                 }
               }
             } else if (r.wanderTimer <= 0) {
@@ -2089,15 +2107,17 @@ const CavemanVsDragonGame = () => {
                 if (r.x + r.w < 0) r.x = CANVAS_W - 1;
                 else if (r.x > CANVAS_W) r.x = 1 - r.w;
               }
-              if (isLevel3Round(g.round) && !isSsCommit && rPlatIdx === 4 && r.onGround) {
+              // Top-platform hole: blocks BOTH non-SS and SS L3 monkeys
+              // from walking across. SS monkeys must wrap via screen edges.
+              if (isLevel3Round(g.round) && rPlatIdx === 4 && r.onGround) {
                 const nextCenter = r.x + r.w / 2;
                 if (r.vx > 0 && nextCenter >= SPROUT_DROP_X1 - 4 && nextCenter < SPROUT_DROP_X2) {
                   r.x = SPROUT_DROP_X1 - r.w - 2;
-                  r.wanderDir = -1;
+                  r.wanderDir = isSsCommit ? -1 : -1;
                   r.direction = -1;
                 } else if (r.vx < 0 && nextCenter <= SPROUT_DROP_X2 + 4 && nextCenter > SPROUT_DROP_X1) {
                   r.x = SPROUT_DROP_X2 + 2;
-                  r.wanderDir = 1;
+                  r.wanderDir = isSsCommit ? 1 : 1;
                   r.direction = 1;
                 }
               }
@@ -2195,25 +2215,47 @@ const CavemanVsDragonGame = () => {
               p.vy > 0 &&
               (p.y + p.h <= r.y + r.h * 0.6);
             if (isStomp) {
-              const n = (g.comboKills || 0) + 1;
-              g.comboKills = n;
-              g.score += 300 * (2 * n - 1); setScore(g.score);
+              // Find any OTHER monkeys overlapping the same monkey position
+              // (clustered at same spot). Player kills all in one stomp.
+              const groupIdxs: number[] = [i];
+              for (let j = g.robots.length - 1; j >= 0; j--) {
+                if (j === i) continue;
+                const o = g.robots[j];
+                if (rectsOverlap(o, r)) groupIdxs.push(j);
+              }
+              const killCount = groupIdxs.length;
+              // Per spec: 2+ monkeys at same location = same points as
+              // killing 3 with one jump (combo 1+2+3 → 300+900+1500 = 2700).
+              let scoreGain: number;
+              if (killCount >= 2) {
+                scoreGain = 300 + 900 + 1500;
+                g.comboKills = 3;
+              } else {
+                const n = (g.comboKills || 0) + 1;
+                g.comboKills = n;
+                scoreGain = 300 * (2 * n - 1);
+              }
+              g.score += scoreGain; setScore(g.score);
               playRobotKillSound();
               p.vy = -4;
               const wasMps = !!(r as any)._mpsL3;
-              g.robots.splice(i, 1);
-              g.monkeysKilled = (g.monkeysKilled || 0) + 1;
-              if (isLevel2Round(g.round)) {
-                onMonkeyKilled(l2Ref.current, i);
-                if (isLevel3Round(g.round) && wasMps) notifyMpsMonkeyKilled();
-                // L2: queue a respawn with iteration-tuned random delay.
-                const l2D = getLevel2Difficulty(getLevelIteration(g.round));
-                const q: number[] = (g as any).l2RespawnQueue || [];
-                const span = Math.max(1, l2D.respawnMaxFrames - l2D.respawnMinFrames);
-                const delay = l2D.respawnMinFrames + Math.floor(Math.random() * (span + 1));
-                q.push(delay);
-                (g as any).l2RespawnQueue = q;
+              // Splice in descending index order so indices remain valid.
+              groupIdxs.sort((a, b) => b - a);
+              for (const ki of groupIdxs) {
+                g.robots.splice(ki, 1);
+                g.monkeysKilled = (g.monkeysKilled || 0) + 1;
+                if (isLevel2Round(g.round)) {
+                  onMonkeyKilled(l2Ref.current, ki);
+                  if (isLevel3Round(g.round) && wasMps) notifyMpsMonkeyKilled();
+                  const l2D = getLevel2Difficulty(getLevelIteration(g.round));
+                  const q: number[] = (g as any).l2RespawnQueue || [];
+                  const span = Math.max(1, l2D.respawnMaxFrames - l2D.respawnMinFrames);
+                  const delay = l2D.respawnMinFrames + Math.floor(Math.random() * (span + 1));
+                  q.push(delay);
+                  (g as any).l2RespawnQueue = q;
+                }
               }
+              break;
             } else if (g.invulnTimer === 0 && !g.dying) {
               g.lives--; setLives(g.lives);
               g.invulnTimer = 120;

@@ -372,7 +372,10 @@ export function tickApples(
     let appleVx = dir * diff.appleSpeed;
     if (isSs) {
       const l3iter = Math.max(1, s.round | 0);
-      const ssSpeed = LEVEL2_PARAMS.APPLE_SPEED * 0.312 * (1 + 0.10 * (l3iter - 1));
+      let mul = 0.312 * (1 + 0.10 * (l3iter - 1));
+      // Extra +30% for iteration 1 only.
+      if (l3iter === 1) mul *= 1.3;
+      const ssSpeed = LEVEL2_PARAMS.APPLE_SPEED * mul;
       appleVx = dir * ssSpeed;
     }
     s.apples.push({
