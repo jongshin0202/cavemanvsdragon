@@ -567,12 +567,16 @@ export function maybeSpawnVolcanoRock(s: L2State): void {
   if (s.rockSpawned || s.volcanoSealed) return;
   const mouth = getVolcanoMouth();
   const sz = LEVEL2_PARAMS.VOLCANO_ROCK_SIZE;
+  const isL3 = !!(s as any)._isL3;
 
   // Pick a random target platform from P1..P4 (indices 0..3) — exclude
   // the top platform (where the volcano sits) AND P5 (index 4, directly
   // below the volcano), so the rock visibly arcs DOWN like a fireball
   // instead of plopping right next to the mouth.
-  const candidates = [0, 1, 2, 3];
+  // L3 removes those lower static platforms, so land on the sprout platform
+  // instead; collapsed platform targets can leave the required grey rock
+  // hanging beside vines where monkeys can block it.
+  const candidates = isL3 ? [4] : [0, 1, 2, 3];
   let targetX = mouth.x;
   let targetY = mouth.y + 100;
   for (let attempt = 0; attempt < 8; attempt++) {
