@@ -1691,10 +1691,15 @@ const CavemanVsDragonGame = () => {
                   const itr = Math.max(1, getLevelIteration(g.round));
                   let jacket = newSpawnJacket(l2Ref.current);
                   if (isLevel3Round(g.round)) {
-                    if (jacket === 'green' && aliveGreens >= itr) jacket = null;
-                    if (jacket === 'purple' && alivePurples >= itr) jacket = null;
-                    // SS monkeys must throw apples — assign green only if cap allows.
-                    if (newR._ssL3 && !jacket && aliveGreens < itr) jacket = 'green';
+                    // TOTAL cap (alive + already killed) — never spawn more
+                    // greens/purples than the iteration's quota over the
+                    // entire level.
+                    const greensSoFar = aliveGreens + (l2Ref.current.greenJacketsKilled || 0);
+                    const purplesSoFar = alivePurples + (l2Ref.current.purpleJacketsKilled || 0);
+                    if (jacket === 'green' && greensSoFar >= itr) jacket = null;
+                    if (jacket === 'purple' && purplesSoFar >= itr) jacket = null;
+                    // SS monkeys must throw apples — assign green only if total cap allows.
+                    if (newR._ssL3 && !jacket && greensSoFar < itr) jacket = 'green';
                   }
                   pushJacket(l2Ref.current, jacket);
                 }
