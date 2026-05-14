@@ -765,8 +765,8 @@ export function updateLevel2(
         // Per-rock random flight time within iteration's [min, max] —
         // when multiple rocks coexist, each rock has its own speed up to
         // the iteration's max (shorter flight = faster rock).
-        const flightSec = diffFB.fireballFlightMinSec +
-          Math.random() * (diffFB.fireballFlightMaxSec - diffFB.fireballFlightMinSec);
+        const flightSec = fbFlightMinSec +
+          Math.random() * (fbFlightMaxSec - fbFlightMinSec);
         const fb: any = {
           startX: mouth.x, startY: mouth.y,
           endX: aimedX, endY,
