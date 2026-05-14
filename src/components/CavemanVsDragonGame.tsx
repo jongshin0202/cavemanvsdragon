@@ -2252,10 +2252,9 @@ const CavemanVsDragonGame = () => {
                   const span = Math.max(1, l2D.respawnMaxFrames - l2D.respawnMinFrames);
                   const delay = l2D.respawnMinFrames + Math.floor(Math.random() * (span + 1));
                   q.push(delay);
-                  (g as any).l2RespawnQueue = q;
                 }
               }
-            } else if (g.invulnTimer === 0 && !g.dying) {
+              break;
               g.lives--; setLives(g.lives);
               g.invulnTimer = 120;
               if (g.lives <= 0) { playHitSound(); g.dying = true; g.fatalDying = true; g.deathTimer = 0; g.deathFlashTimer = 0; }
