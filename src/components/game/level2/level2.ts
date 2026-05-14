@@ -366,13 +366,20 @@ export function tickApples(
       ah = 7;
       ay = (r.y + r.h) - 31; // top = platY - 31, bottom = platY - 24
     }
+    // SS (sprout-section, L3) apples travel purely horizontally — no up/down arc.
+    // Iter 1 baseline = 20% of normal apple speed; +10% per L3 iter from there.
+    let appleVx = dir * diff.appleSpeed;
+    if (isSs) {
+      const l3iter = Math.max(1, s.round | 0);
+      const ssSpeed = LEVEL2_PARAMS.APPLE_SPEED * 0.20 * (1 + 0.10 * (l3iter - 1));
+      appleVx = dir * ssSpeed;
+    }
     s.apples.push({
       x: ax, y: ay, w: aw, h: ah,
-      vx: dir * diff.appleSpeed,
+      vx: appleVx,
       ownerId: i,
       ...(heightTier === 'high' ? { _high: true } : {}),
       ...(heightTier === 'middle' ? { _mid: true } : {}),
-      ...(isSs ? { _drop: true, vy: -1.2 } : {}),
     } as any);
 
     alive[i] = true;
@@ -642,6 +649,12 @@ export function updateLevel2(
 
   // ── Fireballs (only if NOT sealed) ──────────────────────
   const diffFB = getLevel2Difficulty(s.round);
+  // L3: fire rocks fly 20% faster (shorter flight time) at iter 1, then keep
+  // the same per-iteration ramp as L2 (already baked into diffFB flight times).
+  const isL3 = !!(s as any)._isL3;
+  const fbFlightMul = isL3 ? (1 / 1.2) : 1;
+  const fbFlightMinSec = diffFB.fireballFlightMinSec * fbFlightMul;
+  const fbFlightMaxSec = diffFB.fireballFlightMaxSec * fbFlightMul;
   if (!s.volcanoSealed) {
     const inFlight = s.fireballs.filter(f => !f.landed).length;
     if (inFlight < diffFB.maxFireballs) {
@@ -752,8 +765,8 @@ export function updateLevel2(
         // Per-rock random flight time within iteration's [min, max] —
         // when multiple rocks coexist, each rock has its own speed up to
         // the iteration's max (shorter flight = faster rock).
-        const flightSec = diffFB.fireballFlightMinSec +
-          Math.random() * (diffFB.fireballFlightMaxSec - diffFB.fireballFlightMinSec);
+        const flightSec = fbFlightMinSec +
+          Math.random() * (fbFlightMaxSec - fbFlightMinSec);
         const fb: any = {
           startX: mouth.x, startY: mouth.y,
           endX: aimedX, endY,
