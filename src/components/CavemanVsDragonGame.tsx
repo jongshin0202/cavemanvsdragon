@@ -241,6 +241,25 @@ const CavemanVsDragonGame = () => {
   // When true on mobile, on-screen D-pad/JUMP/R buttons are hidden.
   const gamepadActiveRef = useRef<boolean>(false);
   const [gamepadActive, setGamepadActive] = useState<boolean>(false);
+  // Hidden dedication overlay: triggered by 3 quick taps on the Team2Go logo
+  // (mobile + PC mouse) or 3 quick presses of "i" (PC keyboard).
+  const [showDedication, setShowDedication] = useState<boolean>(false);
+  const logoTapTimesRef = useRef<number[]>([]);
+  const iKeyTimesRef = useRef<number[]>([]);
+  const triggerDedication = useCallback(() => {
+    setShowDedication(true);
+  }, []);
+  const handleLogoTap = useCallback((e?: React.SyntheticEvent) => {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    const now = Date.now();
+    const arr = logoTapTimesRef.current;
+    arr.push(now);
+    while (arr.length > 3) arr.shift();
+    if (arr.length === 3 && now - arr[0] <= 1000) {
+      arr.length = 0;
+      triggerDedication();
+    }
+  }, [triggerDedication]);
   const markGamepadActive = useCallback(() => {
     if (!gamepadActiveRef.current) {
       gamepadActiveRef.current = true;
