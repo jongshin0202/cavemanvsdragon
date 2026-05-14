@@ -352,7 +352,9 @@ export function tickApples(
     // LOW + MIDDLE (jump) ≈ 50% combined (25% each).
     const roll = Math.random();
     // SS (top sprout platform) monkeys throw only at jumpable heights — never HIGH.
-    const heightTier: 'low' | 'middle' | 'high' = isSs
+    // L3 has no ducking, so ALL L3 apples must be jumpable (low/middle) too.
+    const noHigh = isSs || !!(s as any)._isL3;
+    const heightTier: 'low' | 'middle' | 'high' = noHigh
       ? (roll < 0.5 ? 'low' : 'middle')
       : (roll < 0.25 ? 'low' : roll < 0.5 ? 'middle' : 'high');
 
