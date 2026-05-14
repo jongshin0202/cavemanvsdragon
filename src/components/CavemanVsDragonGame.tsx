@@ -1080,6 +1080,8 @@ const CavemanVsDragonGame = () => {
         // Periodic dragon roar and princess "Help!" sounds removed per user request.
         // === PLAYER MOVEMENT ===
         const applePrevHitbox = { x: p.x, y: p.y, w: p.w, h: p.h };
+        const playerPrevFrame = { x: p.x, y: p.y, w: p.w, h: p.h, vy: p.vy, onGround: p.onGround };
+        (g as any)._playerPrevFrame = playerPrevFrame;
         // Wider snap: find nearest ladder within LADDER_SNAP pixels
         const playerCX = p.x + p.w / 2;
         let nearestLadder: (typeof LADDERS)[number] | null = null;
@@ -1684,14 +1686,9 @@ const CavemanVsDragonGame = () => {
           // Enforce per-iteration TOTAL monkey cap and per-platform cap.
           const queue: number[] = (g as any).l2RespawnQueue || [];
           if (queue.length > 0) {
-            // Sequential respawn timer: only the head-of-queue ticks.
-            // After a successful spawn, the next entry begins its own 2–5s wait.
-            queue[0]--;
-            const readyIdx = queue[0] <= 0 ? 0 : -1;
-            if (readyIdx >= 0) {
-              const l2Diff = getLevel2Difficulty(getLevelIteration(g.round));
-              const aliveTotal = g.robots.length;
-              if (aliveTotal < l2Diff.maxMonkeys) {
+            const l2Diff = getLevel2Difficulty(getLevelIteration(g.round));
+            const aliveTotal = g.robots.length;
+            if (aliveTotal < l2Diff.maxMonkeys) {
                 const platSlots = isLevel3Round(g.round) ? [4] : [1, 2, 3, 4];
                 const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
                 for (const rb of g.robots) {
@@ -1713,6 +1710,13 @@ const CavemanVsDragonGame = () => {
                   );
                 });
                 if (open.length > 0 || mpOpen.length > 0) {
+                  // Sequential respawn timer: only the head-of-queue ticks,
+                  // and only while a legal spawn slot is open. This prevents
+                  // old queued respawns from maturing behind a full monkey cap
+                  // and appearing instantly right after the next monkey dies.
+                  queue[0]--;
+                  const readyIdx = queue[0] <= 0 ? 0 : -1;
+                  if (readyIdx >= 0) {
                   queue.splice(readyIdx, 1);
                   // 50/50 between SS-platform and MPS when both available; else fallback.
                   const useMp = mpOpen.length > 0 && (open.length === 0 || Math.random() < 0.5);
