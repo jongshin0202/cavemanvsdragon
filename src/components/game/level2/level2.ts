@@ -313,7 +313,7 @@ export function tickApples(
   const alive: boolean[] = (s as any)._hasAppleAlive || [];
   const diff = getLevel2Difficulty(s.round);
   // L3: jacketed sprout-section monkeys throw apples from iter 1.
-  const applesEnabled = diff.applesEnabled || isLevel3Round(s.round);
+  const applesEnabled = diff.applesEnabled || !!(s as any)._isL3;
 
   // Iteration 1 (L2 only): apples are completely disabled.
   if (!applesEnabled) {
