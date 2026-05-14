@@ -2007,20 +2007,21 @@ const CavemanVsDragonGame = () => {
             // then climb down into the sprout / moving-platform section.
             const isSsSeek = isLevel3Round(g.round) && (r as any)._ssL3 && rPlatIdx === 4;
             if (isSsSeek) {
-              const targetLi = findSproutSectionVineTarget(g.round, rCenterX, playerCenterX, playerFeetY, true);
+              const playerOnSproutPlatform = playerFeetY <= PLATFORMS[4].y + 24;
+              const targetLi = playerOnSproutPlatform ? -1 : findSproutSectionVineTarget(g.round, rCenterX, playerCenterX, playerFeetY, true);
               if (targetLi >= 0) {
                 const targetX = LADDERS[targetLi].x + 7;
                 r.wanderDir = targetX > rCenterX ? 1 : -1;
                 r.wanderTimer = 10;
               } else {
-                const fallbackLi = findSproutSectionVineTarget(g.round, rCenterX, playerCenterX, playerFeetY, false);
+                const fallbackLi = playerOnSproutPlatform ? -1 : findSproutSectionVineTarget(g.round, rCenterX, playerCenterX, playerFeetY, false);
                 if (fallbackLi >= 0) {
                   const targetX = LADDERS[fallbackLi].x + 7;
                   r.wanderDir = targetX > rCenterX ? 1 : -1;
                   r.wanderTimer = 10;
-                } else if (r.wanderTimer <= 0) {
-                r.wanderTimer = 30 + Math.floor(Math.random() * 60);
-                r.wanderDir = playerCenterX >= rCenterX ? 1 : -1;
+                } else {
+                  r.wanderTimer = playerOnSproutPlatform ? 10 : 30 + Math.floor(Math.random() * 60);
+                  r.wanderDir = playerCenterX >= rCenterX ? 1 : -1;
                 }
               }
             } else if (r.wanderTimer <= 0) {
@@ -2076,7 +2077,7 @@ const CavemanVsDragonGame = () => {
                 if (r.x + r.w < 0) r.x = CANVAS_W - 1;
                 else if (r.x > CANVAS_W) r.x = 1 - r.w;
               }
-              if (isLevel3Round(g.round) && rPlatIdx === 4 && r.onGround) {
+              if (isLevel3Round(g.round) && !isSsCommit && rPlatIdx === 4 && r.onGround) {
                 const nextCenter = r.x + r.w / 2;
                 if (r.vx > 0 && nextCenter >= SPROUT_DROP_X1 - 4 && nextCenter < SPROUT_DROP_X2) {
                   r.x = SPROUT_DROP_X1 - r.w - 2;
