@@ -1070,7 +1070,7 @@ const CavemanVsDragonGame = () => {
             p.x = nearestLadder.x + 7 - p.w / 2;
           } else if (p.onGround && !nearestLadder && rawDown) {
             // L2: ducking — stay ducked the entire time Down is held.
-            if (isLevel2Round(g.round)) {
+            if (isLevel2Round(g.round) && !isLevel3Round(g.round)) {
               (p as any).duckTimer = LEVEL2_PARAMS.DUCK_FRAMES;
               (p as any).duckHeld = true;
             } else {

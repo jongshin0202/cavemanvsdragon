@@ -350,8 +350,10 @@ export function tickApples(
     // Balance jumping vs ducking opportunities: HIGH (duck) ≈ 50%,
     // LOW + MIDDLE (jump) ≈ 50% combined (25% each).
     const roll = Math.random();
-    const heightTier: 'low' | 'middle' | 'high' =
-      roll < 0.25 ? 'low' : roll < 0.5 ? 'middle' : 'high';
+    // SS (top sprout platform) monkeys throw only at jumpable heights — never HIGH.
+    const heightTier: 'low' | 'middle' | 'high' = isSs
+      ? (roll < 0.5 ? 'low' : 'middle')
+      : (roll < 0.25 ? 'low' : roll < 0.5 ? 'middle' : 'high');
 
     const aw = 7;
     let ah = 7;
@@ -373,8 +375,8 @@ export function tickApples(
     if (isSs) {
       const l3iter = Math.max(1, s.round | 0);
       let mul = 0.312 * (1 + 0.10 * (l3iter - 1));
-      // Extra +30% for iteration 1 only.
-      if (l3iter === 1) mul *= 1.3;
+      // Extra +30% for iteration 1 only (applied twice from earlier requests).
+      if (l3iter === 1) mul *= 1.3 * 1.3;
       const ssSpeed = LEVEL2_PARAMS.APPLE_SPEED * mul;
       appleVx = dir * ssSpeed;
     }
