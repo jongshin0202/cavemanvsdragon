@@ -75,10 +75,32 @@ const isLadderUsable = (round: number, idx: number): boolean => {
 type MovingPlatformRide = ReturnType<typeof getMovingPlatforms>[number];
 type MpsRobot = Robot & {
   _mpsL3?: boolean;
+  _ssL3?: boolean;
   _rideMp?: MovingPlatformRide;
   _mpRow?: number;
   _lastMpX?: number;
   wanderDir?: number;
+};
+
+const findSproutSectionVineTarget = (
+  rCenterX: number,
+  playerCenterX: number,
+  playerFeetY: number,
+  mustBeUsable: boolean,
+): number => {
+  const chasingDown = playerFeetY > PLATFORMS[4].y + 24;
+  let bestLi = -1;
+  let bestScore = Infinity;
+  for (let li = 0; li < LADDERS.length; li++) {
+    if (li === GREEN_TOP_LADDER_IDX || li === PURPLE_TOP_LADDER_IDX) continue;
+    if (mustBeUsable && !isLadderUsable(gRoundForLadderCheck, li)) continue;
+    const l = LADDERS[li];
+    if (Math.abs(l.yTop - PLATFORMS[4].y) > 12) continue;
+    const lx = l.x + 7;
+    const score = Math.abs(lx - (chasingDown ? playerCenterX : rCenterX)) + (chasingDown ? Math.abs(lx - rCenterX) * 0.25 : 0);
+    if (score < bestScore) { bestScore = score; bestLi = li; }
+  }
+  return bestLi;
 };
 
 const findMonkeyRidePlatform = (r: MpsRobot): MovingPlatformRide | null => {
