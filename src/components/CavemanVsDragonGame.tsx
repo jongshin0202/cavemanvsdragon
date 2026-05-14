@@ -2338,7 +2338,7 @@ const CavemanVsDragonGame = () => {
             // Climbing monkey on a sprout: only killable if the ENTIRE monkey
             // is above the top sprout platform. Any part below = no kill.
             const topSproutY = PLATFORMS[4].y;
-            const climbingBlocksKill = r.climbing && (r.y + r.h) > topSproutY;
+            const climbingBlocksKill = r.climbing && r.y >= topSproutY;
             const isStomp =
               !p.onGround &&
               p.vy > 0 &&
