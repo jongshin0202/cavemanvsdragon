@@ -31,6 +31,7 @@ import {
 import cavemanWalkUrl from '@/assets/caveman-walk.png';
 import cavemanJumpUrl from '@/assets/caveman-jump.png';
 import cavemanClimbUrl from '@/assets/caveman-climb.png';
+import cavemanSproutReachUrl from '@/assets/MainChar-MovingBetweenSprouts-NoBG.png';
 import cavemanWinUrl from '@/assets/caveman-win.png';
 import dragonFireUrl from '@/assets/dragon-fire.png';
 import dragonAngryUrl from '@/assets/dragon-angry.png';
