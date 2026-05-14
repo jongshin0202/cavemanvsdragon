@@ -2069,9 +2069,9 @@ const CavemanVsDragonGame = () => {
               if (r.targetLadder !== GREEN_TOP_LADDER_IDX && r.targetLadder !== PURPLE_TOP_LADDER_IDX) {
                 markSproutInUse(r.targetLadder);
               }
-              // SS monkey: keep constantly moving up/down on the sprout.
-              // Bias direction toward the player when there's a clear vertical
-              // gap, otherwise oscillate randomly so the monkey is never stuck.
+              // SS monkey: use sprouts to chase the player, not to idle-loop.
+              // If the player is above/on the sprout platform, climb up and
+              // dismount so normal walking can continue toward the player.
               if (isSsMonkey
                   && r.targetLadder !== GREEN_TOP_LADDER_IDX
                   && r.targetLadder !== PURPLE_TOP_LADDER_IDX) {
@@ -2080,11 +2080,10 @@ const CavemanVsDragonGame = () => {
                 const monkeyMidY = r.y + r.h / 2;
                 const playerOnTop = playerFeetY <= PLATFORMS[4].y + 24;
                 const verticalGap = Math.abs(playerFeetY - monkeyMidY);
-                // Re-decide direction periodically OR when reaching an end.
                 (r as any)._climbReDecide = ((r as any)._climbReDecide ?? 0) - 1;
                 const atTop = r.y + r.h <= sproutTop + 2;
                 const atBot = r.y + r.h >= visibleBot - 2;
-                if (atTop) r.vy = r.speed;
+                if (atTop) r.vy = playerOnTop ? -r.speed : r.speed;
                 else if (atBot) r.vy = -r.speed;
                 else if ((r as any)._climbReDecide <= 0) {
                   if (playerOnTop) {
@@ -2094,7 +2093,7 @@ const CavemanVsDragonGame = () => {
                   } else {
                     r.vy = Math.random() < 0.5 ? -r.speed : r.speed;
                   }
-                  (r as any)._climbReDecide = 25 + Math.floor(Math.random() * 35);
+                  (r as any)._climbReDecide = 20 + Math.floor(Math.random() * 25);
                 }
               }
               r.y += r.vy;
@@ -2104,8 +2103,14 @@ const CavemanVsDragonGame = () => {
               }
               if (r.vy < 0 && r.y + r.h <= l.yTop + 2) {
                 if (isSsMonkey) {
-                  r.y = l.yTop - r.h + 2;
-                  r.vy = r.speed;
+                  r.y = l.yTop - r.h;
+                  r.vy = 0;
+                  r.climbing = false;
+                  r.targetLadder = null;
+                  r.onGround = true;
+                  r.wanderDir = playerCenterX >= (r.x + r.w / 2) ? 1 : -1;
+                  r.direction = r.wanderDir;
+                  r.wanderTimer = 0;
                 } else {
                   r.y = l.yTop - r.h;
                   r.vy = 0; r.climbing = false; r.targetLadder = null;
@@ -2183,7 +2188,6 @@ const CavemanVsDragonGame = () => {
               if (!isLevel2Round(g.round) && li === getTopVineIdx() && !g.topVineUnlocked) continue;
               if (!isLadderUsable(g.round, li)) continue;
               if (isLevel3Round(g.round) && !(r as any)._ssL3 && li !== GREEN_TOP_LADDER_IDX && li !== PURPLE_TOP_LADDER_IDX) continue;
-              if (isLevel3Round(g.round) && (r as any)._ssL3 && rPlatIdx === 4 && (li === GREEN_TOP_LADDER_IDX || li === PURPLE_TOP_LADDER_IDX)) continue;
               const l = LADDERS[li];
               const ladderCenterX = l.x + 7;
               const alignTol = (isLevel3Round(g.round) && (r as any)._ssL3) ? r.speed + 10 : r.speed + 4;
