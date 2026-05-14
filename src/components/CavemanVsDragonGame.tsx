@@ -3587,6 +3587,7 @@ const AttractLeaderboardScreen = ({
   logo,
   onStart,
   onRequestClearLocal,
+  onLogoTap,
 }: AttractLeaderboardScreenProps) => {
   const longPressTimer = useRef<number | null>(null);
   const longPressFiredRef = useRef<boolean>(false);
