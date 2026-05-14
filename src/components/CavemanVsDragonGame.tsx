@@ -3367,6 +3367,7 @@ const CavemanVsDragonGame = () => {
             onRequestClearLocal={() => setConfirmClearOpen(true)}
             background={introBackgroundUrl}
             logo={team2goLogoUrl}
+            onLogoTap={handleLogoTap}
           />
         )}
 
@@ -3382,6 +3383,7 @@ const CavemanVsDragonGame = () => {
             onRequestClearLocal={() => setConfirmClearOpen(true)}
             background={introBackgroundUrl}
             logo={team2goLogoUrl}
+            onLogoTap={handleLogoTap}
           />
         )}
 
