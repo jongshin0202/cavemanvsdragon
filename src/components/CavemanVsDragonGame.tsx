@@ -1981,6 +1981,7 @@ const CavemanVsDragonGame = () => {
               if (!isLevel2Round(g.round) && li === getTopVineIdx() && !g.topVineUnlocked) continue;
               if (!isLadderUsable(g.round, li)) continue;
               if (isLevel3Round(g.round) && !(r as any)._ssL3 && li !== GREEN_TOP_LADDER_IDX && li !== PURPLE_TOP_LADDER_IDX) continue;
+              if (isLevel3Round(g.round) && (r as any)._ssL3 && rPlatIdx === 4 && (li === GREEN_TOP_LADDER_IDX || li === PURPLE_TOP_LADDER_IDX)) continue;
               const l = LADDERS[li];
               const ladderCenterX = l.x + 7;
               const alignTol = (isLevel3Round(g.round) && (r as any)._ssL3) ? r.speed + 10 : r.speed + 4;
@@ -1999,11 +2000,11 @@ const CavemanVsDragonGame = () => {
                   climbChoice = { ladderIdx: li, climbVy: r.speed, score: scoreDown };
                 }
               }
-              // L3 SS sprout vine: yBot has no platform — allow virtual climb-down
-              // so SS monkeys can chase the player into the sprout section.
+              // L3 SS sprout vine: yBot has no platform — allow climb-down so
+              // monkeys can enter the sprout/moving-platform section.
               if (isLevel3Round(g.round) && (r as any)._ssL3 && topPlatIdx === rPlatIdx && botPlatIdx < 0) {
                 const scoreDown = scoreToPlayer(ladderCenterX, l.yBot);
-                if (scoreDown < continueScore && (!climbChoice || scoreDown < climbChoice.score)) {
+                if ((playerFeetY > PLATFORMS[4].y + 24 || scoreDown < continueScore) && (!climbChoice || scoreDown < climbChoice.score)) {
                   climbChoice = { ladderIdx: li, climbVy: r.speed, score: scoreDown };
                 }
               }
@@ -2089,8 +2090,8 @@ const CavemanVsDragonGame = () => {
               // Bounce off walls / platform edges so it keeps moving
               const curPlat = PLATFORMS[rPlatIdx];
               if (curPlat && curPlat.x2 - curPlat.x1 > 0) {
-                if (r.x <= curPlat.x1 + 2) { r.wanderDir = 1; r.x = curPlat.x1 + 2; }
-                else if (r.x + r.w >= curPlat.x2 - 2) { r.wanderDir = -1; r.x = curPlat.x2 - r.w - 2; }
+                if (r.x <= curPlat.x1 + 2) { r.wanderDir = 1; r.direction = 1; r.vx = r.speed; r.x = curPlat.x1 + 2; }
+                else if (r.x + r.w >= curPlat.x2 - 2) { r.wanderDir = -1; r.direction = -1; r.vx = -r.speed; r.x = curPlat.x2 - r.w - 2; }
               }
               r.x = Math.max(0, Math.min(CANVAS_W - r.w, r.x));
             }
