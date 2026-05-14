@@ -41,6 +41,8 @@ import rockWheelUrl from '@/assets/rock-wheel.png';
 import wateringCanUrl from '@/assets/watering-can.png';
 import introBackgroundUrl from '@/assets/intro-background.jpg';
 import team2goLogoUrl from '@/assets/team2go-logo.png';
+import dedicationMobileUrl from '@/assets/dedication-mobile.png';
+import dedicationPcUrl from '@/assets/dedication-pc.png';
 
 const ROBOT_WALK_FRAMES = 5;
 
@@ -239,12 +241,57 @@ const CavemanVsDragonGame = () => {
   // When true on mobile, on-screen D-pad/JUMP/R buttons are hidden.
   const gamepadActiveRef = useRef<boolean>(false);
   const [gamepadActive, setGamepadActive] = useState<boolean>(false);
+  // Hidden dedication overlay: triggered by 3 quick taps on the Team2Go logo
+  // (mobile + PC mouse) or 3 quick presses of "i" (PC keyboard).
+  const [showDedication, setShowDedication] = useState<boolean>(false);
+  const logoTapTimesRef = useRef<number[]>([]);
+  const iKeyTimesRef = useRef<number[]>([]);
+  const triggerDedication = useCallback(() => {
+    setShowDedication(true);
+  }, []);
+  const handleLogoTap = useCallback((e?: React.SyntheticEvent) => {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    const now = Date.now();
+    const arr = logoTapTimesRef.current;
+    arr.push(now);
+    while (arr.length > 3) arr.shift();
+    if (arr.length === 3 && now - arr[0] <= 1000) {
+      arr.length = 0;
+      triggerDedication();
+    }
+  }, [triggerDedication]);
   const markGamepadActive = useCallback(() => {
     if (!gamepadActiveRef.current) {
       gamepadActiveRef.current = true;
       setGamepadActive(true);
     }
   }, []);
+
+  // Hidden dedication: press "i" 3 times within 1s on PC.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (showDedication) return; // dismissal handled by overlay's own listener
+      if (e.key !== 'i' && e.key !== 'I') return;
+      const now = Date.now();
+      const arr = iKeyTimesRef.current;
+      arr.push(now);
+      while (arr.length > 3) arr.shift();
+      if (arr.length === 3 && now - arr[0] <= 1000) {
+        arr.length = 0;
+        triggerDedication();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showDedication, triggerDedication]);
+
+  // Dismiss dedication overlay on any key (PC) — pointer dismissal handled inline.
+  useEffect(() => {
+    if (!showDedication) return;
+    const onKey = () => setShowDedication(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showDedication]);
   const gameRef = useRef({
     player: { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0, duckTimer: 0 },
     barrels: [] as Barrel[],
@@ -3296,23 +3343,13 @@ const CavemanVsDragonGame = () => {
                 <img
                   src={team2goLogoUrl}
                   alt="Team2Go logo"
-                  className="object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+                  onPointerDown={handleLogoTap}
+                  className="object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] cursor-pointer"
                   style={{
                     width: 'clamp(40px, 7vw, 64px)',
                     height: 'clamp(40px, 7vw, 64px)',
                   }}
                 />
-              </div>
-              <div
-                className="text-center font-caveman"
-                style={{
-                  fontSize: 'clamp(0.75rem, 2vw, 1.15rem)',
-                  color: 'hsl(var(--foreground))',
-                  textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
-                  letterSpacing: '0.08em',
-                }}
-              >
-                Created by Jong-Wook Shin
               </div>
             </div>
           </button>
@@ -3330,6 +3367,7 @@ const CavemanVsDragonGame = () => {
             onRequestClearLocal={() => setConfirmClearOpen(true)}
             background={introBackgroundUrl}
             logo={team2goLogoUrl}
+            onLogoTap={handleLogoTap}
           />
         )}
 
@@ -3345,6 +3383,7 @@ const CavemanVsDragonGame = () => {
             onRequestClearLocal={() => setConfirmClearOpen(true)}
             background={introBackgroundUrl}
             logo={team2goLogoUrl}
+            onLogoTap={handleLogoTap}
           />
         )}
 
@@ -3401,6 +3440,21 @@ const CavemanVsDragonGame = () => {
               </div>
             </div>
           </button>
+        )}
+
+        {/* Hidden dedication overlay (3 quick logo taps, or "i" x3 on PC) */}
+        {showDedication && (
+          <div
+            className="absolute inset-0 z-50 bg-black flex items-center justify-center cursor-pointer"
+            onPointerDown={(e) => { e.preventDefault(); setShowDedication(false); }}
+          >
+            <img
+              src={isMobile ? dedicationMobileUrl : dedicationPcUrl}
+              alt="Dedication"
+              className="max-h-full max-w-full object-contain select-none"
+              draggable={false}
+            />
+          </div>
         )}
 
         {/* Level intro overlay: "Level N" for 3s, then full black for 0.5s */}
@@ -3535,6 +3589,7 @@ interface AttractLeaderboardScreenProps {
   logo: string;
   onStart: () => void;
   onRequestClearLocal: () => void;
+  onLogoTap?: (e?: React.SyntheticEvent) => void;
 }
 
 const LONG_PRESS_MS = 10_000;
@@ -3549,6 +3604,7 @@ const AttractLeaderboardScreen = ({
   logo,
   onStart,
   onRequestClearLocal,
+  onLogoTap,
 }: AttractLeaderboardScreenProps) => {
   const longPressTimer = useRef<number | null>(null);
   const longPressFiredRef = useRef<boolean>(false);
@@ -3704,23 +3760,13 @@ const AttractLeaderboardScreen = ({
           <img
             src={logo}
             alt="Team2Go logo"
-            className="object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+            onPointerDown={onLogoTap}
+            className="object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] cursor-pointer"
             style={{
               width: 'clamp(40px, 7vw, 64px)',
               height: 'clamp(40px, 7vw, 64px)',
             }}
           />
-        </div>
-        <div
-          className="text-center font-caveman"
-          style={{
-            fontSize: 'clamp(0.75rem, 2vw, 1.15rem)',
-            color: 'hsl(var(--foreground))',
-            textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
-            letterSpacing: '0.08em',
-          }}
-        >
-          Created by Jong-Wook Shin
         </div>
       </div>
     </button>
