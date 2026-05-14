@@ -1933,13 +1933,13 @@ const CavemanVsDragonGame = () => {
                 r.y = l.yTop - r.h;
                 r.vy = 0; r.climbing = false; r.targetLadder = null;
               } else if (r.vy > 0 && r.y + r.h >= l.yBot) {
-                // L3 SS monkey: no platform at vine bottom — reverse and climb back up
-                // instead of dismounting (would fall and die).
+                // L3 SS monkey: the vine bottom opens into the moving-platform
+                // section, so release here instead of bouncing back up forever.
                 const isL3SsVine = isLevel3Round(g.round) && (r as any)._ssL3
                   && PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 12) < 0;
                 if (isL3SsVine) {
-                  r.y = l.yBot - r.h - 1;
-                  r.vy = -Math.abs(r.vy || r.speed);
+                  r.y = l.yBot - r.h;
+                  r.vy = 0; r.climbing = false; r.targetLadder = null; r.onGround = false;
                 } else {
                   r.y = l.yBot - r.h;
                   r.vy = 0; r.climbing = false; r.targetLadder = null;
@@ -1954,17 +1954,13 @@ const CavemanVsDragonGame = () => {
             if (r.wanderTimer === undefined) r.wanderTimer = 0;
             if (r.wanderDir === undefined) r.wanderDir = r.direction || 1;
             r.wanderTimer--;
-            // L3 SS monkey: actively seek nearest usable top-sprout vine so
-            // it can descend into the sprout section to chase the player.
+            // L3 SS monkey: actively seek a grown sprout vine near the player,
+            // then climb down into the sprout / moving-platform section.
             const isSsSeek = isLevel3Round(g.round) && (r as any)._ssL3 && rPlatIdx === 4;
             if (isSsSeek) {
-              let targetX: number | null = null;
-              for (const li of [GREEN_TOP_LADDER_IDX, PURPLE_TOP_LADDER_IDX]) {
-                if (li < 0 || !isLadderUsable(g.round, li)) continue;
-                const lx = LADDERS[li].x + 7;
-                if (targetX === null || Math.abs(lx - rCenterX) < Math.abs(targetX - rCenterX)) targetX = lx;
-              }
-              if (targetX !== null) {
+              const targetLi = findSproutSectionVineTarget(g.round, rCenterX, playerCenterX, playerFeetY, true);
+              if (targetLi >= 0) {
+                const targetX = LADDERS[targetLi].x + 7;
                 r.wanderDir = targetX > rCenterX ? 1 : -1;
                 r.wanderTimer = 10;
               } else if (r.wanderTimer <= 0) {
