@@ -366,13 +366,20 @@ export function tickApples(
       ah = 7;
       ay = (r.y + r.h) - 31; // top = platY - 31, bottom = platY - 24
     }
+    // SS (sprout-section, L3) apples travel purely horizontally — no up/down arc.
+    // Iter 1 baseline = 20% of normal apple speed; +10% per L3 iter from there.
+    let appleVx = dir * diff.appleSpeed;
+    if (isSs) {
+      const l3iter = Math.max(1, s.round | 0);
+      const ssSpeed = LEVEL2_PARAMS.APPLE_SPEED * 0.20 * (1 + 0.10 * (l3iter - 1));
+      appleVx = dir * ssSpeed;
+    }
     s.apples.push({
       x: ax, y: ay, w: aw, h: ah,
-      vx: dir * diff.appleSpeed,
+      vx: appleVx,
       ownerId: i,
       ...(heightTier === 'high' ? { _high: true } : {}),
       ...(heightTier === 'middle' ? { _mid: true } : {}),
-      ...(isSs ? { _drop: true, vy: -1.2 } : {}),
     } as any);
 
     alive[i] = true;
