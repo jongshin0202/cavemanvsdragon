@@ -419,9 +419,16 @@ export function appleHitsPlayer(
   p: { x: number; y: number; w: number; h: number },
 ): number {
   for (let i = 0; i < s.apples.length; i++) {
-    const a = s.apples[i];
-    if (p.x < a.x + a.w && p.x + p.w > a.x &&
-        p.y < a.y + a.h && p.y + p.h > a.y) {
+    const a = s.apples[i] as any;
+    // Swept AABB along apple's travel this frame to prevent tunneling
+    // through the player when apple speed exceeds player width per frame.
+    const vx = a.vx ?? 0;
+    const vy = a.vy ?? 0;
+    const x0 = a.x - vx, y0 = a.y - vy;
+    const sx1 = Math.min(x0, a.x), sx2 = Math.max(x0, a.x) + a.w;
+    const sy1 = Math.min(y0, a.y), sy2 = Math.max(y0, a.y) + a.h;
+    if (p.x < sx2 && p.x + p.w > sx1 &&
+        p.y < sy2 && p.y + p.h > sy1) {
       return i;
     }
   }
