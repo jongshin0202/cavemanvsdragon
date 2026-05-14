@@ -2188,7 +2188,6 @@ const CavemanVsDragonGame = () => {
               if (!isLevel2Round(g.round) && li === getTopVineIdx() && !g.topVineUnlocked) continue;
               if (!isLadderUsable(g.round, li)) continue;
               if (isLevel3Round(g.round) && !(r as any)._ssL3 && li !== GREEN_TOP_LADDER_IDX && li !== PURPLE_TOP_LADDER_IDX) continue;
-              if (isLevel3Round(g.round) && (r as any)._ssL3 && rPlatIdx === 4 && (li === GREEN_TOP_LADDER_IDX || li === PURPLE_TOP_LADDER_IDX)) continue;
               const l = LADDERS[li];
               const ladderCenterX = l.x + 7;
               const alignTol = (isLevel3Round(g.round) && (r as any)._ssL3) ? r.speed + 10 : r.speed + 4;
