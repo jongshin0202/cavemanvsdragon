@@ -1051,6 +1051,8 @@ const CavemanVsDragonGame = () => {
         // Jump always takes priority — even if Up is held over a ladder.
         // This prevents getting "stuck" climbing in place at the top of a vine.
         const jumpPressed = keys.has(' ');
+        const jumpJustPressed = jumpPressed && !(g as any)._jumpHeldLastFrame;
+        (g as any)._jumpHeldLastFrame = jumpPressed;
 
         // To start climbing, the player must be CLOSELY aligned with the ladder
         // (no large horizontal snap that would look like teleporting). Once
@@ -1132,6 +1134,8 @@ const CavemanVsDragonGame = () => {
             if (reach.timer <= 0) {
               p.x = reach.toX;
               (p as any).climbLadderIdx = reach.targetIdx;
+              (p as any).lateralCD = 0;
+              (p as any)._prevLat = { l: false, r: false };
               (p as any).lateralReach = null;
             }
           } else {
@@ -1317,7 +1321,7 @@ const CavemanVsDragonGame = () => {
           if (holdRight) { p.x += MOVE_SPEED; p.facing = 1; }
           if (moving && p.onGround) { p.walkTimer++; if (p.walkTimer > 5) { p.walkTimer = 0; p.walkFrame = (p.walkFrame + 1) % 4; } }
           else if (!moving) { p.walkFrame = 0; p.walkTimer = 0; }
-          if ((keys.has(' ')) && p.onGround) {
+          if (jumpJustPressed && p.onGround) {
             p.vy = -5; p.onGround = false; p.jumping = true;
             p.jumpFrame = 0; p.jumpTimer = 0;
             g.pendingClimb = null;
