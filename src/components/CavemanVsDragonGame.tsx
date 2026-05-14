@@ -1079,6 +1079,7 @@ const CavemanVsDragonGame = () => {
         if (g.invulnTimer > 0) g.invulnTimer--;
         // Periodic dragon roar and princess "Help!" sounds removed per user request.
         // === PLAYER MOVEMENT ===
+        const applePrevHitbox = { x: p.x, y: p.y, w: p.w, h: p.h };
         // Wider snap: find nearest ladder within LADDER_SNAP pixels
         const playerCX = p.x + p.w / 2;
         let nearestLadder: (typeof LADDERS)[number] | null = null;
@@ -1598,7 +1599,10 @@ const CavemanVsDragonGame = () => {
               }
             }
             if (g.invulnTimer === 0 && !g.dying) {
-              const hit = appleHitsPlayer(l2Ref.current, hitbox);
+              const prevHitbox = ducked
+                ? { x: applePrevHitbox.x, y: applePrevHitbox.y + Math.floor(applePrevHitbox.h * 0.55), w: applePrevHitbox.w, h: Math.ceil(applePrevHitbox.h * 0.45) }
+                : applePrevHitbox;
+              const hit = appleHitsPlayer(l2Ref.current, hitbox, prevHitbox);
               if (hit >= 0) {
                 g.lives--; setLives(g.lives);
                 g.invulnTimer = 120;
