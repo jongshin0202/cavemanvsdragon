@@ -2017,18 +2017,32 @@ const CavemanVsDragonGame = () => {
               if (r.targetLadder !== GREEN_TOP_LADDER_IDX && r.targetLadder !== PURPLE_TOP_LADDER_IDX) {
                 markSproutInUse(r.targetLadder);
               }
-              // SS monkey: track player vertically while climbing a sprout.
-              // - If player is above monkey (or on top sprout platform), climb up.
-              // - If player is below monkey, climb down.
+              // SS monkey: keep constantly moving up/down on the sprout.
+              // Bias direction toward the player when there's a clear vertical
+              // gap, otherwise oscillate randomly so the monkey is never stuck.
               if (isSsMonkey
                   && r.targetLadder !== GREEN_TOP_LADDER_IDX
                   && r.targetLadder !== PURPLE_TOP_LADDER_IDX) {
+                const sproutTop = l.yTop;
+                const sproutLen = Math.max(1, visibleBot - sproutTop);
                 const monkeyMidY = r.y + r.h / 2;
                 const playerOnTop = playerFeetY <= PLATFORMS[4].y + 24;
-                if (playerOnTop || playerFeetY < monkeyMidY - 4) {
-                  r.vy = -r.speed;
-                } else if (playerFeetY > monkeyMidY + 4) {
-                  r.vy = r.speed;
+                const verticalGap = Math.abs(playerFeetY - monkeyMidY);
+                // Re-decide direction periodically OR when reaching an end.
+                (r as any)._climbReDecide = ((r as any)._climbReDecide ?? 0) - 1;
+                const atTop = r.y + r.h <= sproutTop + 2;
+                const atBot = r.y + r.h >= visibleBot - 2;
+                if (atTop) r.vy = r.speed;
+                else if (atBot) r.vy = -r.speed;
+                else if ((r as any)._climbReDecide <= 0) {
+                  if (playerOnTop) {
+                    r.vy = -r.speed;
+                  } else if (verticalGap > sproutLen * 0.25) {
+                    r.vy = playerFeetY < monkeyMidY ? -r.speed : r.speed;
+                  } else {
+                    r.vy = Math.random() < 0.5 ? -r.speed : r.speed;
+                  }
+                  (r as any)._climbReDecide = 25 + Math.floor(Math.random() * 35);
                 }
               }
               r.y += r.vy;
@@ -2037,9 +2051,14 @@ const CavemanVsDragonGame = () => {
                 r.y = visibleBot - r.h;
               }
               if (r.vy < 0 && r.y + r.h <= l.yTop + 2) {
-                r.y = l.yTop - r.h;
-                r.vy = 0; r.climbing = false; r.targetLadder = null;
-                r.onGround = true;
+                if (isSsMonkey) {
+                  r.y = l.yTop - r.h + 2;
+                  r.vy = r.speed;
+                } else {
+                  r.y = l.yTop - r.h;
+                  r.vy = 0; r.climbing = false; r.targetLadder = null;
+                  r.onGround = true;
+                }
               } else if (r.vy > 0 && r.y + r.h >= visibleBot) {
                 if (isSsMonkey) {
                   r.y = visibleBot - r.h;
