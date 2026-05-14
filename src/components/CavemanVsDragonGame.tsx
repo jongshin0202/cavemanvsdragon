@@ -2079,6 +2079,8 @@ const CavemanVsDragonGame = () => {
         }
         for (let i = g.robots.length - 1; i >= 0; i--) {
           const r = g.robots[i];
+          const prevRobotX = r.x;
+          const prevRobotY = r.y;
           const rCenterX = r.x + r.w / 2;
           const rFeetY = r.y + r.h;
           const rPlatIdx = findPlatformIndex(rFeetY, rCenterX);
@@ -2357,6 +2359,26 @@ const CavemanVsDragonGame = () => {
               }
               if (!isSsMonkey) r.x = Math.max(0, Math.min(CANVAS_W - r.w, r.x));
             }
+          }
+
+          if (isLevel2Round(g.round)) {
+            keepMonkeyAwayFromRequiredItems(r, l2Ref.current);
+          }
+
+          const movedDist = Math.abs(r.x - prevRobotX) + Math.abs(r.y - prevRobotY);
+          (r as any)._stillFrames = movedDist < 0.08 ? ((r as any)._stillFrames ?? 0) + 1 : 0;
+          if ((r as any)._stillFrames > 24) {
+            const recoverDir = ((r as any).wanderDir || r.direction || 1) * -1;
+            (r as any).wanderDir = recoverDir;
+            r.direction = recoverDir;
+            if (r.climbing) {
+              r.vy = r.vy === 0 ? recoverDir * Math.max(r.speed, 0.45) : -r.vy;
+              r.y += r.vy;
+            } else {
+              r.vx = recoverDir * Math.max(r.speed, 0.45);
+              r.x += r.vx;
+            }
+            (r as any)._stillFrames = 0;
           }
 
           // Stricter fall cull for L3 — any monkey that passes the bottom row
