@@ -75,10 +75,35 @@ const isLadderUsable = (round: number, idx: number): boolean => {
 type MovingPlatformRide = ReturnType<typeof getMovingPlatforms>[number];
 type MpsRobot = Robot & {
   _mpsL3?: boolean;
+  _ssL3?: boolean;
   _rideMp?: MovingPlatformRide;
   _mpRow?: number;
   _lastMpX?: number;
   wanderDir?: number;
+};
+
+const findSproutSectionVineTarget = (
+  round: number,
+  rCenterX: number,
+  playerCenterX: number,
+  playerFeetY: number,
+  mustBeUsable: boolean,
+): number => {
+  const chasingDown = playerFeetY > PLATFORMS[4].y + 24;
+  let bestLi = -1;
+  let bestScore = Infinity;
+  for (let li = 0; li < LADDERS.length; li++) {
+    if (li === GREEN_TOP_LADDER_IDX || li === PURPLE_TOP_LADDER_IDX) continue;
+    if (mustBeUsable && !isLadderUsable(round, li)) continue;
+    const l = LADDERS[li];
+    if (Math.abs(l.yTop - PLATFORMS[4].y) > 12) continue;
+    const lx = l.x + 7;
+    if (rCenterX < SPROUT_DROP_X1 && lx > SPROUT_DROP_X2) continue;
+    if (rCenterX > SPROUT_DROP_X2 && lx < SPROUT_DROP_X1) continue;
+    const score = Math.abs(lx - (chasingDown ? playerCenterX : rCenterX)) + (chasingDown ? Math.abs(lx - rCenterX) * 0.25 : 0);
+    if (score < bestScore) { bestScore = score; bestLi = li; }
+  }
+  return bestLi;
 };
 
 const findMonkeyRidePlatform = (r: MpsRobot): MovingPlatformRide | null => {
@@ -1433,7 +1458,7 @@ const CavemanVsDragonGame = () => {
           }
 
           // ── Apples (colored monkeys throw them) ──
-          tickApples(l2Ref.current, g.robots);
+          tickApples(l2Ref.current, g.robots, pl);
           {
             // Build hitbox honoring duck (top half shaved off when ducking).
             const ducked = (pl as any).duckTimer > 0;
@@ -1908,13 +1933,13 @@ const CavemanVsDragonGame = () => {
                 r.y = l.yTop - r.h;
                 r.vy = 0; r.climbing = false; r.targetLadder = null;
               } else if (r.vy > 0 && r.y + r.h >= l.yBot) {
-                // L3 SS monkey: no platform at vine bottom — reverse and climb back up
-                // instead of dismounting (would fall and die).
+                // L3 SS monkey: the vine bottom opens into the moving-platform
+                // section, so release here instead of bouncing back up forever.
                 const isL3SsVine = isLevel3Round(g.round) && (r as any)._ssL3
                   && PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 12) < 0;
                 if (isL3SsVine) {
-                  r.y = l.yBot - r.h - 1;
-                  r.vy = -Math.abs(r.vy || r.speed);
+                  r.y = l.yBot - r.h;
+                  r.vy = 0; r.climbing = false; r.targetLadder = null; r.onGround = false;
                 } else {
                   r.y = l.yBot - r.h;
                   r.vy = 0; r.climbing = false; r.targetLadder = null;
@@ -1929,22 +1954,25 @@ const CavemanVsDragonGame = () => {
             if (r.wanderTimer === undefined) r.wanderTimer = 0;
             if (r.wanderDir === undefined) r.wanderDir = r.direction || 1;
             r.wanderTimer--;
-            // L3 SS monkey: actively seek nearest usable top-sprout vine so
-            // it can descend into the sprout section to chase the player.
+            // L3 SS monkey: actively seek a grown sprout vine near the player,
+            // then climb down into the sprout / moving-platform section.
             const isSsSeek = isLevel3Round(g.round) && (r as any)._ssL3 && rPlatIdx === 4;
             if (isSsSeek) {
-              let targetX: number | null = null;
-              for (const li of [GREEN_TOP_LADDER_IDX, PURPLE_TOP_LADDER_IDX]) {
-                if (li < 0 || !isLadderUsable(g.round, li)) continue;
-                const lx = LADDERS[li].x + 7;
-                if (targetX === null || Math.abs(lx - rCenterX) < Math.abs(targetX - rCenterX)) targetX = lx;
-              }
-              if (targetX !== null) {
+              const targetLi = findSproutSectionVineTarget(g.round, rCenterX, playerCenterX, playerFeetY, true);
+              if (targetLi >= 0) {
+                const targetX = LADDERS[targetLi].x + 7;
                 r.wanderDir = targetX > rCenterX ? 1 : -1;
                 r.wanderTimer = 10;
-              } else if (r.wanderTimer <= 0) {
+              } else {
+                const fallbackLi = findSproutSectionVineTarget(g.round, rCenterX, playerCenterX, playerFeetY, false);
+                if (fallbackLi >= 0) {
+                  const targetX = LADDERS[fallbackLi].x + 7;
+                  r.wanderDir = targetX > rCenterX ? 1 : -1;
+                  r.wanderTimer = 10;
+                } else if (r.wanderTimer <= 0) {
                 r.wanderTimer = 30 + Math.floor(Math.random() * 60);
                 r.wanderDir = playerCenterX >= rCenterX ? 1 : -1;
+                }
               }
             } else if (r.wanderTimer <= 0) {
               r.wanderTimer = 30 + Math.floor(Math.random() * 60); // 0.7-2s at 45fps
@@ -1960,29 +1988,30 @@ const CavemanVsDragonGame = () => {
               if (!isLevel2Round(g.round) && li === getTopVineIdx() && !g.topVineUnlocked) continue;
               if (!isLadderUsable(g.round, li)) continue;
               if (isLevel3Round(g.round) && !(r as any)._ssL3 && li !== GREEN_TOP_LADDER_IDX && li !== PURPLE_TOP_LADDER_IDX) continue;
+              if (isLevel3Round(g.round) && (r as any)._ssL3 && rPlatIdx === 4 && (li === GREEN_TOP_LADDER_IDX || li === PURPLE_TOP_LADDER_IDX)) continue;
               const l = LADDERS[li];
               const ladderCenterX = l.x + 7;
               const alignTol = (isLevel3Round(g.round) && (r as any)._ssL3) ? r.speed + 10 : r.speed + 4;
               if (Math.abs(rCenterX - ladderCenterX) > alignTol) continue;
               const topPlatIdx = ladderTopPlat[li];
               const botPlatIdx = ladderBotPlat[li];
-              if (botPlatIdx === rPlatIdx && topPlatIdx >= 0 && topPlatIdx < rPlatIdx) {
+              if (botPlatIdx === rPlatIdx && topPlatIdx >= 0 && l.yTop < l.yBot) {
                 const scoreUp = scoreToPlayer(ladderCenterX, l.yTop);
                 if (scoreUp < continueScore && (!climbChoice || scoreUp < climbChoice.score)) {
                   climbChoice = { ladderIdx: li, climbVy: -r.speed, score: scoreUp };
                 }
               }
-              if (topPlatIdx === rPlatIdx && botPlatIdx >= 0 && botPlatIdx > rPlatIdx) {
+              if (topPlatIdx === rPlatIdx && botPlatIdx >= 0 && l.yBot > l.yTop) {
                 const scoreDown = scoreToPlayer(ladderCenterX, l.yBot);
-                if (scoreDown < continueScore && (!climbChoice || scoreDown < climbChoice.score)) {
+                if (((isLevel3Round(g.round) && (r as any)._ssL3 && playerFeetY > PLATFORMS[4].y + 24) || scoreDown < continueScore) && (!climbChoice || scoreDown < climbChoice.score)) {
                   climbChoice = { ladderIdx: li, climbVy: r.speed, score: scoreDown };
                 }
               }
-              // L3 SS sprout vine: yBot has no platform — allow virtual climb-down
-              // so SS monkeys can chase the player into the sprout section.
+              // L3 SS sprout vine: yBot has no platform — allow climb-down so
+              // monkeys can enter the sprout/moving-platform section.
               if (isLevel3Round(g.round) && (r as any)._ssL3 && topPlatIdx === rPlatIdx && botPlatIdx < 0) {
                 const scoreDown = scoreToPlayer(ladderCenterX, l.yBot);
-                if (scoreDown < continueScore && (!climbChoice || scoreDown < climbChoice.score)) {
+                if ((playerFeetY > PLATFORMS[4].y + 24 || scoreDown < continueScore) && (!climbChoice || scoreDown < climbChoice.score)) {
                   climbChoice = { ladderIdx: li, climbVy: r.speed, score: scoreDown };
                 }
               }
@@ -2068,8 +2097,8 @@ const CavemanVsDragonGame = () => {
               // Bounce off walls / platform edges so it keeps moving
               const curPlat = PLATFORMS[rPlatIdx];
               if (curPlat && curPlat.x2 - curPlat.x1 > 0) {
-                if (r.x <= curPlat.x1 + 2) { r.wanderDir = 1; r.x = curPlat.x1 + 2; }
-                else if (r.x + r.w >= curPlat.x2 - 2) { r.wanderDir = -1; r.x = curPlat.x2 - r.w - 2; }
+                if (r.x <= curPlat.x1 + 2) { r.wanderDir = 1; r.direction = 1; r.vx = r.speed; r.x = curPlat.x1 + 2; }
+                else if (r.x + r.w >= curPlat.x2 - 2) { r.wanderDir = -1; r.direction = -1; r.vx = -r.speed; r.x = curPlat.x2 - r.w - 2; }
               }
               r.x = Math.max(0, Math.min(CANVAS_W - r.w, r.x));
             }

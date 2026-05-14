@@ -306,13 +306,14 @@ export function pushJacket(s: L2State, jacket: 'green' | 'purple' | null): void 
 export function tickApples(
   s: L2State,
   hostRobots: { x: number; y: number; w: number; h: number; direction: number }[],
+  target?: { x: number; y: number; w: number; h: number },
 ): void {
   const jackets: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
   const cd: number[] = (s as any)._appleCooldowns || [];
   const alive: boolean[] = (s as any)._hasAppleAlive || [];
   const diff = getLevel2Difficulty(s.round);
   // L3: jacketed sprout-section monkeys throw apples from iter 1.
-  const applesEnabled = diff.applesEnabled || isLevel3Round(s.round);
+  const applesEnabled = diff.applesEnabled || !!(s as any)._isL3;
 
   // Iteration 1 (L2 only): apples are completely disabled.
   if (!applesEnabled) {
@@ -325,7 +326,11 @@ export function tickApples(
     if (alive[i]) continue;            // one apple at a time per monkey
     if (cd[i] > 0) { cd[i]--; continue; }
     const r = hostRobots[i];
-    const dir = r.direction >= 0 ? 1 : -1;
+    const isSs = !!(hostRobots[i] as any)._ssL3;
+    const targetCenterX = target ? target.x + target.w / 2 : null;
+    const dir = isSs && targetCenterX !== null
+      ? (targetCenterX >= r.x + r.w / 2 ? 1 : -1)
+      : (r.direction >= 0 ? 1 : -1);
     const ax = r.x + r.w / 2 + dir * 8;
     // Three throw heights, randomly chosen:
     //   LOW    — apple at the player's feet. Jumpable.
@@ -361,7 +366,6 @@ export function tickApples(
       ah = 7;
       ay = (r.y + r.h) - 31; // top = platY - 31, bottom = platY - 24
     }
-    const isSs = !!(hostRobots[i] as any)._ssL3;
     s.apples.push({
       x: ax, y: ay, w: aw, h: ah,
       vx: dir * diff.appleSpeed,
