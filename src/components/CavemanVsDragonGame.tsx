@@ -2337,6 +2337,7 @@ const CavemanVsDragonGame = () => {
             // Rising into a monkey on the way up is a side-hit, not a kill.
             // Climbing monkey on a sprout: only killable if the ENTIRE monkey
             // is above the top sprout platform. Any part below = no kill.
+            const topSproutY = PLATFORMS[4].y;
             const climbingBlocksKill = r.climbing && r.y >= topSproutY;
             const isStomp =
               !p.onGround &&
