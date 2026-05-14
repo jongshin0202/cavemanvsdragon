@@ -323,7 +323,8 @@ export function tickApples(
   } else {
   // Throw new apples
   for (let i = 0; i < hostRobots.length; i++) {
-    if (!jackets[i]) continue;        // only colored monkeys throw
+    // L2: only colored (jacketed) monkeys throw. L3: every monkey throws.
+    if (!jackets[i] && !(s as any)._isL3) continue;
     if (alive[i]) continue;            // one apple at a time per monkey
     if (cd[i] > 0) { cd[i]--; continue; }
     const r = hostRobots[i];
