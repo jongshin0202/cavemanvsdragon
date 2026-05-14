@@ -267,17 +267,22 @@ const CavemanVsDragonGame = () => {
     }
   }, []);
 
-  // Hidden dedication: press "i" 3 times within 1s on PC.
+  // Hidden dedication: type "iiRcade" quickly on PC (case-insensitive,
+  // each key within 1s of the previous).
   useEffect(() => {
+    const SECRET = 'iircade';
+    let buffer = '';
+    let lastTime = 0;
     const onKey = (e: KeyboardEvent) => {
-      if (showDedication) return; // dismissal handled by overlay's own listener
-      if (e.key !== 'i' && e.key !== 'I') return;
+      if (showDedication) return;
+      if (e.key.length !== 1) return;
+      const ch = e.key.toLowerCase();
       const now = Date.now();
-      const arr = iKeyTimesRef.current;
-      arr.push(now);
-      while (arr.length > 3) arr.shift();
-      if (arr.length === 3 && now - arr[0] <= 1000) {
-        arr.length = 0;
+      if (now - lastTime > 1000) buffer = '';
+      lastTime = now;
+      buffer = (buffer + ch).slice(-SECRET.length);
+      if (buffer === SECRET) {
+        buffer = '';
         triggerDedication();
       }
     };
