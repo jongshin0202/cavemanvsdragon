@@ -1458,7 +1458,7 @@ const CavemanVsDragonGame = () => {
           }
 
           // ── Apples (colored monkeys throw them) ──
-          tickApples(l2Ref.current, g.robots);
+          tickApples(l2Ref.current, g.robots, pl);
           {
             // Build hitbox honoring duck (top half shaved off when ducking).
             const ducked = (pl as any).duckTimer > 0;
