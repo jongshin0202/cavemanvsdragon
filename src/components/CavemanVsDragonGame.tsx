@@ -3343,23 +3343,13 @@ const CavemanVsDragonGame = () => {
                 <img
                   src={team2goLogoUrl}
                   alt="Team2Go logo"
-                  className="object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+                  onPointerDown={handleLogoTap}
+                  className="object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] cursor-pointer"
                   style={{
                     width: 'clamp(40px, 7vw, 64px)',
                     height: 'clamp(40px, 7vw, 64px)',
                   }}
                 />
-              </div>
-              <div
-                className="text-center font-caveman"
-                style={{
-                  fontSize: 'clamp(0.75rem, 2vw, 1.15rem)',
-                  color: 'hsl(var(--foreground))',
-                  textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
-                  letterSpacing: '0.08em',
-                }}
-              >
-                Created by Jong-Wook Shin
               </div>
             </div>
           </button>
