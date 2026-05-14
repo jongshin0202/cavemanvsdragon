@@ -2348,9 +2348,10 @@ const CavemanVsDragonGame = () => {
             const feet = p.y + p.h;
             const descendingIntoHead = (prevP.vy > 0 || p.vy > 0 || feet >= prevFeet) && prevFeet <= r.y + r.h * 0.75;
             const climbingBlocksKill = r.climbing && !climbingAboveTopSprout;
+            const stompHeadLimit = climbingAboveTopSprout ? r.y + r.h + 4 : r.y + r.h * 0.6;
             const isStomp =
               descendingIntoHead &&
-              (p.y + p.h <= r.y + r.h * 0.6) &&
+              (p.y + p.h <= stompHeadLimit) &&
               !climbingBlocksKill;
             if (isStomp) {
               // Find any OTHER monkeys overlapping the same monkey position
