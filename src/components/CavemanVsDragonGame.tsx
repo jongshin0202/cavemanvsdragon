@@ -395,6 +395,8 @@ const CavemanVsDragonGame = () => {
     g.winAnim = { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
     g.monkeysKilled = 0;
     g.comboKills = 0;
+    (g as any).l2RespawnQueue = [];
+    (g as any)._playerPrevFrame = null;
     g.keySpawned = false;
     g.keyGrabbed = false;
     g.seedPlanted = false;
@@ -1080,6 +1082,8 @@ const CavemanVsDragonGame = () => {
         // Periodic dragon roar and princess "Help!" sounds removed per user request.
         // === PLAYER MOVEMENT ===
         const applePrevHitbox = { x: p.x, y: p.y, w: p.w, h: p.h };
+        const playerPrevFrame = { x: p.x, y: p.y, w: p.w, h: p.h, vy: p.vy, onGround: p.onGround };
+        (g as any)._playerPrevFrame = playerPrevFrame;
         // Wider snap: find nearest ladder within LADDER_SNAP pixels
         const playerCX = p.x + p.w / 2;
         let nearestLadder: (typeof LADDERS)[number] | null = null;
@@ -1684,14 +1688,9 @@ const CavemanVsDragonGame = () => {
           // Enforce per-iteration TOTAL monkey cap and per-platform cap.
           const queue: number[] = (g as any).l2RespawnQueue || [];
           if (queue.length > 0) {
-            // Sequential respawn timer: only the head-of-queue ticks.
-            // After a successful spawn, the next entry begins its own 2–5s wait.
-            queue[0]--;
-            const readyIdx = queue[0] <= 0 ? 0 : -1;
-            if (readyIdx >= 0) {
-              const l2Diff = getLevel2Difficulty(getLevelIteration(g.round));
-              const aliveTotal = g.robots.length;
-              if (aliveTotal < l2Diff.maxMonkeys) {
+            const l2Diff = getLevel2Difficulty(getLevelIteration(g.round));
+            const aliveTotal = g.robots.length;
+            if (aliveTotal < l2Diff.maxMonkeys) {
                 const platSlots = isLevel3Round(g.round) ? [4] : [1, 2, 3, 4];
                 const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
                 for (const rb of g.robots) {
@@ -1713,6 +1712,13 @@ const CavemanVsDragonGame = () => {
                   );
                 });
                 if (open.length > 0 || mpOpen.length > 0) {
+                  // Sequential respawn timer: only the head-of-queue ticks,
+                  // and only while a legal spawn slot is open. This prevents
+                  // old queued respawns from maturing behind a full monkey cap
+                  // and appearing instantly right after the next monkey dies.
+                  queue[0]--;
+                  const readyIdx = queue[0] <= 0 ? 0 : -1;
+                  if (readyIdx >= 0) {
                   queue.splice(readyIdx, 1);
                   // 50/50 between SS-platform and MPS when both available; else fallback.
                   const useMp = mpOpen.length > 0 && (open.length === 0 || Math.random() < 0.5);
@@ -2323,7 +2329,9 @@ const CavemanVsDragonGame = () => {
 
           const rPlatY = findPlatformIndex(r.y + r.h, r.x + r.w / 2);
           const pPlatY = findPlatformIndex(p.y + p.h, p.x + p.w / 2);
-          if (rectsOverlap(p, r) && rPlatY === pPlatY) {
+          const topSproutY = PLATFORMS[4].y;
+          const climbingAboveTopSprout = r.climbing && r.y < topSproutY;
+          if (rectsOverlap(p, r) && (rPlatY === pPlatY || climbingAboveTopSprout)) {
             // Stomp = player's feet are above the monkey's upper portion.
             // Don't require p.vy > 0: after a chain stomp we set p.vy = -4
             // (rising), and the next overlapping monkey in the same airborne
@@ -2335,14 +2343,17 @@ const CavemanVsDragonGame = () => {
             // landing counts as a kill instead of a fatal side-hit.
             // Stomp ONLY when descending onto the monkey's head (bonk on top).
             // Rising into a monkey on the way up is a side-hit, not a kill.
-            // Climbing monkey on a sprout: only killable if the ENTIRE monkey
-            // is above the top sprout platform. Any part below = no kill.
-            const topSproutY = PLATFORMS[4].y;
-            const climbingBlocksKill = r.climbing && r.y >= topSproutY;
+            // Climbing monkey on a sprout: killable as soon as ANY part of the
+            // monkey is above the top sprout platform.
+            const prevP = (g as any)._playerPrevFrame || p;
+            const prevFeet = prevP.y + prevP.h;
+            const feet = p.y + p.h;
+            const descendingIntoHead = (prevP.vy > 0 || p.vy > 0 || feet >= prevFeet) && prevFeet <= r.y + r.h * 0.75;
+            const climbingBlocksKill = r.climbing && !climbingAboveTopSprout;
+            const stompHeadLimit = climbingAboveTopSprout ? r.y + r.h + 4 : r.y + r.h * 0.6;
             const isStomp =
-              !p.onGround &&
-              p.vy > 0 &&
-              (p.y + p.h <= r.y + r.h * 0.6) &&
+              descendingIntoHead &&
+              (p.y + p.h <= stompHeadLimit) &&
               !climbingBlocksKill;
             if (isStomp) {
               // Find any OTHER monkeys overlapping the same monkey position
