@@ -2002,19 +2002,17 @@ const CavemanVsDragonGame = () => {
                 }
               }
               if (topPlatIdx === rPlatIdx && botPlatIdx >= 0 && l.yBot > l.yTop) {
-                const scoreDown = scoreToPlayer(ladderCenterX, l.yBot);
-                if (((isLevel3Round(g.round) && (r as any)._ssL3 && playerFeetY > PLATFORMS[4].y + 24) || scoreDown < continueScore) && (!climbChoice || scoreDown < climbChoice.score)) {
-                  climbChoice = { ladderIdx: li, climbVy: r.speed, score: scoreDown };
+                // L3 SS monkeys must stay in the sprout section — never climb down.
+                if (isLevel3Round(g.round) && (r as any)._ssL3) {
+                  // skip
+                } else {
+                  const scoreDown = scoreToPlayer(ladderCenterX, l.yBot);
+                  if (scoreDown < continueScore && (!climbChoice || scoreDown < climbChoice.score)) {
+                    climbChoice = { ladderIdx: li, climbVy: r.speed, score: scoreDown };
+                  }
                 }
               }
-              // L3 SS sprout vine: yBot has no platform — allow climb-down so
-              // monkeys can enter the sprout/moving-platform section.
-              if (isLevel3Round(g.round) && (r as any)._ssL3 && topPlatIdx === rPlatIdx && botPlatIdx < 0) {
-                const scoreDown = scoreToPlayer(ladderCenterX, l.yBot);
-                if ((playerFeetY > PLATFORMS[4].y + 24 || scoreDown < continueScore) && (!climbChoice || scoreDown < climbChoice.score)) {
-                  climbChoice = { ladderIdx: li, climbVy: r.speed, score: scoreDown };
-                }
-              }
+              // L3 SS sprout vine to MPS section: disabled — SS monkeys stay up top.
             }
 
             // SS monkeys: commit to climbing whenever a vine is in range (no 60% gate).
