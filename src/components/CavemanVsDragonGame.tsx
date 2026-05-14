@@ -2567,12 +2567,21 @@ const CavemanVsDragonGame = () => {
         const drawH = 54;
         ctx.drawImage(winSprite, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
       } else if (showPlayer && useClimb) {
-        const sw = climbSprite.naturalWidth / 4;
-        const sh = climbSprite.naturalHeight;
-        const sx = pl.climbFrame * sw;
-        const drawW = 42;
-        const drawH = 48;
-        ctx.drawImage(climbSprite, sx, 0, sw, sh, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
+        const reachSprite = sproutReachSpriteRef.current;
+        const inReach = !!(pl as any).lateralReach
+          && reachSprite && reachSprite.complete && reachSprite.naturalWidth > 0;
+        if (inReach) {
+          const drawW = 52;
+          const drawH = 48;
+          ctx.drawImage(reachSprite!, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
+        } else {
+          const sw = climbSprite.naturalWidth / 4;
+          const sh = climbSprite.naturalHeight;
+          const sx = pl.climbFrame * sw;
+          const drawW = 42;
+          const drawH = 48;
+          ctx.drawImage(climbSprite, sx, 0, sw, sh, pl.x + pl.w / 2 - drawW / 2, pl.y + pl.h - drawH, drawW, drawH);
+        }
       } else if (showPlayer && useJump) {
         const sw = jumpSprite.naturalWidth / 5;
         const sh = jumpSprite.naturalHeight;
