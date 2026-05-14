@@ -1978,15 +1978,17 @@ const CavemanVsDragonGame = () => {
             r.vx = 0;
             if (r.targetLadder !== null) {
               const l = LADDERS[r.targetLadder];
+              const isSsMonkey = isLevel3Round(g.round) && (r as any)._ssL3;
+              const visibleBot = isSsMonkey ? getVisibleSproutBottomY(r.targetLadder) : l.yBot;
               if (r.vy < 0 && r.y + r.h <= l.yTop + 2) {
                 r.y = l.yTop - r.h;
                 r.vy = 0; r.climbing = false; r.targetLadder = null;
-              } else if (r.vy > 0 && r.y + r.h >= l.yBot) {
-                // L3 SS monkeys must NEVER drop into MPS — if somehow climbing
-                // down, snap them back to platform 4 instead of releasing.
-                if (isLevel3Round(g.round) && (r as any)._ssL3) {
-                  r.y = PLATFORMS[4].y - r.h;
-                  r.vy = 0; r.climbing = false; r.targetLadder = null; r.onGround = true;
+                r.onGround = true;
+              } else if (r.vy > 0 && r.y + r.h >= visibleBot) {
+                if (isSsMonkey) {
+                  r.y = visibleBot - r.h;
+                  r.vy = -r.speed;
+                  r.onGround = false;
                 } else {
                   r.y = l.yBot - r.h;
                   r.vy = 0; r.climbing = false; r.targetLadder = null;
@@ -2049,17 +2051,11 @@ const CavemanVsDragonGame = () => {
                 }
               }
               if (topPlatIdx === rPlatIdx && botPlatIdx >= 0 && l.yBot > l.yTop) {
-                // L3 SS monkeys must stay in the sprout section — never climb down.
-                if (isLevel3Round(g.round) && (r as any)._ssL3) {
-                  // skip
-                } else {
-                  const scoreDown = scoreToPlayer(ladderCenterX, l.yBot);
-                  if (scoreDown < continueScore && (!climbChoice || scoreDown < climbChoice.score)) {
-                    climbChoice = { ladderIdx: li, climbVy: r.speed, score: scoreDown };
-                  }
+                const scoreDown = scoreToPlayer(ladderCenterX, l.yBot);
+                if (scoreDown < continueScore && (!climbChoice || scoreDown < climbChoice.score)) {
+                  climbChoice = { ladderIdx: li, climbVy: r.speed, score: scoreDown };
                 }
               }
-              // L3 SS sprout vine to MPS section: disabled — SS monkeys stay up top.
             }
 
             // SS monkeys: commit to climbing whenever a vine is in range (no 60% gate).
@@ -2076,6 +2072,10 @@ const CavemanVsDragonGame = () => {
               r.direction = r.wanderDir;
               r.vx = r.direction * r.speed;
               r.x += r.vx;
+              if (isSsCommit && r.onGround) {
+                if (r.x + r.w < 0) r.x = CANVAS_W - 1;
+                else if (r.x > CANVAS_W) r.x = 1 - r.w;
+              }
               if (isLevel3Round(g.round) && rPlatIdx === 4 && r.onGround) {
                 const nextCenter = r.x + r.w / 2;
                 if (r.vx > 0 && nextCenter >= SPROUT_DROP_X1 - 4 && nextCenter < SPROUT_DROP_X2) {
@@ -2122,7 +2122,7 @@ const CavemanVsDragonGame = () => {
                   if (r.y + r.h >= platY && r.y + r.h <= platY + 12 && r.vy >= 0) {
                     // Holes only apply to L2; L3 SS monkeys treat the platform-4
                     // hole as solid so they cannot fall through it.
-                    if (isLevel2Round(g.round) && isHoleAtPlatform(l2Ref.current, plIdx, r.x + r.w / 2)) continue;
+                    if (isLevel2Round(g.round) && !(isSsMonkey && plIdx === 4) && isHoleAtPlatform(l2Ref.current, plIdx, r.x + r.w / 2)) continue;
                     r.y = platY - r.h; r.vy = 0; r.onGround = true; landed = true; break;
                   }
                 }
@@ -2148,11 +2148,11 @@ const CavemanVsDragonGame = () => {
 
               // Bounce off walls / platform edges so it keeps moving
               const curPlat = PLATFORMS[rPlatIdx];
-              if (curPlat && curPlat.x2 - curPlat.x1 > 0) {
+              if (!isSsMonkey && curPlat && curPlat.x2 - curPlat.x1 > 0) {
                 if (r.x <= curPlat.x1 + 2) { r.wanderDir = 1; r.direction = 1; r.vx = r.speed; r.x = curPlat.x1 + 2; }
                 else if (r.x + r.w >= curPlat.x2 - 2) { r.wanderDir = -1; r.direction = -1; r.vx = -r.speed; r.x = curPlat.x2 - r.w - 2; }
               }
-              r.x = Math.max(0, Math.min(CANVAS_W - r.w, r.x));
+              if (!isSsMonkey) r.x = Math.max(0, Math.min(CANVAS_W - r.w, r.x));
             }
           }
 
