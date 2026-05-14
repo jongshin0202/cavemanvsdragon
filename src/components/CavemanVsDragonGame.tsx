@@ -1241,14 +1241,14 @@ const CavemanVsDragonGame = () => {
                 const fromX = p.x;
                 const toX = L.x + 7 - p.w / 2;
                 // Begin reach-across pose: hold the spread caveman sprite
-                // for 30 frames (~0.5s @ 60fps), then snap to the target vine.
+                // for 15 frames (~0.25s @ 60fps), then snap to the target vine.
                 (p as any).lateralReach = {
                   fromX, toX, dir,
                   fromIdx: nearestLadderIdx,
                   targetIdx: idx,
-                  timer: 30,
+                  timer: 15,
                 };
-                (p as any).lateralCD = 30;
+                (p as any).lateralCD = 15;
                 p.climbFrame = REACH_FRAME;
                 p.climbTimer = 0;
               };
