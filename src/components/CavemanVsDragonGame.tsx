@@ -1933,13 +1933,11 @@ const CavemanVsDragonGame = () => {
                 r.y = l.yTop - r.h;
                 r.vy = 0; r.climbing = false; r.targetLadder = null;
               } else if (r.vy > 0 && r.y + r.h >= l.yBot) {
-                // L3 SS monkey: the vine bottom opens into the moving-platform
-                // section, so release here instead of bouncing back up forever.
-                const isL3SsVine = isLevel3Round(g.round) && (r as any)._ssL3
-                  && PLATFORMS.findIndex(pl => Math.abs(pl.y - l.yBot) < 12) < 0;
-                if (isL3SsVine) {
-                  r.y = l.yBot - r.h;
-                  r.vy = 0; r.climbing = false; r.targetLadder = null; r.onGround = false;
+                // L3 SS monkeys must NEVER drop into MPS — if somehow climbing
+                // down, snap them back to platform 4 instead of releasing.
+                if (isLevel3Round(g.round) && (r as any)._ssL3) {
+                  r.y = PLATFORMS[4].y - r.h;
+                  r.vy = 0; r.climbing = false; r.targetLadder = null; r.onGround = true;
                 } else {
                   r.y = l.yBot - r.h;
                   r.vy = 0; r.climbing = false; r.targetLadder = null;
