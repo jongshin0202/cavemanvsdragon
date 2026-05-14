@@ -107,6 +107,31 @@ const findSproutSectionVineTarget = (
   return bestLi;
 };
 
+/** Lifelike random pick among the closest sprouts to the player (chasing down). */
+const findSproutSectionVineTargetRandom = (
+  round: number,
+  rCenterX: number,
+  playerCenterX: number,
+  mustBeUsable: boolean,
+): number => {
+  const candidates: { li: number; d: number }[] = [];
+  for (let li = 0; li < LADDERS.length; li++) {
+    if (li === GREEN_TOP_LADDER_IDX || li === PURPLE_TOP_LADDER_IDX) continue;
+    if (mustBeUsable && !isLadderUsable(round, li)) continue;
+    const l = LADDERS[li];
+    if (Math.abs(l.yTop - PLATFORMS[4].y) > 12) continue;
+    const lx = l.x + 7;
+    if (rCenterX < SPROUT_DROP_X1 && lx > SPROUT_DROP_X2) continue;
+    if (rCenterX > SPROUT_DROP_X2 && lx < SPROUT_DROP_X1) continue;
+    candidates.push({ li, d: Math.abs(lx - playerCenterX) });
+  }
+  if (candidates.length === 0) return -1;
+  candidates.sort((a, b) => a.d - b.d);
+  // Pick randomly among the 3 closest to the player for lifelike variety.
+  const pool = candidates.slice(0, Math.min(3, candidates.length));
+  return pool[Math.floor(Math.random() * pool.length)].li;
+};
+
 const getVisibleSproutBottomY = (ladderIdx: number): number => {
   const l = LADDERS[ladderIdx];
   if (!l) return 0;
