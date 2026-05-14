@@ -2061,12 +2061,18 @@ const CavemanVsDragonGame = () => {
               r.onGround = false;
 
               let landed = false;
+              const isSsMonkey = isLevel3Round(g.round) && (r as any)._ssL3;
               for (let plIdx = 0; plIdx < PLATFORMS.length; plIdx++) {
+                // L3 SS monkeys can ONLY land on platform 4 (top sprout
+                // platform) — never drop into MPS levels.
+                if (isSsMonkey && plIdx !== 4) continue;
                 const plat = PLATFORMS[plIdx];
                 if (plat.x2 - plat.x1 <= 0) continue;
                 if (r.x + r.w > plat.x1 && r.x < plat.x2) {
                   const platY = getPlatformY(plat, r.x + r.w / 2);
                   if (r.y + r.h >= platY && r.y + r.h <= platY + 12 && r.vy >= 0) {
+                    // Holes only apply to L2; L3 SS monkeys treat the platform-4
+                    // hole as solid so they cannot fall through it.
                     if (isLevel2Round(g.round) && isHoleAtPlatform(l2Ref.current, plIdx, r.x + r.w / 2)) continue;
                     r.y = platY - r.h; r.vy = 0; r.onGround = true; landed = true; break;
                   }
@@ -2074,7 +2080,8 @@ const CavemanVsDragonGame = () => {
               }
 
               // L3: monkeys can ride moving platforms (carry with dx).
-              if (!landed && isLevel3Round(g.round)) {
+              // SS monkeys are excluded — they must stay on platform 4.
+              if (!landed && isLevel3Round(g.round) && !isSsMonkey) {
                 const mps = getMovingPlatforms();
                 const dxs: number[] = (g as any)._l3Dxs || [];
                 for (let mi = 0; mi < mps.length; mi++) {
