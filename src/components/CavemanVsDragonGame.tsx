@@ -1988,15 +1988,15 @@ const CavemanVsDragonGame = () => {
               if (Math.abs(rCenterX - ladderCenterX) > alignTol) continue;
               const topPlatIdx = ladderTopPlat[li];
               const botPlatIdx = ladderBotPlat[li];
-              if (botPlatIdx === rPlatIdx && topPlatIdx >= 0 && topPlatIdx < rPlatIdx) {
+              if (botPlatIdx === rPlatIdx && topPlatIdx >= 0 && l.yTop < l.yBot) {
                 const scoreUp = scoreToPlayer(ladderCenterX, l.yTop);
                 if (scoreUp < continueScore && (!climbChoice || scoreUp < climbChoice.score)) {
                   climbChoice = { ladderIdx: li, climbVy: -r.speed, score: scoreUp };
                 }
               }
-              if (topPlatIdx === rPlatIdx && botPlatIdx >= 0 && botPlatIdx > rPlatIdx) {
+              if (topPlatIdx === rPlatIdx && botPlatIdx >= 0 && l.yBot > l.yTop) {
                 const scoreDown = scoreToPlayer(ladderCenterX, l.yBot);
-                if (scoreDown < continueScore && (!climbChoice || scoreDown < climbChoice.score)) {
+                if (((isLevel3Round(g.round) && (r as any)._ssL3 && playerFeetY > PLATFORMS[4].y + 24) || scoreDown < continueScore) && (!climbChoice || scoreDown < climbChoice.score)) {
                   climbChoice = { ladderIdx: li, climbVy: r.speed, score: scoreDown };
                 }
               }
