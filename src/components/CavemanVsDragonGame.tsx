@@ -2215,24 +2215,45 @@ const CavemanVsDragonGame = () => {
               p.vy > 0 &&
               (p.y + p.h <= r.y + r.h * 0.6);
             if (isStomp) {
-              const n = (g.comboKills || 0) + 1;
-              g.comboKills = n;
-              g.score += 300 * (2 * n - 1); setScore(g.score);
+              // Find any OTHER monkeys overlapping the same monkey position
+              // (clustered at same spot). Player kills all in one stomp.
+              const groupIdxs: number[] = [i];
+              for (let j = g.robots.length - 1; j >= 0; j--) {
+                if (j === i) continue;
+                const o = g.robots[j];
+                if (rectsOverlap(o, r)) groupIdxs.push(j);
+              }
+              const killCount = groupIdxs.length;
+              // Per spec: 2+ monkeys at same location = same points as
+              // killing 3 with one jump (combo 1+2+3 → 300+900+1500 = 2700).
+              let scoreGain: number;
+              if (killCount >= 2) {
+                scoreGain = 300 + 900 + 1500;
+                g.comboKills = 3;
+              } else {
+                const n = (g.comboKills || 0) + 1;
+                g.comboKills = n;
+                scoreGain = 300 * (2 * n - 1);
+              }
+              g.score += scoreGain; setScore(g.score);
               playRobotKillSound();
               p.vy = -4;
               const wasMps = !!(r as any)._mpsL3;
-              g.robots.splice(i, 1);
-              g.monkeysKilled = (g.monkeysKilled || 0) + 1;
-              if (isLevel2Round(g.round)) {
-                onMonkeyKilled(l2Ref.current, i);
-                if (isLevel3Round(g.round) && wasMps) notifyMpsMonkeyKilled();
-                // L2: queue a respawn with iteration-tuned random delay.
-                const l2D = getLevel2Difficulty(getLevelIteration(g.round));
-                const q: number[] = (g as any).l2RespawnQueue || [];
-                const span = Math.max(1, l2D.respawnMaxFrames - l2D.respawnMinFrames);
-                const delay = l2D.respawnMinFrames + Math.floor(Math.random() * (span + 1));
-                q.push(delay);
-                (g as any).l2RespawnQueue = q;
+              // Splice in descending index order so indices remain valid.
+              groupIdxs.sort((a, b) => b - a);
+              for (const ki of groupIdxs) {
+                g.robots.splice(ki, 1);
+                g.monkeysKilled = (g.monkeysKilled || 0) + 1;
+                if (isLevel2Round(g.round)) {
+                  onMonkeyKilled(l2Ref.current, ki);
+                  if (isLevel3Round(g.round) && wasMps) notifyMpsMonkeyKilled();
+                  const l2D = getLevel2Difficulty(getLevelIteration(g.round));
+                  const q: number[] = (g as any).l2RespawnQueue || [];
+                  const span = Math.max(1, l2D.respawnMaxFrames - l2D.respawnMinFrames);
+                  const delay = l2D.respawnMinFrames + Math.floor(Math.random() * (span + 1));
+                  q.push(delay);
+                  (g as any).l2RespawnQueue = q;
+                }
               }
             } else if (g.invulnTimer === 0 && !g.dying) {
               g.lives--; setLives(g.lives);
