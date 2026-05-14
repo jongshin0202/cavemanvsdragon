@@ -107,6 +107,15 @@ const findSproutSectionVineTarget = (
   return bestLi;
 };
 
+const getVisibleSproutBottomY = (ladderIdx: number): number => {
+  const l = LADDERS[ladderIdx];
+  if (!l) return 0;
+  if (ladderIdx === GREEN_TOP_LADDER_IDX || ladderIdx === PURPLE_TOP_LADDER_IDX) return l.yBot;
+  const sr = getSprouts()[ladderIdx];
+  const progress = sr?.growProgress ?? 1;
+  return l.yTop + (l.yBot - l.yTop) * progress;
+};
+
 const findMonkeyRidePlatform = (r: MpsRobot): MovingPlatformRide | null => {
   const mps = getMovingPlatforms();
   if (mps.length === 0) return null;
