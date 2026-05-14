@@ -649,6 +649,12 @@ export function updateLevel2(
 
   // ── Fireballs (only if NOT sealed) ──────────────────────
   const diffFB = getLevel2Difficulty(s.round);
+  // L3: fire rocks fly 20% faster (shorter flight time) at iter 1, then keep
+  // the same per-iteration ramp as L2 (already baked into diffFB flight times).
+  const isL3 = !!(s as any)._isL3;
+  const fbFlightMul = isL3 ? (1 / 1.2) : 1;
+  const fbFlightMinSec = diffFB.fireballFlightMinSec * fbFlightMul;
+  const fbFlightMaxSec = diffFB.fireballFlightMaxSec * fbFlightMul;
   if (!s.volcanoSealed) {
     const inFlight = s.fireballs.filter(f => !f.landed).length;
     if (inFlight < diffFB.maxFireballs) {
