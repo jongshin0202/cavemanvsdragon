@@ -88,12 +88,9 @@ export function applyLevel3Layout(iter: number = 1): void {
   const VINE_SPACING = 32;
   const VINE_MARGIN = 24;
   const candidateXs: number[] = [];
-  let parity = 0;
   for (let x = VINE_MARGIN; x <= CANVAS_W - VINE_MARGIN; x += VINE_SPACING) {
     // Need anchor on P4 (skip sprout drop-hole)
     if (x >= SPROUT_DROP_X1 - 4 && x <= SPROUT_DROP_X2 + 4) continue;
-    // Sparse pattern: sprout / no-sprout / sprout / no-sprout …
-    if ((parity++ % 2) !== 0) continue;
     candidateXs.push(x);
   }
   const vineXs = candidateXs;
