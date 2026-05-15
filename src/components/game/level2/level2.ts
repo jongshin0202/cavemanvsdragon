@@ -334,44 +334,12 @@ export function tickApples(
       ? (targetCenterX >= r.x + r.w / 2 ? 1 : -1)
       : (r.direction >= 0 ? 1 : -1);
     const ax = r.x + r.w / 2 + dir * 8;
-    // Three throw heights, randomly chosen:
-    //   LOW    — apple at the player's feet. Jumpable.
-    //   MIDDLE — apple at chest height. Jumpable (slightly higher arc).
-    //   HIGH   — a tall vertical fire-streak that reaches above the
-    //            player's foot at jump apex (apex feet ≈ platY - 33),
-    //            so jumping CANNOT clear it. Standing is also hit
-    //            (streak reaches down to head height). Only DUCKING
-    //            clears it (streak stops above the ducked hitbox).
-    //
-    // Vertical spacing for the visible apple TOP follows the user's
-    // rule: distance from LOW to MIDDLE is the same as MIDDLE to HIGH.
-    //   LOW    apple top = platY - 7
-    //   MIDDLE apple top = platY - 19
-    //   HIGH   apple top = platY - 31  (same +12 step)
-    // Balance jumping vs ducking opportunities: HIGH (duck) ≈ 50%,
-    // LOW + MIDDLE (jump) ≈ 50% combined (25% each).
-    const roll = Math.random();
-    // SS (top sprout platform) monkeys throw only at jumpable heights — never HIGH.
-    // L3 has no ducking, so ALL L3 apples must be jumpable (low/middle) too.
-    const noHigh = isSs || !!(s as any)._isL3;
-    const heightTier: 'low' | 'middle' | 'high' = noHigh
-      ? (roll < 0.5 ? 'low' : 'middle')
-      : (roll < 0.25 ? 'low' : roll < 0.5 ? 'middle' : 'high');
-
+    // Apples are now thrown ONLY at jumpable mid height. Low and high
+    // throws (and the ducking mechanic) have been removed from the game.
+    const heightTier: 'middle' = 'middle';
     const aw = 7;
-    let ah = 7;
-    let ay: number;
-    if (heightTier === 'low') {
-      ay = (r.y + r.h) - ah - 1; // bottom on the platform
-    } else if (heightTier === 'middle') {
-      ay = (r.y + r.h) - 19; // bottom = platY - 12 (clears duck, jumpable)
-    } else {
-      // HIGH — small standard apple at the standing player's HEAD height.
-      // Standing head ≈ platY - 24. Apple sits at that level so a standing
-      // player is hit; ducking (hitbox top ≈ platY - 11) clears it.
-      ah = 7;
-      ay = (r.y + r.h) - 31; // top = platY - 31, bottom = platY - 24
-    }
+    const ah = 7;
+    const ay = (r.y + r.h) - 19; // bottom = platY - 12 (jumpable)
     // SS (sprout-section, L3) apples travel purely horizontally — no up/down arc.
     // Iter 1 baseline = 20% of normal apple speed; +10% per L3 iter from there.
     let appleVx = dir * diff.appleSpeed;
@@ -387,8 +355,7 @@ export function tickApples(
       x: ax, y: ay, w: aw, h: ah,
       vx: appleVx,
       ownerId: i,
-      ...(heightTier === 'high' ? { _high: true } : {}),
-      ...(heightTier === 'middle' ? { _mid: true } : {}),
+      _mid: true,
     } as any);
 
     alive[i] = true;
