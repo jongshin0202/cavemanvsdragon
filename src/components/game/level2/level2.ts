@@ -355,8 +355,7 @@ export function tickApples(
       x: ax, y: ay, w: aw, h: ah,
       vx: appleVx,
       ownerId: i,
-      ...(heightTier === 'high' ? { _high: true } : {}),
-      ...(heightTier === 'middle' ? { _mid: true } : {}),
+      _mid: true,
     } as any);
 
     alive[i] = true;
