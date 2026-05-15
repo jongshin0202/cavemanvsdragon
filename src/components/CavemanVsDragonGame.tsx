@@ -1190,29 +1190,22 @@ const CavemanVsDragonGame = () => {
             p.climbing = true;
             p.x = nearestLadder.x + 7 - p.w / 2;
           } else if (p.onGround && !nearestLadder && rawDown) {
-            // L2: ducking — stay ducked the entire time Down is held.
-            if (isLevel2Round(g.round) && !isLevel3Round(g.round)) {
-              (p as any).duckTimer = LEVEL2_PARAMS.DUCK_FRAMES;
-              (p as any).duckHeld = true;
-            } else {
-              // Drop down from platform edge - check if near edge of current platform
-              const curPlatIdx = findPlatformIndex(p.y + p.h, playerCX);
-              const curPlat = PLATFORMS[curPlatIdx];
-              if (curPlat) {
-                const distToLeft = playerCX - curPlat.x1;
-                const distToRight = curPlat.x2 - playerCX;
-                if (distToLeft < 20 || distToRight < 20) {
-                  p.onGround = false;
-                  p.vy = 1;
-                }
+            // Drop down from platform edge - check if near edge of current platform
+            const curPlatIdx = findPlatformIndex(p.y + p.h, playerCX);
+            const curPlat = PLATFORMS[curPlatIdx];
+            if (curPlat) {
+              const distToLeft = playerCX - curPlat.x1;
+              const distToRight = curPlat.x2 - playerCX;
+              if (distToLeft < 20 || distToRight < 20) {
+                p.onGround = false;
+                p.vy = 1;
               }
             }
           }
         }
-        if (!rawDown) {
-          (p as any).duckHeld = false;
-          if ((p as any).duckTimer > 0) (p as any).duckTimer--;
-        }
+        // Ducking removed from the entire game.
+        (p as any).duckHeld = false;
+        (p as any).duckTimer = 0;
 
         // L3: ALWAYS tick moving platforms, regardless of climbing/jumping
         //   state. Storing the per-frame dx array on `g` so the landing
