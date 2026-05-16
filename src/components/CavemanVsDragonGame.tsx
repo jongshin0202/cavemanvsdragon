@@ -549,6 +549,17 @@ const CavemanVsDragonGame = () => {
     recordLaunchAndMaybeFlush().catch(() => { /* logged in module */ });
     playLevelIntro(3, () => resetLevel());
   }, [resetLevel, playLevelIntro]);
+  // DEV/TEST: jump straight into Level 3 iteration 4 (round 12).
+  const startInLevel3Iter4Test = useCallback(() => {
+    if (!LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2) return;
+    const g = gameRef.current;
+    g.score = 0; g.lives = 3; g.round = 12;
+    setScore(0); setLives(3);
+    setGameState('playing');
+    recordRound();
+    recordLaunchAndMaybeFlush().catch(() => { /* logged in module */ });
+    playLevelIntro(3, () => resetLevel());
+  }, [resetLevel, playLevelIntro]);
   // with increased difficulty (next round) while preserving score and lives.
   const startNextLevel = useCallback(() => {
     const g = gameRef.current;
@@ -808,7 +819,8 @@ const CavemanVsDragonGame = () => {
               gameStateRef.current === 'attractGlobalLeaderboard' ||
               gameStateRef.current === 'attractControls';
             if (!stillIntro) return;
-            if (taps >= 3) startInLevel3Test();
+            if (taps >= 4) startInLevel3Iter4Test();
+            else if (taps === 3) startInLevel3Test();
             else if (taps === 2) startInLevel2Test();
             else resetGame();
           }, LEVEL2_PARAMS.DOUBLE_TAP_MAX_GAP_MS + 20);
@@ -875,7 +887,7 @@ const CavemanVsDragonGame = () => {
 
       return false;
     };
-  }, [startNextLevel, submitHighScore, resetGame, startInLevel2Test, startInLevel3Test, globalScores]);
+  }, [startNextLevel, submitHighScore, resetGame, startInLevel2Test, startInLevel3Test, startInLevel3Iter4Test, globalScores]);
 
 
   useEffect(() => {
