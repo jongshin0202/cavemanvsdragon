@@ -145,6 +145,7 @@ export function applyLevel3Layout(iter: number = 1): void {
       gapIdx: isTop ? -1 : 0,
       maxGrow,
       minGrow: isTop ? undefined : L3_MIN_VINE_GROW,
+      fullChance: isTop ? undefined : fullChance,
     };
   });
   setSproutsRuntime(runtime);

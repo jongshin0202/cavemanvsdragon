@@ -74,6 +74,8 @@ export interface SproutRuntime {
   maxGrow?: number;
   /** Optional floor for rerolled growth length. */
   minGrow?: number;
+  /** Probability (0..1) that a regrow rolls full length (1.0) instead of random. */
+  fullChance?: number;
   /** Per-cycle randomized grow duration in frames (±20% of base GROW_FRAMES).
    *  Rolled fresh each time the sprout enters the 'grow' phase, and reused
    *  by the 'wither' phase so wither speed matches grow speed. */
@@ -214,7 +216,10 @@ export function tickSprouts(): void {
           // come back the same length (L3 visual variety).
           if (s.maxGrow !== undefined && !s.isTop) {
             const minGrow = s.minGrow ?? 0.5;
-            s.maxGrow = minGrow + Math.random() * (1 - minGrow);
+            const fc = s.fullChance ?? 0;
+            s.maxGrow = (Math.random() < fc)
+              ? 1
+              : (minGrow + Math.random() * (1 - minGrow));
           }
         }
         break;
