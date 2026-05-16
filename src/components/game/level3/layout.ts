@@ -35,7 +35,7 @@ export let FLOAT_X1 = 0;
 export let FLOAT_X2 = 0;
 
 const L3_VINE_BOTTOM_Y = 324;
-const L3_MIN_VINE_GROW = 0.86;
+const L3_MIN_VINE_GROW = 0.5;
 
 export function applyLevel3Layout(iter: number = 1): void {
   backupL1LayoutOnce();
