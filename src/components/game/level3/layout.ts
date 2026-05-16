@@ -72,7 +72,7 @@ export function applyLevel3Layout(iter: number = 1): void {
   setTopGap(Math.round(topGapCX - topGapW / 2), Math.round(topGapCX + topGapW / 2));
 
   // Sprout platform drop-hole (player can fall through to the moving area)
-  SPROUT_DROP_X1 = 232; SPROUT_DROP_X2 = 280;
+  SPROUT_DROP_X1 = 214; SPROUT_DROP_X2 = 326;
 
   // Mid split — wide enough to NOT be jumpable (~112px > max jump dist ~50px)
   MID_SPLIT_X1 = 200; MID_SPLIT_X2 = 312;
