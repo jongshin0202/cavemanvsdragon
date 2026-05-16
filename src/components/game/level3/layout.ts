@@ -125,9 +125,14 @@ export function applyLevel3Layout(iter: number = 1): void {
   // ── Sprout runtime — Stage A: NO non-top sprouts are grown until the
   //   player clears the MPS monkeys. They sit dormant with a huge regrow
   //   timer that the stage FSM zeroes out when the stage advances.
+  const fullChance = Math.max(0.25, 1 - 0.1 * (iter - 1));
   const runtime: SproutRuntime[] = LADDERS.map((_l, i) => {
     const isTop = i === greenIdx || i === purpleIdx;
-    const maxGrow = isTop ? 1 : (L3_MIN_VINE_GROW + Math.random() * (1 - L3_MIN_VINE_GROW));
+    const maxGrow = isTop
+      ? 1
+      : (Math.random() < fullChance
+          ? 1
+          : (L3_MIN_VINE_GROW + Math.random() * (1 - L3_MIN_VINE_GROW)));
     return {
       ladderIdx: i,
       grown: false,
