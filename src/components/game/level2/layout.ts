@@ -215,11 +215,12 @@ export function tickSprouts(): void {
           // Reroll a fresh max length per regrow so vines don't always
           // come back the same length (L3 visual variety).
           if (s.maxGrow !== undefined && !s.isTop) {
-            const minGrow = s.minGrow ?? 0.5;
+            const minGrow = s.minGrow ?? 0.35;
+            const nonFullMax = s.nonFullMax ?? 0.65;
             const fc = s.fullChance ?? 0;
             s.maxGrow = (Math.random() < fc)
               ? 1
-              : (minGrow + Math.random() * (1 - minGrow));
+              : (minGrow + Math.random() * (nonFullMax - minGrow));
           }
         }
         break;
