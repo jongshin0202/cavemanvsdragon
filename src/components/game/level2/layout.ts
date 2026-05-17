@@ -74,6 +74,8 @@ export interface SproutRuntime {
   maxGrow?: number;
   /** Optional floor for rerolled growth length. */
   minGrow?: number;
+  /** Optional ceiling for the "non-full" rerolled growth length. */
+  nonFullMax?: number;
   /** Probability (0..1) that a regrow rolls full length (1.0) instead of random. */
   fullChance?: number;
   /** Per-cycle randomized grow duration in frames (±20% of base GROW_FRAMES).
