@@ -74,6 +74,8 @@ export interface SproutRuntime {
   maxGrow?: number;
   /** Optional floor for rerolled growth length. */
   minGrow?: number;
+  /** Optional ceiling for the "non-full" rerolled growth length. */
+  nonFullMax?: number;
   /** Probability (0..1) that a regrow rolls full length (1.0) instead of random. */
   fullChance?: number;
   /** Per-cycle randomized grow duration in frames (±20% of base GROW_FRAMES).
@@ -215,11 +217,12 @@ export function tickSprouts(): void {
           // Reroll a fresh max length per regrow so vines don't always
           // come back the same length (L3 visual variety).
           if (s.maxGrow !== undefined && !s.isTop) {
-            const minGrow = s.minGrow ?? 0.5;
+            const minGrow = s.minGrow ?? 0.35;
+            const nonFullMax = s.nonFullMax ?? 0.65;
             const fc = s.fullChance ?? 0;
             s.maxGrow = (Math.random() < fc)
               ? 1
-              : (minGrow + Math.random() * (1 - minGrow));
+              : (minGrow + Math.random() * (nonFullMax - minGrow));
           }
         }
         break;

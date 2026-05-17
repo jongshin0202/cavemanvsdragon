@@ -35,7 +35,8 @@ export let FLOAT_X1 = 0;
 export let FLOAT_X2 = 0;
 
 const L3_VINE_BOTTOM_Y = 324;
-const L3_MIN_VINE_GROW = 0.5;
+const L3_MIN_VINE_GROW = 0.35;
+const L3_NON_FULL_MAX = 0.65;
 
 export function applyLevel3Layout(iter: number = 1): void {
   backupL1LayoutOnce();
@@ -125,14 +126,15 @@ export function applyLevel3Layout(iter: number = 1): void {
   // ── Sprout runtime — Stage A: NO non-top sprouts are grown until the
   //   player clears the MPS monkeys. They sit dormant with a huge regrow
   //   timer that the stage FSM zeroes out when the stage advances.
-  const fullChance = Math.max(0.25, 1 - 0.1 * (iter - 1));
+  // iter1=1.0, iter2≈0.87, iter3≈0.73, iter4=0.6, … floor at 0.25
+  const fullChance = Math.max(0.25, 1 - (0.4 * (iter - 1)) / 3);
   const runtime: SproutRuntime[] = LADDERS.map((_l, i) => {
     const isTop = i === greenIdx || i === purpleIdx;
     const maxGrow = isTop
       ? 1
       : (Math.random() < fullChance
           ? 1
-          : (L3_MIN_VINE_GROW + Math.random() * (1 - L3_MIN_VINE_GROW)));
+          : (L3_MIN_VINE_GROW + Math.random() * (L3_NON_FULL_MAX - L3_MIN_VINE_GROW)));
     return {
       ladderIdx: i,
       grown: false,
@@ -145,6 +147,7 @@ export function applyLevel3Layout(iter: number = 1): void {
       gapIdx: isTop ? -1 : 0,
       maxGrow,
       minGrow: isTop ? undefined : L3_MIN_VINE_GROW,
+      nonFullMax: isTop ? undefined : L3_NON_FULL_MAX,
       fullChance: isTop ? undefined : fullChance,
     };
   });
