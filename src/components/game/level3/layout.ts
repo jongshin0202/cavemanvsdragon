@@ -147,6 +147,7 @@ export function applyLevel3Layout(iter: number = 1): void {
       gapIdx: isTop ? -1 : 0,
       maxGrow,
       minGrow: isTop ? undefined : L3_MIN_VINE_GROW,
+      nonFullMax: isTop ? undefined : L3_NON_FULL_MAX,
       fullChance: isTop ? undefined : fullChance,
     };
   });
