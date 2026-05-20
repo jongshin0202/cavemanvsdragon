@@ -2,9 +2,11 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   CANVAS_W, CANVAS_H, GRAVITY, JUMP_FORCE, MOVE_SPEED, BARREL_SPEED, CLIMB_SPEED, ROBOT_SPEED, getRoundDifficulty,
   PLATFORMS, LADDERS, getPlatformY, rectsOverlap, findPlatformIndex, findBestLadder, buildMonkeyDistribution,
-  isLevel2Round, isLevel3Round, getLevelIteration,
+  isLevel2Round, isLevel3Round, isLevel4Round, getLevelIteration,
   Barrel, Robot
 } from './game/constants';
+import { initLevel4, updateLevel4, renderLevel4, type L4State, type L4Sprites, type L4Input } from './game/level4/level4';
+import heartUrl from '@/assets/heart.png';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarTracked, playPrincessHelpSound, isDragonRoaringNow, unlockAudio } from './game/sounds';
 import { loadScores, qualifiesForTop, insertScore, clearLocalScores, formatDate, entryDisplayName, MAX_ENTRIES, type LeaderboardEntry } from './game/leaderboard';
 import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal, type GlobalEntry } from './game/globalLeaderboard';
