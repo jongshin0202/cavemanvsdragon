@@ -353,15 +353,14 @@ function tickHearts(s: L4State) {
     h.x += h.vx + sway * 0.5;
     h.y += h.vy;
     h.rot = Math.sin(h.age / 30) * 0.4;
-    // Land on first platform top intersected (skipping top platform).
-    for (let i = 0; i < L4_PLATFORMS.length - 1; i++) {
-      const p = L4_PLATFORMS[i];
-      if (h.x >= p.x1 && h.x <= p.x2 && h.y >= p.y - 6 && h.y <= p.y + 2) {
-        h.y = p.y - 6;
-        h.landed = true;
-        h.vy = 0;
-        break;
-      }
+    // Only land on the heart's assigned target platform — this guarantees
+    // hearts get spread across all platform levels instead of always landing
+    // on the first one they intersect (which was usually P4).
+    const tp = L4_PLATFORMS[h.targetPlatIdx];
+    if (h.x >= tp.x1 && h.x <= tp.x2 && h.y >= tp.y - 6) {
+      h.y = tp.y - 6;
+      h.landed = true;
+      h.vy = 0;
     }
     // Off-screen cleanup
     if (h.x < -20 || h.x > CANVAS_W + 20 || h.y > CANVAS_H + 20) h.landed = true;
