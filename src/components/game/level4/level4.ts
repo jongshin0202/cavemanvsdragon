@@ -1051,6 +1051,23 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     ctx.restore();
   }
 
+  // Dragon fire breath (orange/yellow puff trail)
+  for (const f of s.fireBreaths) {
+    const t = f.age / f.ttl;
+    const r = 6 + t * 8;
+    ctx.save();
+    ctx.globalAlpha = 1 - t * 0.5;
+    ctx.fillStyle = '#ff3a00';
+    ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffb300';
+    ctx.beginPath(); ctx.arc(f.x - Math.sign(f.vx) * 2, f.y, r * 0.6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff2a8';
+    ctx.beginPath(); ctx.arc(f.x - Math.sign(f.vx) * 3, f.y, r * 0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+
+
   // Hearts (falling)
   for (const h of s.hearts) {
     if (h.x < -50) continue;
