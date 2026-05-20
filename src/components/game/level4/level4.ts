@@ -50,10 +50,15 @@ interface Heart {
   age: number;
 }
 
-type DragonState = 'walk' | 'shrunk' | 'birdStun' | 'flash' | 'dying' | 'dead';
+type DragonState = 'intro' | 'walk' | 'shrunk' | 'birdStun' | 'flash' | 'dying' | 'dead';
 interface Dragon {
   x: number;
   y: number;
+  vy: number;
+  airborne: boolean;
+  platIdx: number;           // current platform index (when grounded)
+  targetPlatIdx: number;     // landing target while airborne
+  jumpCooldown: number;      // frames until allowed to jump again
   facing: number;            // -1 left, +1 right
   state: DragonState;
   scale: number;             // 1 normal, 0.5 shrunk
