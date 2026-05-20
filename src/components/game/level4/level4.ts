@@ -314,42 +314,32 @@ export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: 
 }
 
 // ── Heart spawn / leaf fall ─────────────────────────────────
-function tickHeartSpawner(s: L4State) {
+function tickHeartSpawner(_s: L4State) {
+  // Hearts are no longer thrown on a timer.
+  // Princess only throws a heart when the caveman kills a monkey
+  // (see spawnHeartFromPrincess called from the stomp handler).
+}
+function spawnHeartFromPrincess(s: L4State) {
   if (s.dragon.state === 'dead' || s.dragon.state === 'dying') return;
-  s.nextHeartTimer--;
-  if (s.nextHeartTimer <= 0) {
-    const min = LEVEL4_PARAMS.HEART_SPAWN_MIN_SEC * 60;
-    const max = LEVEL4_PARAMS.HEART_SPAWN_MAX_SEC * 60;
-    s.nextHeartTimer = Math.round(min + Math.random() * (max - min));
-    // Pick a random landing platform (P0=ground … P4=just below princess);
-    // spreading evenly so hearts don't always land on the top one.
-    const targetPlatIdx = Math.floor(Math.random() * 5); // 0..4
-    const startX = s.princessX + PRINCESS_W / 2;
-    const startY = s.princessY + 4;
-    const landingPlat = L4_PLATFORMS[targetPlatIdx];
-    const targetX = landingPlat.x1 + 20 + Math.random() * Math.max(20, landingPlat.x2 - landingPlat.x1 - 40);
-    const fallDist = Math.max(1, landingPlat.y - startY);
-    // Accurate fall time accounting for vy ramp (accel until VY_MAX, then constant).
-    const vmax = LEVEL4_PARAMS.HEART_VY_MAX;
-    const accel = LEVEL4_PARAMS.HEART_VY_ACCEL;
-    const tRamp = vmax / accel;
-    const dRamp = 0.5 * vmax * tRamp;
-    const tEst = fallDist <= dRamp
-      ? Math.sqrt(2 * fallDist / accel)
-      : tRamp + (fallDist - dRamp) / vmax;
-    const vx = (targetX - startX) / tEst;
-    s.hearts.push({
-      x: startX,
-      y: startY,
-      vx,
-      vy: 0,
-      swayPhase: Math.random() * Math.PI * 2,
-      rot: 0,
-      landed: false,
-      age: 0,
-      targetPlatIdx,
-    });
-  }
+  const targetPlatIdx = Math.floor(Math.random() * 5); // 0..4
+  const startX = s.princessX + PRINCESS_W / 2;
+  const startY = s.princessY + 4;
+  const landingPlat = L4_PLATFORMS[targetPlatIdx];
+  const targetX = landingPlat.x1 + 20 + Math.random() * Math.max(20, landingPlat.x2 - landingPlat.x1 - 40);
+  const fallDist = Math.max(1, landingPlat.y - startY);
+  const vmax = LEVEL4_PARAMS.HEART_VY_MAX;
+  const accel = LEVEL4_PARAMS.HEART_VY_ACCEL;
+  const tRamp = vmax / accel;
+  const dRamp = 0.5 * vmax * tRamp;
+  const tEst = fallDist <= dRamp
+    ? Math.sqrt(2 * fallDist / accel)
+    : tRamp + (fallDist - dRamp) / vmax;
+  const vx = (targetX - startX) / tEst;
+  s.hearts.push({
+    x: startX, y: startY, vx, vy: 0,
+    swayPhase: Math.random() * Math.PI * 2,
+    rot: 0, landed: false, age: 0, targetPlatIdx,
+  });
 }
 function tickHearts(s: L4State) {
   for (const h of s.hearts) {
