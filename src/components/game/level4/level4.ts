@@ -697,6 +697,7 @@ function tickPlayer(s: L4State, input: L4Input) {
           p.y = L4_PLATFORMS[5].y - p.h;
           p.climbing = false;
           p.onGround = true;
+          p.groundPlatIdx = 5;
           // Reached princess platform → check win
         }
       } else {
@@ -704,12 +705,14 @@ function tickPlayer(s: L4State, input: L4Input) {
           p.y = nearLadder.yTop - p.h;
           p.climbing = false;
           p.onGround = true;
+          p.groundPlatIdx = nearLadder.gapIdx + 1;
         }
       }
       if (p.y + p.h >= nearLadder.yBot + 2) {
         p.y = nearLadder.yBot - p.h;
         p.climbing = false;
         p.onGround = true;
+        p.groundPlatIdx = Math.max(0, nearLadder.gapIdx);
       }
       return;
     }
@@ -724,6 +727,7 @@ function tickPlayer(s: L4State, input: L4Input) {
     p.vy = JUMP_FORCE;
     p.onGround = false;
     p.jumping = true;
+    p.jumpStartPlatIdx = p.groundPlatIdx;
     p.jumpFrame = 0;
     p.jumpTimer = 0;
   }
@@ -735,13 +739,17 @@ function tickPlayer(s: L4State, input: L4Input) {
   p.x = Math.max(0, Math.min(CANVAS_W - p.w, p.x));
   // Platform collisions (top-only landing)
   p.onGround = false;
-  for (const plat of L4_PLATFORMS) {
+  const landingPlatIdx = p.jumping ? p.jumpStartPlatIdx : -1;
+  for (let i = 0; i < L4_PLATFORMS.length; i++) {
+    if (landingPlatIdx >= 0 && i !== landingPlatIdx) continue;
+    const plat = L4_PLATFORMS[i];
     if (p.x + p.w < plat.x1 || p.x > plat.x2) continue;
     const wasAbove = (p.y + p.h - p.vy) <= plat.y + 1;
     if (wasAbove && p.y + p.h >= plat.y && p.y + p.h <= plat.y + 12 && p.vy >= 0) {
       p.y = plat.y - p.h;
       p.vy = 0;
       p.onGround = true;
+      p.groundPlatIdx = i;
       p.jumping = false;
       break;
     }
