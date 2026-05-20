@@ -422,20 +422,24 @@ function tickDragon(s: L4State, _input: L4Input) {
   const cavemanSpeed = MOVE_SPEED;
   const normalSpeed = s.diff.dragonSpeedMul * cavemanSpeed;
 
+  // Animate dragon sprite frames.
+  d.frameTimer++;
+  if (d.frameTimer >= 8) { d.frameTimer = 0; d.frame = (d.frame + 1) % DRAGON_FRAMES; }
+
   // Shared airborne physics (for intro/walk jumps; not shrunk/stun/dying).
   if (d.airborne && (d.state === 'intro' || d.state === 'walk')) {
     d.vy += GRAVITY;
+    d.x += d.vx;
     d.y += d.vy;
-    // drift horizontally a bit toward x within bounds
     d.x = Math.max(8, Math.min(CANVAS_W - 8 - DRAGON_W * d.scale, d.x));
-    // Land on target platform when crossing downward, or any platform when moving up & overlapping
     const targetY = L4_PLATFORMS[d.targetPlatIdx].y - DRAGON_H * d.scale;
     if (d.vy >= 0 && d.y >= targetY) {
       d.y = targetY;
       d.vy = 0;
+      d.vx = 0;
       d.airborne = false;
       d.platIdx = d.targetPlatIdx;
-      d.jumpCooldown = 60 + Math.floor(Math.random() * 180);
+      d.jumpCooldown = 180 + Math.floor(Math.random() * 240);
       if (d.state === 'intro') d.state = 'walk';
     }
     return;
@@ -446,6 +450,7 @@ function tickDragon(s: L4State, _input: L4Input) {
       // Hop downward off the top platform toward P4.
       d.airborne = true;
       d.vy = -2;
+      d.vx = (p.x < d.x ? -1 : 1) * 0.6;
       d.targetPlatIdx = 4;
       break;
     }
@@ -454,9 +459,9 @@ function tickDragon(s: L4State, _input: L4Input) {
       const plat = L4_PLATFORMS[d.platIdx];
       const targetX = p.x;
       const dx = targetX - d.x;
-      const dir = dx > 2 ? 1 : dx < -2 ? -1 : d.facing;
+      const dir = dx > 8 ? 1 : dx < -8 ? -1 : d.facing;
       d.facing = dir;
-      d.x += dir * normalSpeed * 0.6;
+      d.x += dir * normalSpeed * 0.75;
       d.x = Math.max(plat.x1 + 4, Math.min(plat.x2 - DRAGON_W * d.scale - 4, d.x));
       d.y = plat.y - DRAGON_H * d.scale;
 
@@ -465,18 +470,20 @@ function tickDragon(s: L4State, _input: L4Input) {
       if (d.jumpCooldown <= 0) {
         const canUp = d.platIdx < 5;
         const canDown = d.platIdx > 1; // never jump onto ground (P0)
-        const wantTowardPlayer = Math.abs(p.x - d.x) < 40;
         const playerAbove = (p.y + p.h) < plat.y - 20;
         let target = d.platIdx;
-        if (canUp && (playerAbove || (wantTowardPlayer && Math.random() < 0.5))) target = d.platIdx + 1;
+        if (canUp && playerAbove) target = d.platIdx + 1;
         else if (canDown && Math.random() < 0.5) target = d.platIdx - 1;
-        else if (canUp) target = d.platIdx + 1;
+        else if (canUp && Math.random() < 0.5) target = d.platIdx + 1;
         if (target !== d.platIdx) {
           d.targetPlatIdx = target;
           d.airborne = true;
           d.vy = target > d.platIdx ? -7.5 : -3.5;
+          // Aim horizontally toward player so the jump actually relocates.
+          const horiz = Math.max(-1.6, Math.min(1.6, (p.x - d.x) / 60));
+          d.vx = horiz;
         } else {
-          d.jumpCooldown = 60;
+          d.jumpCooldown = 120;
         }
       }
 
