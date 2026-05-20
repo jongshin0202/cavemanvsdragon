@@ -799,6 +799,16 @@ function tickCollisions(s: L4State) {
     if (dx * dx + dy * dy < (r.r + 8) * (r.r + 8) && s.invuln <= 0) loseLife(s);
   }
 
+  // Dragon fire breath
+  for (const f of s.fireBreaths) {
+    if (s.invuln > 0) break;
+    if (p.x < f.x + 10 && p.x + p.w > f.x - 10 && p.y < f.y + 8 && p.y + p.h > f.y - 8) {
+      loseLife(s);
+      break;
+    }
+  }
+
+
   // Monkeys
   for (const m of s.monkeys) {
     if (!m.alive) continue;
