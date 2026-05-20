@@ -919,9 +919,9 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
       const fw = img.width / 5;
       ctx.save();
       if (m.facing < 0) {
-        ctx.translate(m.x + 16, m.y);
+        ctx.translate(m.x + 14, m.y);
         ctx.scale(-1, 1);
-        ctx.drawImage(img, m.walkFrame * fw, 0, fw, img.height, 0, 0, 16, 24);
+        ctx.drawImage(img, m.walkFrame * fw, 0, fw, img.height, 0, 0, 14, 16);
       } else {
         ctx.drawImage(img, m.walkFrame * fw, 0, fw, img.height, m.x, m.y, 14, 16);
       }
