@@ -328,8 +328,15 @@ function tickHeartSpawner(s: L4State) {
     const startY = s.princessY + 4;
     const landingPlat = L4_PLATFORMS[targetPlatIdx];
     const targetX = landingPlat.x1 + 20 + Math.random() * Math.max(20, landingPlat.x2 - landingPlat.x1 - 40);
-    const fallDist = landingPlat.y - startY;
-    const tEst = Math.max(40, fallDist / LEVEL4_PARAMS.HEART_VY_MAX);
+    const fallDist = Math.max(1, landingPlat.y - startY);
+    // Accurate fall time accounting for vy ramp (accel until VY_MAX, then constant).
+    const vmax = LEVEL4_PARAMS.HEART_VY_MAX;
+    const accel = LEVEL4_PARAMS.HEART_VY_ACCEL;
+    const tRamp = vmax / accel;
+    const dRamp = 0.5 * vmax * tRamp;
+    const tEst = fallDist <= dRamp
+      ? Math.sqrt(2 * fallDist / accel)
+      : tRamp + (fallDist - dRamp) / vmax;
     const vx = (targetX - startX) / tEst;
     s.hearts.push({
       x: startX,
@@ -709,9 +716,15 @@ function tickPlayer(s: L4State, input: L4Input) {
   if (input.left) { p.vx = -MOVE_SPEED; p.facing = -1; }
   else if (input.right) { p.vx = MOVE_SPEED; p.facing = 1; }
   else p.vx = 0;
-  // Jumping is disabled in Level 4 — caveman can only change platform levels
-  // by climbing sprouts, just like the other levels' progression rule.
-  p.jumping = false;
+  // Jump in place: caveman can hop while grounded, but can only CHANGE
+  // platform levels by climbing sprouts (jumps are too short to reach next platform).
+  if (input.jump && p.onGround) {
+    p.vy = JUMP_FORCE;
+    p.onGround = false;
+    p.jumping = true;
+    p.jumpFrame = 0;
+    p.jumpTimer = 0;
+  }
   // Gravity
   p.vy += GRAVITY;
   p.x += p.vx;
