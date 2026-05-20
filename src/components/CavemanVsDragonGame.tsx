@@ -964,6 +964,23 @@ const CavemanVsDragonGame = () => {
     canImg.src = wateringCanUrl;
     wateringCanRef.current = canImg;
 
+    const heartImg = new Image();
+    heartImg.src = heartUrl;
+    heartImgRef.current = heartImg;
+    l4SpritesRef.current = {
+      cavemanWalk: walkImg,
+      cavemanJump: jumpImg,
+      cavemanClimb: climbImg,
+      cavemanWin: winImg,
+      dragonFire: dragonFireImg,
+      dragonAngry: dragonAngryImg,
+      princess: princessImg,
+      heart: heartImg,
+      wateringCan: canImg,
+      robotWalk: robotImg,
+      rockWheel: rockImg,
+    };
+
     // Android gamepad keyCode → standard web key mapping.
     // 19=DPAD_UP, 20=DPAD_DOWN, 21=DPAD_LEFT, 22=DPAD_RIGHT, 96=BUTTON_A (jump), 108=BUTTON_START (R).
     const ANDROID_PAD_KEYS: Record<number, string> = {
