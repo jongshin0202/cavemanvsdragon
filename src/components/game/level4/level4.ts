@@ -886,19 +886,45 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     ctx.fillStyle = '#ff80c0'; ctx.fillRect(s.princessX, s.princessY, PRINCESS_W, PRINCESS_H);
   }
 
-  // Volcano
-  ctx.fillStyle = '#1e3a3a';
-  ctx.beginPath();
-  ctx.moveTo(s.volcanoX - 20, L4_PLATFORMS[5].y);
-  ctx.lineTo(s.volcanoX + 20, L4_PLATFORMS[5].y);
-  ctx.lineTo(s.volcanoX + 12, L4_PLATFORMS[5].y - 28);
-  ctx.lineTo(s.volcanoX - 12, L4_PLATFORMS[5].y - 28);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = '#ff5500';
-  ctx.fillRect(s.volcanoX - 8, L4_PLATFORMS[5].y - 30, 16, 4);
+  // Volcano (same style as L2/L3)
+  {
+    const baseCX = s.volcanoX;
+    const baseY = L4_PLATFORMS[5].y;
+    const baseW = 90;
+    const volH = 56;
+    const leftX = baseCX - baseW / 2;
+    const rightX = baseCX + baseW / 2;
+    const peakLX = baseCX - 18;
+    const peakRX = baseCX + 18;
+    const peakY = baseY - volH;
+    ctx.fillStyle = '#3a2418';
+    ctx.beginPath();
+    ctx.moveTo(leftX, baseY); ctx.lineTo(peakLX, peakY);
+    ctx.lineTo(peakRX, peakY); ctx.lineTo(rightX, baseY);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#5a3826';
+    ctx.beginPath();
+    ctx.moveTo(leftX + 4, baseY); ctx.lineTo(peakLX + 2, peakY + 2);
+    ctx.lineTo(peakLX + 8, peakY + 2); ctx.lineTo(leftX + 22, baseY);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#1a0a06';
+    ctx.beginPath();
+    ctx.ellipse(baseCX, peakY + 2, (peakRX - peakLX) / 2, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ff6a1a';
+    ctx.beginPath();
+    ctx.ellipse(baseCX, peakY + 2, (peakRX - peakLX) / 2 - 3, 2.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffd24a';
+    ctx.beginPath();
+    ctx.ellipse(baseCX, peakY + 2, (peakRX - peakLX) / 2 - 6, 1.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ff4a18';
+    ctx.fillRect(baseCX + 6, peakY + 4, 3, 10);
+    ctx.fillRect(baseCX + 8, peakY + 12, 2, 8);
+  }
 
-  // Dragon
+  // Dragon (uses the same dragon-angry sprite as other levels)
   const d = s.dragon;
   if (d.state !== 'dead') {
     const dw = DRAGON_W * d.scale, dh = DRAGON_H * d.scale;
@@ -908,22 +934,25 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
       ctx.fillStyle = d.flashColor === 'g' ? '#39ff14' : '#bb33ff';
       ctx.fillRect(d.x - 2, d.y - 2, dw + 4, dh + 4);
     }
-    const img = sprites.dragonFire;
-    if (img.complete) {
-      const fw = img.width / 5;
+    const img = sprites.dragonAngry && sprites.dragonAngry.complete && sprites.dragonAngry.naturalWidth > 0
+      ? sprites.dragonAngry
+      : sprites.dragonFire;
+    if (img && img.complete && img.naturalWidth > 0) {
+      const fw = img.naturalWidth / DRAGON_FRAMES;
+      const fh = img.naturalHeight;
+      const frame = d.frame % DRAGON_FRAMES;
       if (d.facing < 0) {
         ctx.translate(d.x + dw, d.y);
         ctx.scale(-1, 1);
-        ctx.drawImage(img, 0, 0, fw, img.height, 0, 0, dw, dh);
+        ctx.drawImage(img, frame * fw, 0, fw, fh, 0, 0, dw, dh);
       } else {
-        ctx.drawImage(img, 0, 0, fw, img.height, d.x, d.y, dw, dh);
+        ctx.drawImage(img, frame * fw, 0, fw, fh, d.x, d.y, dw, dh);
       }
     } else {
       ctx.fillStyle = '#c0392b';
       ctx.fillRect(d.x, d.y, dw, dh);
     }
     ctx.restore();
-    // Bird stun overlay
     if (d.state === 'birdStun') {
       ctx.save();
       ctx.translate(d.x + dw / 2, d.y - 8);
