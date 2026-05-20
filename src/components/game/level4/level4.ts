@@ -928,7 +928,7 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
       ctx.restore();
     } else {
       ctx.fillStyle = '#9b59b6';
-      ctx.fillRect(m.x, m.y, 16, 24);
+      ctx.fillRect(m.x, m.y, 14, 16);
     }
   }
 
