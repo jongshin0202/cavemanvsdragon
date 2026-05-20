@@ -462,35 +462,45 @@ function tickDragon(s: L4State, _input: L4Input) {
       break;
     }
     case 'walk': {
-      // Walk along current platform, biased toward caveman.
+      // Continuously patrol the current platform; bias direction toward
+      // caveman but never stop. Flip at platform edges.
       const plat = L4_PLATFORMS[d.platIdx];
-      const targetX = p.x;
-      const dx = targetX - d.x;
-      const dir = dx > 8 ? 1 : dx < -8 ? -1 : d.facing;
-      d.facing = dir;
-      d.x += dir * normalSpeed * 0.75;
-      d.x = Math.max(plat.x1 + 4, Math.min(plat.x2 - DRAGON_W * d.scale - 4, d.x));
+      const leftLim = plat.x1 + 4;
+      const rightLim = plat.x2 - DRAGON_W * d.scale - 4;
+      const dx = p.x - d.x;
+      // Bias: 80% toward caveman, 20% keep current direction (for variety).
+      if (Math.abs(dx) > 6 && Math.random() < 0.04) {
+        d.facing = dx > 0 ? 1 : -1;
+      }
+      d.x += d.facing * normalSpeed * 0.75;
+      // Bounce off edges so dragon keeps moving.
+      if (d.x <= leftLim) { d.x = leftLim; d.facing = 1; }
+      else if (d.x >= rightLim) { d.x = rightLim; d.facing = -1; }
       d.y = plat.y - DRAGON_H * d.scale;
 
-      // Random jump up/down to adjacent platform.
+      // Frequently jump to an adjacent platform so the dragon roams all levels.
       d.jumpCooldown--;
       if (d.jumpCooldown <= 0) {
         const canUp = d.platIdx < 5;
         const canDown = d.platIdx > 1; // never jump onto ground (P0)
         const playerAbove = (p.y + p.h) < plat.y - 20;
+        const playerBelow = p.y > plat.y + 20;
         let target = d.platIdx;
-        if (canUp && playerAbove) target = d.platIdx + 1;
-        else if (canDown && Math.random() < 0.5) target = d.platIdx - 1;
-        else if (canUp && Math.random() < 0.5) target = d.platIdx + 1;
+        const r = Math.random();
+        if (canUp && canDown) {
+          if (playerAbove) target = d.platIdx + 1;
+          else if (playerBelow) target = d.platIdx - 1;
+          else target = r < 0.5 ? d.platIdx + 1 : d.platIdx - 1;
+        } else if (canUp) target = d.platIdx + 1;
+        else if (canDown) target = d.platIdx - 1;
         if (target !== d.platIdx) {
           d.targetPlatIdx = target;
           d.airborne = true;
           d.vy = target > d.platIdx ? -7.5 : -3.5;
-          // Aim horizontally toward player so the jump actually relocates.
           const horiz = Math.max(-1.6, Math.min(1.6, (p.x - d.x) / 60));
-          d.vx = horiz;
+          d.vx = horiz || (d.facing * 0.8);
         } else {
-          d.jumpCooldown = 120;
+          d.jumpCooldown = 60;
         }
       }
 
