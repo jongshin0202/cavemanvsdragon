@@ -125,6 +125,8 @@ export interface L4State {
   purpleLadderIdx: number;
   monkeys: Monkey[];
   rocks: Rock[];
+  fireBreaths: FireBreath[];
+  nextFireTimer: number;
   nextRockTimer: number;
   volcanoX: number;
   princessX: number;
