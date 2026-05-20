@@ -446,7 +446,7 @@ function tickDragon(s: L4State, _input: L4Input) {
       d.vx = 0;
       d.airborne = false;
       d.platIdx = d.targetPlatIdx;
-      d.jumpCooldown = 180 + Math.floor(Math.random() * 240);
+      d.jumpCooldown = 90 + Math.floor(Math.random() * 120);
       if (d.state === 'intro') d.state = 'walk';
     }
     return;
