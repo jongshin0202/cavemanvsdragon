@@ -614,6 +614,32 @@ function tickRocks(s: L4State) {
   s.rocks = s.rocks.filter(r => r.age < r.ttl && r.y < CANVAS_H + 20);
 }
 
+// ── Dragon fire breath ──────────────────────────────────────
+function tickFireBreath(s: L4State) {
+  const d = s.dragon;
+  // Only the full-size, grounded dragon breathes fire.
+  if (d.state === 'walk' && !d.airborne) {
+    s.nextFireTimer--;
+    if (s.nextFireTimer <= 0) {
+      s.nextFireTimer = 120 + Math.floor(Math.random() * 120); // 2–4s
+      const mouthY = d.y + DRAGON_H * 0.45;
+      const mouthX = d.facing < 0 ? d.x + 6 : d.x + DRAGON_W - 6;
+      s.fireBreaths.push({
+        x: mouthX, y: mouthY,
+        vx: d.facing * 3.2,
+        age: 0, ttl: 70,
+      });
+    }
+  } else {
+    s.nextFireTimer = Math.max(s.nextFireTimer, 90);
+  }
+  for (const f of s.fireBreaths) {
+    f.age++;
+    f.x += f.vx;
+  }
+  s.fireBreaths = s.fireBreaths.filter(f => f.age < f.ttl && f.x > -20 && f.x < CANVAS_W + 20);
+}
+
 // ── Player ──────────────────────────────────────────────────
 function tickPlayer(s: L4State, input: L4Input) {
   const p = s.player;
