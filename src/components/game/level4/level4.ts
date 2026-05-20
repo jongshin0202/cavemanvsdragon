@@ -1048,20 +1048,26 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     let frames = 4;
     if (p.climbing) { img = sprites.cavemanClimb; frame = p.climbFrame; frames = 2; }
     else if (p.jumping) { img = sprites.cavemanJump; frame = p.jumpFrame; frames = 3; }
-    if (img.complete) {
-      const fw = img.width / frames;
+    const drawW = PLAYER_DRAW_W, drawH = PLAYER_DRAW_H;
+    const cx = p.x + p.w / 2;
+    const feetY = p.y + p.h;
+    const dx = cx - drawW / 2;
+    const dy = feetY - drawH;
+    if (img.complete && img.naturalWidth > 0) {
+      const fw = img.naturalWidth / frames;
+      const fh = img.naturalHeight;
       ctx.save();
       if (p.facing < 0) {
-        ctx.translate(p.x + p.w, p.y);
+        ctx.translate(cx, 0);
         ctx.scale(-1, 1);
-        ctx.drawImage(img, frame * fw, 0, fw, img.height, 0, 0, p.w, p.h);
+        ctx.drawImage(img, frame * fw, 0, fw, fh, -drawW / 2, dy, drawW, drawH);
       } else {
-        ctx.drawImage(img, frame * fw, 0, fw, img.height, p.x, p.y, p.w, p.h);
+        ctx.drawImage(img, frame * fw, 0, fw, fh, dx, dy, drawW, drawH);
       }
       ctx.restore();
     } else {
       ctx.fillStyle = '#deb887';
-      ctx.fillRect(p.x, p.y, p.w, p.h);
+      ctx.fillRect(dx, dy, drawW, drawH);
     }
   }
 
