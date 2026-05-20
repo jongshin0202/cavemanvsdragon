@@ -836,7 +836,8 @@ const CavemanVsDragonGame = () => {
               gameStateRef.current === 'attractGlobalLeaderboard' ||
               gameStateRef.current === 'attractControls';
             if (!stillIntro) return;
-            if (taps >= 4) startInLevel3Iter4Test();
+            if (taps >= 5) startInLevel3Iter4Test();
+            else if (taps === 4) startInLevel4Test();
             else if (taps === 3) startInLevel3Test();
             else if (taps === 2) startInLevel2Test();
             else resetGame();
