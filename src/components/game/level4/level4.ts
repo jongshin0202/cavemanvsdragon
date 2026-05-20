@@ -54,6 +54,7 @@ type DragonState = 'intro' | 'walk' | 'shrunk' | 'birdStun' | 'flash' | 'dying' 
 interface Dragon {
   x: number;
   y: number;
+  vx: number;
   vy: number;
   airborne: boolean;
   platIdx: number;           // current platform index (when grounded)
@@ -69,6 +70,8 @@ interface Dragon {
   flashTickT: number;
   stunTimer: number;
   dyingTimer: number;
+  frameTimer: number;
+  frame: number;
 }
 
 interface Monkey {
