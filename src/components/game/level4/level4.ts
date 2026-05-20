@@ -237,7 +237,7 @@ export function initLevel4(iter: number): L4State {
     monkeys,
     rocks: [],
     nextRockTimer: 60 * LEVEL4_PARAMS.FIREBALL_INTERVAL_SEC,
-    volcanoX: CANVAS_W - 60,
+    volcanoX: CANVAS_W - 95,
     princessX: 80,
     princessY: L4_PLATFORMS[5].y - PRINCESS_H,
     dragonHomeY,
