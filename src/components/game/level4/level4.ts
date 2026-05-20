@@ -328,8 +328,15 @@ function tickHeartSpawner(s: L4State) {
     const startY = s.princessY + 4;
     const landingPlat = L4_PLATFORMS[targetPlatIdx];
     const targetX = landingPlat.x1 + 20 + Math.random() * Math.max(20, landingPlat.x2 - landingPlat.x1 - 40);
-    const fallDist = landingPlat.y - startY;
-    const tEst = Math.max(40, fallDist / LEVEL4_PARAMS.HEART_VY_MAX);
+    const fallDist = Math.max(1, landingPlat.y - startY);
+    // Accurate fall time accounting for vy ramp (accel until VY_MAX, then constant).
+    const vmax = LEVEL4_PARAMS.HEART_VY_MAX;
+    const accel = LEVEL4_PARAMS.HEART_VY_ACCEL;
+    const tRamp = vmax / accel;
+    const dRamp = 0.5 * vmax * tRamp;
+    const tEst = fallDist <= dRamp
+      ? Math.sqrt(2 * fallDist / accel)
+      : tRamp + (fallDist - dRamp) / vmax;
     const vx = (targetX - startX) / tEst;
     s.hearts.push({
       x: startX,
