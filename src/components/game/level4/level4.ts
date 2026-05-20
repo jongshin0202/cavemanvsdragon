@@ -743,7 +743,7 @@ function tickCollisions(s: L4State) {
   // Monkeys
   for (const m of s.monkeys) {
     if (!m.alive) continue;
-    if (p.x < m.x + 16 && p.x + p.w > m.x && p.y < m.y + 24 && p.y + p.h > m.y) {
+    if (p.x < m.x + 14 && p.x + p.w > m.x && p.y < m.y + 16 && p.y + p.h > m.y) {
       // Stomp monkey if falling onto head
       if (p.vy > 0 && (p.y + p.h) < m.y + 12) {
         m.alive = false;
