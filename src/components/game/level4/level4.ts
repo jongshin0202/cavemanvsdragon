@@ -702,7 +702,7 @@ function tickCollisions(s: L4State) {
   // Top-platform purple plant trigger
   if (s.hasPurpleCan && !s.purpleSeedPlanted) {
     const cx = p.x + p.w / 2;
-    const topY = L4_PLATFORMS[5].y;
+    const topY = L4_PLATFORMS[4].y;
     if (Math.abs(p.y + p.h - topY) < 4) {
       const lp = s.ladders[s.purpleLadderIdx];
       if (Math.abs(cx - lp.x) < 24) {
