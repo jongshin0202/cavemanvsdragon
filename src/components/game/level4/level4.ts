@@ -208,6 +208,7 @@ export function initLevel4(iter: number): L4State {
     dragon: {
       x: CANVAS_W * 0.55,
       y: dragonHomeY,
+      vx: 0,
       vy: 0,
       airborne: true,
       platIdx: 5,
