@@ -50,10 +50,15 @@ interface Heart {
   age: number;
 }
 
-type DragonState = 'walk' | 'shrunk' | 'birdStun' | 'flash' | 'dying' | 'dead';
+type DragonState = 'intro' | 'walk' | 'shrunk' | 'birdStun' | 'flash' | 'dying' | 'dead';
 interface Dragon {
   x: number;
   y: number;
+  vy: number;
+  airborne: boolean;
+  platIdx: number;           // current platform index (when grounded)
+  targetPlatIdx: number;     // landing target while airborne
+  jumpCooldown: number;      // frames until allowed to jump again
   facing: number;            // -1 left, +1 right
   state: DragonState;
   scale: number;             // 1 normal, 0.5 shrunk
@@ -196,8 +201,13 @@ export function initLevel4(iter: number): L4State {
     dragon: {
       x: CANVAS_W * 0.55,
       y: dragonHomeY,
+      vy: 0,
+      airborne: true,
+      platIdx: 5,
+      targetPlatIdx: 4,
+      jumpCooldown: 90,
       facing: -1,
-      state: 'walk',
+      state: 'intro',
       scale: 1,
       hits: 0,
       shrinkTimer: 0,
@@ -248,7 +258,7 @@ function makeMonkey(platIdx: number): Monkey {
   return {
     alive: true,
     x: plat.x1 + 40 + Math.random() * Math.max(20, plat.x2 - plat.x1 - 80),
-    y: plat.y - 24,
+    y: plat.y - 16,
     platIdx,
     vx: (Math.random() < 0.5 ? -1 : 1) * 0.6,
     facing: 1,
@@ -391,16 +401,65 @@ function tickDragon(s: L4State, _input: L4Input) {
   const p = s.player;
   const cavemanSpeed = MOVE_SPEED;
   const normalSpeed = s.diff.dragonSpeedMul * cavemanSpeed;
+
+  // Shared airborne physics (for intro/walk jumps; not shrunk/stun/dying).
+  if (d.airborne && (d.state === 'intro' || d.state === 'walk')) {
+    d.vy += GRAVITY;
+    d.y += d.vy;
+    // drift horizontally a bit toward x within bounds
+    d.x = Math.max(8, Math.min(CANVAS_W - 8 - DRAGON_W * d.scale, d.x));
+    // Land on target platform when crossing downward, or any platform when moving up & overlapping
+    const targetY = L4_PLATFORMS[d.targetPlatIdx].y - DRAGON_H * d.scale;
+    if (d.vy >= 0 && d.y >= targetY) {
+      d.y = targetY;
+      d.vy = 0;
+      d.airborne = false;
+      d.platIdx = d.targetPlatIdx;
+      d.jumpCooldown = 60 + Math.floor(Math.random() * 180);
+      if (d.state === 'intro') d.state = 'walk';
+    }
+    return;
+  }
+
   switch (d.state) {
+    case 'intro': {
+      // Hop downward off the top platform toward P4.
+      d.airborne = true;
+      d.vy = -2;
+      d.targetPlatIdx = 4;
+      break;
+    }
     case 'walk': {
-      // Patrol the top platform, biased to caveman if caveman is on top
-      const pOnTop = Math.abs(p.y + p.h - L4_PLATFORMS[5].y) < 6;
-      const targetX = pOnTop ? p.x : (s.volcanoX - 60);
+      // Walk along current platform, biased toward caveman.
+      const plat = L4_PLATFORMS[d.platIdx];
+      const targetX = p.x;
       const dx = targetX - d.x;
       const dir = dx > 2 ? 1 : dx < -2 ? -1 : d.facing;
       d.facing = dir;
       d.x += dir * normalSpeed * 0.6;
-      d.y = L4_PLATFORMS[5].y - DRAGON_H * d.scale;
+      d.x = Math.max(plat.x1 + 4, Math.min(plat.x2 - DRAGON_W * d.scale - 4, d.x));
+      d.y = plat.y - DRAGON_H * d.scale;
+
+      // Random jump up/down to adjacent platform.
+      d.jumpCooldown--;
+      if (d.jumpCooldown <= 0) {
+        const canUp = d.platIdx < 5;
+        const canDown = d.platIdx > 1; // never jump onto ground (P0)
+        const wantTowardPlayer = Math.abs(p.x - d.x) < 40;
+        const playerAbove = (p.y + p.h) < plat.y - 20;
+        let target = d.platIdx;
+        if (canUp && (playerAbove || (wantTowardPlayer && Math.random() < 0.5))) target = d.platIdx + 1;
+        else if (canDown && Math.random() < 0.5) target = d.platIdx - 1;
+        else if (canUp) target = d.platIdx + 1;
+        if (target !== d.platIdx) {
+          d.targetPlatIdx = target;
+          d.airborne = true;
+          d.vy = target > d.platIdx ? -7.5 : -3.5;
+        } else {
+          d.jumpCooldown = 60;
+        }
+      }
+
       if (s.meterFull) {
         d.state = 'shrunk';
         d.scale = 0.5;
@@ -411,16 +470,16 @@ function tickDragon(s: L4State, _input: L4Input) {
       break;
     }
     case 'shrunk': {
-      // Run AWAY from caveman at 50% normal speed
+      // Run AWAY from caveman at 50% normal speed along current platform.
       const runSpeed = normalSpeed * 0.5;
+      const plat = L4_PLATFORMS[d.platIdx];
       const dx = p.x - d.x;
       const dir = dx > 0 ? -1 : 1;
       d.facing = dir;
       d.x += dir * runSpeed;
-      d.x = Math.max(20, Math.min(CANVAS_W - 20 - DRAGON_W * d.scale, d.x));
-      d.y = L4_PLATFORMS[5].y - DRAGON_H * d.scale;
+      d.x = Math.max(plat.x1 + 4, Math.min(plat.x2 - DRAGON_W * d.scale - 4, d.x));
+      d.y = plat.y - DRAGON_H * d.scale;
       d.shrinkTimer--;
-      // Flash window starts when remaining time ≤ FLASH_SEC*60
       if (d.shrinkTimer <= LEVEL4_PARAMS.FLASH_SEC * 60) {
         d.flashTickT++;
         if (d.flashTickT > 6) { d.flashTickT = 0; d.flashColor = d.flashColor === 'g' ? 'p' : 'g'; }
@@ -442,21 +501,18 @@ function tickDragon(s: L4State, _input: L4Input) {
           d.dyingTimer = 60;
         } else {
           d.state = 'shrunk';
-          // Continue shrink window
           if (d.shrinkTimer <= 0) d.shrinkTimer = 60;
         }
       }
       break;
     }
     case 'flash':
-      // Not used as separate state; flash is part of 'shrunk' tail.
       break;
     case 'dying': {
       d.dyingTimer--;
       d.y += 1.5;
       if (d.dyingTimer <= 0) {
         d.state = 'dead';
-        // Spawn purple watering can on a random non-top platform
         const platIdx = 1 + Math.floor(Math.random() * 4);
         const plat = L4_PLATFORMS[platIdx];
         const cx = plat.x1 + 40 + Math.random() * Math.max(20, plat.x2 - plat.x1 - 80);
@@ -478,7 +534,7 @@ function tickMonkeys(s: L4State) {
         const plat = L4_PLATFORMS[m.respawnPlatIdx];
         m.alive = true;
         m.x = plat.x1 + 40 + Math.random() * Math.max(20, plat.x2 - plat.x1 - 80);
-        m.y = plat.y - 24;
+        m.y = plat.y - 16;
         m.platIdx = m.respawnPlatIdx;
         m.vx = (Math.random() < 0.5 ? -1 : 1) * 0.6;
       }
@@ -687,7 +743,7 @@ function tickCollisions(s: L4State) {
   // Monkeys
   for (const m of s.monkeys) {
     if (!m.alive) continue;
-    if (p.x < m.x + 16 && p.x + p.w > m.x && p.y < m.y + 24 && p.y + p.h > m.y) {
+    if (p.x < m.x + 14 && p.x + p.w > m.x && p.y < m.y + 16 && p.y + p.h > m.y) {
       // Stomp monkey if falling onto head
       if (p.vy > 0 && (p.y + p.h) < m.y + 12) {
         m.alive = false;
@@ -863,16 +919,16 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
       const fw = img.width / 5;
       ctx.save();
       if (m.facing < 0) {
-        ctx.translate(m.x + 16, m.y);
+        ctx.translate(m.x + 14, m.y);
         ctx.scale(-1, 1);
-        ctx.drawImage(img, m.walkFrame * fw, 0, fw, img.height, 0, 0, 16, 24);
+        ctx.drawImage(img, m.walkFrame * fw, 0, fw, img.height, 0, 0, 14, 16);
       } else {
-        ctx.drawImage(img, m.walkFrame * fw, 0, fw, img.height, m.x, m.y, 16, 24);
+        ctx.drawImage(img, m.walkFrame * fw, 0, fw, img.height, m.x, m.y, 14, 16);
       }
       ctx.restore();
     } else {
       ctx.fillStyle = '#9b59b6';
-      ctx.fillRect(m.x, m.y, 16, 24);
+      ctx.fillRect(m.x, m.y, 14, 16);
     }
   }
 
