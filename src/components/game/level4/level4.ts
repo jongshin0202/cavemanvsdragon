@@ -446,7 +446,7 @@ function tickDragon(s: L4State, _input: L4Input) {
       d.vx = 0;
       d.airborne = false;
       d.platIdx = d.targetPlatIdx;
-      d.jumpCooldown = 180 + Math.floor(Math.random() * 240);
+      d.jumpCooldown = 90 + Math.floor(Math.random() * 120);
       if (d.state === 'intro') d.state = 'walk';
     }
     return;
@@ -462,35 +462,45 @@ function tickDragon(s: L4State, _input: L4Input) {
       break;
     }
     case 'walk': {
-      // Walk along current platform, biased toward caveman.
+      // Continuously patrol the current platform; bias direction toward
+      // caveman but never stop. Flip at platform edges.
       const plat = L4_PLATFORMS[d.platIdx];
-      const targetX = p.x;
-      const dx = targetX - d.x;
-      const dir = dx > 8 ? 1 : dx < -8 ? -1 : d.facing;
-      d.facing = dir;
-      d.x += dir * normalSpeed * 0.75;
-      d.x = Math.max(plat.x1 + 4, Math.min(plat.x2 - DRAGON_W * d.scale - 4, d.x));
+      const leftLim = plat.x1 + 4;
+      const rightLim = plat.x2 - DRAGON_W * d.scale - 4;
+      const dx = p.x - d.x;
+      // Bias: 80% toward caveman, 20% keep current direction (for variety).
+      if (Math.abs(dx) > 6 && Math.random() < 0.04) {
+        d.facing = dx > 0 ? 1 : -1;
+      }
+      d.x += d.facing * normalSpeed * 0.75;
+      // Bounce off edges so dragon keeps moving.
+      if (d.x <= leftLim) { d.x = leftLim; d.facing = 1; }
+      else if (d.x >= rightLim) { d.x = rightLim; d.facing = -1; }
       d.y = plat.y - DRAGON_H * d.scale;
 
-      // Random jump up/down to adjacent platform.
+      // Frequently jump to an adjacent platform so the dragon roams all levels.
       d.jumpCooldown--;
       if (d.jumpCooldown <= 0) {
         const canUp = d.platIdx < 5;
         const canDown = d.platIdx > 1; // never jump onto ground (P0)
         const playerAbove = (p.y + p.h) < plat.y - 20;
+        const playerBelow = p.y > plat.y + 20;
         let target = d.platIdx;
-        if (canUp && playerAbove) target = d.platIdx + 1;
-        else if (canDown && Math.random() < 0.5) target = d.platIdx - 1;
-        else if (canUp && Math.random() < 0.5) target = d.platIdx + 1;
+        const r = Math.random();
+        if (canUp && canDown) {
+          if (playerAbove) target = d.platIdx + 1;
+          else if (playerBelow) target = d.platIdx - 1;
+          else target = r < 0.5 ? d.platIdx + 1 : d.platIdx - 1;
+        } else if (canUp) target = d.platIdx + 1;
+        else if (canDown) target = d.platIdx - 1;
         if (target !== d.platIdx) {
           d.targetPlatIdx = target;
           d.airborne = true;
           d.vy = target > d.platIdx ? -7.5 : -3.5;
-          // Aim horizontally toward player so the jump actually relocates.
           const horiz = Math.max(-1.6, Math.min(1.6, (p.x - d.x) / 60));
-          d.vx = horiz;
+          d.vx = horiz || (d.facing * 0.8);
         } else {
-          d.jumpCooldown = 120;
+          d.jumpCooldown = 60;
         }
       }
 
@@ -908,21 +918,48 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     ctx.fillRect(plat.x1, plat.y, plat.x2 - plat.x1, 3);
   }
 
-  // Sprouts
+  // Sprouts — same vine art as L1/L2/L3
+  const drawVine = (lx: number, lyTop: number, lyBot: number, purple: boolean) => {
+    const stemMain = purple ? '#7B1FA2' : '#2E7D32';
+    const stemEdge = purple ? '#BA68C8' : '#4CAF50';
+    const leaf = purple ? '#CE93D8' : '#66BB6A';
+    ctx.strokeStyle = stemMain; ctx.lineWidth = 3;
+    ctx.beginPath();
+    for (let y = lyTop; y <= lyBot; y += 4) {
+      const wave = Math.sin(y * 0.4) * 1.5;
+      if (y === lyTop) ctx.moveTo(lx + wave, y); else ctx.lineTo(lx + wave, y);
+    }
+    ctx.stroke();
+    ctx.beginPath();
+    for (let y = lyTop; y <= lyBot; y += 4) {
+      const wave = Math.sin(y * 0.4 + 1) * 1.5;
+      if (y === lyTop) ctx.moveTo(lx + 14 + wave, y); else ctx.lineTo(lx + 14 + wave, y);
+    }
+    ctx.stroke();
+    ctx.strokeStyle = stemEdge; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(lx - 1, lyTop); ctx.lineTo(lx - 1, lyBot);
+    ctx.moveTo(lx + 13, lyTop); ctx.lineTo(lx + 13, lyBot);
+    ctx.stroke();
+    for (let y = lyTop + 4; y < lyBot; y += 12) {
+      ctx.strokeStyle = '#5D4037'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(lx + 1, y); ctx.lineTo(lx + 13, y);
+      ctx.stroke();
+      ctx.fillStyle = leaf;
+      ctx.fillRect(lx + 3, y - 2, 2, 2);
+      ctx.fillRect(lx + 9, y + 1, 2, 2);
+    }
+  };
   for (let i = 0; i < s.ladders.length; i++) {
     const l = s.ladders[i];
     const sp = s.sprouts[i];
     if (sp.growProgress <= 0 && !sp.isTop) continue;
     const fullLen = l.yBot - l.yTop;
-    const len = sp.isTop ? fullLen * sp.growProgress : fullLen * sp.growProgress;
+    const len = fullLen * sp.growProgress;
     const top = sp.isTop ? l.yBot - len : l.yTop;
     const bot = sp.isTop ? l.yBot : l.yTop + len;
-    ctx.fillStyle = sp.isTop ? '#9b59b6' : '#2ecc71';
-    ctx.fillRect(l.x, top, 2, bot - top);
-    ctx.fillRect(l.x + 12, top, 2, bot - top);
-    // Rungs
-    ctx.fillStyle = sp.isTop ? '#bb6cd9' : '#27ae60';
-    for (let y = top + 8; y < bot; y += 10) ctx.fillRect(l.x, y, 14, 2);
+    drawVine(l.x, top, bot, !!sp.isTop);
   }
 
   // Princess
