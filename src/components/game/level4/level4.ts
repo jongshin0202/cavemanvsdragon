@@ -320,15 +320,15 @@ function tickHeartSpawner(s: L4State) {
     const min = LEVEL4_PARAMS.HEART_SPAWN_MIN_SEC * 60;
     const max = LEVEL4_PARAMS.HEART_SPAWN_MAX_SEC * 60;
     s.nextHeartTimer = Math.round(min + Math.random() * (max - min));
-    // Aim toward a random landing X across the canvas so hearts spread out
-    // (instead of always clustering near the princess in the top-left).
+    // Pick a random landing platform (P0=ground … P4=just below princess);
+    // spreading evenly so hearts don't always land on the top one.
+    const targetPlatIdx = Math.floor(Math.random() * 5); // 0..4
     const startX = s.princessX + PRINCESS_W / 2;
     const startY = s.princessY + 4;
-    const targetX = 40 + Math.random() * (CANVAS_W - 80);
-    // Rough flight time given leaf-fall terminal velocity → estimate vx so
-    // the heart drifts toward targetX while still swaying like a leaf.
-    const fallDist = (L4_PLATFORMS[0].y - 10) - startY;
-    const tEst = Math.max(60, fallDist / LEVEL4_PARAMS.HEART_VY_MAX);
+    const landingPlat = L4_PLATFORMS[targetPlatIdx];
+    const targetX = landingPlat.x1 + 20 + Math.random() * Math.max(20, landingPlat.x2 - landingPlat.x1 - 40);
+    const fallDist = landingPlat.y - startY;
+    const tEst = Math.max(40, fallDist / LEVEL4_PARAMS.HEART_VY_MAX);
     const vx = (targetX - startX) / tEst;
     s.hearts.push({
       x: startX,
@@ -339,6 +339,7 @@ function tickHeartSpawner(s: L4State) {
       rot: 0,
       landed: false,
       age: 0,
+      targetPlatIdx,
     });
   }
 }
