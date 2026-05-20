@@ -2,9 +2,11 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   CANVAS_W, CANVAS_H, GRAVITY, JUMP_FORCE, MOVE_SPEED, BARREL_SPEED, CLIMB_SPEED, ROBOT_SPEED, getRoundDifficulty,
   PLATFORMS, LADDERS, getPlatformY, rectsOverlap, findPlatformIndex, findBestLadder, buildMonkeyDistribution,
-  isLevel2Round, isLevel3Round, getLevelIteration,
+  isLevel2Round, isLevel3Round, isLevel4Round, getLevelIteration,
   Barrel, Robot
 } from './game/constants';
+import { initLevel4, updateLevel4, renderLevel4, type L4State, type L4Sprites, type L4Input } from './game/level4/level4';
+import heartUrl from '@/assets/heart.png';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarTracked, playPrincessHelpSound, isDragonRoaringNow, unlockAudio } from './game/sounds';
 import { loadScores, qualifiesForTop, insertScore, clearLocalScores, formatDate, entryDisplayName, MAX_ENTRIES, type LeaderboardEntry } from './game/leaderboard';
 import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal, type GlobalEntry } from './game/globalLeaderboard';
@@ -386,6 +388,10 @@ const CavemanVsDragonGame = () => {
 
   // ── Level 2 state (separate file/module; never mutated by L1 code) ──
   const l2Ref = useRef<L2State>(makeEmptyL2State());
+  // ── Level 4 state (Popeye-style boss fight; fully self-contained) ──
+  const l4Ref = useRef<L4State | null>(null);
+  const l4SpritesRef = useRef<L4Sprites | null>(null);
+  const heartImgRef = useRef<HTMLImageElement | null>(null);
   // Tracks the last intro-tap time so we can detect a double-tap shortcut
   // to jump straight to Level 2 (when LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2).
   const lastIntroTapRef = useRef<number>(0);
@@ -445,6 +451,12 @@ const CavemanVsDragonGame = () => {
     g.keyBob = 0;
     g.sparkleTimer = 0;
     resetPlayer();
+    // L4: fully self-contained. Init L4 state and skip all L1/L2/L3 setup.
+    if (isLevel4Round(g.round)) {
+      l4Ref.current = initLevel4(getLevelIteration(g.round));
+      setGameState('playing');
+      return;
+    }
     // For Level 2+, initialize the L2 module's own state. We still spawn
     // an L1 rock here for the (legacy) L1 layout — the L2 module manages
     // its own hazards independently and the host's L1 barrel-spawn block
@@ -549,16 +561,27 @@ const CavemanVsDragonGame = () => {
     recordLaunchAndMaybeFlush().catch(() => { /* logged in module */ });
     playLevelIntro(3, () => resetLevel());
   }, [resetLevel, playLevelIntro]);
-  // DEV/TEST: jump straight into Level 3 iteration 4 (round 12).
+  // DEV/TEST: jump straight into Level 3 iteration 4 (round 15 under new 4-level cycle).
   const startInLevel3Iter4Test = useCallback(() => {
     if (!LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2) return;
     const g = gameRef.current;
-    g.score = 0; g.lives = 3; g.round = 12;
+    g.score = 0; g.lives = 3; g.round = 15;
     setScore(0); setLives(3);
     setGameState('playing');
     recordRound();
     recordLaunchAndMaybeFlush().catch(() => { /* logged in module */ });
     playLevelIntro(3, () => resetLevel());
+  }, [resetLevel, playLevelIntro]);
+  // DEV/TEST: jump straight into Level 4 iteration 1 (round 4 under 4-level cycle).
+  const startInLevel4Test = useCallback(() => {
+    if (!LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2) return;
+    const g = gameRef.current;
+    g.score = 0; g.lives = 3; g.round = 4;
+    setScore(0); setLives(3);
+    setGameState('playing');
+    recordRound();
+    recordLaunchAndMaybeFlush().catch(() => { /* logged in module */ });
+    playLevelIntro(4, () => resetLevel());
   }, [resetLevel, playLevelIntro]);
   // with increased difficulty (next round) while preserving score and lives.
   const startNextLevel = useCallback(() => {
@@ -819,7 +842,8 @@ const CavemanVsDragonGame = () => {
               gameStateRef.current === 'attractGlobalLeaderboard' ||
               gameStateRef.current === 'attractControls';
             if (!stillIntro) return;
-            if (taps >= 4) startInLevel3Iter4Test();
+            if (taps >= 5) startInLevel3Iter4Test();
+            else if (taps === 4) startInLevel4Test();
             else if (taps === 3) startInLevel3Test();
             else if (taps === 2) startInLevel2Test();
             else resetGame();
@@ -887,7 +911,7 @@ const CavemanVsDragonGame = () => {
 
       return false;
     };
-  }, [startNextLevel, submitHighScore, resetGame, startInLevel2Test, startInLevel3Test, startInLevel3Iter4Test, globalScores]);
+  }, [startNextLevel, submitHighScore, resetGame, startInLevel2Test, startInLevel3Test, startInLevel3Iter4Test, startInLevel4Test, globalScores]);
 
 
   useEffect(() => {
@@ -939,6 +963,23 @@ const CavemanVsDragonGame = () => {
     const canImg = new Image();
     canImg.src = wateringCanUrl;
     wateringCanRef.current = canImg;
+
+    const heartImg = new Image();
+    heartImg.src = heartUrl;
+    heartImgRef.current = heartImg;
+    l4SpritesRef.current = {
+      cavemanWalk: walkImg,
+      cavemanJump: jumpImg,
+      cavemanClimb: climbImg,
+      cavemanWin: winImg,
+      dragonFire: dragonFireImg,
+      dragonAngry: dragonAngryImg,
+      princess: princessImg,
+      heart: heartImg,
+      wateringCan: canImg,
+      robotWalk: robotImg,
+      rockWheel: rockImg,
+    };
 
     // Android gamepad keyCode → standard web key mapping.
     // 19=DPAD_UP, 20=DPAD_DOWN, 21=DPAD_LEFT, 22=DPAD_RIGHT, 96=BUTTON_A (jump), 108=BUTTON_START (R).
@@ -1001,6 +1042,44 @@ const CavemanVsDragonGame = () => {
       const g = gameRef.current;
       const keys = keysRef.current;
       const p = g.player;
+
+      // ── Level 4: fully isolated update + render path ──
+      if (isLevel4Round(g.round) && g.state === 'playing' && !levelIntroRef.current) {
+        let s4 = l4Ref.current;
+        if (!s4) {
+          s4 = initLevel4(getLevelIteration(g.round));
+          l4Ref.current = s4;
+        }
+        const padKeys = activePadKeysRef.current;
+        const input: L4Input = {
+          left: keys.has('ArrowLeft') || padKeys.includes('ArrowLeft'),
+          right: keys.has('ArrowRight') || padKeys.includes('ArrowRight'),
+          up: keys.has('ArrowUp') || padKeys.includes('ArrowUp'),
+          down: keys.has('ArrowDown') || padKeys.includes('ArrowDown'),
+          jump: keys.has(' '),
+        };
+        const result = updateLevel4(s4, input);
+        if (result.died) {
+          g.lives -= 1;
+          setLives(g.lives);
+          if (g.lives <= 0) {
+            g.state = 'gameover';
+            setGameState('gameover');
+            playGameOverSound();
+          } else {
+            l4Ref.current = initLevel4(getLevelIteration(g.round));
+          }
+        } else if (result.won && g.state === 'playing') {
+          g.state = 'continue';
+          setGameState('continue');
+          continueArmedAtRef.current = performance.now() + 1000;
+        }
+        // Render L4 onto canvas and skip the rest of the loop
+        const sprites = l4SpritesRef.current;
+        if (sprites) renderLevel4(ctx, s4, sprites);
+        return;
+      }
+
 
       const wa: any = g.winAnim || { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
       if (!g.winAnim) g.winAnim = wa;

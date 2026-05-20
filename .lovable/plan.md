@@ -1,75 +1,65 @@
-# Level 3 Redesign Plan
+# Level 4 — Dragon Boss Fight
 
-Restructures L3 into three vertically stacked zones with staged progression that mirrors L2's watering-can flow.
+A self-contained Popeye-style boss level. All code lives in `src/components/game/level4/` and never imports from level1/2/3 internals (only shared `constants.ts` for canvas size and the PLATFORMS/LADDERS arrays it mutates locally, mirroring how L2/L3 do it).
 
-## Zones (bottom → top)
-
-1. **MPS** (moving platform section) — 4 platform levels (rows), each with `MPS_PER_ROW = 2` moving platforms (configurable).
-2. **SS** (sprout section) — hanging vines (current sparse layout).
-3. **TP** (top platform) — where dragon + princess wait, plus the volcano + green seed + purple seed (same as L2).
-
-## Stage flow
+## Files to create
 
 ```
-Stage A: Clear MPS monkeys
-  - 1 monkey per pl (4 total). No sprouts grown yet.
-  - Kill all 4 → unlock Stage B.
-
-Stage B: Sprouts grow
-  - Sprouts start growing (existing rules).
-  - TP has TP_MONKEYS_BASE = 2 monkeys (+1 per L3 iteration).
-  - TP monkeys patrol TP and the top of each sprout; throw apples at MC.
-  - When MC is in SS, Jump button → Swing button. Bat swing reflects apple.
-  - Reflected apple kills monkey it hits.
-  - Kill all SS/TP monkeys → green watering can spawns on random platform.
-
-Stage C: Green can → green seed
-  - Same as L2. Grow green sprout → grey rock spits out on random platform.
-
-Stage D: Rock → volcano
-  - Same as L2. Closes volcano.
-  - Then: full monkey wave — max monkeys (per iteration) respawn in MPS and SS;
-    killed monkeys respawn in 3–5s in same zone.
-  - Random purple monkey: 1 in SS, 1 in MPS at a time.
-
-Stage E: Kill both purple monkeys
-  - Purple watering can spawns on random platform.
-  - Take to purple seed → purple sprout grows to TP.
-  - Climb up → touch princess → dragon escapes → MC follows (same as L2 ending).
+src/components/game/level4/
+  params.ts        // all tunables (per-iteration formulas)
+  layout.ts        // platforms, ladders (2 sprouts per gap), volcano, sprout runtime (reuses L2-style cycle re-implemented locally)
+  heart.ts         // princess heart spawner + leaf-fall physics
+  dragon.ts        // dragon AI: walk, shrink, flash, grow, run-away, stomp, die
+  monkeys.ts       // L4 monkey spawner with 2–5s same-level respawn
+  volcano.ts       // L4 volcano + rocks (no green can to stop it)
+  ending.ts        // princess hug → thank-you → new dragon kidnaps → return to L1 next iter
+  level4.ts        // top-level update/render orchestrator + state machine
+  types.ts
 ```
 
-## Configurable constants (new, in `level3/params.ts`)
+Plus copy `user-uploads://heart_NoBG.png` → `src/assets/heart.png` and import.
 
-- `MPS_PER_ROW = 2`
-- `TP_MONKEYS_BASE = 2`
-- `TP_MONKEY_SPEED_SCALE_PER_ITER = 0.10`
-- `APPLE_SPEED_SCALE_PER_ITER = 0.10`
-- `RESPAWN_MIN_MS = 3000`, `RESPAWN_MAX_MS = 5000`
-- `BAT_SWING_FRAMES`, `BAT_REACH_PX`
+## Per-iteration formulas (params.ts)
 
-## Technical sketch
+- `heartsToFill(iter)` = `min(5, 2 + (iter - 1))`  → 2,3,4,5,5,5…
+- `shrinkDurationSec(iter)` = `max(3, 10 * 0.9^(iter-1))`
+- Flash window = last 2 s of shrink, alternating green/purple
+- `hitsToKill(iter)` = `3` until heartsToFill == 5; afterwards `3 + (iter - iterWhenReached5)`
+- `dragonSpeedMult(iter)` = `1 * 1.1^(iter-1)` (× caveman speed)
+- Shrunk dragon runs from caveman at 50% of its normal walk speed
+- Monkeys = `2 + (iter - 1)`; respawn same row in random 2–5 s
 
-- **`level3/movingPlatforms.ts`**: replace per-row count derivation with `MPS_PER_ROW`. Drop `getL3RowCounts` usage for MPS rows.
-- **`level3/stage.ts`** (new): finite-state machine `'mps' | 'sproutsGrowing' | 'green' | 'rock' | 'wave' | 'purple' | 'climb' | 'ending'` with transition triggers.
-- **`level3/topMonkeys.ts`** (new): TP monkey AI — patrol TP, walk onto sprout tops, throw apples downward toward MC.
-- **`level3/apples.ts`** (new): apple projectile (gravity arc), collision with MC, collision with bat hitbox → reverse velocity, collision with monkey → kill.
-- **`level3/bat.ts`** (new): swing state machine, hitbox in front of MC for N frames.
-- **`CavemanVsDragonGame.tsx`**:
-  - Detect `mc.zone = 'mps' | 'ss' | 'tp'` from y.
-  - When `zone === 'ss'`, jump button label → "Swing" and triggers `bat.startSwing()` instead of jump.
-  - Hook L2 watering-can/seed/rock pipeline; reuse existing L2 helpers — only change spawn-zone selection (random moving OR static platform).
-  - Stage transitions drive monkey spawning + sprout-growth gate.
-- **Sprouts gating**: `sprouts.update()` only runs growth when `stage !== 'mps'`.
-- **Respawn timers**: per-zone queues, 3–5s random delay, capped at `maxMonkeysForIter`.
+## Heart "leaf fall"
 
-## Out of scope / reuses from L2
+Spawn from princess head; horizontal sway via sine + small random drift, slow terminal velocity, gentle rotation. Lands on first platform it intersects (or top of MC). Picking it up bumps heart meter; when full, dragon shrinks.
 
-- Watering can rendering, seed visuals, volcano close animation, princess/dragon ending — reuse L2 implementations as-is.
+## Dragon FSM
 
-## Open questions
+`walk` → (meter full) `shrunk` (runs away, MC can stomp) → on stomp `birdStun` (2 s, spinning bird overlay, still small, hit counter++, purple box count--) → `shrunk` resumes OR if shrink timer expires `flash` (2 s green/purple) → `walk`. On hit-count reaching `hitsToKill` → `dying` → purple watering can spawns on a random platform.
 
-- Should TP monkeys also walk down sprouts to attack, or only stand on TP/sprout-tops and throw? (Plan assumes: stand on TP + sprout-tops only.)
-- Bat swing cooldown? (Plan: ~20 frames swing window, ~10 frame cooldown — tunable.)
-- Purple monkey spawn timing? (Plan: random one-shot during Stage D wave; 1 in SS + 1 in MPS simultaneously.)
+## Sprouts & volcano
 
-Confirm and I'll implement in this order: params + stage FSM → MPS count change → TP monkeys + apples → bat swing + zone-aware jump button → green/rock/purple progression → respawn waves.
+Local re-impl of the L2 wither/regrow cycle (copy the algorithm, not the import) with same numeric params. Two sprouts per gap, random L/R within gap, with same gap-non-empty guarantee. Purple top sprout = win path. Volcano rocks behave like L2 (no green can exists).
+
+## Ending
+
+On purple sprout climb + reaching princess: play hug sprite, "Thank you!" speech bubble (2 s), spawn a new dragon that grabs her and flies offscreen, then transition to L1 with `iter += 1`.
+
+## Wiring into `CavemanVsDragonGame.tsx`
+
+- Add round mapping for L4 (round 16+ based on L3 = round 12–15, 4 iters per level).
+- Add `startInLevel4Test` callback (sets round to L4 iter 1).
+- Tap shortcut: 4 taps → already used for L3 iter 4. Bump: **4 taps on attract/main → L4 iter 1** (per user request). Move the L3-iter4 shortcut to 5 taps to keep it.
+- Render delegates to `level4.ts` when current level === 4.
+- Ensure no L4 code is imported by L1/L2/L3 paths.
+
+## Assets
+
+- `src/assets/heart.png` (from upload)
+- Spinning bird = simple emoji/CSS or small inline SVG stars-circle (no new asset needed unless requested).
+
+## Out of scope (will ask if needed)
+
+- Sprite art for dragon shrinking, hug animation, kidnapping cinematic — using existing dragon/princess sprites scaled + simple tween unless you want custom art.
+
+Confirm and I'll build it in this order: params + layout + heart → dragon FSM + stomp/bird → monkeys + volcano + sprouts → ending + L1 handoff → tap-shortcut + round mapping.
