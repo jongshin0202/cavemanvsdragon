@@ -224,6 +224,8 @@ export function initLevel4(iter: number): L4State {
       flashTickT: 0,
       stunTimer: 0,
       dyingTimer: 0,
+      frameTimer: 0,
+      frame: 0,
     },
     hearts: [],
     nextHeartTimer: 60,
