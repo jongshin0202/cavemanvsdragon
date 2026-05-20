@@ -54,6 +54,7 @@ type DragonState = 'intro' | 'walk' | 'shrunk' | 'birdStun' | 'flash' | 'dying' 
 interface Dragon {
   x: number;
   y: number;
+  vx: number;
   vy: number;
   airborne: boolean;
   platIdx: number;           // current platform index (when grounded)
@@ -69,6 +70,8 @@ interface Dragon {
   flashTickT: number;
   stunTimer: number;
   dyingTimer: number;
+  frameTimer: number;
+  frame: number;
 }
 
 interface Monkey {
@@ -148,8 +151,12 @@ export interface L4Sprites {
   rockWheel: HTMLImageElement;
 }
 
-const DRAGON_W = 40, DRAGON_H = 56;
-const PRINCESS_W = 30, PRINCESS_H = 44;
+const DRAGON_W = 64, DRAGON_H = 64;
+const PRINCESS_W = 40, PRINCESS_H = 48;
+const PLAYER_DRAW_W = 42, PLAYER_DRAW_H = 48;
+const MONKEY_DRAW_W = 33, MONKEY_DRAW_H = 33;
+const DRAGON_FRAMES = 5;
+const ROBOT_FRAMES = 5;
 
 // ── Init ─────────────────────────────────────────────────────
 export function initLevel4(iter: number): L4State {
@@ -201,6 +208,7 @@ export function initLevel4(iter: number): L4State {
     dragon: {
       x: CANVAS_W * 0.55,
       y: dragonHomeY,
+      vx: 0,
       vy: 0,
       airborne: true,
       platIdx: 5,
@@ -216,6 +224,8 @@ export function initLevel4(iter: number): L4State {
       flashTickT: 0,
       stunTimer: 0,
       dyingTimer: 0,
+      frameTimer: 0,
+      frame: 0,
     },
     hearts: [],
     nextHeartTimer: 60,
@@ -227,7 +237,7 @@ export function initLevel4(iter: number): L4State {
     monkeys,
     rocks: [],
     nextRockTimer: 60 * LEVEL4_PARAMS.FIREBALL_INTERVAL_SEC,
-    volcanoX: CANVAS_W - 60,
+    volcanoX: CANVAS_W - 95,
     princessX: 80,
     princessY: L4_PLATFORMS[5].y - PRINCESS_H,
     dragonHomeY,
@@ -301,10 +311,20 @@ function tickHeartSpawner(s: L4State) {
     const min = LEVEL4_PARAMS.HEART_SPAWN_MIN_SEC * 60;
     const max = LEVEL4_PARAMS.HEART_SPAWN_MAX_SEC * 60;
     s.nextHeartTimer = Math.round(min + Math.random() * (max - min));
+    // Aim toward a random landing X across the canvas so hearts spread out
+    // (instead of always clustering near the princess in the top-left).
+    const startX = s.princessX + PRINCESS_W / 2;
+    const startY = s.princessY + 4;
+    const targetX = 40 + Math.random() * (CANVAS_W - 80);
+    // Rough flight time given leaf-fall terminal velocity → estimate vx so
+    // the heart drifts toward targetX while still swaying like a leaf.
+    const fallDist = (L4_PLATFORMS[0].y - 10) - startY;
+    const tEst = Math.max(60, fallDist / LEVEL4_PARAMS.HEART_VY_MAX);
+    const vx = (targetX - startX) / tEst;
     s.hearts.push({
-      x: s.princessX + PRINCESS_W / 2,
-      y: s.princessY,
-      vx: (Math.random() - 0.5) * 0.3,
+      x: startX,
+      y: startY,
+      vx,
       vy: 0,
       swayPhase: Math.random() * Math.PI * 2,
       rot: 0,
@@ -402,20 +422,24 @@ function tickDragon(s: L4State, _input: L4Input) {
   const cavemanSpeed = MOVE_SPEED;
   const normalSpeed = s.diff.dragonSpeedMul * cavemanSpeed;
 
+  // Animate dragon sprite frames.
+  d.frameTimer++;
+  if (d.frameTimer >= 8) { d.frameTimer = 0; d.frame = (d.frame + 1) % DRAGON_FRAMES; }
+
   // Shared airborne physics (for intro/walk jumps; not shrunk/stun/dying).
   if (d.airborne && (d.state === 'intro' || d.state === 'walk')) {
     d.vy += GRAVITY;
+    d.x += d.vx;
     d.y += d.vy;
-    // drift horizontally a bit toward x within bounds
     d.x = Math.max(8, Math.min(CANVAS_W - 8 - DRAGON_W * d.scale, d.x));
-    // Land on target platform when crossing downward, or any platform when moving up & overlapping
     const targetY = L4_PLATFORMS[d.targetPlatIdx].y - DRAGON_H * d.scale;
     if (d.vy >= 0 && d.y >= targetY) {
       d.y = targetY;
       d.vy = 0;
+      d.vx = 0;
       d.airborne = false;
       d.platIdx = d.targetPlatIdx;
-      d.jumpCooldown = 60 + Math.floor(Math.random() * 180);
+      d.jumpCooldown = 180 + Math.floor(Math.random() * 240);
       if (d.state === 'intro') d.state = 'walk';
     }
     return;
@@ -426,6 +450,7 @@ function tickDragon(s: L4State, _input: L4Input) {
       // Hop downward off the top platform toward P4.
       d.airborne = true;
       d.vy = -2;
+      d.vx = (p.x < d.x ? -1 : 1) * 0.6;
       d.targetPlatIdx = 4;
       break;
     }
@@ -434,9 +459,9 @@ function tickDragon(s: L4State, _input: L4Input) {
       const plat = L4_PLATFORMS[d.platIdx];
       const targetX = p.x;
       const dx = targetX - d.x;
-      const dir = dx > 2 ? 1 : dx < -2 ? -1 : d.facing;
+      const dir = dx > 8 ? 1 : dx < -8 ? -1 : d.facing;
       d.facing = dir;
-      d.x += dir * normalSpeed * 0.6;
+      d.x += dir * normalSpeed * 0.75;
       d.x = Math.max(plat.x1 + 4, Math.min(plat.x2 - DRAGON_W * d.scale - 4, d.x));
       d.y = plat.y - DRAGON_H * d.scale;
 
@@ -445,18 +470,20 @@ function tickDragon(s: L4State, _input: L4Input) {
       if (d.jumpCooldown <= 0) {
         const canUp = d.platIdx < 5;
         const canDown = d.platIdx > 1; // never jump onto ground (P0)
-        const wantTowardPlayer = Math.abs(p.x - d.x) < 40;
         const playerAbove = (p.y + p.h) < plat.y - 20;
         let target = d.platIdx;
-        if (canUp && (playerAbove || (wantTowardPlayer && Math.random() < 0.5))) target = d.platIdx + 1;
+        if (canUp && playerAbove) target = d.platIdx + 1;
         else if (canDown && Math.random() < 0.5) target = d.platIdx - 1;
-        else if (canUp) target = d.platIdx + 1;
+        else if (canUp && Math.random() < 0.5) target = d.platIdx + 1;
         if (target !== d.platIdx) {
           d.targetPlatIdx = target;
           d.airborne = true;
           d.vy = target > d.platIdx ? -7.5 : -3.5;
+          // Aim horizontally toward player so the jump actually relocates.
+          const horiz = Math.max(-1.6, Math.min(1.6, (p.x - d.x) / 60));
+          d.vx = horiz;
         } else {
-          d.jumpCooldown = 60;
+          d.jumpCooldown = 120;
         }
       }
 
@@ -859,19 +886,45 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     ctx.fillStyle = '#ff80c0'; ctx.fillRect(s.princessX, s.princessY, PRINCESS_W, PRINCESS_H);
   }
 
-  // Volcano
-  ctx.fillStyle = '#1e3a3a';
-  ctx.beginPath();
-  ctx.moveTo(s.volcanoX - 20, L4_PLATFORMS[5].y);
-  ctx.lineTo(s.volcanoX + 20, L4_PLATFORMS[5].y);
-  ctx.lineTo(s.volcanoX + 12, L4_PLATFORMS[5].y - 28);
-  ctx.lineTo(s.volcanoX - 12, L4_PLATFORMS[5].y - 28);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = '#ff5500';
-  ctx.fillRect(s.volcanoX - 8, L4_PLATFORMS[5].y - 30, 16, 4);
+  // Volcano (same style as L2/L3)
+  {
+    const baseCX = s.volcanoX;
+    const baseY = L4_PLATFORMS[5].y;
+    const baseW = 90;
+    const volH = 56;
+    const leftX = baseCX - baseW / 2;
+    const rightX = baseCX + baseW / 2;
+    const peakLX = baseCX - 18;
+    const peakRX = baseCX + 18;
+    const peakY = baseY - volH;
+    ctx.fillStyle = '#3a2418';
+    ctx.beginPath();
+    ctx.moveTo(leftX, baseY); ctx.lineTo(peakLX, peakY);
+    ctx.lineTo(peakRX, peakY); ctx.lineTo(rightX, baseY);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#5a3826';
+    ctx.beginPath();
+    ctx.moveTo(leftX + 4, baseY); ctx.lineTo(peakLX + 2, peakY + 2);
+    ctx.lineTo(peakLX + 8, peakY + 2); ctx.lineTo(leftX + 22, baseY);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#1a0a06';
+    ctx.beginPath();
+    ctx.ellipse(baseCX, peakY + 2, (peakRX - peakLX) / 2, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ff6a1a';
+    ctx.beginPath();
+    ctx.ellipse(baseCX, peakY + 2, (peakRX - peakLX) / 2 - 3, 2.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffd24a';
+    ctx.beginPath();
+    ctx.ellipse(baseCX, peakY + 2, (peakRX - peakLX) / 2 - 6, 1.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ff4a18';
+    ctx.fillRect(baseCX + 6, peakY + 4, 3, 10);
+    ctx.fillRect(baseCX + 8, peakY + 12, 2, 8);
+  }
 
-  // Dragon
+  // Dragon (uses the same dragon-angry sprite as other levels)
   const d = s.dragon;
   if (d.state !== 'dead') {
     const dw = DRAGON_W * d.scale, dh = DRAGON_H * d.scale;
@@ -881,22 +934,25 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
       ctx.fillStyle = d.flashColor === 'g' ? '#39ff14' : '#bb33ff';
       ctx.fillRect(d.x - 2, d.y - 2, dw + 4, dh + 4);
     }
-    const img = sprites.dragonFire;
-    if (img.complete) {
-      const fw = img.width / 5;
+    const img = sprites.dragonAngry && sprites.dragonAngry.complete && sprites.dragonAngry.naturalWidth > 0
+      ? sprites.dragonAngry
+      : sprites.dragonFire;
+    if (img && img.complete && img.naturalWidth > 0) {
+      const fw = img.naturalWidth / DRAGON_FRAMES;
+      const fh = img.naturalHeight;
+      const frame = d.frame % DRAGON_FRAMES;
       if (d.facing < 0) {
         ctx.translate(d.x + dw, d.y);
         ctx.scale(-1, 1);
-        ctx.drawImage(img, 0, 0, fw, img.height, 0, 0, dw, dh);
+        ctx.drawImage(img, frame * fw, 0, fw, fh, 0, 0, dw, dh);
       } else {
-        ctx.drawImage(img, 0, 0, fw, img.height, d.x, d.y, dw, dh);
+        ctx.drawImage(img, frame * fw, 0, fw, fh, d.x, d.y, dw, dh);
       }
     } else {
       ctx.fillStyle = '#c0392b';
       ctx.fillRect(d.x, d.y, dw, dh);
     }
     ctx.restore();
-    // Bird stun overlay
     if (d.state === 'birdStun') {
       ctx.save();
       ctx.translate(d.x + dw / 2, d.y - 8);
@@ -911,24 +967,31 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     }
   }
 
-  // Monkeys
+  // Monkeys (drawn at the same display size as the other levels)
   for (const m of s.monkeys) {
     if (!m.alive) continue;
     const img = sprites.robotWalk;
-    if (img.complete) {
-      const fw = img.width / 5;
+    const drawW = MONKEY_DRAW_W, drawH = MONKEY_DRAW_H;
+    // Center horizontally on the hitbox, anchor feet to the platform.
+    const cx = m.x + 7;          // hitbox is 14 wide
+    const feetY = m.y + 16;      // hitbox is 16 tall
+    const dx = cx - drawW / 2;
+    const dy = feetY - drawH;
+    if (img.complete && img.naturalWidth > 0) {
+      const fw = img.naturalWidth / ROBOT_FRAMES;
+      const fh = img.naturalHeight;
       ctx.save();
       if (m.facing < 0) {
-        ctx.translate(m.x + 14, m.y);
+        ctx.translate(cx, 0);
         ctx.scale(-1, 1);
-        ctx.drawImage(img, m.walkFrame * fw, 0, fw, img.height, 0, 0, 14, 16);
+        ctx.drawImage(img, m.walkFrame * fw, 0, fw, fh, -drawW / 2, dy, drawW, drawH);
       } else {
-        ctx.drawImage(img, m.walkFrame * fw, 0, fw, img.height, m.x, m.y, 14, 16);
+        ctx.drawImage(img, m.walkFrame * fw, 0, fw, fh, dx, dy, drawW, drawH);
       }
       ctx.restore();
     } else {
       ctx.fillStyle = '#9b59b6';
-      ctx.fillRect(m.x, m.y, 14, 16);
+      ctx.fillRect(dx, dy, drawW, drawH);
     }
   }
 
@@ -985,20 +1048,26 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     let frames = 4;
     if (p.climbing) { img = sprites.cavemanClimb; frame = p.climbFrame; frames = 2; }
     else if (p.jumping) { img = sprites.cavemanJump; frame = p.jumpFrame; frames = 3; }
-    if (img.complete) {
-      const fw = img.width / frames;
+    const drawW = PLAYER_DRAW_W, drawH = PLAYER_DRAW_H;
+    const cx = p.x + p.w / 2;
+    const feetY = p.y + p.h;
+    const dx = cx - drawW / 2;
+    const dy = feetY - drawH;
+    if (img.complete && img.naturalWidth > 0) {
+      const fw = img.naturalWidth / frames;
+      const fh = img.naturalHeight;
       ctx.save();
       if (p.facing < 0) {
-        ctx.translate(p.x + p.w, p.y);
+        ctx.translate(cx, 0);
         ctx.scale(-1, 1);
-        ctx.drawImage(img, frame * fw, 0, fw, img.height, 0, 0, p.w, p.h);
+        ctx.drawImage(img, frame * fw, 0, fw, fh, -drawW / 2, dy, drawW, drawH);
       } else {
-        ctx.drawImage(img, frame * fw, 0, fw, img.height, p.x, p.y, p.w, p.h);
+        ctx.drawImage(img, frame * fw, 0, fw, fh, dx, dy, drawW, drawH);
       }
       ctx.restore();
     } else {
       ctx.fillStyle = '#deb887';
-      ctx.fillRect(p.x, p.y, p.w, p.h);
+      ctx.fillRect(dx, dy, drawW, drawH);
     }
   }
 
