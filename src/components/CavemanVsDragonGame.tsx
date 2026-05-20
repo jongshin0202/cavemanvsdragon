@@ -451,6 +451,12 @@ const CavemanVsDragonGame = () => {
     g.keyBob = 0;
     g.sparkleTimer = 0;
     resetPlayer();
+    // L4: fully self-contained. Init L4 state and skip all L1/L2/L3 setup.
+    if (isLevel4Round(g.round)) {
+      l4Ref.current = initLevel4(getLevelIteration(g.round));
+      setGameState('playing');
+      return;
+    }
     // For Level 2+, initialize the L2 module's own state. We still spawn
     // an L1 rock here for the (legacy) L1 layout — the L2 module manages
     // its own hazards independently and the host's L1 barrel-spawn block
