@@ -10,7 +10,7 @@ import { LEVEL4_PARAMS, getLevel4Difficulty, type Level4Difficulty } from './par
 
 const GRAVITY = 0.38;
 const MOVE_SPEED = 1.9;
-const JUMP_FORCE = -8;
+const JUMP_FORCE = -5.2;
 const CLIMB_SPEED = 1.5;
 
 // ── Layout ───────────────────────────────────────────────────
@@ -96,6 +96,8 @@ interface Player {
   x: number; y: number; w: number; h: number;
   vx: number; vy: number;
   onGround: boolean;
+  groundPlatIdx: number;
+  jumpStartPlatIdx: number;
   climbing: boolean;
   facing: number;
   jumping: boolean;
@@ -209,7 +211,7 @@ export function initLevel4(iter: number): L4State {
     diff,
     player: {
       x: 60, y: L4_PLATFORMS[0].y - 24, w: 16, h: 24,
-      vx: 0, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false,
+      vx: 0, vy: 0, onGround: false, groundPlatIdx: 0, jumpStartPlatIdx: 0, climbing: false, facing: 1, jumping: false,
       walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0,
     },
     dragon: {
