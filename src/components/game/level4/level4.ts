@@ -258,7 +258,7 @@ function makeMonkey(platIdx: number): Monkey {
   return {
     alive: true,
     x: plat.x1 + 40 + Math.random() * Math.max(20, plat.x2 - plat.x1 - 80),
-    y: plat.y - 24,
+    y: plat.y - 16,
     platIdx,
     vx: (Math.random() < 0.5 ? -1 : 1) * 0.6,
     facing: 1,
