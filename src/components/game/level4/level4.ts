@@ -534,7 +534,7 @@ function tickMonkeys(s: L4State) {
         const plat = L4_PLATFORMS[m.respawnPlatIdx];
         m.alive = true;
         m.x = plat.x1 + 40 + Math.random() * Math.max(20, plat.x2 - plat.x1 - 80);
-        m.y = plat.y - 24;
+        m.y = plat.y - 16;
         m.platIdx = m.respawnPlatIdx;
         m.vx = (Math.random() < 0.5 ? -1 : 1) * 0.6;
       }
