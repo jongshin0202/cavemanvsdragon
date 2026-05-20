@@ -48,6 +48,11 @@ interface Heart {
   rot: number;
   landed: boolean;
   age: number;
+  targetPlatIdx: number; // which platform this heart should land on
+}
+
+interface FireBreath {
+  x: number; y: number; vx: number; age: number; ttl: number;
 }
 
 type DragonState = 'intro' | 'walk' | 'shrunk' | 'birdStun' | 'flash' | 'dying' | 'dead';
@@ -120,6 +125,8 @@ export interface L4State {
   purpleLadderIdx: number;
   monkeys: Monkey[];
   rocks: Rock[];
+  fireBreaths: FireBreath[];
+  nextFireTimer: number;
   nextRockTimer: number;
   volcanoX: number;
   princessX: number;
@@ -236,6 +243,8 @@ export function initLevel4(iter: number): L4State {
     purpleLadderIdx,
     monkeys,
     rocks: [],
+    fireBreaths: [],
+    nextFireTimer: 180,
     nextRockTimer: 60 * LEVEL4_PARAMS.FIREBALL_INTERVAL_SEC,
     volcanoX: CANVAS_W - 95,
     princessX: 80,
@@ -296,6 +305,7 @@ export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: 
   tickDragon(s, input);
   tickMonkeys(s);
   tickRocks(s);
+  tickFireBreath(s);
   tickPlayer(s, input);
   tickPurpleCan(s);
   tickCollisions(s);
@@ -311,15 +321,15 @@ function tickHeartSpawner(s: L4State) {
     const min = LEVEL4_PARAMS.HEART_SPAWN_MIN_SEC * 60;
     const max = LEVEL4_PARAMS.HEART_SPAWN_MAX_SEC * 60;
     s.nextHeartTimer = Math.round(min + Math.random() * (max - min));
-    // Aim toward a random landing X across the canvas so hearts spread out
-    // (instead of always clustering near the princess in the top-left).
+    // Pick a random landing platform (P0=ground … P4=just below princess);
+    // spreading evenly so hearts don't always land on the top one.
+    const targetPlatIdx = Math.floor(Math.random() * 5); // 0..4
     const startX = s.princessX + PRINCESS_W / 2;
     const startY = s.princessY + 4;
-    const targetX = 40 + Math.random() * (CANVAS_W - 80);
-    // Rough flight time given leaf-fall terminal velocity → estimate vx so
-    // the heart drifts toward targetX while still swaying like a leaf.
-    const fallDist = (L4_PLATFORMS[0].y - 10) - startY;
-    const tEst = Math.max(60, fallDist / LEVEL4_PARAMS.HEART_VY_MAX);
+    const landingPlat = L4_PLATFORMS[targetPlatIdx];
+    const targetX = landingPlat.x1 + 20 + Math.random() * Math.max(20, landingPlat.x2 - landingPlat.x1 - 40);
+    const fallDist = landingPlat.y - startY;
+    const tEst = Math.max(40, fallDist / LEVEL4_PARAMS.HEART_VY_MAX);
     const vx = (targetX - startX) / tEst;
     s.hearts.push({
       x: startX,
@@ -330,6 +340,7 @@ function tickHeartSpawner(s: L4State) {
       rot: 0,
       landed: false,
       age: 0,
+      targetPlatIdx,
     });
   }
 }
@@ -343,15 +354,14 @@ function tickHearts(s: L4State) {
     h.x += h.vx + sway * 0.5;
     h.y += h.vy;
     h.rot = Math.sin(h.age / 30) * 0.4;
-    // Land on first platform top intersected (skipping top platform).
-    for (let i = 0; i < L4_PLATFORMS.length - 1; i++) {
-      const p = L4_PLATFORMS[i];
-      if (h.x >= p.x1 && h.x <= p.x2 && h.y >= p.y - 6 && h.y <= p.y + 2) {
-        h.y = p.y - 6;
-        h.landed = true;
-        h.vy = 0;
-        break;
-      }
+    // Only land on the heart's assigned target platform — this guarantees
+    // hearts get spread across all platform levels instead of always landing
+    // on the first one they intersect (which was usually P4).
+    const tp = L4_PLATFORMS[h.targetPlatIdx];
+    if (h.x >= tp.x1 && h.x <= tp.x2 && h.y >= tp.y - 6) {
+      h.y = tp.y - 6;
+      h.landed = true;
+      h.vy = 0;
     }
     // Off-screen cleanup
     if (h.x < -20 || h.x > CANVAS_W + 20 || h.y > CANVAS_H + 20) h.landed = true;
@@ -604,6 +614,32 @@ function tickRocks(s: L4State) {
   s.rocks = s.rocks.filter(r => r.age < r.ttl && r.y < CANVAS_H + 20);
 }
 
+// ── Dragon fire breath ──────────────────────────────────────
+function tickFireBreath(s: L4State) {
+  const d = s.dragon;
+  // Only the full-size, grounded dragon breathes fire.
+  if (d.state === 'walk' && !d.airborne) {
+    s.nextFireTimer--;
+    if (s.nextFireTimer <= 0) {
+      s.nextFireTimer = 120 + Math.floor(Math.random() * 120); // 2–4s
+      const mouthY = d.y + DRAGON_H * 0.45;
+      const mouthX = d.facing < 0 ? d.x + 6 : d.x + DRAGON_W - 6;
+      s.fireBreaths.push({
+        x: mouthX, y: mouthY,
+        vx: d.facing * 3.2,
+        age: 0, ttl: 70,
+      });
+    }
+  } else {
+    s.nextFireTimer = Math.max(s.nextFireTimer, 90);
+  }
+  for (const f of s.fireBreaths) {
+    f.age++;
+    f.x += f.vx;
+  }
+  s.fireBreaths = s.fireBreaths.filter(f => f.age < f.ttl && f.x > -20 && f.x < CANVAS_W + 20);
+}
+
 // ── Player ──────────────────────────────────────────────────
 function tickPlayer(s: L4State, input: L4Input) {
   const p = s.player;
@@ -673,13 +709,9 @@ function tickPlayer(s: L4State, input: L4Input) {
   if (input.left) { p.vx = -MOVE_SPEED; p.facing = -1; }
   else if (input.right) { p.vx = MOVE_SPEED; p.facing = 1; }
   else p.vx = 0;
-  // Jump
-  if (input.jump && p.onGround) {
-    p.vy = JUMP_FORCE;
-    p.onGround = false;
-    p.jumping = true;
-    p.jumpFrame = 0; p.jumpTimer = 0;
-  }
+  // Jumping is disabled in Level 4 — caveman can only change platform levels
+  // by climbing sprouts, just like the other levels' progression rule.
+  p.jumping = false;
   // Gravity
   p.vy += GRAVITY;
   p.x += p.vx;
@@ -766,6 +798,16 @@ function tickCollisions(s: L4State) {
     const dy = (p.y + p.h / 2) - r.y;
     if (dx * dx + dy * dy < (r.r + 8) * (r.r + 8) && s.invuln <= 0) loseLife(s);
   }
+
+  // Dragon fire breath
+  for (const f of s.fireBreaths) {
+    if (s.invuln > 0) break;
+    if (p.x < f.x + 10 && p.x + p.w > f.x - 10 && p.y < f.y + 8 && p.y + p.h > f.y - 8) {
+      loseLife(s);
+      break;
+    }
+  }
+
 
   // Monkeys
   for (const m of s.monkeys) {
@@ -1008,6 +1050,23 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     }
     ctx.restore();
   }
+
+  // Dragon fire breath (orange/yellow puff trail)
+  for (const f of s.fireBreaths) {
+    const t = f.age / f.ttl;
+    const r = 6 + t * 8;
+    ctx.save();
+    ctx.globalAlpha = 1 - t * 0.5;
+    ctx.fillStyle = '#ff3a00';
+    ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffb300';
+    ctx.beginPath(); ctx.arc(f.x - Math.sign(f.vx) * 2, f.y, r * 0.6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff2a8';
+    ctx.beginPath(); ctx.arc(f.x - Math.sign(f.vx) * 3, f.y, r * 0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+
 
   // Hearts (falling)
   for (const h of s.hearts) {
