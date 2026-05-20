@@ -48,6 +48,11 @@ interface Heart {
   rot: number;
   landed: boolean;
   age: number;
+  targetPlatIdx: number; // which platform this heart should land on
+}
+
+interface FireBreath {
+  x: number; y: number; vx: number; age: number; ttl: number;
 }
 
 type DragonState = 'intro' | 'walk' | 'shrunk' | 'birdStun' | 'flash' | 'dying' | 'dead';
