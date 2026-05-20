@@ -148,8 +148,12 @@ export interface L4Sprites {
   rockWheel: HTMLImageElement;
 }
 
-const DRAGON_W = 40, DRAGON_H = 56;
-const PRINCESS_W = 30, PRINCESS_H = 44;
+const DRAGON_W = 64, DRAGON_H = 64;
+const PRINCESS_W = 40, PRINCESS_H = 48;
+const PLAYER_DRAW_W = 42, PLAYER_DRAW_H = 48;
+const MONKEY_DRAW_W = 33, MONKEY_DRAW_H = 33;
+const DRAGON_FRAMES = 5;
+const ROBOT_FRAMES = 5;
 
 // ── Init ─────────────────────────────────────────────────────
 export function initLevel4(iter: number): L4State {
