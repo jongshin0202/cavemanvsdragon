@@ -709,9 +709,15 @@ function tickPlayer(s: L4State, input: L4Input) {
   if (input.left) { p.vx = -MOVE_SPEED; p.facing = -1; }
   else if (input.right) { p.vx = MOVE_SPEED; p.facing = 1; }
   else p.vx = 0;
-  // Jumping is disabled in Level 4 — caveman can only change platform levels
-  // by climbing sprouts, just like the other levels' progression rule.
-  p.jumping = false;
+  // Jump in place: caveman can hop while grounded, but can only CHANGE
+  // platform levels by climbing sprouts (jumps are too short to reach next platform).
+  if (input.jump && p.onGround) {
+    p.vy = JUMP_FORCE;
+    p.onGround = false;
+    p.jumping = true;
+    p.jumpFrame = 0;
+    p.jumpTimer = 0;
+  }
   // Gravity
   p.vy += GRAVITY;
   p.x += p.vx;
