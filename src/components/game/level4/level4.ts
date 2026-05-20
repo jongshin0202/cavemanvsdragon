@@ -1118,8 +1118,8 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     let img: HTMLImageElement = sprites.cavemanWalk;
     let frame = p.walkFrame;
     let frames = 4;
-    if (p.climbing) { img = sprites.cavemanClimb; frame = p.climbFrame; frames = 2; }
-    else if (p.jumping) { img = sprites.cavemanJump; frame = p.jumpFrame; frames = 3; }
+    if (p.climbing) { img = sprites.cavemanClimb; frame = p.climbFrame % 4; frames = 4; }
+    else if (p.jumping) { img = sprites.cavemanJump; frame = Math.min(p.jumpFrame, 4); frames = 5; }
     const drawW = PLAYER_DRAW_W, drawH = PLAYER_DRAW_H;
     const cx = p.x + p.w / 2;
     const feetY = p.y + p.h;
