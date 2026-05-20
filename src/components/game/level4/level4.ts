@@ -821,6 +821,7 @@ function tickCollisions(s: L4State) {
         m.alive = false;
         m.respawnTimer = Math.round((LEVEL4_PARAMS.MONKEY_RESPAWN_MIN_SEC + Math.random() * (LEVEL4_PARAMS.MONKEY_RESPAWN_MAX_SEC - LEVEL4_PARAMS.MONKEY_RESPAWN_MIN_SEC)) * 60);
         p.vy = JUMP_FORCE * 0.8;
+        spawnHeartFromPrincess(s);
       } else if (s.invuln <= 0) {
         loseLife(s);
       }
