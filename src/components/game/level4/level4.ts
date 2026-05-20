@@ -967,24 +967,31 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     }
   }
 
-  // Monkeys
+  // Monkeys (drawn at the same display size as the other levels)
   for (const m of s.monkeys) {
     if (!m.alive) continue;
     const img = sprites.robotWalk;
-    if (img.complete) {
-      const fw = img.width / 5;
+    const drawW = MONKEY_DRAW_W, drawH = MONKEY_DRAW_H;
+    // Center horizontally on the hitbox, anchor feet to the platform.
+    const cx = m.x + 7;          // hitbox is 14 wide
+    const feetY = m.y + 16;      // hitbox is 16 tall
+    const dx = cx - drawW / 2;
+    const dy = feetY - drawH;
+    if (img.complete && img.naturalWidth > 0) {
+      const fw = img.naturalWidth / ROBOT_FRAMES;
+      const fh = img.naturalHeight;
       ctx.save();
       if (m.facing < 0) {
-        ctx.translate(m.x + 14, m.y);
+        ctx.translate(cx, 0);
         ctx.scale(-1, 1);
-        ctx.drawImage(img, m.walkFrame * fw, 0, fw, img.height, 0, 0, 14, 16);
+        ctx.drawImage(img, m.walkFrame * fw, 0, fw, fh, -drawW / 2, dy, drawW, drawH);
       } else {
-        ctx.drawImage(img, m.walkFrame * fw, 0, fw, img.height, m.x, m.y, 14, 16);
+        ctx.drawImage(img, m.walkFrame * fw, 0, fw, fh, dx, dy, drawW, drawH);
       }
       ctx.restore();
     } else {
       ctx.fillStyle = '#9b59b6';
-      ctx.fillRect(m.x, m.y, 14, 16);
+      ctx.fillRect(dx, dy, drawW, drawH);
     }
   }
 
