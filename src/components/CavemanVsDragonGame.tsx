@@ -1026,6 +1026,44 @@ const CavemanVsDragonGame = () => {
       const keys = keysRef.current;
       const p = g.player;
 
+      // ── Level 4: fully isolated update + render path ──
+      if (isLevel4Round(g.round) && g.state === 'playing' && !levelIntroRef.current) {
+        let s4 = l4Ref.current;
+        if (!s4) {
+          s4 = initLevel4(getLevelIteration(g.round));
+          l4Ref.current = s4;
+        }
+        const padKeys = activePadKeysRef.current;
+        const input: L4Input = {
+          left: keys.has('ArrowLeft') || padKeys.includes('ArrowLeft'),
+          right: keys.has('ArrowRight') || padKeys.includes('ArrowRight'),
+          up: keys.has('ArrowUp') || padKeys.includes('ArrowUp'),
+          down: keys.has('ArrowDown') || padKeys.includes('ArrowDown'),
+          jump: keys.has(' '),
+        };
+        const result = updateLevel4(s4, input);
+        if (result.died) {
+          g.lives -= 1;
+          setLives(g.lives);
+          if (g.lives <= 0) {
+            g.state = 'gameover';
+            setGameState('gameover');
+            playGameOverSound();
+          } else {
+            l4Ref.current = initLevel4(getLevelIteration(g.round));
+          }
+        } else if (result.won && g.state === 'playing') {
+          g.state = 'continue';
+          setGameState('continue');
+          continueArmedAtRef.current = performance.now() + 1000;
+        }
+        // Render L4 onto canvas and skip the rest of the loop
+        const sprites = l4SpritesRef.current;
+        if (sprites) renderLevel4(ctx, s4, sprites);
+        return;
+      }
+
+
       const wa: any = g.winAnim || { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
       if (!g.winAnim) g.winAnim = wa;
       if (wa.active) {
