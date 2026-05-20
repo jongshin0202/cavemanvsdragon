@@ -388,6 +388,10 @@ const CavemanVsDragonGame = () => {
 
   // ── Level 2 state (separate file/module; never mutated by L1 code) ──
   const l2Ref = useRef<L2State>(makeEmptyL2State());
+  // ── Level 4 state (Popeye-style boss fight; fully self-contained) ──
+  const l4Ref = useRef<L4State | null>(null);
+  const l4SpritesRef = useRef<L4Sprites | null>(null);
+  const heartImgRef = useRef<HTMLImageElement | null>(null);
   // Tracks the last intro-tap time so we can detect a double-tap shortcut
   // to jump straight to Level 2 (when LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2).
   const lastIntroTapRef = useRef<number>(0);
