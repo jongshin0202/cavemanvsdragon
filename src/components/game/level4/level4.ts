@@ -908,21 +908,48 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     ctx.fillRect(plat.x1, plat.y, plat.x2 - plat.x1, 3);
   }
 
-  // Sprouts
+  // Sprouts — same vine art as L1/L2/L3
+  const drawVine = (lx: number, lyTop: number, lyBot: number, purple: boolean) => {
+    const stemMain = purple ? '#7B1FA2' : '#2E7D32';
+    const stemEdge = purple ? '#BA68C8' : '#4CAF50';
+    const leaf = purple ? '#CE93D8' : '#66BB6A';
+    ctx.strokeStyle = stemMain; ctx.lineWidth = 3;
+    ctx.beginPath();
+    for (let y = lyTop; y <= lyBot; y += 4) {
+      const wave = Math.sin(y * 0.4) * 1.5;
+      if (y === lyTop) ctx.moveTo(lx + wave, y); else ctx.lineTo(lx + wave, y);
+    }
+    ctx.stroke();
+    ctx.beginPath();
+    for (let y = lyTop; y <= lyBot; y += 4) {
+      const wave = Math.sin(y * 0.4 + 1) * 1.5;
+      if (y === lyTop) ctx.moveTo(lx + 14 + wave, y); else ctx.lineTo(lx + 14 + wave, y);
+    }
+    ctx.stroke();
+    ctx.strokeStyle = stemEdge; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(lx - 1, lyTop); ctx.lineTo(lx - 1, lyBot);
+    ctx.moveTo(lx + 13, lyTop); ctx.lineTo(lx + 13, lyBot);
+    ctx.stroke();
+    for (let y = lyTop + 4; y < lyBot; y += 12) {
+      ctx.strokeStyle = '#5D4037'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(lx + 1, y); ctx.lineTo(lx + 13, y);
+      ctx.stroke();
+      ctx.fillStyle = leaf;
+      ctx.fillRect(lx + 3, y - 2, 2, 2);
+      ctx.fillRect(lx + 9, y + 1, 2, 2);
+    }
+  };
   for (let i = 0; i < s.ladders.length; i++) {
     const l = s.ladders[i];
     const sp = s.sprouts[i];
     if (sp.growProgress <= 0 && !sp.isTop) continue;
     const fullLen = l.yBot - l.yTop;
-    const len = sp.isTop ? fullLen * sp.growProgress : fullLen * sp.growProgress;
+    const len = fullLen * sp.growProgress;
     const top = sp.isTop ? l.yBot - len : l.yTop;
     const bot = sp.isTop ? l.yBot : l.yTop + len;
-    ctx.fillStyle = sp.isTop ? '#9b59b6' : '#2ecc71';
-    ctx.fillRect(l.x, top, 2, bot - top);
-    ctx.fillRect(l.x + 12, top, 2, bot - top);
-    // Rungs
-    ctx.fillStyle = sp.isTop ? '#bb6cd9' : '#27ae60';
-    for (let y = top + 8; y < bot; y += 10) ctx.fillRect(l.x, y, 14, 2);
+    drawVine(l.x, top, bot, !!sp.isTop);
   }
 
   // Princess
