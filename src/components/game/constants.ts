@@ -48,10 +48,10 @@ export const DIFFICULTY = {
 export const MONKEY_CAP_ROUND =
   DIFFICULTY.monkeyTotalCap - DIFFICULTY.base.monkeyCount + 1; // = 19
 
-/** Total round → which level type plays. Cycle: L1, L2, L3, L1, L2, L3 … */
-export function getLevelType(round: number): 1 | 2 | 3 {
-  const mod = ((round - 1) % 3 + 3) % 3;
-  return (mod === 0 ? 1 : mod === 1 ? 2 : 3);
+/** Total round → which level type plays. Cycle: L1, L2, L3, L4, L1, L2, L3, L4 … */
+export function getLevelType(round: number): 1 | 2 | 3 | 4 {
+  const mod = ((round - 1) % 4 + 4) % 4;
+  return (mod === 0 ? 1 : mod === 1 ? 2 : mod === 2 ? 3 : 4);
 }
 /** True for L2 OR L3 — both share the L2 module's mechanics
  *  (volcano, watering cans, sprouts, fireballs, holes, jacketed monkeys). */
@@ -63,12 +63,17 @@ export function isLevel2Round(round: number): boolean {
 export function isLevel3Round(round: number): boolean {
   return getLevelType(round) === 3;
 }
-/** Total round → which iteration of its level type this is.
- *  Cycle of 3: rounds 1,4,7 → L1 iter 1,2,3; rounds 2,5,8 → L2 iter 1,2,3;
- *  rounds 3,6,9 → L3 iter 1,2,3. */
-export function getLevelIteration(round: number): number {
-  return Math.floor((round - 1) / 3) + 1;
+/** True only for L4 rounds (Popeye-style dragon boss fight). */
+export function isLevel4Round(round: number): boolean {
+  return getLevelType(round) === 4;
 }
+/** Total round → which iteration of its level type this is.
+ *  Cycle of 4: rounds 1,5,9 → L1 iter 1,2,3; rounds 2,6,10 → L2 iter 1,2,3;
+ *  rounds 3,7,11 → L3 iter 1,2,3; rounds 4,8,12 → L4 iter 1,2,3. */
+export function getLevelIteration(round: number): number {
+  return Math.floor((round - 1) / 4) + 1;
+}
+
 /** Difficulty for a given total round, mapped through the level iteration so
  *  that each subsequent visit to L1 (or L2) is one step harder than the
  *  previous visit. */
