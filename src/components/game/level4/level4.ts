@@ -243,6 +243,8 @@ export function initLevel4(iter: number): L4State {
     purpleLadderIdx,
     monkeys,
     rocks: [],
+    fireBreaths: [],
+    nextFireTimer: 180,
     nextRockTimer: 60 * LEVEL4_PARAMS.FIREBALL_INTERVAL_SEC,
     volcanoX: CANVAS_W - 95,
     princessX: 80,
