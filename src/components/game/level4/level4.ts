@@ -923,7 +923,7 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
         ctx.scale(-1, 1);
         ctx.drawImage(img, m.walkFrame * fw, 0, fw, img.height, 0, 0, 16, 24);
       } else {
-        ctx.drawImage(img, m.walkFrame * fw, 0, fw, img.height, m.x, m.y, 16, 24);
+        ctx.drawImage(img, m.walkFrame * fw, 0, fw, img.height, m.x, m.y, 14, 16);
       }
       ctx.restore();
     } else {
