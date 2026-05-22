@@ -914,7 +914,10 @@ function tickCollisions(s: L4State) {
 }
 
 function loseLife(s: L4State) {
-  s.died = true;
+  if (s.dying) return;
+  s.dying = true;
+  s.deathTimer = 0;
+  s.deathReported = false;
 }
 
 // ── Ending cinematic ────────────────────────────────────────
