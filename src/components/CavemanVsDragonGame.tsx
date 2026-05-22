@@ -1062,13 +1062,13 @@ const CavemanVsDragonGame = () => {
         if (result.died) {
           g.lives -= 1;
           setLives(g.lives);
+          playHitSound();
           if (g.lives <= 0) {
             g.state = 'gameover';
             setGameState('gameover');
             playGameOverSound();
-          } else {
-            l4Ref.current = initLevel4(getLevelIteration(g.round));
           }
+          // L4 handles its own death-flash + respawn — do not reinit.
         } else if (result.won && g.state === 'playing') {
           g.state = 'continue';
           setGameState('continue');

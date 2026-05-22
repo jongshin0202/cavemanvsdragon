@@ -140,6 +140,9 @@ export interface L4State {
   ending: Ending;
   won: boolean;
   died: boolean;
+  dying: boolean;
+  deathTimer: number;
+  deathReported: boolean;
   invuln: number;
   birdSpin: number;
   // For run-away AI
@@ -258,6 +261,9 @@ export function initLevel4(iter: number): L4State {
     ending: { active: false, phase: 'hug', timer: 0, newDragonX: -DRAGON_W },
     won: false,
     died: false,
+    dying: false,
+    deathTimer: 0,
+    deathReported: false,
     invuln: 60,
     birdSpin: 0,
     rng: Math.random,
@@ -298,7 +304,24 @@ export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: 
     tickEnding(s);
     return { died: false, won: s.won };
   }
-  if (s.died) return { died: true, won: false };
+  if (s.dying) {
+    s.deathTimer++;
+    // Report the death once so the parent decrements lives.
+    let reportDied = false;
+    if (!s.deathReported) {
+      s.deathReported = true;
+      reportDied = true;
+    }
+    // Keep dragon/world mostly frozen; just tick visuals.
+    if (s.deathTimer >= 108) {
+      // Respawn player in place of full level reset.
+      respawnPlayer(s);
+      s.dying = false;
+      s.deathTimer = 0;
+      s.invuln = 120;
+    }
+    return { died: reportDied, won: false };
+  }
   if (s.invuln > 0) s.invuln--;
 
   tickHeartSpawner(s);
@@ -312,7 +335,20 @@ export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: 
   tickPurpleCan(s);
   tickCollisions(s);
 
-  return { died: s.died, won: s.won };
+  return { died: false, won: s.won };
+}
+
+function respawnPlayer(s: L4State) {
+  const p = s.player;
+  p.x = 60;
+  p.y = L4_PLATFORMS[0].y - 24;
+  p.vx = 0; p.vy = 0;
+  p.onGround = false;
+  p.climbing = false;
+  p.jumping = false;
+  p.groundPlatIdx = 0;
+  p.jumpStartPlatIdx = 0;
+  p.facing = 1;
 }
 
 // ── Heart spawn / leaf fall ─────────────────────────────────
@@ -878,7 +914,10 @@ function tickCollisions(s: L4State) {
 }
 
 function loseLife(s: L4State) {
-  s.died = true;
+  if (s.dying) return;
+  s.dying = true;
+  s.deathTimer = 0;
+  s.deathReported = false;
 }
 
 // ── Ending cinematic ────────────────────────────────────────
@@ -1151,7 +1190,9 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
 
   // Player
   const p = s.player;
-  const blink = s.invuln > 0 && (s.invuln % 8 < 4);
+  const blink = s.dying
+    ? Math.floor(s.deathTimer / 18) % 2 !== 0
+    : (s.invuln > 0 && (s.invuln % 8 < 4));
   if (!blink) {
     let img: HTMLImageElement = sprites.cavemanWalk;
     let frame = p.walkFrame;
