@@ -140,6 +140,9 @@ export interface L4State {
   ending: Ending;
   won: boolean;
   died: boolean;
+  dying: boolean;
+  deathTimer: number;
+  deathReported: boolean;
   invuln: number;
   birdSpin: number;
   // For run-away AI
