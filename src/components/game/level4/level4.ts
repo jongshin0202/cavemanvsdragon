@@ -1190,7 +1190,9 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
 
   // Player
   const p = s.player;
-  const blink = s.invuln > 0 && (s.invuln % 8 < 4);
+  const blink = s.dying
+    ? Math.floor(s.deathTimer / 18) % 2 !== 0
+    : (s.invuln > 0 && (s.invuln % 8 < 4));
   if (!blink) {
     let img: HTMLImageElement = sprites.cavemanWalk;
     let frame = p.walkFrame;
