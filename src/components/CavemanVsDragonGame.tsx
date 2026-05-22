@@ -1062,6 +1062,7 @@ const CavemanVsDragonGame = () => {
         if (result.died) {
           g.lives -= 1;
           setLives(g.lives);
+          playHitSound();
           if (g.lives <= 0) {
             g.state = 'gameover';
             setGameState('gameover');
