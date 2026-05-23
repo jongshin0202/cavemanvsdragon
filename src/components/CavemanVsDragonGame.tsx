@@ -1058,21 +1058,31 @@ const CavemanVsDragonGame = () => {
           down: keys.has('ArrowDown') || padKeys.includes('ArrowDown'),
           jump: keys.has(' '),
         };
-        const result = updateLevel4(s4, input);
-        if (result.died) {
-          g.lives -= 1;
-          setLives(g.lives);
-          playHitSound();
-          if (g.lives <= 0) {
-            g.state = 'gameover';
-            setGameState('gameover');
-            playGameOverSound();
+        const pendingGO = (s4 as any)._pendingGameOver as number | undefined;
+        if (pendingGO === undefined || pendingGO > 0) {
+          const result = updateLevel4(s4, input);
+          if (result.died) {
+            g.lives -= 1;
+            setLives(g.lives);
+            playHitSound();
+            if (g.lives <= 0) {
+              // Let the death animation (~1.8s) play out before showing game over.
+              (s4 as any)._pendingGameOver = 110;
+            }
+            // L4 handles its own death-flash + respawn — do not reinit.
+          } else if (result.won && g.state === 'playing') {
+            g.state = 'continue';
+            setGameState('continue');
+            continueArmedAtRef.current = performance.now() + 1000;
           }
-          // L4 handles its own death-flash + respawn — do not reinit.
-        } else if (result.won && g.state === 'playing') {
-          g.state = 'continue';
-          setGameState('continue');
-          continueArmedAtRef.current = performance.now() + 1000;
+          if ((s4 as any)._pendingGameOver !== undefined && (s4 as any)._pendingGameOver > 0) {
+            (s4 as any)._pendingGameOver -= 1;
+          }
+        } else {
+          g.state = 'gameover';
+          setGameState('gameover');
+          playGameOverSound();
+          (s4 as any)._pendingGameOver = undefined;
         }
         // Render L4 onto canvas and skip the rest of the loop
         const sprites = l4SpritesRef.current;
