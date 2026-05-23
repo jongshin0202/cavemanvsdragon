@@ -706,11 +706,17 @@ function tickPlayer(s: L4State, input: L4Input) {
       }
     }
   }
-  // Start climbing
+  // Start climbing (only when actually between platforms — pressing up at
+  // the bottom or down at the top should engage; otherwise allow left/right
+  // to walk off normally).
   if (nearLadder && (input.up || input.down) && !p.climbing) {
-    p.climbing = true;
-    p.x = nearLadder.x;
-    p.vy = 0;
+    const atTop = Math.abs((p.y + p.h) - nearLadder.yTop) < 4;
+    const atBot = Math.abs((p.y + p.h) - nearLadder.yBot) < 4;
+    if ((input.up && !atTop) || (input.down && !atBot) || (!atTop && !atBot)) {
+      p.climbing = true;
+      p.x = nearLadder.x;
+      p.vy = 0;
+    }
   }
   if (p.climbing) {
     if (!nearLadder) p.climbing = false;
@@ -727,30 +733,50 @@ function tickPlayer(s: L4State, input: L4Input) {
       p.jumping = false;
       p.climbTimer++;
       if (p.climbTimer >= 8) { p.climbTimer = 0; p.climbFrame = (p.climbFrame + 1) % 2; }
-      // Reach top → stand on platform
-      if (sp.isTop) {
-        if (p.y + p.h <= reach + 4) {
-          p.y = L4_PLATFORMS[5].y - p.h;
+      // Exit by pressing left/right when aligned with a platform.
+      if (input.left || input.right) {
+        const foot = p.y + p.h;
+        const atTopPlat = Math.abs(foot - nearLadder.yTop) < 8;
+        const atBotPlat = Math.abs(foot - nearLadder.yBot) < 8;
+        if (atTopPlat || atBotPlat) {
+          const platY = atTopPlat ? nearLadder.yTop : nearLadder.yBot;
+          const platIdx = atTopPlat
+            ? (sp.isTop ? 5 : nearLadder.gapIdx + 1)
+            : Math.max(0, nearLadder.gapIdx);
+          p.y = platY - p.h;
           p.climbing = false;
           p.onGround = true;
-          p.groundPlatIdx = 5;
-          // Reached princess platform → check win
+          p.groundPlatIdx = platIdx;
+          // fall through to horizontal handling below
+        } else {
+          return;
         }
       } else {
-        if (p.y + p.h <= nearLadder.yTop + 2) {
-          p.y = nearLadder.yTop - p.h;
+        // Reach top → stand on platform (only when actually moving up)
+        if (input.up) {
+          if (sp.isTop) {
+            if (p.y + p.h <= reach + 4) {
+              p.y = L4_PLATFORMS[5].y - p.h;
+              p.climbing = false;
+              p.onGround = true;
+              p.groundPlatIdx = 5;
+            }
+          } else if (p.y + p.h <= nearLadder.yTop + 2) {
+            p.y = nearLadder.yTop - p.h;
+            p.climbing = false;
+            p.onGround = true;
+            p.groundPlatIdx = nearLadder.gapIdx + 1;
+          }
+        }
+        // Reach bottom → stand on platform (only when actually moving down)
+        if (input.down && p.y + p.h >= nearLadder.yBot - 0) {
+          p.y = nearLadder.yBot - p.h;
           p.climbing = false;
           p.onGround = true;
-          p.groundPlatIdx = nearLadder.gapIdx + 1;
+          p.groundPlatIdx = Math.max(0, nearLadder.gapIdx);
         }
+        return;
       }
-      if (p.y + p.h >= nearLadder.yBot + 2) {
-        p.y = nearLadder.yBot - p.h;
-        p.climbing = false;
-        p.onGround = true;
-        p.groundPlatIdx = Math.max(0, nearLadder.gapIdx);
-      }
-      return;
     }
   }
   // Horizontal
