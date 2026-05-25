@@ -1,14 +1,28 @@
 // ============================================================
-// Level 4 — Caveman vs Dragon (REDESIGNED)
+// Level 4 — Caveman vs Dragon (LAYOUT REBUILT FROM SKETCH)
 // ------------------------------------------------------------
-// Self-contained. No L1/L2/L3 imports beyond canvas size.
-// Mechanic: volcano launches grey rocks → roll along top platform →
-// at point C decide: if A (kick ledge slot) empty, rock drops to A
-// and rests; else rolls off and zig-zags down as a hazard.
-// Caveman climbs green sprout D → reaches A → kicks rock down → rock
-// hits dragon. Each hit downs dragon 5s and spawns a purple can.
-// Purple can waters purple sprout E (+1/iter each), and re-seeds D.
-// X hits = dragon dies + E fully grown → climb E → princess.
+// Self-contained. No L1/L2/L3 imports beyond canvas size + L1
+// difficulty curve for rock spawn cadence.
+//
+// Layout mirrors the annotated sketch:
+//  Band 1 (princess top): princess 0, volcano K. Rock launches
+//    from K, lands near point 3 (top-left), rolls RIGHT to C.
+//    At C: if slot A empty → drops via L straight down to A.
+//          Else → continues off right edge → cascades right ramps.
+//  Band 2: left high stub, E-valley with E (purple sprout) + A
+//    (rock rest slot), right high stub. Ramps connect bands.
+//  Band 3 (dragon roam): D-base flat (left), tent center, right
+//    flat. Two M movers fill the gaps. H2 ladder on right.
+//  Band 4: left stub, center M mover, right stub above H2.
+//    H1 ladder on left.
+//  Band 5: F-flat (left) + paired M movers bouncing at N +
+//    G-flat (right). H3 ladder on right.
+//  Band 6: caveman 1 spawn (left ground), center M mover,
+//    right ground.
+//
+// Sprouts (D, E, H1, H2, H3) all use L2-style wither/regrow
+// cycle (local copy). E only grows when watered with purple
+// can (+1/iter each).
 // ============================================================
 
 import { CANVAS_W, CANVAS_H, getRoundDifficulty } from '../constants';
@@ -20,41 +34,113 @@ const JUMP_FORCE = -5.2;
 const CLIMB_SPEED = 1.5;
 
 // ── Layout ───────────────────────────────────────────────────
-// All platforms are simple axis-aligned rectangles. Index reused for
-// dragon/monkey "platIdx".
-export interface L4Platform { y: number; x1: number; x2: number; moving?: { axis: 'x' | 'y'; min: number; max: number; speed: number; phase: number } }
+// All platforms are axis-aligned rectangles. `moving` describes
+// horizontal oscillation between two endpoints with bouncing.
+// Some movers are linked via `pairIdx` for opposite-phase bounce
+// at meeting point N.
+export interface L4Mover {
+  min: number;          // left bound (bounce off)
+  max: number;          // right bound (bounce off)
+  speed: number;        // px/frame, signed (initial direction)
+  pairIdx?: number;     // optional paired platform index for N-bounce
+}
+export interface L4Platform {
+  y: number;
+  x1: number;
+  x2: number;
+  moving?: L4Mover;
+}
+
+// Indices below are referenced by name; do not reorder casually.
+// Band 1 (top):
+//   0 PRINCESS_TOP   — princess + volcano K
+//   1 TOP_RIGHT_STUB — tiny right-side stub for ramp cascade
+// Band 2:
+//   2 LEFT_HIGH      — left stub (point "3" entry)
+//   3 E_VALLEY       — flat holding E sprout base + slot A
+//   4 RIGHT_HIGH     — right stub
+// Band 3 (dragon):
+//   5 D_FLAT         — left, D sprout base
+//   6 TENT_TOP       — center "tent" platform
+//   7 RIGHT_B3       — right flat (above H2)
+//   8 M_B3_L         — mover between D_FLAT and TENT_TOP
+//   9 M_B3_R         — mover between TENT_TOP and RIGHT_B3
+// Band 4:
+//  10 LEFT_B4        — left stub
+//  11 RIGHT_B4       — right stub
+//  12 M_B4           — center mover
+// Band 5:
+//  13 LEFT_B5        — F flat
+//  14 RIGHT_B5       — G flat
+//  15 M_B5_L         — left mover of N-pair
+//  16 M_B5_R         — right mover of N-pair
+// Band 6 (ground):
+//  17 LEFT_GROUND    — caveman spawn
+//  18 RIGHT_GROUND   — right ground
+//  19 M_B6           — center mover
 export const L4_PLATFORMS: L4Platform[] = [
-  { y: 448, x1: 0,   x2: 512 },                 // 0 ground
-  { y: 392, x1: 16,  x2: 168 },                 // 1 caveman spawn (left)
-  { y: 392, x1: 200, x2: 312 },                 // 2 lower mid (monkey, moving)
-  { y: 392, x1: 344, x2: 496 },                 // 3 lower right
-  { y: 320, x1: 0,   x2: 120 },                 // 4 mid-left static
-  { y: 320, x1: 152, x2: 360 },                 // 5 mid center (D sprout base)
-  { y: 320, x1: 392, x2: 512 },                 // 6 mid-right static
-  { y: 256, x1: 32,  x2: 170 },                 // 7 dragon-band left
-  { y: 256, x1: 342, x2: 480 },                 // 8 dragon-band right
-  { y: 192, x1: 170, x2: 342 },                 // 9 KICK LEDGE  (E at left, A at right)
-  { y: 96,  x1: 80,  x2: 432 },                 // 10 princess top (volcano on right)
+  /*  0 */ { y: 56,  x1: 110, x2: 400 },             // PRINCESS_TOP
+  /*  1 */ { y: 96,  x1: 460, x2: 508 },             // TOP_RIGHT_STUB
+  /*  2 */ { y: 148, x1: 0,   x2: 88  },             // LEFT_HIGH
+  /*  3 */ { y: 208, x1: 168, x2: 280 },             // E_VALLEY (E + A)
+  /*  4 */ { y: 168, x1: 400, x2: 508 },             // RIGHT_HIGH
+  /*  5 */ { y: 268, x1: 0,   x2: 128 },             // D_FLAT
+  /*  6 */ { y: 268, x1: 196, x2: 320 },             // TENT_TOP
+  /*  7 */ { y: 268, x1: 384, x2: 508 },             // RIGHT_B3
+  /*  8 */ { y: 268, x1: 128, x2: 192 },             // M_B3_L (filled at init)
+  /*  9 */ { y: 268, x1: 320, x2: 384 },             // M_B3_R
+  /* 10 */ { y: 328, x1: 0,   x2: 88  },             // LEFT_B4
+  /* 11 */ { y: 328, x1: 428, x2: 508 },             // RIGHT_B4
+  /* 12 */ { y: 328, x1: 200, x2: 312 },             // M_B4
+  /* 13 */ { y: 392, x1: 0,   x2: 144 },             // LEFT_B5 (F)
+  /* 14 */ { y: 392, x1: 368, x2: 508 },             // RIGHT_B5 (G)
+  /* 15 */ { y: 392, x1: 144, x2: 252 },             // M_B5_L (pair)
+  /* 16 */ { y: 392, x1: 260, x2: 368 },             // M_B5_R (pair)
+  /* 17 */ { y: 448, x1: 0,   x2: 168 },             // LEFT_GROUND
+  /* 18 */ { y: 448, x1: 360, x2: 512 },             // RIGHT_GROUND
+  /* 19 */ { y: 448, x1: 180, x2: 348 },             // M_B6
 ];
 
-// Add horizontal moving platforms (visual flavour; not strictly required).
-L4_PLATFORMS[2].moving = { axis: 'x', min: 184, max: 248, speed: 0.5, phase: 0 };
-L4_PLATFORMS[6].moving = { axis: 'x', min: 376, max: 432, speed: 0.5, phase: 1 };
+// Wire up movers (axis-aligned horizontal oscillation, bouncing).
+L4_PLATFORMS[8].moving  = { min: 128, max: 192, speed: -0.7 };
+L4_PLATFORMS[9].moving  = { min: 320, max: 384, speed:  0.7 };
+L4_PLATFORMS[12].moving = { min: 200, max: 312, speed:  0.9 };
+// N-pair: start moving toward each other; bounce off each other AND outer walls.
+L4_PLATFORMS[15].moving = { min: 144, max: 252, speed:  0.9, pairIdx: 16 };
+L4_PLATFORMS[16].moving = { min: 260, max: 368, speed: -0.9, pairIdx: 15 };
+L4_PLATFORMS[19].moving = { min: 180, max: 348, speed:  0.8 };
 
 // Named anchors
-const A_X = 308;                                // rock rest slot on kick ledge
-const E_X = 192;                                // purple sprout base x
-const D_X = 240;                                // green sprout x
-const C_X = A_X;                                // drop point above A on princess platform
-const VOLCANO_X = 400;
-const PRINCESS_X = 110;
-const PRINCESS_Y = L4_PLATFORMS[10].y - 48;
-const KICK_LEDGE_IDX = 9;
-const PRINCESS_PLAT_IDX = 10;
-const D_BASE_PLAT_IDX = 5;
-const D_TOP_PLAT_IDX = KICK_LEDGE_IDX;
-const E_BASE_PLAT_IDX = KICK_LEDGE_IDX;
-const E_TOP_PLAT_IDX = PRINCESS_PLAT_IDX;
+const PRINCESS_X = 200;
+const PRINCESS_Y = L4_PLATFORMS[0].y - 48;
+const VOLCANO_X = 340;
+const ROCK_LAND_X = 140;                            // point 3 — landing spot on princess platform
+const C_X = 280;                                    // decision point on princess platform
+const E_X = 200;                                    // purple sprout base x (E_VALLEY)
+const A_X = 260;                                    // rock rest slot x (E_VALLEY)
+const D_X = 24;                                     // green sprout x (D_FLAT)
+
+const PRINCESS_PLAT_IDX = 0;
+const E_BASE_PLAT_IDX   = 3;   // E_VALLEY
+const E_TOP_PLAT_IDX    = 0;   // PRINCESS_TOP
+const D_BASE_PLAT_IDX   = 5;   // D_FLAT
+const D_TOP_PLAT_IDX    = 2;   // LEFT_HIGH
+const A_PLAT_IDX        = 3;   // E_VALLEY (kick from here)
+
+// H ladder sprouts (band-to-band).  Each is a Sprout with its own cycle.
+//   H1: LEFT_B5 (yBot 392) → LEFT_B4 (yTop 328)
+//   H2: RIGHT_B4 (yBot 328) → RIGHT_B3 (yTop 268)
+//   H3: RIGHT_GROUND (yBot 448) → RIGHT_B5 (yTop 392)
+const H1_X = 70,  H1_TOP_IDX = 10, H1_BOT_IDX = 13;
+const H2_X = 460, H2_TOP_IDX = 7,  H2_BOT_IDX = 11;
+const H3_X = 480, H3_TOP_IDX = 14, H3_BOT_IDX = 18;
+
+// Monkey anchor slots (blue ovals from sketch) — platforms 5..19 mid/lower bands.
+const MONKEY_PLAT_ANCHORS: number[] = [
+  5, 7, 10, 11, 12, 13, 14, 17, 18, 19,
+];
+const MONKEY_PER_PLAT_CAP = 5;
+const MONKEY_TOTAL_CAP    = 20;
 
 const PRINCESS_W = 40, PRINCESS_H = 48;
 const PLAYER_DRAW_W = 42, PLAYER_DRAW_H = 48;
@@ -67,15 +153,21 @@ const ROBOT_FRAMES = 5;
 type SproutPhase = 'seed' | 'growing' | 'alive' | 'withering';
 interface Sprout {
   x: number;
-  yTop: number;          // platform y the sprout reaches up to
-  yBot: number;          // platform y it grows out of
+  yTop: number;
+  yBot: number;
   isPurple: boolean;
   phase: SproutPhase;
-  growProgress: number;  // 0..1 visible length
-  // for D (green) only — alive→withering cycle (L2-style)
+  growProgress: number;
   aliveTimer: number;
   regrowTimer: number;
   inUse?: boolean;
+  /** Index into L4_PLATFORMS for top platform (for dismount). */
+  topPlatIdx: number;
+  botPlatIdx: number;
+  /** If true, never auto-withers (E behaves this way). */
+  noAutoWither?: boolean;
+  /** If true, partial growth allowed (only fills by `growChunk` per watering). */
+  partialGrow?: boolean;
 }
 
 interface Player {
@@ -90,7 +182,7 @@ interface Player {
   walkFrame: number; walkTimer: number;
   jumpFrame: number; jumpTimer: number;
   climbFrame: number; climbTimer: number;
-  kickTimer: number;      // >0 = currently in kick animation
+  kickTimer: number;
 }
 
 type RockState = 'flying' | 'rollingTop' | 'restingAtA' | 'falling' | 'rollingDown' | 'dead';
@@ -99,23 +191,12 @@ interface Rock {
   vx: number; vy: number;
   r: number;
   state: RockState;
-  platIdx: number;        // current platform (for rolling)
+  platIdx: number;
   age: number;
-  /** When falling from A: tracks whether this rock has already counted as a hit. */
   hitConsumed?: boolean;
 }
 
-interface Fireball {
-  x: number; y: number;
-  sx: number; sy: number;        // start position
-  tx: number; ty: number;        // target landing position
-  age: number;                   // frames since launch
-  flight: number;                // total frames until landing
-  radius: number;                // current visible radius
-  landed: boolean;
-}
-
-type DragonState = 'roam' | 'downed' | 'dying' | 'dead';
+type DragonState = 'intro' | 'roam' | 'downed' | 'dying' | 'dead';
 interface Dragon {
   x: number; y: number;
   vx: number; vy: number;
@@ -155,19 +236,15 @@ export interface L4State {
   spawnRockTimer: number;
   sproutD: Sprout;
   sproutE: Sprout;
+  sproutH1: Sprout;
+  sproutH2: Sprout;
+  sproutH3: Sprout;
   greenCan: Can | null;
   purpleCan: Can | null;
   carrying: null | 'green' | 'purple';
-  /** Per-iter partial-grow chunk for E. */
   eGrowChunk: number;
-  /** Set true once green can has spawned this monkey wave. */
   greenCanSpawned: boolean;
-  /** Rock currently parked at A (if any). */
   rockAtAIdx: number;
-  fireballs: Fireball[];
-  fireballTimer: number;
-  fireballMax: number;
-  fireballFlightFrames: number;
   ending: Ending;
   won: boolean;
   died: boolean;
@@ -194,77 +271,41 @@ export interface L4Sprites {
 }
 export interface L4Input { left: boolean; right: boolean; up: boolean; down: boolean; jump: boolean }
 
-// ── Init ─────────────────────────────────────────────────────
-export function initLevel4(iter: number): L4State {
-  const diff = getLevel4Difficulty(iter);
-
-  const player: Player = {
-    x: 60, y: L4_PLATFORMS[1].y - 24, w: 16, h: 24,
-    vx: 0, vy: 0, onGround: true, groundPlatIdx: 1, jumpStartPlatIdx: 1,
-    climbing: false, facing: 1, jumping: false,
-    walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0,
-    climbFrame: 0, climbTimer: 0, kickTimer: 0,
-  };
-
-  const dragon: Dragon = {
-    x: 250, y: L4_PLATFORMS[7].y - DRAGON_H,
-    vx: 0, vy: 0, airborne: false,
-    platIdx: 7, targetPlatIdx: 7,
-    facing: -1, jumpCooldown: 60,
-    state: 'roam', downedTimer: 0, dyingTimer: 0, hits: 0,
-    frame: 0, frameTimer: 0,
-  };
-
-  // Monkeys distributed across the lower/mid platforms.
-  const monkeyPlats = [2, 3, 4, 5, 6, 7, 8];
-  const monkeys: Monkey[] = [];
-  for (let i = 0; i < diff.monkeyCount; i++) {
-    const pi = monkeyPlats[i % monkeyPlats.length];
-    monkeys.push(makeMonkey(pi));
-  }
-
-  const sproutD: Sprout = {
-    x: D_X, yTop: L4_PLATFORMS[D_TOP_PLAT_IDX].y, yBot: L4_PLATFORMS[D_BASE_PLAT_IDX].y,
-    isPurple: false, phase: 'seed', growProgress: 0,
-    aliveTimer: 0, regrowTimer: 0,
-  };
-  const sproutE: Sprout = {
-    x: E_X, yTop: L4_PLATFORMS[E_TOP_PLAT_IDX].y, yBot: L4_PLATFORMS[E_BASE_PLAT_IDX].y,
-    isPurple: true, phase: 'seed', growProgress: 0,
-    aliveTimer: 0, regrowTimer: 0,
-  };
-
+// ── Helpers ──────────────────────────────────────────────────
+function mkSprout(x: number, topIdx: number, botIdx: number, opts: { purple?: boolean; noAutoWither?: boolean; partialGrow?: boolean } = {}): Sprout {
   return {
-    iter,
-    diff,
-    tick: 0,
-    player,
-    dragon,
-    monkeys,
-    rocks: [],
-    spawnRockTimer: 90,
-    sproutD,
-    sproutE,
-    greenCan: null,
-    purpleCan: null,
-    carrying: null,
-    eGrowChunk: 1 / Math.max(1, diff.hitsToKill),
-    greenCanSpawned: false,
-    rockAtAIdx: -1,
-    fireballs: [],
-    fireballTimer: 90,
-    fireballMax: 1 + Math.floor((iter - 1) / 3),
-    fireballFlightFrames: Math.max(180, Math.round(LEVEL4_PARAMS.FIREBALL_FLIGHT_SEC * 60 * Math.pow(0.9, iter - 1))),
-    ending: { active: false, phase: 'hug', timer: 0, newDragonX: -DRAGON_W },
-    won: false,
-    died: false,
-    dying: false,
-    deathTimer: 0,
-    deathReported: false,
-    invuln: 60,
-    princessX: PRINCESS_X,
-    princessY: PRINCESS_Y,
+    x,
+    yTop: L4_PLATFORMS[topIdx].y,
+    yBot: L4_PLATFORMS[botIdx].y,
+    isPurple: !!opts.purple,
+    phase: 'seed',
+    growProgress: 0,
+    aliveTimer: 0,
+    regrowTimer: 0,
+    topPlatIdx: topIdx,
+    botPlatIdx: botIdx,
+    noAutoWither: !!opts.noAutoWither,
+    partialGrow: !!opts.partialGrow,
   };
+}
+
+function buildMonkeyDistribution(iter: number): number[] {
+  // L1-style: round-robin onto platform with current min count, cap per-plat=5, total cap=20.
+  const counts = new Array<number>(MONKEY_PLAT_ANCHORS.length).fill(0);
+  const total = Math.min(MONKEY_TOTAL_CAP, LEVEL4_PARAMS.MONKEYS_BASE + Math.max(0, iter - 1));
+  for (let i = 0; i < total; i++) {
+    let min = Infinity;
+    for (let j = 0; j < counts.length; j++) {
+      if (counts[j] < MONKEY_PER_PLAT_CAP && counts[j] < min) min = counts[j];
+    }
+    const cand: number[] = [];
+    for (let j = 0; j < counts.length; j++) {
+      if (counts[j] === min && counts[j] < MONKEY_PER_PLAT_CAP) cand.push(j);
+    }
+    if (!cand.length) break;
+    counts[cand[Math.floor(Math.random() * cand.length)]]++;
+  }
+  return counts;
 }
 
 function makeMonkey(platIdx: number): Monkey {
@@ -278,6 +319,68 @@ function makeMonkey(platIdx: number): Monkey {
     vx: (Math.random() < 0.5 ? -1 : 1) * 0.55,
     facing: 1,
     walkFrame: 0, walkTimer: 0,
+  };
+}
+
+// ── Init ─────────────────────────────────────────────────────
+export function initLevel4(iter: number): L4State {
+  const diff = getLevel4Difficulty(iter);
+
+  // Caveman on LEFT_GROUND.
+  const player: Player = {
+    x: 20, y: L4_PLATFORMS[17].y - 24, w: 16, h: 24,
+    vx: 0, vy: 0, onGround: true, groundPlatIdx: 17, jumpStartPlatIdx: 17,
+    climbing: false, facing: 1, jumping: false,
+    walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0,
+    climbFrame: 0, climbTimer: 0, kickTimer: 0,
+  };
+
+  // Dragon spawns next to princess on PRINCESS_TOP, then intro-jumps down.
+  const dragon: Dragon = {
+    x: 140, y: L4_PLATFORMS[0].y - DRAGON_H,
+    vx: 0, vy: 0, airborne: false,
+    platIdx: 0, targetPlatIdx: 6,
+    facing: -1, jumpCooldown: 60,
+    state: 'intro', downedTimer: 0, dyingTimer: 0, hits: 0,
+    frame: 0, frameTimer: 0,
+  };
+
+  // Monkeys via L1-style distribution.
+  const dist = buildMonkeyDistribution(iter);
+  const monkeys: Monkey[] = [];
+  for (let i = 0; i < dist.length; i++) {
+    for (let k = 0; k < dist[i]; k++) monkeys.push(makeMonkey(MONKEY_PLAT_ANCHORS[i]));
+  }
+
+  return {
+    iter,
+    diff,
+    tick: 0,
+    player,
+    dragon,
+    monkeys,
+    rocks: [],
+    spawnRockTimer: 90,
+    sproutD: mkSprout(D_X, D_TOP_PLAT_IDX, D_BASE_PLAT_IDX),
+    sproutE: mkSprout(E_X, E_TOP_PLAT_IDX, E_BASE_PLAT_IDX, { purple: true, noAutoWither: true, partialGrow: true }),
+    sproutH1: mkSprout(H1_X, H1_TOP_IDX, H1_BOT_IDX),
+    sproutH2: mkSprout(H2_X, H2_TOP_IDX, H2_BOT_IDX),
+    sproutH3: mkSprout(H3_X, H3_TOP_IDX, H3_BOT_IDX),
+    greenCan: null,
+    purpleCan: null,
+    carrying: null,
+    eGrowChunk: 1 / Math.max(1, diff.hitsToKill),
+    greenCanSpawned: false,
+    rockAtAIdx: -1,
+    ending: { active: false, phase: 'hug', timer: 0, newDragonX: -DRAGON_W },
+    won: false,
+    died: false,
+    dying: false,
+    deathTimer: 0,
+    deathReported: false,
+    invuln: 60,
+    princessX: PRINCESS_X,
+    princessY: PRINCESS_Y,
   };
 }
 
@@ -304,7 +407,6 @@ export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: 
 
   tickMovingPlatforms(s);
   tickRocks(s);
-  tickFireballs(s);
   tickSprouts(s);
   tickMonkeys(s);
   tickDragon(s);
@@ -317,25 +419,44 @@ export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: 
 
 function respawnPlayer(s: L4State) {
   const p = s.player;
-  p.x = 60; p.y = L4_PLATFORMS[1].y - 24;
+  p.x = 20; p.y = L4_PLATFORMS[17].y - 24;
   p.vx = 0; p.vy = 0;
   p.onGround = true; p.climbing = false; p.jumping = false;
-  p.groundPlatIdx = 1; p.jumpStartPlatIdx = 1;
+  p.groundPlatIdx = 17; p.jumpStartPlatIdx = 17;
   p.facing = 1; p.kickTimer = 0;
-  // Drop any can carried? Keep carrying — quality-of-life.
 }
 
 // ── Moving platforms ────────────────────────────────────────
 function tickMovingPlatforms(s: L4State) {
-  for (const plat of L4_PLATFORMS) {
-    if (!plat.moving) continue;
-    plat.moving.phase += 0.02;
-    const t = (Math.sin(plat.moving.phase) + 1) / 2;
-    const span = plat.moving.max - plat.moving.min;
-    const x = plat.moving.min + span * t;
-    const w = plat.x2 - plat.x1;
-    plat.x1 = x;
-    plat.x2 = x + w;
+  // First pass: tentative move + bounce off own min/max.
+  for (let i = 0; i < L4_PLATFORMS.length; i++) {
+    const pl = L4_PLATFORMS[i];
+    if (!pl.moving) continue;
+    const w = pl.x2 - pl.x1;
+    let nx = pl.x1 + pl.moving.speed;
+    if (nx < pl.moving.min) { nx = pl.moving.min; pl.moving.speed = Math.abs(pl.moving.speed); }
+    if (nx + w > pl.moving.max + w) { /* unreachable: max stored as left edge max */ }
+    // Use max as the maximum LEFT edge (so platform stays within [min, max]).
+    if (nx > pl.moving.max) { nx = pl.moving.max; pl.moving.speed = -Math.abs(pl.moving.speed); }
+    pl.x1 = nx;
+    pl.x2 = nx + w;
+  }
+  // Second pass: paired bounce (N).
+  for (let i = 0; i < L4_PLATFORMS.length; i++) {
+    const pl = L4_PLATFORMS[i];
+    if (!pl.moving || pl.moving.pairIdx === undefined) continue;
+    const j = pl.moving.pairIdx;
+    if (j <= i) continue;
+    const other = L4_PLATFORMS[j];
+    if (!other.moving) continue;
+    // If they overlap, separate them and reverse both directions.
+    if (pl.x2 > other.x1 && pl.x1 < other.x2) {
+      const overlap = pl.x2 - other.x1;
+      pl.x1 -= overlap / 2; pl.x2 -= overlap / 2;
+      other.x1 += overlap / 2; other.x2 += overlap / 2;
+      pl.moving.speed = -Math.abs(pl.moving.speed);
+      other.moving.speed = Math.abs(other.moving.speed);
+    }
   }
 }
 
@@ -343,14 +464,12 @@ function tickMovingPlatforms(s: L4State) {
 function tickRocks(s: L4State) {
   s.spawnRockTimer--;
   if (s.spawnRockTimer <= 0) {
-    // Match L1 barrel spawn rule: timer = barrelSpawnMin + random*barrelSpawnRange,
-    // keyed off L4 iteration (same difficulty curve as L1).
-    const round = 1 + (s.iter - 1) * 4; // map L4 iter → equivalent L1 round
+    const round = 1 + (s.iter - 1) * 4;
     const d = getRoundDifficulty(round);
     s.spawnRockTimer = Math.round(d.barrelSpawnMin + Math.random() * d.barrelSpawnRange);
-    // Spawn rock from volcano arc onto princess platform near volcano.
+    // Launch from K, arc up and LEFT toward point 3 (landing zone on princess top-left).
     s.rocks.push({
-      x: VOLCANO_X, y: L4_PLATFORMS[10].y - 36,
+      x: VOLCANO_X, y: L4_PLATFORMS[0].y - 36,
       vx: -2.2, vy: -3.4, r: 8,
       state: 'flying', platIdx: -1, age: 0,
     });
@@ -364,14 +483,13 @@ function tickRocks(s: L4State) {
         r.vy += 0.18;
         r.x += r.vx;
         r.y += r.vy;
-        // Land on princess platform
-        const top = L4_PLATFORMS[10];
+        const top = L4_PLATFORMS[0];
         if (r.vy > 0 && r.y + r.r >= top.y && r.x >= top.x1 && r.x <= top.x2) {
           r.y = top.y - r.r;
           r.vy = 0;
-          r.vx = -1.4; // start rolling left
+          r.vx = 1.4; // roll RIGHT toward C
           r.state = 'rollingTop';
-          r.platIdx = 10;
+          r.platIdx = 0;
         } else if (r.y > CANVAS_H + 30 || r.x < -30 || r.x > CANVAS_W + 30) {
           r.state = 'dead';
         }
@@ -379,38 +497,36 @@ function tickRocks(s: L4State) {
       }
       case 'rollingTop': {
         r.x += r.vx;
-        const top = L4_PLATFORMS[10];
-        // At point C: if A is empty AND we're at C, drop straight down.
+        const top = L4_PLATFORMS[0];
         const aOccupied = s.rockAtAIdx >= 0 && s.rockAtAIdx !== i;
-        if (!aOccupied && Math.abs(r.x - C_X) < 2) {
+        if (!aOccupied && r.vx > 0 && r.x >= C_X) {
+          // Drop straight down via L gap.
+          r.x = C_X;
           r.state = 'falling';
           r.vy = 0; r.vx = 0;
           break;
         }
-        // Fall off left edge → continue down as hazard
-        if (r.x < top.x1 - 2) {
+        // Off right edge → cascade
+        if (r.x > top.x2 + 2) {
           r.state = 'rollingDown';
-          r.vx = -1.0; r.vy = 0;
+          r.vx = 1.0; r.vy = 0;
           r.platIdx = -1;
           break;
         }
-        // Reached right edge somehow (shouldn't because vx < 0) → kill
-        if (r.x > top.x2 + 2) { r.state = 'dead'; }
+        if (r.x < top.x1 - 2) { r.state = 'dead'; }
         break;
       }
       case 'falling': {
         r.vy += GRAVITY;
         r.y += r.vy;
-        const kp = L4_PLATFORMS[KICK_LEDGE_IDX];
-        // Land on kick ledge
-        if (r.x >= kp.x1 && r.x <= kp.x2 && r.y + r.r >= kp.y) {
-          r.y = kp.y - r.r;
+        const ev = L4_PLATFORMS[E_BASE_PLAT_IDX];
+        if (r.x >= ev.x1 && r.x <= ev.x2 && r.y + r.r >= ev.y) {
+          r.y = ev.y - r.r;
           r.vy = 0;
-          // If close to A and slot empty → rest at A; else roll left and fall off
           if (s.rockAtAIdx < 0) {
             r.x = A_X;
             r.state = 'restingAtA';
-            r.platIdx = KICK_LEDGE_IDX;
+            r.platIdx = E_BASE_PLAT_IDX;
             s.rockAtAIdx = i;
           } else {
             r.state = 'rollingDown';
@@ -418,19 +534,15 @@ function tickRocks(s: L4State) {
           }
           break;
         }
-        // Below kick ledge? Dragon hit check happens in collisions.
-        // Off bottom → dead
         if (r.y > CANVAS_H + 20) r.state = 'dead';
         break;
       }
       case 'restingAtA':
-        // Sit still until kicked.
         break;
       case 'rollingDown': {
         r.vy += GRAVITY * 0.5;
         r.x += r.vx;
         r.y += r.vy;
-        // Try landing on any platform we cross
         for (let pi = 0; pi < L4_PLATFORMS.length; pi++) {
           const pl = L4_PLATFORMS[pi];
           if (r.x < pl.x1 || r.x > pl.x2) continue;
@@ -438,7 +550,6 @@ function tickRocks(s: L4State) {
             r.y = pl.y - r.r;
             r.vy = 0;
             r.platIdx = pi;
-            // bias direction toward nearest edge for variety
             if (r.vx === 0) r.vx = Math.random() < 0.5 ? -1 : 1;
             break;
           }
@@ -450,7 +561,6 @@ function tickRocks(s: L4State) {
         break;
     }
   }
-  // Compact
   if (s.rocks.some(r => r.state === 'dead')) {
     const oldAtA = s.rockAtAIdx;
     const survivors: Rock[] = [];
@@ -475,70 +585,66 @@ function rollRegrowFrames(): number {
   return Math.round(sec * 60);
 }
 
-function tickFireballs(s: L4State) {
-  // Spawn from volcano on parabolic arc toward random platform (not princess).
-  const inFlight = s.fireballs.filter(f => !f.landed).length;
-  if (inFlight < s.fireballMax) {
-    if (s.fireballTimer > 0) {
-      s.fireballTimer--;
-    } else {
-      const candidates = [0, 1, 2, 3, 4, 5, 6, 7, 8];
-      const pi = candidates[Math.floor(Math.random() * candidates.length)];
-      const tp = L4_PLATFORMS[pi];
-      const tx = tp.x1 + 8 + Math.random() * Math.max(8, tp.x2 - tp.x1 - 16);
-      const ty = tp.y;
-      const sx = VOLCANO_X;
-      const sy = L4_PLATFORMS[10].y - 40;
-      s.fireballs.push({
-        x: sx, y: sy, sx, sy, tx, ty,
-        age: 0, flight: s.fireballFlightFrames,
-        radius: LEVEL4_PARAMS.FIREBALL_START_R, landed: false,
-      });
-      s.fireballTimer = Math.round(LEVEL4_PARAMS.FIREBALL_INTERVAL_SEC * 60 * (0.5 + Math.random()));
-    }
-  }
-  for (const f of s.fireballs) {
-    if (f.landed) continue;
-    f.age++;
-    const t = Math.min(1, f.age / f.flight);
-    // Parabolic arc: lerp x linearly, y with downward bias + extra arc.
-    const arcH = 60;
-    f.x = f.sx + (f.tx - f.sx) * t;
-    f.y = f.sy + (f.ty - f.sy) * t - arcH * Math.sin(Math.PI * t);
-    f.radius = LEVEL4_PARAMS.FIREBALL_START_R +
-      (LEVEL4_PARAMS.FIREBALL_END_R - LEVEL4_PARAMS.FIREBALL_START_R) * t;
-    if (t >= 1) { f.landed = true; }
-  }
-  // Cull landed after brief flash
-  s.fireballs = s.fireballs.filter(f => !f.landed);
-}
-
-function tickSprouts(s: L4State) {
-  // D (green): full L2-style cycle once watered
-  const d = s.sproutD;
-  switch (d.phase) {
-    case 'seed': break;
+function tickOneSprout(sp: Sprout) {
+  switch (sp.phase) {
+    case 'seed':
+      // H sprouts (ladders) auto-regrow.
+      if (!sp.isPurple && !sp.noAutoWither && !sp.partialGrow) {
+        // D requires watering; H sprouts auto-regrow.
+      }
+      break;
     case 'growing':
-      d.growProgress = Math.min(1, d.growProgress + 1 / LEVEL4_PARAMS.SPROUT_GROW_FRAMES);
-      if (d.growProgress >= 1) { d.phase = 'alive'; d.aliveTimer = rollAliveFrames(); }
+      sp.growProgress = Math.min(1, sp.growProgress + 1 / LEVEL4_PARAMS.SPROUT_GROW_FRAMES);
+      if (sp.growProgress >= 1) { sp.phase = 'alive'; sp.aliveTimer = rollAliveFrames(); }
       break;
     case 'alive':
-      if (!d.inUse) {
-        d.aliveTimer--;
-        if (d.aliveTimer <= 0) d.phase = 'withering';
+      if (sp.noAutoWither) break;
+      if (!sp.inUse) {
+        sp.aliveTimer--;
+        if (sp.aliveTimer <= 0) sp.phase = 'withering';
       }
       break;
     case 'withering':
-      d.growProgress = Math.max(0, d.growProgress - 1 / LEVEL4_PARAMS.SPROUT_GROW_FRAMES);
-      if (d.growProgress <= 0) { d.phase = 'seed'; d.growProgress = 0; }
+      sp.growProgress = Math.max(0, sp.growProgress - 1 / LEVEL4_PARAMS.SPROUT_GROW_FRAMES);
+      if (sp.growProgress <= 0) {
+        sp.phase = 'seed';
+        sp.growProgress = 0;
+        sp.regrowTimer = rollRegrowFrames();
+      }
       break;
   }
-  d.inUse = false;
+  // Auto-regrow ladder H sprouts (and D's L2-style behaviour wired via regrowTimer)
+  if (sp.phase === 'seed' && sp.regrowTimer > 0) {
+    sp.regrowTimer--;
+    if (sp.regrowTimer <= 0) sp.phase = 'growing';
+  }
+  sp.inUse = false;
+}
 
-  // E (purple): only grows when watered; stays at whatever growProgress reached
-  const e = s.sproutE;
-  // E has no auto-wither; it persists and is used to climb at the end.
-  e.inUse = false;
+function tickSprouts(s: L4State) {
+  // D requires a green watering (not auto-regrow when fully cycled).
+  // We let D follow the same cycle; once it withers, it goes to seed and STAYS at seed
+  // (regrowTimer stays 0). Re-water with green can → set phase='growing'.
+  tickOneSprout(s.sproutD);
+  // Block D auto-regrow:
+  if (s.sproutD.phase === 'seed') s.sproutD.regrowTimer = 0;
+
+  // E: only grows on watering. We still tick to keep growProgress correct.
+  tickOneSprout(s.sproutE);
+
+  // H1/H2/H3 auto-regrow.
+  if (s.sproutH1.phase === 'seed' && s.sproutH1.regrowTimer <= 0 && s.sproutH1.growProgress === 0) {
+    s.sproutH1.phase = 'growing';
+  }
+  if (s.sproutH2.phase === 'seed' && s.sproutH2.regrowTimer <= 0 && s.sproutH2.growProgress === 0) {
+    s.sproutH2.phase = 'growing';
+  }
+  if (s.sproutH3.phase === 'seed' && s.sproutH3.regrowTimer <= 0 && s.sproutH3.growProgress === 0) {
+    s.sproutH3.phase = 'growing';
+  }
+  tickOneSprout(s.sproutH1);
+  tickOneSprout(s.sproutH2);
+  tickOneSprout(s.sproutH3);
 }
 
 // ── Monkeys ─────────────────────────────────────────────────
@@ -554,7 +660,6 @@ function tickMonkeys(s: L4State) {
     m.walkTimer++;
     if (m.walkTimer >= 6) { m.walkTimer = 0; m.walkFrame = (m.walkFrame + 1) % ROBOT_FRAMES; }
   }
-  // Green can spawn: all monkeys dead AND not yet spawned this wave AND no green can present
   if (!s.greenCanSpawned && !s.greenCan && s.dragon.state !== 'dead' && s.monkeys.every(m => !m.alive)) {
     spawnCan(s, 'green');
     s.greenCanSpawned = true;
@@ -562,8 +667,7 @@ function tickMonkeys(s: L4State) {
 }
 
 function spawnCan(s: L4State, color: 'green' | 'purple') {
-  // Random ground-level platform 1..8 (avoid top platforms 9,10).
-  const candidates = [1, 2, 3, 4, 5, 6, 7, 8];
+  const candidates = MONKEY_PLAT_ANCHORS;
   const pi = candidates[Math.floor(Math.random() * candidates.length)];
   const pl = L4_PLATFORMS[pi];
   const x = pl.x1 + 14 + Math.random() * Math.max(8, pl.x2 - pl.x1 - 32);
@@ -572,10 +676,10 @@ function spawnCan(s: L4State, color: 'green' | 'purple') {
 }
 
 function respawnMonkeyWave(s: L4State) {
-  const monkeyPlats = [2, 3, 4, 5, 6, 7, 8];
+  const dist = buildMonkeyDistribution(s.iter);
   s.monkeys = [];
-  for (let i = 0; i < s.diff.monkeyCount; i++) {
-    s.monkeys.push(makeMonkey(monkeyPlats[i % monkeyPlats.length]));
+  for (let i = 0; i < dist.length; i++) {
+    for (let k = 0; k < dist[i]; k++) s.monkeys.push(makeMonkey(MONKEY_PLAT_ANCHORS[i]));
   }
   s.greenCanSpawned = false;
 }
@@ -595,7 +699,6 @@ function tickDragon(s: L4State) {
   }
   if (d.state === 'downed') {
     d.downedTimer--;
-    d.y += 0.2;  // settle on floor
     if (d.downedTimer <= 0) {
       if (d.hits >= s.diff.hitsToKill) {
         d.state = 'dying';
@@ -606,9 +709,41 @@ function tickDragon(s: L4State) {
     }
     return;
   }
+  if (d.state === 'intro') {
+    // Jump from princess top down to TENT_TOP (band 3 center).
+    if (!d.airborne) {
+      const tgt = 6;
+      const tp = L4_PLATFORMS[tgt];
+      const tcx = (tp.x1 + tp.x2) / 2;
+      d.targetPlatIdx = tgt;
+      d.airborne = true;
+      d.vy = -2.0;
+      d.vx = Math.max(-3, Math.min(3, (tcx - (d.x + DRAGON_W / 2)) / 60));
+    }
+    d.vy += GRAVITY;
+    d.x += d.vx;
+    d.y += d.vy;
+    const tp = L4_PLATFORMS[d.targetPlatIdx];
+    if (d.vy >= 0 && d.y + DRAGON_H >= tp.y && d.x + DRAGON_W > tp.x1 && d.x < tp.x2) {
+      d.y = tp.y - DRAGON_H;
+      d.vy = 0; d.vx = 0;
+      d.airborne = false;
+      d.platIdx = d.targetPlatIdx;
+      d.state = 'roam';
+      d.jumpCooldown = 90;
+    } else if (d.y > CANVAS_H + 40) {
+      // Safety net
+      d.y = L4_PLATFORMS[6].y - DRAGON_H;
+      d.x = (L4_PLATFORMS[6].x1 + L4_PLATFORMS[6].x2) / 2 - DRAGON_W / 2;
+      d.airborne = false;
+      d.platIdx = 6;
+      d.state = 'roam';
+    }
+    return;
+  }
 
-  // roam: simple wander/jump across the dragon-band platforms (1..8 minus ground)
-  const reachable = [1, 2, 3, 4, 5, 6, 7, 8];
+  // Dragon roams band 3 platforms.
+  const reachable = [5, 6, 7];
   if (d.airborne) {
     d.vy += GRAVITY;
     d.x += d.vx;
@@ -622,8 +757,9 @@ function tickDragon(s: L4State) {
       d.platIdx = d.targetPlatIdx;
       d.jumpCooldown = 60 + Math.floor(Math.random() * 90);
     } else if (d.y > CANVAS_H + 40) {
-      d.y = L4_PLATFORMS[0].y - DRAGON_H;
-      d.platIdx = 0; d.airborne = false; d.vy = 0;
+      d.y = L4_PLATFORMS[6].y - DRAGON_H;
+      d.x = (L4_PLATFORMS[6].x1 + L4_PLATFORMS[6].x2) / 2 - DRAGON_W / 2;
+      d.platIdx = 6; d.airborne = false; d.vy = 0;
     }
     return;
   }
@@ -641,7 +777,6 @@ function tickDragon(s: L4State) {
 
   d.jumpCooldown--;
   if (d.jumpCooldown <= 0) {
-    // Pick a random other reachable platform; aim a hop toward it.
     const choices = reachable.filter(i => i !== d.platIdx);
     const tgt = choices[Math.floor(Math.random() * choices.length)];
     const tp = L4_PLATFORMS[tgt];
@@ -650,8 +785,8 @@ function tickDragon(s: L4State) {
     const dy = tp.y - (d.y + DRAGON_H);
     d.targetPlatIdx = tgt;
     d.airborne = true;
-    d.vy = dy < 0 ? -7.5 : -3.5;
-    d.vx = Math.max(-2.5, Math.min(2.5, dx / 40));
+    d.vy = dy < 0 ? -7.5 : -4.5;
+    d.vx = Math.max(-3, Math.min(3, dx / 40));
   }
 }
 
@@ -660,25 +795,18 @@ function tickPlayer(s: L4State, input: L4Input) {
   const p = s.player;
   if (p.kickTimer > 0) p.kickTimer--;
 
-  // Climbing detection
+  // Climbing detection across D, E, H1, H2, H3
   let nearSprout: Sprout | null = null;
-  let nearTopPlatIdx = -1;
-  let nearBotPlatIdx = -1;
-  const sproutHits: { sp: Sprout; topPlatIdx: number; botPlatIdx: number }[] = [
-    { sp: s.sproutD, topPlatIdx: D_TOP_PLAT_IDX, botPlatIdx: D_BASE_PLAT_IDX },
-    { sp: s.sproutE, topPlatIdx: E_TOP_PLAT_IDX, botPlatIdx: E_BASE_PLAT_IDX },
-  ];
-  for (const sh of sproutHits) {
-    const sp = sh.sp;
+  const sproutList = [s.sproutD, s.sproutE, s.sproutH1, s.sproutH2, s.sproutH3];
+  for (const sp of sproutList) {
     if (sp.growProgress < 0.6) continue;
     const cx = p.x + p.w / 2;
     const topReach = sp.yBot - (sp.yBot - sp.yTop) * sp.growProgress;
     if (Math.abs(cx - sp.x) < 12 && p.y + p.h >= topReach - 4 && p.y <= sp.yBot + 20) {
-      nearSprout = sp; nearTopPlatIdx = sh.topPlatIdx; nearBotPlatIdx = sh.botPlatIdx;
+      nearSprout = sp;
     }
   }
 
-  // Start climbing
   if (nearSprout && (input.up || input.down) && !p.climbing) {
     const topReach = nearSprout.yBot - (nearSprout.yBot - nearSprout.yTop) * nearSprout.growProgress;
     const atTop = Math.abs((p.y + p.h) - topReach) < 4;
@@ -702,7 +830,6 @@ function tickPlayer(s: L4State, input: L4Input) {
       p.climbTimer++;
       if (p.climbTimer >= 8) { p.climbTimer = 0; p.climbFrame = (p.climbFrame + 1) % 2; }
 
-      // Dismount sideways when aligned with a platform
       if (input.left || input.right) {
         const foot = p.y + p.h;
         const atTopPlat = Math.abs(foot - topReach) < 8;
@@ -711,20 +838,18 @@ function tickPlayer(s: L4State, input: L4Input) {
           p.y = (atTopPlat ? topReach : nearSprout.yBot) - p.h;
           p.climbing = false;
           p.onGround = true;
-          p.groundPlatIdx = atTopPlat ? nearTopPlatIdx : nearBotPlatIdx;
+          p.groundPlatIdx = atTopPlat ? nearSprout.topPlatIdx : nearSprout.botPlatIdx;
         } else {
           return;
         }
       } else {
-        // Hit top
         if (input.up && p.y + p.h <= topReach + 2) {
-          p.y = L4_PLATFORMS[nearTopPlatIdx].y - p.h;
-          p.climbing = false; p.onGround = true; p.groundPlatIdx = nearTopPlatIdx;
+          p.y = L4_PLATFORMS[nearSprout.topPlatIdx].y - p.h;
+          p.climbing = false; p.onGround = true; p.groundPlatIdx = nearSprout.topPlatIdx;
         }
-        // Hit bottom
         if (input.down && p.y + p.h >= nearSprout.yBot) {
           p.y = nearSprout.yBot - p.h;
-          p.climbing = false; p.onGround = true; p.groundPlatIdx = nearBotPlatIdx;
+          p.climbing = false; p.onGround = true; p.groundPlatIdx = nearSprout.botPlatIdx;
         }
         return;
       }
@@ -736,14 +861,13 @@ function tickPlayer(s: L4State, input: L4Input) {
   else if (input.right) { p.vx = MOVE_SPEED; p.facing = 1; }
   else p.vx = 0;
 
-  // Jump / KICK at A
+  // Jump / KICK at A / WATER actions
   if (input.jump && p.onGround && p.kickTimer === 0) {
-    // KICK check first: standing on kick ledge near A with rock at A
-    if (p.groundPlatIdx === KICK_LEDGE_IDX && s.rockAtAIdx >= 0) {
+    // KICK at A
+    if (p.groundPlatIdx === A_PLAT_IDX && s.rockAtAIdx >= 0) {
       const rock = s.rocks[s.rockAtAIdx];
       const cx = p.x + p.w / 2;
       if (Math.abs(cx - rock.x) < 22) {
-        // Kick! Rock starts falling.
         rock.state = 'falling';
         rock.vy = 0.5;
         rock.vx = 0;
@@ -756,24 +880,22 @@ function tickPlayer(s: L4State, input: L4Input) {
         p.jumpStartPlatIdx = p.groundPlatIdx;
       }
     }
-    // WATER E: standing on kick ledge near E while carrying purple can
-    else if (p.groundPlatIdx === KICK_LEDGE_IDX && s.carrying === 'purple') {
+    // WATER E
+    else if (p.groundPlatIdx === E_BASE_PLAT_IDX && s.carrying === 'purple') {
       const cx = p.x + p.w / 2;
       if (Math.abs(cx - E_X) < 22) {
-        // Grow E by 1/X
         if (s.sproutE.phase === 'seed') { s.sproutE.phase = 'growing'; s.sproutE.growProgress = 0; }
         s.sproutE.growProgress = Math.min(1, s.sproutE.growProgress + s.eGrowChunk);
         if (s.sproutE.growProgress >= 1) { s.sproutE.phase = 'alive'; }
         s.carrying = null;
         // Re-seed D
         s.sproutD.phase = 'withering';
-        // If hits<X, respawn monkeys so player can earn another green can
         if (s.dragon.hits < s.diff.hitsToKill) respawnMonkeyWave(s);
       } else {
         p.vy = JUMP_FORCE; p.onGround = false; p.jumping = true; p.jumpStartPlatIdx = p.groundPlatIdx;
       }
     }
-    // WATER D: standing on D's base platform near D while carrying green can
+    // WATER D
     else if (p.groundPlatIdx === D_BASE_PLAT_IDX && s.carrying === 'green') {
       const cx = p.x + p.w / 2;
       if (Math.abs(cx - D_X) < 22) {
@@ -792,14 +914,18 @@ function tickPlayer(s: L4State, input: L4Input) {
     }
   }
 
-  // Gravity
+  // Gravity & ride moving platform
+  let carriedVx = 0;
+  if (p.onGround && p.groundPlatIdx >= 0) {
+    const pl = L4_PLATFORMS[p.groundPlatIdx];
+    if (pl.moving) carriedVx = pl.moving.speed;
+  }
   p.vy += GRAVITY;
-  p.x += p.vx;
+  p.x += p.vx + carriedVx;
   p.y += p.vy;
   p.x = Math.max(0, Math.min(CANVAS_W - p.w, p.x));
 
-  // Platform collisions — only the platform we started the jump on,
-  // OR any platform when not jumping.
+  // Platform collisions — only same platform when jumping (keeps prior rule).
   const wasOnGround = p.onGround;
   p.onGround = false;
   const limitIdx = p.jumping ? p.jumpStartPlatIdx : -1;
@@ -817,9 +943,8 @@ function tickPlayer(s: L4State, input: L4Input) {
       break;
     }
   }
-  // If walked off an edge, allow fall (don't snap back to ground).
   if (wasOnGround && !p.onGround && !p.jumping) {
-    // free-fall continues
+    // free-fall
   }
 
   // Anim
@@ -854,7 +979,7 @@ function tickCollisions(s: L4State) {
   const p = s.player;
   const d = s.dragon;
 
-  // Rock vs Dragon (only "falling" rocks hit dragon)
+  // Rock vs Dragon (falling rocks only)
   for (const r of s.rocks) {
     if (r.state !== 'falling') continue;
     if (r.hitConsumed) continue;
@@ -866,39 +991,25 @@ function tickCollisions(s: L4State) {
         d.hits++;
         d.state = 'downed';
         d.downedTimer = Math.round(5 * 60);
-        // Spawn purple can
         if (!s.purpleCan) spawnCan(s, 'purple');
       }
     }
   }
 
-  // Rocks vs player (hazardous when not falling toward dragon)
+  // Rocks vs player
   if (s.invuln <= 0) {
     for (const r of s.rocks) {
       if (r.state === 'restingAtA' || r.state === 'dead') continue;
       const dx = (p.x + p.w / 2) - r.x;
       const dy = (p.y + p.h / 2) - r.y;
       if (dx * dx + dy * dy < (r.r + 8) * (r.r + 8)) {
-        // Falling rock from A is also dangerous to player on lower bands
-        loseLife(s); break;
-      }
-    }
-  }
-
-  // Fireballs vs player
-  if (s.invuln <= 0 && !s.dying) {
-    for (const f of s.fireballs) {
-      if (f.landed) continue;
-      const dx = (p.x + p.w / 2) - f.x;
-      const dy = (p.y + p.h / 2) - f.y;
-      if (dx * dx + dy * dy < (f.radius + 8) * (f.radius + 8)) {
         loseLife(s); break;
       }
     }
   }
 
   // Dragon touch
-  if (s.invuln <= 0 && (d.state === 'roam')) {
+  if (s.invuln <= 0 && d.state === 'roam') {
     if (p.x < d.x + DRAGON_W && p.x + p.w > d.x && p.y < d.y + DRAGON_H && p.y + p.h > d.y) {
       loseLife(s);
     }
@@ -917,7 +1028,7 @@ function tickCollisions(s: L4State) {
     }
   }
 
-  // Win check: caveman on princess platform touching princess (only after dragon dead)
+  // Win check
   if (d.state === 'dead' && Math.abs(p.y + p.h - L4_PLATFORMS[PRINCESS_PLAT_IDX].y) < 6) {
     if (p.x < s.princessX + PRINCESS_W && p.x + p.w > s.princessX) {
       if (!s.ending.active) {
@@ -966,7 +1077,6 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
   ctx.save();
   ctx.fillStyle = '#0a0010';
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-  // Stars
   ctx.fillStyle = '#ffffff';
   for (let i = 0; i < 24; i++) {
     const sx = (i * 71) % CANVAS_W;
@@ -974,16 +1084,24 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     ctx.fillRect(sx, sy, 1, 1);
   }
 
+  // Decorative ramps (visual hints between bands per sketch).
+  drawRamp(ctx, L4_PLATFORMS[1].x1, L4_PLATFORMS[1].y, L4_PLATFORMS[4].x2, L4_PLATFORMS[4].y); // top-right cascade
+  drawRamp(ctx, L4_PLATFORMS[2].x2, L4_PLATFORMS[2].y, L4_PLATFORMS[3].x1, L4_PLATFORMS[3].y); // left-high → valley
+  drawRamp(ctx, L4_PLATFORMS[3].x2, L4_PLATFORMS[3].y, L4_PLATFORMS[4].x1, L4_PLATFORMS[4].y); // valley → right-high
+  drawRamp(ctx, L4_PLATFORMS[13].x2, L4_PLATFORMS[13].y, L4_PLATFORMS[17].x2, L4_PLATFORMS[17].y); // F → ground
+  drawRamp(ctx, L4_PLATFORMS[14].x1, L4_PLATFORMS[14].y, L4_PLATFORMS[18].x1, L4_PLATFORMS[18].y); // G → ground
+
   // Platforms
-  for (const plat of L4_PLATFORMS) {
+  for (let i = 0; i < L4_PLATFORMS.length; i++) {
+    const plat = L4_PLATFORMS[i];
     ctx.fillStyle = '#6B4226';
     ctx.fillRect(plat.x1, plat.y + 2, plat.x2 - plat.x1, 6);
-    ctx.fillStyle = '#3CB043';
+    ctx.fillStyle = plat.moving ? '#5CD068' : '#3CB043';
     ctx.fillRect(plat.x1, plat.y, plat.x2 - plat.x1, 3);
   }
 
-  // Volcano (top-right of princess platform)
-  drawVolcano(ctx, VOLCANO_X, L4_PLATFORMS[10].y);
+  // Volcano
+  drawVolcano(ctx, VOLCANO_X, L4_PLATFORMS[0].y);
 
   // Princess
   if (sprites.princess.complete) {
@@ -996,12 +1114,14 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
   // Sprouts
   drawSprout(ctx, s.sproutD);
   drawSprout(ctx, s.sproutE);
+  drawSprout(ctx, s.sproutH1);
+  drawSprout(ctx, s.sproutH2);
+  drawSprout(ctx, s.sproutH3);
 
   // Cans
   if (s.greenCan) drawCan(ctx, sprites, s.greenCan);
   if (s.purpleCan) drawCan(ctx, sprites, s.purpleCan);
 
-  // Carrying icon above player
   if (s.carrying) {
     const p = s.player;
     ctx.fillStyle = s.carrying === 'green' ? '#3CB043' : '#9b59b6';
@@ -1049,20 +1169,6 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     }
     ctx.restore();
   }
-
-  // Fireballs (red volcano rocks)
-  for (const f of s.fireballs) {
-    if (f.landed) continue;
-    ctx.save();
-    const grad = ctx.createRadialGradient(f.x, f.y, 1, f.x, f.y, f.radius);
-    grad.addColorStop(0, '#ffeb3b');
-    grad.addColorStop(0.5, '#ff6a1a');
-    grad.addColorStop(1, '#8a1a00');
-    ctx.fillStyle = grad;
-    ctx.beginPath(); ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2); ctx.fill();
-    ctx.restore();
-  }
-
 
   // Player
   const p = s.player;
@@ -1125,6 +1231,24 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     }
   }
 
+  ctx.restore();
+}
+
+function drawRamp(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number) {
+  // Decorative diagonal slab between two band edges.
+  ctx.save();
+  ctx.strokeStyle = '#3CB043';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+  ctx.strokeStyle = '#6B4226';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1 + 4);
+  ctx.lineTo(x2, y2 + 4);
+  ctx.stroke();
   ctx.restore();
 }
 
@@ -1204,7 +1328,6 @@ function drawDragon(ctx: CanvasRenderingContext2D, sprites: L4Sprites, d: Dragon
     ctx.fillStyle = '#c0392b'; ctx.fillRect(d.x, d.y, DRAGON_W, DRAGON_H);
   }
   ctx.restore();
-  // Stars when downed
   if (d.state === 'downed') {
     ctx.save();
     ctx.translate(d.x + DRAGON_W / 2, d.y - 8);
