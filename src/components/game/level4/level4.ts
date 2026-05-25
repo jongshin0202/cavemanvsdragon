@@ -881,6 +881,18 @@ function tickCollisions(s: L4State) {
     }
   }
 
+  // Fireballs vs player
+  if (s.invuln <= 0 && !s.dying) {
+    for (const f of s.fireballs) {
+      if (f.landed) continue;
+      const dx = (p.x + p.w / 2) - f.x;
+      const dy = (p.y + p.h / 2) - f.y;
+      if (dx * dx + dy * dy < (f.radius + 8) * (f.radius + 8)) {
+        loseLife(s); break;
+      }
+    }
+  }
+
   // Dragon touch
   if (s.invuln <= 0 && (d.state === 'roam')) {
     if (p.x < d.x + DRAGON_W && p.x + p.w > d.x && p.y < d.y + DRAGON_H && p.y + p.h > d.y) {
