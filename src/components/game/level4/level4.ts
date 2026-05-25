@@ -61,34 +61,31 @@ export const L4_PLATFORMS: L4Platform[] = [
   // ── Band 1 (Princess + Volcano top) ──
   /*  0 PRINCESS_TOP   */ { y: 80,  x1: 64,  x2: 432 },
 
-  // ── Band 2 (flat — E sprout + rock-rest A) ──
-  /*  1 B2_FLAT        */ { y: 156, x1: 0,   x2: 512 },
+  // ── Band 2 (short middle flat — E sprout + rock-rest A) ──
+  /*  1 B2_FLAT        */ { y: 156, x1: 180, x2: 340 },
 
-  // ── Band 3 (D-flat ← gap (tent recess) → right-flat) ──
+  // ── Band 3 (D-flat ← V-tent → right-flat) ──
   /*  2 D_FLAT         */ { y: 232, x1: 0,   x2: 144 },
-  /*  3 TENT_LEFT_LEG  */ { y: 232, x1: 144, x2: 224, slope: (308 - 232) / (224 - 144) },
-  /*  4 TENT_TOP       */ { y: 308, x1: 224, x2: 288 },
-  /*  5 TENT_RIGHT_LEG */ { y: 308, x1: 288, x2: 368, slope: (232 - 308) / (368 - 288) },
-  /*  6 RIGHT_B3       */ { y: 232, x1: 368, x2: 512 },
+  /*  3 TENT_LEFT_LEG  */ { y: 232, x1: 144, x2: 256, slope: (308 - 232) / (256 - 144) },
+  /*  4 TENT_RIGHT_LEG */ { y: 308, x1: 256, x2: 368, slope: (232 - 308) / (368 - 256) },
+  /*  5 RIGHT_B3       */ { y: 232, x1: 368, x2: 512 },
 
-  // ── Band 4 (stubs + tent recess movers) ──
-  /*  7 LEFT_B4        */ { y: 308, x1: 0,   x2: 100 },
-  /*  8 RIGHT_B4       */ { y: 308, x1: 412, x2: 512 },
-  /*  9 M_B4_L         */ { y: 308, x1: 100, x2: 140 },
-  /* 10 M_B4_R         */ { y: 308, x1: 372, x2: 412 },
+  // ── Band 4 (stubs only) ──
+  /*  6 LEFT_B4        */ { y: 308, x1: 0,   x2: 100 },
+  /*  7 RIGHT_B4       */ { y: 308, x1: 412, x2: 512 },
 
   // ── Band 5 (F flat + ramp inward; N-pair; G flat + ramp inward) ──
-  /* 11 LEFT_B5        */ { y: 384, x1: 0,   x2: 132 },
-  /* 12 LEFT_B5_RAMP   */ { y: 384, x1: 132, x2: 188, slope: (460 - 384) / (188 - 132) },
-  /* 13 RIGHT_B5_RAMP  */ { y: 460, x1: 324, x2: 380, slope: (384 - 460) / (380 - 324) },
-  /* 14 RIGHT_B5       */ { y: 384, x1: 380, x2: 512 },
-  /* 15 M_B5_L         */ { y: 384, x1: 132, x2: 172 },
-  /* 16 M_B5_R         */ { y: 384, x1: 340, x2: 380 },
+  /*  8 LEFT_B5        */ { y: 384, x1: 0,   x2: 132 },
+  /*  9 LEFT_B5_RAMP   */ { y: 384, x1: 132, x2: 188, slope: (460 - 384) / (188 - 132) },
+  /* 10 RIGHT_B5_RAMP  */ { y: 460, x1: 324, x2: 380, slope: (384 - 460) / (380 - 324) },
+  /* 11 RIGHT_B5       */ { y: 384, x1: 380, x2: 512 },
+  /* 12 M_B5_L         */ { y: 384, x1: 132, x2: 172 },
+  /* 13 M_B5_R         */ { y: 384, x1: 340, x2: 380 },
 
   // ── Band 6 (ground) ──
-  /* 17 LEFT_GROUND    */ { y: 460, x1: 0,   x2: 188 },
-  /* 18 RIGHT_GROUND   */ { y: 460, x1: 324, x2: 512 },
-  /* 19 M_B6           */ { y: 460, x1: 188, x2: 228 },
+  /* 14 LEFT_GROUND    */ { y: 460, x1: 0,   x2: 188 },
+  /* 15 RIGHT_GROUND   */ { y: 460, x1: 324, x2: 512 },
+  /* 16 M_B6           */ { y: 460, x1: 188, x2: 228 },
 ];
 
 // Helper for random speed in [min,max] with random sign.
@@ -100,14 +97,10 @@ function rmag(lo: number, hi: number): number {
   return lo + Math.random() * (hi - lo);
 }
 
-// Mover bounds: min/max are the LEFT-edge range; bounded by neighbour
-// steady-platform edges so movers bounce off solid platforms.
-L4_PLATFORMS[9].moving  = { min: 100, max: 184, speed: rsp(0.5, 1.1) };
-L4_PLATFORMS[10].moving = { min: 288, max: 372, speed: rsp(0.5, 1.1) };
 // N-pair: start moving TOWARD each other, different random speeds.
-L4_PLATFORMS[15].moving = { min: 132, max: 232, speed:  rmag(0.6, 1.2), pairIdx: 16 };
-L4_PLATFORMS[16].moving = { min: 280, max: 380, speed: -rmag(0.6, 1.2), pairIdx: 15 };
-L4_PLATFORMS[19].moving = { min: 188, max: 284, speed: rsp(0.5, 1.0) };
+L4_PLATFORMS[12].moving = { min: 132, max: 232, speed:  rmag(0.6, 1.2), pairIdx: 13 };
+L4_PLATFORMS[13].moving = { min: 280, max: 380, speed: -rmag(0.6, 1.2), pairIdx: 12 };
+L4_PLATFORMS[16].moving = { min: 188, max: 284, speed: rsp(0.5, 1.0) };
 
 // Named anchors
 const PRINCESS_X = 100;
@@ -126,12 +119,12 @@ const D_TOP_PLAT_IDX    = 1;   // B2_FLAT
 const A_PLAT_IDX        = 1;   // B2_FLAT
 
 // H ladder sprouts (each spans exactly one band gap)
-const H1_X = 60,  H1_TOP_IDX = 7,  H1_BOT_IDX = 11;  // LEFT_B4 → LEFT_B5
-const H2_X = 470, H2_TOP_IDX = 6,  H2_BOT_IDX = 8;   // RIGHT_B3 → RIGHT_B4
-const H3_X = 490, H3_TOP_IDX = 14, H3_BOT_IDX = 18;  // RIGHT_B5 → RIGHT_GROUND
+const H1_X = 60,  H1_TOP_IDX = 6,  H1_BOT_IDX = 8;   // LEFT_B4 → LEFT_B5
+const H2_X = 470, H2_TOP_IDX = 5,  H2_BOT_IDX = 7;   // RIGHT_B3 → RIGHT_B4
+const H3_X = 490, H3_TOP_IDX = 11, H3_BOT_IDX = 15;  // RIGHT_B5 → RIGHT_GROUND
 
 const MONKEY_PLAT_ANCHORS: number[] = [
-  2, 6, 7, 8, 9, 10, 11, 14, 17, 18, 19,
+  2, 5, 6, 7, 8, 11, 14, 15, 16,
 ];
 const MONKEY_PER_PLAT_CAP = 5;
 const MONKEY_TOTAL_CAP    = 20;
@@ -330,27 +323,25 @@ export function initLevel4(iter: number): L4State {
     pl.x1 = startX; pl.x2 = startX + w;
     pl.moving.speed = speed;
   };
-  randomizeMover(9,  rsp(0.5, 1.1));
-  randomizeMover(10, rsp(0.5, 1.1));
   // N-pair: opposite directions, different magnitudes.
-  randomizeMover(15,  rmag(0.6, 1.2));
-  randomizeMover(16, -rmag(0.6, 1.2));
-  randomizeMover(19, rsp(0.5, 1.0));
+  randomizeMover(12,  rmag(0.6, 1.2));
+  randomizeMover(13, -rmag(0.6, 1.2));
+  randomizeMover(16, rsp(0.5, 1.0));
 
-  // Caveman on LEFT_GROUND (idx 17).
+  // Caveman on LEFT_GROUND (idx 14).
   const player: Player = {
-    x: 20, y: platY(L4_PLATFORMS[17], 20) - 24, w: 16, h: 24,
-    vx: 0, vy: 0, onGround: true, groundPlatIdx: 17, jumpStartPlatIdx: 17,
+    x: 20, y: platY(L4_PLATFORMS[14], 20) - 24, w: 16, h: 24,
+    vx: 0, vy: 0, onGround: true, groundPlatIdx: 14, jumpStartPlatIdx: 14,
     climbing: false, facing: 1, jumping: false,
     walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0,
     climbFrame: 0, climbTimer: 0, kickTimer: 0,
   };
 
-  // Dragon spawns next to princess on PRINCESS_TOP, then intro-jumps to TENT_TOP (idx 4).
+  // Dragon spawns next to princess on PRINCESS_TOP, then intro-jumps to D_FLAT (idx 2).
   const dragon: Dragon = {
     x: 140, y: L4_PLATFORMS[0].y - DRAGON_H,
     vx: 0, vy: 0, airborne: false,
-    platIdx: 0, targetPlatIdx: 4,
+    platIdx: 0, targetPlatIdx: 2,
     facing: -1, jumpCooldown: 60,
     state: 'intro', downedTimer: 0, dyingTimer: 0, hits: 0,
     frame: 0, frameTimer: 0,
@@ -430,10 +421,10 @@ export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: 
 
 function respawnPlayer(s: L4State) {
   const p = s.player;
-  p.x = 20; p.y = platY(L4_PLATFORMS[17], 20) - 24;
+  p.x = 20; p.y = platY(L4_PLATFORMS[14], 20) - 24;
   p.vx = 0; p.vy = 0;
   p.onGround = true; p.climbing = false; p.jumping = false;
-  p.groundPlatIdx = 17; p.jumpStartPlatIdx = 17;
+  p.groundPlatIdx = 14; p.jumpStartPlatIdx = 14;
   p.facing = 1; p.kickTimer = 0;
 }
 
@@ -724,7 +715,7 @@ function tickDragon(s: L4State) {
   if (d.state === 'intro') {
     // Jump from princess top down to TENT_TOP (band 3 center).
     if (!d.airborne) {
-      const tgt = 4;
+      const tgt = 2;
       const tp = L4_PLATFORMS[tgt];
       const tcx = (tp.x1 + tp.x2) / 2;
       d.targetPlatIdx = tgt;
@@ -745,17 +736,17 @@ function tickDragon(s: L4State) {
       d.jumpCooldown = 90;
     } else if (d.y > CANVAS_H + 40) {
       // Safety net
-      d.y = L4_PLATFORMS[4].y - DRAGON_H;
-      d.x = (L4_PLATFORMS[4].x1 + L4_PLATFORMS[4].x2) / 2 - DRAGON_W / 2;
+      d.y = L4_PLATFORMS[2].y - DRAGON_H;
+      d.x = (L4_PLATFORMS[2].x1 + L4_PLATFORMS[2].x2) / 2 - DRAGON_W / 2;
       d.airborne = false;
-      d.platIdx = 4;
+      d.platIdx = 2;
       d.state = 'roam';
     }
     return;
   }
 
-  // Dragon roams Band 3 / TENT_TOP platforms.
-  const reachable = [2, 4, 6];
+  // Dragon roams Band 3 platforms (no TENT_TOP anymore).
+  const reachable = [2, 5];
   if (d.airborne) {
     d.vy += GRAVITY;
     d.x += d.vx;
@@ -769,9 +760,9 @@ function tickDragon(s: L4State) {
       d.platIdx = d.targetPlatIdx;
       d.jumpCooldown = 60 + Math.floor(Math.random() * 90);
     } else if (d.y > CANVAS_H + 40) {
-      d.y = L4_PLATFORMS[4].y - DRAGON_H;
-      d.x = (L4_PLATFORMS[4].x1 + L4_PLATFORMS[4].x2) / 2 - DRAGON_W / 2;
-      d.platIdx = 4; d.airborne = false; d.vy = 0;
+      d.y = L4_PLATFORMS[2].y - DRAGON_H;
+      d.x = (L4_PLATFORMS[2].x1 + L4_PLATFORMS[2].x2) / 2 - DRAGON_W / 2;
+      d.platIdx = 2; d.airborne = false; d.vy = 0;
     }
     return;
   }
