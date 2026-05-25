@@ -1119,8 +1119,8 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     ctx.lineTo(plat.x1, y1 + 8);
     ctx.closePath();
     ctx.fill();
-    // green top
-    ctx.fillStyle = plat.moving ? '#5CD068' : '#3CB043';
+    // top surface — blue for ice, green-light for movers, green for static
+    ctx.fillStyle = plat.ice ? '#7FD4F5' : (plat.moving ? '#FF5252' : '#3CB043');
     ctx.beginPath();
     ctx.moveTo(plat.x1, y1);
     ctx.lineTo(plat.x2, y2);
