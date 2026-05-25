@@ -55,85 +55,83 @@ function platY(p: L4Platform, x: number): number {
   return p.y + (cx - p.x1) * (p.slope || 0);
 }
 
-// Band Y rows (compressed so everything fits)
-//  B1=70  B2=195  B3=270  B4=330  B5=388  B6=450
+// Band Y rows — EQUAL spacing of 76px between every band.
+//  B1=80  B2=156  B3=232  B4=308  B5=384  B6=460
 export const L4_PLATFORMS: L4Platform[] = [
-  // ── Band 1 (Princess top) ──
-  /*  0 PRINCESS_TOP   */ { y: 70,  x1: 90,  x2: 400 },
-  /*  1 TOP_RIGHT_STUB */ { y: 95,  x1: 462, x2: 512 },
-  /*  2 RAMP_TR        */ { y: 170, x1: 372, x2: 462, slope: (95 - 170) / (462 - 372) },
+  // ── Band 1 (Princess + Volcano top) ──
+  /*  0 PRINCESS_TOP   */ { y: 80,  x1: 64,  x2: 432 },
 
-  // ── Band 2 (left W-zigzag with E valley) — shortened ──
-  /*  3 LEFT_HIGH      */ { y: 150, x1: 0,   x2: 80  },
-  /*  4 RAMP_L_DOWN    */ { y: 150, x1: 80,  x2: 168, slope: (195 - 150) / (168 - 80) },
-  /*  5 E_VALLEY       */ { y: 195, x1: 168, x2: 286 },
-  /*  6 RAMP_L_UP      */ { y: 195, x1: 286, x2: 372, slope: (150 - 195) / (372 - 286) },
+  // ── Band 2 (flat — E sprout + rock-rest A) ──
+  /*  1 B2_FLAT        */ { y: 156, x1: 0,   x2: 512 },
 
-  // ── Band 3 (D-flat ←M→ TENT(top@B3, legs↓B4) ←M→ right-flat) ──
-  /*  7 D_FLAT         */ { y: 270, x1: 0,   x2: 130 },
-  /*  8 TENT_LEFT      */ { y: 330, x1: 190, x2: 230, slope: (270 - 330) / (230 - 190) },
-  /*  9 TENT_TOP       */ { y: 270, x1: 230, x2: 292 },
-  /* 10 TENT_RIGHT     */ { y: 270, x1: 292, x2: 332, slope: (330 - 270) / (332 - 292) },
-  /* 11 RIGHT_B3       */ { y: 270, x1: 384, x2: 512 },
-  /* 12 M_B3_L         */ { y: 270, x1: 140, x2: 184 },
-  /* 13 M_B3_R         */ { y: 270, x1: 336, x2: 380 },
+  // ── Band 3 (D-flat ← gap (tent recess) → right-flat) ──
+  /*  2 D_FLAT         */ { y: 232, x1: 0,   x2: 144 },
+  /*  3 TENT_LEFT_LEG  */ { y: 232, x1: 144, x2: 224, slope: (308 - 232) / (224 - 144) },
+  /*  4 TENT_TOP       */ { y: 308, x1: 224, x2: 288 },
+  /*  5 TENT_RIGHT_LEG */ { y: 308, x1: 288, x2: 368, slope: (232 - 308) / (368 - 288) },
+  /*  6 RIGHT_B3       */ { y: 232, x1: 368, x2: 512 },
 
-
-  // ── Band 4 (small stubs + center mover) ──
-  /* 14 LEFT_B4        */ { y: 330, x1: 0,   x2: 80  },
-  /* 15 M_B4           */ { y: 330, x1: 196, x2: 304 },
-  /* 16 RIGHT_B4       */ { y: 330, x1: 432, x2: 512 },
+  // ── Band 4 (stubs + tent recess movers) ──
+  /*  7 LEFT_B4        */ { y: 308, x1: 0,   x2: 100 },
+  /*  8 RIGHT_B4       */ { y: 308, x1: 412, x2: 512 },
+  /*  9 M_B4_L         */ { y: 308, x1: 100, x2: 140 },
+  /* 10 M_B4_R         */ { y: 308, x1: 372, x2: 412 },
 
   // ── Band 5 (F flat + ramp inward; N-pair; G flat + ramp inward) ──
-  /* 17 LEFT_B5        */ { y: 388, x1: 0,   x2: 132 },
-  /* 18 LEFT_B5_RAMP   */ { y: 388, x1: 132, x2: 188, slope: (450 - 388) / (188 - 132) },
-  /* 19 RIGHT_B5_RAMP  */ { y: 450, x1: 324, x2: 380, slope: (388 - 450) / (380 - 324) },
-  /* 20 RIGHT_B5       */ { y: 388, x1: 380, x2: 512 },
-  /* 21 M_B5_L         */ { y: 388, x1: 150, x2: 210 },
-  /* 22 M_B5_R         */ { y: 388, x1: 302, x2: 362 },
+  /* 11 LEFT_B5        */ { y: 384, x1: 0,   x2: 132 },
+  /* 12 LEFT_B5_RAMP   */ { y: 384, x1: 132, x2: 188, slope: (460 - 384) / (188 - 132) },
+  /* 13 RIGHT_B5_RAMP  */ { y: 460, x1: 324, x2: 380, slope: (384 - 460) / (380 - 324) },
+  /* 14 RIGHT_B5       */ { y: 384, x1: 380, x2: 512 },
+  /* 15 M_B5_L         */ { y: 384, x1: 132, x2: 172 },
+  /* 16 M_B5_R         */ { y: 384, x1: 340, x2: 380 },
 
   // ── Band 6 (ground) ──
-  /* 23 LEFT_GROUND    */ { y: 450, x1: 0,   x2: 188 },
-  /* 24 RIGHT_GROUND   */ { y: 450, x1: 324, x2: 512 },
-  /* 25 M_B6           */ { y: 450, x1: 200, x2: 312 },
+  /* 17 LEFT_GROUND    */ { y: 460, x1: 0,   x2: 188 },
+  /* 18 RIGHT_GROUND   */ { y: 460, x1: 324, x2: 512 },
+  /* 19 M_B6           */ { y: 460, x1: 188, x2: 228 },
 ];
 
 // Helper for random speed in [min,max] with random sign.
 function rsp(lo: number, hi: number): number {
   return (Math.random() < 0.5 ? -1 : 1) * (lo + Math.random() * (hi - lo));
 }
+// Random magnitude only (caller picks sign).
+function rmag(lo: number, hi: number): number {
+  return lo + Math.random() * (hi - lo);
+}
 
-// min/max are bounds for the platform's LEFT edge (x1).
-L4_PLATFORMS[12].moving = { min: 130, max: 186, speed: rsp(0.5, 1.1) };
-L4_PLATFORMS[13].moving = { min: 332, max: 340, speed: rsp(0.5, 1.1) };
-L4_PLATFORMS[15].moving = { min: 80,  max: 324, speed: rsp(0.6, 1.2) };
-L4_PLATFORMS[21].moving = { min: 132, max: 242, speed: rsp(0.6, 1.4), pairIdx: 22 };
-L4_PLATFORMS[22].moving = { min: 270, max: 320, speed: rsp(0.6, 1.4), pairIdx: 21 };
-L4_PLATFORMS[25].moving = { min: 188, max: 212, speed: rsp(0.5, 1.0) };
+// Mover bounds: min/max are the LEFT-edge range; bounded by neighbour
+// steady-platform edges so movers bounce off solid platforms.
+L4_PLATFORMS[9].moving  = { min: 100, max: 184, speed: rsp(0.5, 1.1) };
+L4_PLATFORMS[10].moving = { min: 288, max: 372, speed: rsp(0.5, 1.1) };
+// N-pair: start moving TOWARD each other, different random speeds.
+L4_PLATFORMS[15].moving = { min: 132, max: 232, speed:  rmag(0.6, 1.2), pairIdx: 16 };
+L4_PLATFORMS[16].moving = { min: 280, max: 380, speed: -rmag(0.6, 1.2), pairIdx: 15 };
+L4_PLATFORMS[19].moving = { min: 188, max: 284, speed: rsp(0.5, 1.0) };
 
 // Named anchors
-const PRINCESS_X = 130;
+const PRINCESS_X = 100;
 const PRINCESS_Y = L4_PLATFORMS[0].y - 48;
-const VOLCANO_X  = 350;
-const C_X = 280;
-const E_X = 220;
-const A_X = 260;
-const D_X = 24;
+const VOLCANO_X  = 380;
+const C_X = 380;
+const E_X = 260;
+const A_X = 300;
+const D_X = 40;
 
 const PRINCESS_PLAT_IDX = 0;
-const E_BASE_PLAT_IDX   = 5;
-const E_TOP_PLAT_IDX    = 0;
-const D_BASE_PLAT_IDX   = 7;
-const D_TOP_PLAT_IDX    = 3;
-const A_PLAT_IDX        = 5;
+const E_BASE_PLAT_IDX   = 1;   // B2_FLAT
+const E_TOP_PLAT_IDX    = 0;   // PRINCESS_TOP
+const D_BASE_PLAT_IDX   = 2;   // D_FLAT
+const D_TOP_PLAT_IDX    = 1;   // B2_FLAT
+const A_PLAT_IDX        = 1;   // B2_FLAT
 
-// H ladder sprouts
-const H1_X = 60,  H1_TOP_IDX = 14, H1_BOT_IDX = 17;
-const H2_X = 470, H2_TOP_IDX = 11, H2_BOT_IDX = 16;
-const H3_X = 490, H3_TOP_IDX = 20, H3_BOT_IDX = 24;
+// H ladder sprouts (each spans exactly one band gap)
+const H1_X = 60,  H1_TOP_IDX = 7,  H1_BOT_IDX = 11;  // LEFT_B4 → LEFT_B5
+const H2_X = 470, H2_TOP_IDX = 6,  H2_BOT_IDX = 8;   // RIGHT_B3 → RIGHT_B4
+const H3_X = 490, H3_TOP_IDX = 14, H3_BOT_IDX = 18;  // RIGHT_B5 → RIGHT_GROUND
 
 const MONKEY_PLAT_ANCHORS: number[] = [
-  7, 11, 14, 15, 16, 17, 20, 23, 24, 25,
+  2, 6, 7, 8, 9, 10, 11, 14, 17, 18, 19,
 ];
 const MONKEY_PER_PLAT_CAP = 5;
 const MONKEY_TOTAL_CAP    = 20;
