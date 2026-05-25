@@ -315,8 +315,8 @@ export function initLevel4(iter: number): L4State {
 
   // Caveman on LEFT_GROUND.
   const player: Player = {
-    x: 20, y: L4_PLATFORMS[17].y - 24, w: 16, h: 24,
-    vx: 0, vy: 0, onGround: true, groundPlatIdx: 17, jumpStartPlatIdx: 17,
+    x: 20, y: platY(L4_PLATFORMS[23], 20) - 24, w: 16, h: 24,
+    vx: 0, vy: 0, onGround: true, groundPlatIdx: 23, jumpStartPlatIdx: 23,
     climbing: false, facing: 1, jumping: false,
     walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0,
     climbFrame: 0, climbTimer: 0, kickTimer: 0,
@@ -326,7 +326,7 @@ export function initLevel4(iter: number): L4State {
   const dragon: Dragon = {
     x: 140, y: L4_PLATFORMS[0].y - DRAGON_H,
     vx: 0, vy: 0, airborne: false,
-    platIdx: 0, targetPlatIdx: 6,
+    platIdx: 0, targetPlatIdx: 9,
     facing: -1, jumpCooldown: 60,
     state: 'intro', downedTimer: 0, dyingTimer: 0, hits: 0,
     frame: 0, frameTimer: 0,
@@ -406,10 +406,10 @@ export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: 
 
 function respawnPlayer(s: L4State) {
   const p = s.player;
-  p.x = 20; p.y = L4_PLATFORMS[17].y - 24;
+  p.x = 20; p.y = platY(L4_PLATFORMS[23], 20) - 24;
   p.vx = 0; p.vy = 0;
   p.onGround = true; p.climbing = false; p.jumping = false;
-  p.groundPlatIdx = 17; p.jumpStartPlatIdx = 17;
+  p.groundPlatIdx = 23; p.jumpStartPlatIdx = 23;
   p.facing = 1; p.kickTimer = 0;
 }
 
@@ -699,7 +699,7 @@ function tickDragon(s: L4State) {
   if (d.state === 'intro') {
     // Jump from princess top down to TENT_TOP (band 3 center).
     if (!d.airborne) {
-      const tgt = 6;
+      const tgt = 9;
       const tp = L4_PLATFORMS[tgt];
       const tcx = (tp.x1 + tp.x2) / 2;
       d.targetPlatIdx = tgt;
@@ -720,17 +720,17 @@ function tickDragon(s: L4State) {
       d.jumpCooldown = 90;
     } else if (d.y > CANVAS_H + 40) {
       // Safety net
-      d.y = L4_PLATFORMS[6].y - DRAGON_H;
-      d.x = (L4_PLATFORMS[6].x1 + L4_PLATFORMS[6].x2) / 2 - DRAGON_W / 2;
+      d.y = L4_PLATFORMS[9].y - DRAGON_H;
+      d.x = (L4_PLATFORMS[9].x1 + L4_PLATFORMS[9].x2) / 2 - DRAGON_W / 2;
       d.airborne = false;
-      d.platIdx = 6;
+      d.platIdx = 9;
       d.state = 'roam';
     }
     return;
   }
 
   // Dragon roams band 3 platforms.
-  const reachable = [5, 6, 7];
+  const reachable = [7, 9, 11];
   if (d.airborne) {
     d.vy += GRAVITY;
     d.x += d.vx;
@@ -744,9 +744,9 @@ function tickDragon(s: L4State) {
       d.platIdx = d.targetPlatIdx;
       d.jumpCooldown = 60 + Math.floor(Math.random() * 90);
     } else if (d.y > CANVAS_H + 40) {
-      d.y = L4_PLATFORMS[6].y - DRAGON_H;
-      d.x = (L4_PLATFORMS[6].x1 + L4_PLATFORMS[6].x2) / 2 - DRAGON_W / 2;
-      d.platIdx = 6; d.airborne = false; d.vy = 0;
+      d.y = L4_PLATFORMS[9].y - DRAGON_H;
+      d.x = (L4_PLATFORMS[9].x1 + L4_PLATFORMS[9].x2) / 2 - DRAGON_W / 2;
+      d.platIdx = 9; d.airborne = false; d.vy = 0;
     }
     return;
   }
