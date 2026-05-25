@@ -1275,7 +1275,18 @@ function drawRamp(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: num
 }
 
 function drawSprout(ctx: CanvasRenderingContext2D, sp: Sprout) {
-  if (sp.growProgress <= 0) return;
+  // Seed visualization (always show where the sprout will grow).
+  if (sp.growProgress <= 0) {
+    const lx = sp.x - 6;
+    const by = sp.yBot;
+    ctx.fillStyle = '#3a2418';
+    ctx.fillRect(lx, by - 4, 12, 4);
+    ctx.fillStyle = sp.isPurple ? '#9b59b6' : '#3CB043';
+    ctx.beginPath();
+    ctx.arc(sp.x, by - 6, 3, 0, Math.PI * 2);
+    ctx.fill();
+    return;
+  }
   const full = sp.yBot - sp.yTop;
   const len = full * sp.growProgress;
   const top = sp.yBot - len;
