@@ -105,6 +105,16 @@ interface Rock {
   hitConsumed?: boolean;
 }
 
+interface Fireball {
+  x: number; y: number;
+  sx: number; sy: number;        // start position
+  tx: number; ty: number;        // target landing position
+  age: number;                   // frames since launch
+  flight: number;                // total frames until landing
+  radius: number;                // current visible radius
+  landed: boolean;
+}
+
 type DragonState = 'roam' | 'downed' | 'dying' | 'dead';
 interface Dragon {
   x: number; y: number;
@@ -154,6 +164,10 @@ export interface L4State {
   greenCanSpawned: boolean;
   /** Rock currently parked at A (if any). */
   rockAtAIdx: number;
+  fireballs: Fireball[];
+  fireballTimer: number;
+  fireballMax: number;
+  fireballFlightFrames: number;
   ending: Ending;
   won: boolean;
   died: boolean;
@@ -237,6 +251,10 @@ export function initLevel4(iter: number): L4State {
     eGrowChunk: 1 / Math.max(1, diff.hitsToKill),
     greenCanSpawned: false,
     rockAtAIdx: -1,
+    fireballs: [],
+    fireballTimer: 90,
+    fireballMax: 1 + Math.floor((iter - 1) / 3),
+    fireballFlightFrames: Math.max(180, Math.round(LEVEL4_PARAMS.FIREBALL_FLIGHT_SEC * 60 * Math.pow(0.9, iter - 1))),
     ending: { active: false, phase: 'hug', timer: 0, newDragonX: -DRAGON_W },
     won: false,
     died: false,
@@ -286,6 +304,7 @@ export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: 
 
   tickMovingPlatforms(s);
   tickRocks(s);
+  tickFireballs(s);
   tickSprouts(s);
   tickMonkeys(s);
   tickDragon(s);
@@ -450,6 +469,44 @@ function rollAliveFrames(): number {
 function rollRegrowFrames(): number {
   const sec = LEVEL4_PARAMS.SPROUT_REGROW_MIN_SEC + Math.random() * (LEVEL4_PARAMS.SPROUT_REGROW_MAX_SEC - LEVEL4_PARAMS.SPROUT_REGROW_MIN_SEC);
   return Math.round(sec * 60);
+}
+
+function tickFireballs(s: L4State) {
+  // Spawn from volcano on parabolic arc toward random platform (not princess).
+  const inFlight = s.fireballs.filter(f => !f.landed).length;
+  if (inFlight < s.fireballMax) {
+    if (s.fireballTimer > 0) {
+      s.fireballTimer--;
+    } else {
+      const candidates = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+      const pi = candidates[Math.floor(Math.random() * candidates.length)];
+      const tp = L4_PLATFORMS[pi];
+      const tx = tp.x1 + 8 + Math.random() * Math.max(8, tp.x2 - tp.x1 - 16);
+      const ty = tp.y;
+      const sx = VOLCANO_X;
+      const sy = L4_PLATFORMS[10].y - 40;
+      s.fireballs.push({
+        x: sx, y: sy, sx, sy, tx, ty,
+        age: 0, flight: s.fireballFlightFrames,
+        radius: LEVEL4_PARAMS.FIREBALL_START_R, landed: false,
+      });
+      s.fireballTimer = Math.round(LEVEL4_PARAMS.FIREBALL_INTERVAL_SEC * 60 * (0.5 + Math.random()));
+    }
+  }
+  for (const f of s.fireballs) {
+    if (f.landed) continue;
+    f.age++;
+    const t = Math.min(1, f.age / f.flight);
+    // Parabolic arc: lerp x linearly, y with downward bias + extra arc.
+    const arcH = 60;
+    f.x = f.sx + (f.tx - f.sx) * t;
+    f.y = f.sy + (f.ty - f.sy) * t - arcH * Math.sin(Math.PI * t);
+    f.radius = LEVEL4_PARAMS.FIREBALL_START_R +
+      (LEVEL4_PARAMS.FIREBALL_END_R - LEVEL4_PARAMS.FIREBALL_START_R) * t;
+    if (t >= 1) { f.landed = true; }
+  }
+  // Cull landed after brief flash
+  s.fireballs = s.fireballs.filter(f => !f.landed);
 }
 
 function tickSprouts(s: L4State) {
@@ -824,6 +881,18 @@ function tickCollisions(s: L4State) {
     }
   }
 
+  // Fireballs vs player
+  if (s.invuln <= 0 && !s.dying) {
+    for (const f of s.fireballs) {
+      if (f.landed) continue;
+      const dx = (p.x + p.w / 2) - f.x;
+      const dy = (p.y + p.h / 2) - f.y;
+      if (dx * dx + dy * dy < (f.radius + 8) * (f.radius + 8)) {
+        loseLife(s); break;
+      }
+    }
+  }
+
   // Dragon touch
   if (s.invuln <= 0 && (d.state === 'roam')) {
     if (p.x < d.x + DRAGON_W && p.x + p.w > d.x && p.y < d.y + DRAGON_H && p.y + p.h > d.y) {
@@ -976,6 +1045,20 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     }
     ctx.restore();
   }
+
+  // Fireballs (red volcano rocks)
+  for (const f of s.fireballs) {
+    if (f.landed) continue;
+    ctx.save();
+    const grad = ctx.createRadialGradient(f.x, f.y, 1, f.x, f.y, f.radius);
+    grad.addColorStop(0, '#ffeb3b');
+    grad.addColorStop(0.5, '#ff6a1a');
+    grad.addColorStop(1, '#8a1a00');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
 
   // Player
   const p = s.player;
