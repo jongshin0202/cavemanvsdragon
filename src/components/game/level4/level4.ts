@@ -59,11 +59,12 @@ function platY(p: L4Platform, x: number): number {
 
 // 7 bands. P1=445 P2=370 P3=295 P4=220 P5=145 P5.5=107 P6=70 (equal 75 except P5↔P5.5 = 37).
 export const L4_PLATFORMS: L4Platform[] = [
-  // ── P6 (y=70) top: princess + volcano. HOLES: <60 and >430 ──
-  /*  0 P6_MAIN          */ { y: 70,  x1: 60,  x2: 430 },
+  // ── P6 (y=70) top: princess + volcano. ENDS at 410 leaving gap to ice top at 430. ──
+  /*  0 P6_MAIN          */ { y: 70,  x1: 60,  x2: 410 },
 
-  // long ICE diagonal from P6 right down-left to P5 right
-  /*  1 ICE_TR           */ { y: 145, x1: 320, x2: 430, slope: (70 - 145) / (430 - 320), ice: true },
+  // ICE diagonal: TOP at rightmost (x=512, y=70), bottom-left at (x=430, y=145) on P5.
+  // Rocks rolling RIGHT off P6 fall through gap (410..430) onto the ice top, slide down-left.
+  /*  1 ICE_TR           */ { y: 145, x1: 430, x2: 512, slope: (70 - 145) / (512 - 430), ice: true },
 
   // ── P5.5 (y=107) small left stub ──
   /*  2 P55_LEFT         */ { y: 107, x1: 20,  x2: 130 },
@@ -81,16 +82,16 @@ export const L4_PLATFORMS: L4Platform[] = [
   /*  8 P4_MOVER_R       */ { y: 220, x1: 312, x2: 352 },
   /*  9 P4_RIGHT         */ { y: 220, x1: 380, x2: 512 },
 
-  // NEW ICE (replaces removed ICE_TENT_L): from P2_LEFT right edge UP to P3_MOVER left edge.
-  /* 10 ICE_NEW          */ { y: 370, x1: 130, x2: 230, slope: (295 - 370) / (230 - 130), ice: true },
+  // ICE_NEW moved UP one band: from P3_LEFT right edge (x=70) up to P4_MOVER_L left edge (x=145).
+  /* 10 ICE_NEW          */ { y: 295, x1: 70,  x2: 145, slope: (220 - 295) / (145 - 70), ice: true },
 
-  // ICE_TENT_R extended further-right so it lands inside the trimmed P3_RIGHT (past hole).
-  /* 11 ICE_TENT_R       */ { y: 220, x1: 297, x2: 435, slope: (295 - 220) / (435 - 297), ice: true },
+  // ICE_TENT_R shortened so a GAP exists between its bottom and P3_RIGHT (rocks/caveman fall through).
+  /* 11 ICE_TENT_R       */ { y: 220, x1: 297, x2: 415, slope: (295 - 220) / (415 - 297), ice: true },
 
-  // ── P3 (y=295) ── left (HOLE >70) | mover | right (HOLE on left, starts at 435)
+  // ── P3 (y=295) ── left (HOLE >70) | mover | right (gap on left: starts at 450 → hole 415..450)
   /* 12 P3_LEFT          */ { y: 295, x1: 0,   x2: 70  },
   /* 13 P3_MOVER         */ { y: 295, x1: 230, x2: 290 },
-  /* 14 P3_RIGHT         */ { y: 295, x1: 435, x2: 512 },
+  /* 14 P3_RIGHT         */ { y: 295, x1: 450, x2: 512 },
 
   // ── P2 (y=370) ── left (H2) | mover_A | mover_B | farright
   /* 15 P2_LEFT          */ { y: 370, x1: 0,   x2: 130 },
