@@ -1074,20 +1074,29 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     ctx.fillRect(sx, sy, 1, 1);
   }
 
-  // Decorative ramps (visual hints between bands per sketch).
-  drawRamp(ctx, L4_PLATFORMS[1].x1, L4_PLATFORMS[1].y, L4_PLATFORMS[4].x2, L4_PLATFORMS[4].y); // top-right cascade
-  drawRamp(ctx, L4_PLATFORMS[2].x2, L4_PLATFORMS[2].y, L4_PLATFORMS[3].x1, L4_PLATFORMS[3].y); // left-high → valley
-  drawRamp(ctx, L4_PLATFORMS[3].x2, L4_PLATFORMS[3].y, L4_PLATFORMS[4].x1, L4_PLATFORMS[4].y); // valley → right-high
-  drawRamp(ctx, L4_PLATFORMS[13].x2, L4_PLATFORMS[13].y, L4_PLATFORMS[17].x2, L4_PLATFORMS[17].y); // F → ground
-  drawRamp(ctx, L4_PLATFORMS[14].x1, L4_PLATFORMS[14].y, L4_PLATFORMS[18].x1, L4_PLATFORMS[18].y); // G → ground
-
-  // Platforms
+  // Platforms (sloped polygons)
   for (let i = 0; i < L4_PLATFORMS.length; i++) {
     const plat = L4_PLATFORMS[i];
+    const y1 = platY(plat, plat.x1);
+    const y2 = platY(plat, plat.x2);
+    // dirt underside
     ctx.fillStyle = '#6B4226';
-    ctx.fillRect(plat.x1, plat.y + 2, plat.x2 - plat.x1, 6);
+    ctx.beginPath();
+    ctx.moveTo(plat.x1, y1 + 2);
+    ctx.lineTo(plat.x2, y2 + 2);
+    ctx.lineTo(plat.x2, y2 + 8);
+    ctx.lineTo(plat.x1, y1 + 8);
+    ctx.closePath();
+    ctx.fill();
+    // green top
     ctx.fillStyle = plat.moving ? '#5CD068' : '#3CB043';
-    ctx.fillRect(plat.x1, plat.y, plat.x2 - plat.x1, 3);
+    ctx.beginPath();
+    ctx.moveTo(plat.x1, y1);
+    ctx.lineTo(plat.x2, y2);
+    ctx.lineTo(plat.x2, y2 + 3);
+    ctx.lineTo(plat.x1, y1 + 3);
+    ctx.closePath();
+    ctx.fill();
   }
 
   // Volcano
