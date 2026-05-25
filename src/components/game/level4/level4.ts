@@ -1046,6 +1046,20 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     ctx.restore();
   }
 
+  // Fireballs (red volcano rocks)
+  for (const f of s.fireballs) {
+    if (f.landed) continue;
+    ctx.save();
+    const grad = ctx.createRadialGradient(f.x, f.y, 1, f.x, f.y, f.radius);
+    grad.addColorStop(0, '#ffeb3b');
+    grad.addColorStop(0.5, '#ff6a1a');
+    grad.addColorStop(1, '#8a1a00');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+
   // Player
   const p = s.player;
   const blink = s.dying ? Math.floor(s.deathTimer / 18) % 2 !== 0 : (s.invuln > 0 && (s.invuln % 8 < 4));
