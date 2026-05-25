@@ -421,10 +421,10 @@ export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: 
 
 function respawnPlayer(s: L4State) {
   const p = s.player;
-  p.x = 20; p.y = platY(L4_PLATFORMS[17], 20) - 24;
+  p.x = 20; p.y = platY(L4_PLATFORMS[14], 20) - 24;
   p.vx = 0; p.vy = 0;
   p.onGround = true; p.climbing = false; p.jumping = false;
-  p.groundPlatIdx = 17; p.jumpStartPlatIdx = 17;
+  p.groundPlatIdx = 14; p.jumpStartPlatIdx = 14;
   p.facing = 1; p.kickTimer = 0;
 }
 
