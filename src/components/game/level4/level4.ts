@@ -75,8 +75,9 @@ export const L4_PLATFORMS: L4Platform[] = [
   /*  9 TENT_TOP       */ { y: 270, x1: 230, x2: 292 },
   /* 10 TENT_RIGHT     */ { y: 270, x1: 292, x2: 332, slope: (330 - 270) / (332 - 292) },
   /* 11 RIGHT_B3       */ { y: 270, x1: 384, x2: 512 },
-  /* 12 M_B3_L         */ { y: 270, x1: 132, x2: 184 },
+  /* 12 M_B3_L         */ { y: 270, x1: 140, x2: 184 },
   /* 13 M_B3_R         */ { y: 270, x1: 336, x2: 380 },
+
 
   // ── Band 4 (small stubs + center mover) ──
   /* 14 LEFT_B4        */ { y: 330, x1: 0,   x2: 80  },
