@@ -337,11 +337,11 @@ export function initLevel4(iter: number): L4State {
     climbFrame: 0, climbTimer: 0, kickTimer: 0,
   };
 
-  // Dragon spawns next to princess on PRINCESS_TOP, then intro-jumps to TENT_TOP (idx 4).
+  // Dragon spawns next to princess on PRINCESS_TOP, then intro-jumps to D_FLAT (idx 2).
   const dragon: Dragon = {
     x: 140, y: L4_PLATFORMS[0].y - DRAGON_H,
     vx: 0, vy: 0, airborne: false,
-    platIdx: 0, targetPlatIdx: 4,
+    platIdx: 0, targetPlatIdx: 2,
     facing: -1, jumpCooldown: 60,
     state: 'intro', downedTimer: 0, dyingTimer: 0, hits: 0,
     frame: 0, frameTimer: 0,
