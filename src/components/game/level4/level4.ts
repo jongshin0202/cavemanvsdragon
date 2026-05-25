@@ -323,6 +323,24 @@ function makeMonkey(platIdx: number): Monkey {
 export function initLevel4(iter: number): L4State {
   const diff = getLevel4Difficulty(iter);
 
+  // Randomize mover speeds + reset positions each iteration.
+  const randomizeMover = (idx: number, lo: number, hi: number) => {
+    const pl = L4_PLATFORMS[idx];
+    if (!pl.moving) return;
+    const w = pl.x2 - pl.x1;
+    const startX = pl.moving.min + Math.random() * (pl.moving.max - pl.moving.min);
+    pl.x1 = startX; pl.x2 = startX + w;
+    pl.moving.speed = rsp(lo, hi);
+  };
+  randomizeMover(12, 0.5, 1.1);
+  randomizeMover(13, 0.5, 1.1);
+  randomizeMover(15, 0.6, 1.2);
+  randomizeMover(21, 0.6, 1.4);
+  randomizeMover(22, 0.6, 1.4);
+  randomizeMover(25, 0.5, 1.0);
+
+
+
   // Caveman on LEFT_GROUND.
   const player: Player = {
     x: 20, y: platY(L4_PLATFORMS[23], 20) - 24, w: 16, h: 24,
