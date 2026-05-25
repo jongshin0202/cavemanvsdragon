@@ -471,6 +471,44 @@ function rollRegrowFrames(): number {
   return Math.round(sec * 60);
 }
 
+function tickFireballs(s: L4State) {
+  // Spawn from volcano on parabolic arc toward random platform (not princess).
+  const inFlight = s.fireballs.filter(f => !f.landed).length;
+  if (inFlight < s.fireballMax) {
+    if (s.fireballTimer > 0) {
+      s.fireballTimer--;
+    } else {
+      const candidates = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+      const pi = candidates[Math.floor(Math.random() * candidates.length)];
+      const tp = L4_PLATFORMS[pi];
+      const tx = tp.x1 + 8 + Math.random() * Math.max(8, tp.x2 - tp.x1 - 16);
+      const ty = tp.y;
+      const sx = VOLCANO_X;
+      const sy = L4_PLATFORMS[10].y - 40;
+      s.fireballs.push({
+        x: sx, y: sy, sx, sy, tx, ty,
+        age: 0, flight: s.fireballFlightFrames,
+        radius: LEVEL4_PARAMS.FIREBALL_START_R, landed: false,
+      });
+      s.fireballTimer = Math.round(LEVEL4_PARAMS.FIREBALL_INTERVAL_SEC * 60 * (0.5 + Math.random()));
+    }
+  }
+  for (const f of s.fireballs) {
+    if (f.landed) continue;
+    f.age++;
+    const t = Math.min(1, f.age / f.flight);
+    // Parabolic arc: lerp x linearly, y with downward bias + extra arc.
+    const arcH = 60;
+    f.x = f.sx + (f.tx - f.sx) * t;
+    f.y = f.sy + (f.ty - f.sy) * t - arcH * Math.sin(Math.PI * t);
+    f.radius = LEVEL4_PARAMS.FIREBALL_START_R +
+      (LEVEL4_PARAMS.FIREBALL_END_R - LEVEL4_PARAMS.FIREBALL_START_R) * t;
+    if (t >= 1) { f.landed = true; }
+  }
+  // Cull landed after brief flash
+  s.fireballs = s.fireballs.filter(f => !f.landed);
+}
+
 function tickSprouts(s: L4State) {
   // D (green): full L2-style cycle once watered
   const d = s.sproutD;
