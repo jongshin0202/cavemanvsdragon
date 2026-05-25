@@ -11,7 +11,7 @@
 // X hits = dragon dies + E fully grown → climb E → princess.
 // ============================================================
 
-import { CANVAS_W, CANVAS_H } from '../constants';
+import { CANVAS_W, CANVAS_H, getRoundDifficulty } from '../constants';
 import { LEVEL4_PARAMS, getLevel4Difficulty, type Level4Difficulty } from './params';
 
 const GRAVITY = 0.38;
@@ -343,7 +343,11 @@ function tickMovingPlatforms(s: L4State) {
 function tickRocks(s: L4State) {
   s.spawnRockTimer--;
   if (s.spawnRockTimer <= 0) {
-    s.spawnRockTimer = Math.round(LEVEL4_PARAMS.FIREBALL_INTERVAL_SEC * 60);
+    // Match L1 barrel spawn rule: timer = barrelSpawnMin + random*barrelSpawnRange,
+    // keyed off L4 iteration (same difficulty curve as L1).
+    const round = 1 + (s.iter - 1) * 4; // map L4 iter → equivalent L1 round
+    const d = getRoundDifficulty(round);
+    s.spawnRockTimer = Math.round(d.barrelSpawnMin + Math.random() * d.barrelSpawnRange);
     // Spawn rock from volcano arc onto princess platform near volcano.
     s.rocks.push({
       x: VOLCANO_X, y: L4_PLATFORMS[10].y - 36,
