@@ -724,7 +724,7 @@ function tickDragon(s: L4State) {
   if (d.state === 'intro') {
     // Jump from princess top down to TENT_TOP (band 3 center).
     if (!d.airborne) {
-      const tgt = 9;
+      const tgt = 4;
       const tp = L4_PLATFORMS[tgt];
       const tcx = (tp.x1 + tp.x2) / 2;
       d.targetPlatIdx = tgt;
