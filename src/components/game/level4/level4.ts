@@ -728,7 +728,7 @@ function tickDragon(s: L4State) {
   if (d.state === 'intro') {
     // Jump from princess top down to TENT_TOP (band 3 center).
     if (!d.airborne) {
-      const tgt = 2;
+      const tgt = 9;
       const tp = L4_PLATFORMS[tgt];
       const tcx = (tp.x1 + tp.x2) / 2;
       d.targetPlatIdx = tgt;
@@ -748,18 +748,17 @@ function tickDragon(s: L4State) {
       d.state = 'roam';
       d.jumpCooldown = 90;
     } else if (d.y > CANVAS_H + 40) {
-      // Safety net
-      d.y = L4_PLATFORMS[2].y - DRAGON_H;
-      d.x = (L4_PLATFORMS[2].x1 + L4_PLATFORMS[2].x2) / 2 - DRAGON_W / 2;
+      d.y = L4_PLATFORMS[9].y - DRAGON_H;
+      d.x = (L4_PLATFORMS[9].x1 + L4_PLATFORMS[9].x2) / 2 - DRAGON_W / 2;
       d.airborne = false;
-      d.platIdx = 2;
+      d.platIdx = 9;
       d.state = 'roam';
     }
     return;
   }
 
-  // Dragon roams Band 3 platforms (no TENT_TOP anymore).
-  const reachable = [2, 5];
+  // Dragon roams Band 3 platforms: D_FLAT, TENT_TOP, B3_RIGHT.
+  const reachable = [6, 9, 12];
   if (d.airborne) {
     d.vy += GRAVITY;
     d.x += d.vx;
@@ -773,9 +772,9 @@ function tickDragon(s: L4State) {
       d.platIdx = d.targetPlatIdx;
       d.jumpCooldown = 60 + Math.floor(Math.random() * 90);
     } else if (d.y > CANVAS_H + 40) {
-      d.y = L4_PLATFORMS[2].y - DRAGON_H;
-      d.x = (L4_PLATFORMS[2].x1 + L4_PLATFORMS[2].x2) / 2 - DRAGON_W / 2;
-      d.platIdx = 2; d.airborne = false; d.vy = 0;
+      d.y = L4_PLATFORMS[9].y - DRAGON_H;
+      d.x = (L4_PLATFORMS[9].x1 + L4_PLATFORMS[9].x2) / 2 - DRAGON_W / 2;
+      d.platIdx = 9; d.airborne = false; d.vy = 0;
     }
     return;
   }
