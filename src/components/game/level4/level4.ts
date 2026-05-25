@@ -103,13 +103,13 @@ function rsp(lo: number, hi: number): number {
   return (Math.random() < 0.5 ? -1 : 1) * (lo + Math.random() * (hi - lo));
 }
 
-L4_PLATFORMS[12].moving = { min: 130, max: 184 - 52, speed: rsp(0.5, 1.1) };
-
-L4_PLATFORMS[13].moving = { min: 336, max: 380 - 44, speed: rsp(0.5, 1.1) };
-L4_PLATFORMS[15].moving = { min: 80,  max: 432 - 108, speed: rsp(0.6, 1.2) };
-L4_PLATFORMS[21].moving = { min: 132, max: 302 - 60, speed: rsp(0.6, 1.4), pairIdx: 22 };
-L4_PLATFORMS[22].moving = { min: 210, max: 380 - 60, speed: rsp(0.6, 1.4), pairIdx: 21 };
-L4_PLATFORMS[25].moving = { min: 188, max: 324 - 112, speed: rsp(0.5, 1.0) };
+// min/max are bounds for the platform's LEFT edge (x1).
+L4_PLATFORMS[12].moving = { min: 130, max: 186, speed: rsp(0.5, 1.1) };
+L4_PLATFORMS[13].moving = { min: 332, max: 340, speed: rsp(0.5, 1.1) };
+L4_PLATFORMS[15].moving = { min: 80,  max: 324, speed: rsp(0.6, 1.2) };
+L4_PLATFORMS[21].moving = { min: 132, max: 242, speed: rsp(0.6, 1.4), pairIdx: 22 };
+L4_PLATFORMS[22].moving = { min: 270, max: 320, speed: rsp(0.6, 1.4), pairIdx: 21 };
+L4_PLATFORMS[25].moving = { min: 188, max: 212, speed: rsp(0.5, 1.0) };
 
 // Named anchors
 const PRINCESS_X = 130;
