@@ -929,11 +929,16 @@ function tickPlayer(s: L4State, input: L4Input) {
     }
   }
 
-  // Gravity & ride moving platform
+  // Gravity & ride moving platform / ICE slide
   let carriedVx = 0;
   if (p.onGround && p.groundPlatIdx >= 0) {
     const pl = L4_PLATFORMS[p.groundPlatIdx];
     if (pl.moving) carriedVx = pl.moving.speed;
+    if (pl.ice) {
+      const slope = pl.slope || 0;
+      const SLIDE = 2.6;
+      p.vx = Math.sign(slope) * SLIDE; // override input
+    }
   }
   p.vy += GRAVITY;
   p.x += p.vx + carriedVx;
