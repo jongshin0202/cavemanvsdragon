@@ -61,34 +61,31 @@ export const L4_PLATFORMS: L4Platform[] = [
   // ── Band 1 (Princess + Volcano top) ──
   /*  0 PRINCESS_TOP   */ { y: 80,  x1: 64,  x2: 432 },
 
-  // ── Band 2 (flat — E sprout + rock-rest A) ──
-  /*  1 B2_FLAT        */ { y: 156, x1: 0,   x2: 512 },
+  // ── Band 2 (short middle flat — E sprout + rock-rest A) ──
+  /*  1 B2_FLAT        */ { y: 156, x1: 180, x2: 340 },
 
-  // ── Band 3 (D-flat ← gap (tent recess) → right-flat) ──
+  // ── Band 3 (D-flat ← V-tent → right-flat) ──
   /*  2 D_FLAT         */ { y: 232, x1: 0,   x2: 144 },
-  /*  3 TENT_LEFT_LEG  */ { y: 232, x1: 144, x2: 224, slope: (308 - 232) / (224 - 144) },
-  /*  4 TENT_TOP       */ { y: 308, x1: 224, x2: 288 },
-  /*  5 TENT_RIGHT_LEG */ { y: 308, x1: 288, x2: 368, slope: (232 - 308) / (368 - 288) },
-  /*  6 RIGHT_B3       */ { y: 232, x1: 368, x2: 512 },
+  /*  3 TENT_LEFT_LEG  */ { y: 232, x1: 144, x2: 256, slope: (308 - 232) / (256 - 144) },
+  /*  4 TENT_RIGHT_LEG */ { y: 308, x1: 256, x2: 368, slope: (232 - 308) / (368 - 256) },
+  /*  5 RIGHT_B3       */ { y: 232, x1: 368, x2: 512 },
 
-  // ── Band 4 (stubs + tent recess movers) ──
-  /*  7 LEFT_B4        */ { y: 308, x1: 0,   x2: 100 },
-  /*  8 RIGHT_B4       */ { y: 308, x1: 412, x2: 512 },
-  /*  9 M_B4_L         */ { y: 308, x1: 100, x2: 140 },
-  /* 10 M_B4_R         */ { y: 308, x1: 372, x2: 412 },
+  // ── Band 4 (stubs only) ──
+  /*  6 LEFT_B4        */ { y: 308, x1: 0,   x2: 100 },
+  /*  7 RIGHT_B4       */ { y: 308, x1: 412, x2: 512 },
 
   // ── Band 5 (F flat + ramp inward; N-pair; G flat + ramp inward) ──
-  /* 11 LEFT_B5        */ { y: 384, x1: 0,   x2: 132 },
-  /* 12 LEFT_B5_RAMP   */ { y: 384, x1: 132, x2: 188, slope: (460 - 384) / (188 - 132) },
-  /* 13 RIGHT_B5_RAMP  */ { y: 460, x1: 324, x2: 380, slope: (384 - 460) / (380 - 324) },
-  /* 14 RIGHT_B5       */ { y: 384, x1: 380, x2: 512 },
-  /* 15 M_B5_L         */ { y: 384, x1: 132, x2: 172 },
-  /* 16 M_B5_R         */ { y: 384, x1: 340, x2: 380 },
+  /*  8 LEFT_B5        */ { y: 384, x1: 0,   x2: 132 },
+  /*  9 LEFT_B5_RAMP   */ { y: 384, x1: 132, x2: 188, slope: (460 - 384) / (188 - 132) },
+  /* 10 RIGHT_B5_RAMP  */ { y: 460, x1: 324, x2: 380, slope: (384 - 460) / (380 - 324) },
+  /* 11 RIGHT_B5       */ { y: 384, x1: 380, x2: 512 },
+  /* 12 M_B5_L         */ { y: 384, x1: 132, x2: 172 },
+  /* 13 M_B5_R         */ { y: 384, x1: 340, x2: 380 },
 
   // ── Band 6 (ground) ──
-  /* 17 LEFT_GROUND    */ { y: 460, x1: 0,   x2: 188 },
-  /* 18 RIGHT_GROUND   */ { y: 460, x1: 324, x2: 512 },
-  /* 19 M_B6           */ { y: 460, x1: 188, x2: 228 },
+  /* 14 LEFT_GROUND    */ { y: 460, x1: 0,   x2: 188 },
+  /* 15 RIGHT_GROUND   */ { y: 460, x1: 324, x2: 512 },
+  /* 16 M_B6           */ { y: 460, x1: 188, x2: 228 },
 ];
 
 // Helper for random speed in [min,max] with random sign.
@@ -100,14 +97,10 @@ function rmag(lo: number, hi: number): number {
   return lo + Math.random() * (hi - lo);
 }
 
-// Mover bounds: min/max are the LEFT-edge range; bounded by neighbour
-// steady-platform edges so movers bounce off solid platforms.
-L4_PLATFORMS[9].moving  = { min: 100, max: 184, speed: rsp(0.5, 1.1) };
-L4_PLATFORMS[10].moving = { min: 288, max: 372, speed: rsp(0.5, 1.1) };
 // N-pair: start moving TOWARD each other, different random speeds.
-L4_PLATFORMS[15].moving = { min: 132, max: 232, speed:  rmag(0.6, 1.2), pairIdx: 16 };
-L4_PLATFORMS[16].moving = { min: 280, max: 380, speed: -rmag(0.6, 1.2), pairIdx: 15 };
-L4_PLATFORMS[19].moving = { min: 188, max: 284, speed: rsp(0.5, 1.0) };
+L4_PLATFORMS[12].moving = { min: 132, max: 232, speed:  rmag(0.6, 1.2), pairIdx: 13 };
+L4_PLATFORMS[13].moving = { min: 280, max: 380, speed: -rmag(0.6, 1.2), pairIdx: 12 };
+L4_PLATFORMS[16].moving = { min: 188, max: 284, speed: rsp(0.5, 1.0) };
 
 // Named anchors
 const PRINCESS_X = 100;
