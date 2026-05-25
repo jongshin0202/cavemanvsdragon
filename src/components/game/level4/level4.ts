@@ -119,12 +119,12 @@ const D_TOP_PLAT_IDX    = 1;   // B2_FLAT
 const A_PLAT_IDX        = 1;   // B2_FLAT
 
 // H ladder sprouts (each spans exactly one band gap)
-const H1_X = 60,  H1_TOP_IDX = 7,  H1_BOT_IDX = 11;  // LEFT_B4 → LEFT_B5
-const H2_X = 470, H2_TOP_IDX = 6,  H2_BOT_IDX = 8;   // RIGHT_B3 → RIGHT_B4
-const H3_X = 490, H3_TOP_IDX = 14, H3_BOT_IDX = 18;  // RIGHT_B5 → RIGHT_GROUND
+const H1_X = 60,  H1_TOP_IDX = 6,  H1_BOT_IDX = 8;   // LEFT_B4 → LEFT_B5
+const H2_X = 470, H2_TOP_IDX = 5,  H2_BOT_IDX = 7;   // RIGHT_B3 → RIGHT_B4
+const H3_X = 490, H3_TOP_IDX = 11, H3_BOT_IDX = 15;  // RIGHT_B5 → RIGHT_GROUND
 
 const MONKEY_PLAT_ANCHORS: number[] = [
-  2, 6, 7, 8, 9, 10, 11, 14, 17, 18, 19,
+  2, 5, 6, 7, 8, 11, 14, 15, 16,
 ];
 const MONKEY_PER_PLAT_CAP = 5;
 const MONKEY_TOTAL_CAP    = 20;
