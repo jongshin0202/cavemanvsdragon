@@ -34,110 +34,97 @@ const JUMP_FORCE = -5.2;
 const CLIMB_SPEED = 1.5;
 
 // ── Layout ───────────────────────────────────────────────────
-// All platforms are axis-aligned rectangles. `moving` describes
-// horizontal oscillation between two endpoints with bouncing.
-// Some movers are linked via `pairIdx` for opposite-phase bounce
-// at meeting point N.
+// Platforms can be SLOPED. `y` is the y at x1; if `slope` is set,
+// y at any x in [x1,x2] = y + (x - x1) * slope.
 export interface L4Mover {
-  min: number;          // left bound (bounce off)
-  max: number;          // right bound (bounce off)
-  speed: number;        // px/frame, signed (initial direction)
-  pairIdx?: number;     // optional paired platform index for N-bounce
+  min: number;
+  max: number;
+  speed: number;
+  pairIdx?: number;
 }
 export interface L4Platform {
   y: number;
   x1: number;
   x2: number;
+  slope?: number;
   moving?: L4Mover;
 }
 
-// Indices below are referenced by name; do not reorder casually.
-// Band 1 (top):
-//   0 PRINCESS_TOP   — princess + volcano K
-//   1 TOP_RIGHT_STUB — tiny right-side stub for ramp cascade
-// Band 2:
-//   2 LEFT_HIGH      — left stub (point "3" entry)
-//   3 E_VALLEY       — flat holding E sprout base + slot A
-//   4 RIGHT_HIGH     — right stub
-// Band 3 (dragon):
-//   5 D_FLAT         — left, D sprout base
-//   6 TENT_TOP       — center "tent" platform
-//   7 RIGHT_B3       — right flat (above H2)
-//   8 M_B3_L         — mover between D_FLAT and TENT_TOP
-//   9 M_B3_R         — mover between TENT_TOP and RIGHT_B3
-// Band 4:
-//  10 LEFT_B4        — left stub
-//  11 RIGHT_B4       — right stub
-//  12 M_B4           — center mover
-// Band 5:
-//  13 LEFT_B5        — F flat
-//  14 RIGHT_B5       — G flat
-//  15 M_B5_L         — left mover of N-pair
-//  16 M_B5_R         — right mover of N-pair
-// Band 6 (ground):
-//  17 LEFT_GROUND    — caveman spawn
-//  18 RIGHT_GROUND   — right ground
-//  19 M_B6           — center mover
+function platY(p: L4Platform, x: number): number {
+  const cx = Math.max(p.x1, Math.min(p.x2, x));
+  return p.y + (cx - p.x1) * (p.slope || 0);
+}
+
 export const L4_PLATFORMS: L4Platform[] = [
-  /*  0 */ { y: 56,  x1: 110, x2: 400 },             // PRINCESS_TOP
-  /*  1 */ { y: 96,  x1: 460, x2: 508 },             // TOP_RIGHT_STUB
-  /*  2 */ { y: 148, x1: 0,   x2: 88  },             // LEFT_HIGH
-  /*  3 */ { y: 208, x1: 168, x2: 280 },             // E_VALLEY (E + A)
-  /*  4 */ { y: 168, x1: 400, x2: 508 },             // RIGHT_HIGH
-  /*  5 */ { y: 268, x1: 0,   x2: 128 },             // D_FLAT
-  /*  6 */ { y: 268, x1: 196, x2: 320 },             // TENT_TOP
-  /*  7 */ { y: 268, x1: 384, x2: 508 },             // RIGHT_B3
-  /*  8 */ { y: 268, x1: 128, x2: 192 },             // M_B3_L (filled at init)
-  /*  9 */ { y: 268, x1: 320, x2: 384 },             // M_B3_R
-  /* 10 */ { y: 328, x1: 0,   x2: 88  },             // LEFT_B4
-  /* 11 */ { y: 328, x1: 428, x2: 508 },             // RIGHT_B4
-  /* 12 */ { y: 328, x1: 200, x2: 312 },             // M_B4
-  /* 13 */ { y: 392, x1: 0,   x2: 144 },             // LEFT_B5 (F)
-  /* 14 */ { y: 392, x1: 368, x2: 508 },             // RIGHT_B5 (G)
-  /* 15 */ { y: 392, x1: 144, x2: 252 },             // M_B5_L (pair)
-  /* 16 */ { y: 392, x1: 260, x2: 368 },             // M_B5_R (pair)
-  /* 17 */ { y: 448, x1: 0,   x2: 168 },             // LEFT_GROUND
-  /* 18 */ { y: 448, x1: 360, x2: 512 },             // RIGHT_GROUND
-  /* 19 */ { y: 448, x1: 180, x2: 348 },             // M_B6
+  // ── Band 1 (Princess top) ──
+  /*  0 PRINCESS_TOP   */ { y: 60,  x1: 90,  x2: 400 },
+  /*  1 TOP_RIGHT_STUB */ { y: 90,  x1: 462, x2: 512 },
+  /*  2 RAMP_TR        */ { y: 178, x1: 372, x2: 462, slope: (90 - 178) / (462 - 372) },
+
+  // ── Band 2 (left W-zigzag with E valley) ──
+  /*  3 LEFT_HIGH      */ { y: 158, x1: 0,   x2: 86  },
+  /*  4 RAMP_L_DOWN    */ { y: 158, x1: 86,  x2: 178, slope: (228 - 158) / (178 - 86) },
+  /*  5 E_VALLEY       */ { y: 228, x1: 178, x2: 296 },
+  /*  6 RAMP_L_UP      */ { y: 228, x1: 296, x2: 372, slope: (178 - 228) / (372 - 296) },
+
+  // ── Band 3 (dragon roam: D-flat ←M→ TENT ←M→ right-flat) ──
+  /*  7 D_FLAT         */ { y: 276, x1: 0,   x2: 130 },
+  /*  8 TENT_LEFT      */ { y: 276, x1: 190, x2: 218, slope: (246 - 276) / (218 - 190) },
+  /*  9 TENT_TOP       */ { y: 246, x1: 218, x2: 304 },
+  /* 10 TENT_RIGHT     */ { y: 246, x1: 304, x2: 332, slope: (276 - 246) / (332 - 304) },
+  /* 11 RIGHT_B3       */ { y: 276, x1: 384, x2: 512 },
+  /* 12 M_B3_L         */ { y: 280, x1: 132, x2: 184 },
+  /* 13 M_B3_R         */ { y: 280, x1: 336, x2: 380 },
+
+  // ── Band 4 (small stubs + center mover) ──
+  /* 14 LEFT_B4        */ { y: 332, x1: 0,   x2: 80  },
+  /* 15 M_B4           */ { y: 332, x1: 196, x2: 304 },
+  /* 16 RIGHT_B4       */ { y: 332, x1: 432, x2: 512 },
+
+  // ── Band 5 (F flat + ramp inward; N-pair; G flat + ramp inward) ──
+  /* 17 LEFT_B5        */ { y: 392, x1: 0,   x2: 132 },
+  /* 18 LEFT_B5_RAMP   */ { y: 392, x1: 132, x2: 188, slope: (448 - 392) / (188 - 132) },
+  /* 19 RIGHT_B5_RAMP  */ { y: 448, x1: 324, x2: 380, slope: (392 - 448) / (380 - 324) },
+  /* 20 RIGHT_B5       */ { y: 392, x1: 380, x2: 512 },
+  /* 21 M_B5_L         */ { y: 396, x1: 148, x2: 248 },
+  /* 22 M_B5_R         */ { y: 396, x1: 264, x2: 364 },
+
+  // ── Band 6 (ground) ──
+  /* 23 LEFT_GROUND    */ { y: 448, x1: 0,   x2: 188 },
+  /* 24 RIGHT_GROUND   */ { y: 448, x1: 324, x2: 512 },
+  /* 25 M_B6           */ { y: 452, x1: 200, x2: 312 },
 ];
 
-// Wire up movers (axis-aligned horizontal oscillation, bouncing).
-L4_PLATFORMS[8].moving  = { min: 128, max: 192, speed: -0.7 };
-L4_PLATFORMS[9].moving  = { min: 320, max: 384, speed:  0.7 };
-L4_PLATFORMS[12].moving = { min: 200, max: 312, speed:  0.9 };
-// N-pair: start moving toward each other; bounce off each other AND outer walls.
-L4_PLATFORMS[15].moving = { min: 144, max: 252, speed:  0.9, pairIdx: 16 };
-L4_PLATFORMS[16].moving = { min: 260, max: 368, speed: -0.9, pairIdx: 15 };
-L4_PLATFORMS[19].moving = { min: 180, max: 348, speed:  0.8 };
+L4_PLATFORMS[12].moving = { min: 132, max: 184, speed: -0.7 };
+L4_PLATFORMS[13].moving = { min: 304, max: 380, speed:  0.7 };
+L4_PLATFORMS[15].moving = { min: 80,  max: 432, speed:  0.9 };
+L4_PLATFORMS[21].moving = { min: 132, max: 248, speed:  0.9, pairIdx: 22 };
+L4_PLATFORMS[22].moving = { min: 264, max: 380, speed: -0.9, pairIdx: 21 };
+L4_PLATFORMS[25].moving = { min: 188, max: 324, speed:  0.8 };
 
 // Named anchors
-const PRINCESS_X = 200;
+const PRINCESS_X = 130;
 const PRINCESS_Y = L4_PLATFORMS[0].y - 48;
-const VOLCANO_X = 340;
-const ROCK_LAND_X = 140;                            // point 3 — landing spot on princess platform
-const C_X = 280;                                    // decision point on princess platform
-const E_X = 200;                                    // purple sprout base x (E_VALLEY)
-const A_X = 260;                                    // rock rest slot x (E_VALLEY)
-const D_X = 24;                                     // green sprout x (D_FLAT)
+const VOLCANO_X  = 350;
+const C_X = 290;
+const E_X = 220;
+const A_X = 270;
+const D_X = 24;
 
 const PRINCESS_PLAT_IDX = 0;
-const E_BASE_PLAT_IDX   = 3;   // E_VALLEY
-const E_TOP_PLAT_IDX    = 0;   // PRINCESS_TOP
-const D_BASE_PLAT_IDX   = 5;   // D_FLAT
-const D_TOP_PLAT_IDX    = 2;   // LEFT_HIGH
-const A_PLAT_IDX        = 3;   // E_VALLEY (kick from here)
+const E_BASE_PLAT_IDX   = 5;
+const E_TOP_PLAT_IDX    = 0;
+const D_BASE_PLAT_IDX   = 7;
+const D_TOP_PLAT_IDX    = 3;
+const A_PLAT_IDX        = 5;
 
-// H ladder sprouts (band-to-band).  Each is a Sprout with its own cycle.
-//   H1: LEFT_B5 (yBot 392) → LEFT_B4 (yTop 328)
-//   H2: RIGHT_B4 (yBot 328) → RIGHT_B3 (yTop 268)
-//   H3: RIGHT_GROUND (yBot 448) → RIGHT_B5 (yTop 392)
-const H1_X = 70,  H1_TOP_IDX = 10, H1_BOT_IDX = 13;
-const H2_X = 460, H2_TOP_IDX = 7,  H2_BOT_IDX = 11;
-const H3_X = 480, H3_TOP_IDX = 14, H3_BOT_IDX = 18;
+// H ladder sprouts
+const H1_X = 60,  H1_TOP_IDX = 14, H1_BOT_IDX = 17;
+const H2_X = 470, H2_TOP_IDX = 11, H2_BOT_IDX = 16;
+const H3_X = 490, H3_TOP_IDX = 20, H3_BOT_IDX = 24;
 
-// Monkey anchor slots (blue ovals from sketch) — platforms 5..19 mid/lower bands.
 const MONKEY_PLAT_ANCHORS: number[] = [
-  5, 7, 10, 11, 12, 13, 14, 17, 18, 19,
+  7, 11, 14, 15, 16, 17, 20, 23, 24, 25,
 ];
 const MONKEY_PER_PLAT_CAP = 5;
 const MONKEY_TOTAL_CAP    = 20;
