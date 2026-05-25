@@ -322,37 +322,35 @@ export function initLevel4(iter: number): L4State {
   const diff = getLevel4Difficulty(iter);
 
   // Randomize mover speeds + reset positions each iteration.
-  const randomizeMover = (idx: number, lo: number, hi: number) => {
+  const randomizeMover = (idx: number, speed: number) => {
     const pl = L4_PLATFORMS[idx];
     if (!pl.moving) return;
     const w = pl.x2 - pl.x1;
     const startX = pl.moving.min + Math.random() * (pl.moving.max - pl.moving.min);
     pl.x1 = startX; pl.x2 = startX + w;
-    pl.moving.speed = rsp(lo, hi);
+    pl.moving.speed = speed;
   };
-  randomizeMover(12, 0.5, 1.1);
-  randomizeMover(13, 0.5, 1.1);
-  randomizeMover(15, 0.6, 1.2);
-  randomizeMover(21, 0.6, 1.4);
-  randomizeMover(22, 0.6, 1.4);
-  randomizeMover(25, 0.5, 1.0);
+  randomizeMover(9,  rsp(0.5, 1.1));
+  randomizeMover(10, rsp(0.5, 1.1));
+  // N-pair: opposite directions, different magnitudes.
+  randomizeMover(15,  rmag(0.6, 1.2));
+  randomizeMover(16, -rmag(0.6, 1.2));
+  randomizeMover(19, rsp(0.5, 1.0));
 
-
-
-  // Caveman on LEFT_GROUND.
+  // Caveman on LEFT_GROUND (idx 17).
   const player: Player = {
-    x: 20, y: platY(L4_PLATFORMS[23], 20) - 24, w: 16, h: 24,
-    vx: 0, vy: 0, onGround: true, groundPlatIdx: 23, jumpStartPlatIdx: 23,
+    x: 20, y: platY(L4_PLATFORMS[17], 20) - 24, w: 16, h: 24,
+    vx: 0, vy: 0, onGround: true, groundPlatIdx: 17, jumpStartPlatIdx: 17,
     climbing: false, facing: 1, jumping: false,
     walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0,
     climbFrame: 0, climbTimer: 0, kickTimer: 0,
   };
 
-  // Dragon spawns next to princess on PRINCESS_TOP, then intro-jumps down.
+  // Dragon spawns next to princess on PRINCESS_TOP, then intro-jumps to TENT_TOP (idx 4).
   const dragon: Dragon = {
     x: 140, y: L4_PLATFORMS[0].y - DRAGON_H,
     vx: 0, vy: 0, airborne: false,
-    platIdx: 0, targetPlatIdx: 9,
+    platIdx: 0, targetPlatIdx: 4,
     facing: -1, jumpCooldown: 60,
     state: 'intro', downedTimer: 0, dyingTimer: 0, hits: 0,
     frame: 0, frameTimer: 0,
