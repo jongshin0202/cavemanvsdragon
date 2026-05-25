@@ -11,7 +11,7 @@
 // X hits = dragon dies + E fully grown → climb E → princess.
 // ============================================================
 
-import { CANVAS_W, CANVAS_H } from '../constants';
+import { CANVAS_W, CANVAS_H, getRoundDifficulty } from '../constants';
 import { LEVEL4_PARAMS, getLevel4Difficulty, type Level4Difficulty } from './params';
 
 const GRAVITY = 0.38;
