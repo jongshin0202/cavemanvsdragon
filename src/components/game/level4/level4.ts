@@ -105,6 +105,16 @@ interface Rock {
   hitConsumed?: boolean;
 }
 
+interface Fireball {
+  x: number; y: number;
+  sx: number; sy: number;        // start position
+  tx: number; ty: number;        // target landing position
+  age: number;                   // frames since launch
+  flight: number;                // total frames until landing
+  radius: number;                // current visible radius
+  landed: boolean;
+}
+
 type DragonState = 'roam' | 'downed' | 'dying' | 'dead';
 interface Dragon {
   x: number; y: number;
