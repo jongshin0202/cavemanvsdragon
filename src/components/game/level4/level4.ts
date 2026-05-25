@@ -55,60 +55,69 @@ function platY(p: L4Platform, x: number): number {
   return p.y + (cx - p.x1) * (p.slope || 0);
 }
 
+// Band Y rows (compressed so everything fits)
+//  B1=70  B2=195  B3=270  B4=330  B5=388  B6=450
 export const L4_PLATFORMS: L4Platform[] = [
   // ── Band 1 (Princess top) ──
-  /*  0 PRINCESS_TOP   */ { y: 60,  x1: 90,  x2: 400 },
-  /*  1 TOP_RIGHT_STUB */ { y: 90,  x1: 462, x2: 512 },
-  /*  2 RAMP_TR        */ { y: 178, x1: 372, x2: 462, slope: (90 - 178) / (462 - 372) },
+  /*  0 PRINCESS_TOP   */ { y: 70,  x1: 90,  x2: 400 },
+  /*  1 TOP_RIGHT_STUB */ { y: 95,  x1: 462, x2: 512 },
+  /*  2 RAMP_TR        */ { y: 170, x1: 372, x2: 462, slope: (95 - 170) / (462 - 372) },
 
-  // ── Band 2 (left W-zigzag with E valley) ──
-  /*  3 LEFT_HIGH      */ { y: 158, x1: 0,   x2: 86  },
-  /*  4 RAMP_L_DOWN    */ { y: 158, x1: 86,  x2: 178, slope: (228 - 158) / (178 - 86) },
-  /*  5 E_VALLEY       */ { y: 228, x1: 178, x2: 296 },
-  /*  6 RAMP_L_UP      */ { y: 228, x1: 296, x2: 372, slope: (178 - 228) / (372 - 296) },
+  // ── Band 2 (left W-zigzag with E valley) — shortened ──
+  /*  3 LEFT_HIGH      */ { y: 150, x1: 0,   x2: 80  },
+  /*  4 RAMP_L_DOWN    */ { y: 150, x1: 80,  x2: 168, slope: (195 - 150) / (168 - 80) },
+  /*  5 E_VALLEY       */ { y: 195, x1: 168, x2: 286 },
+  /*  6 RAMP_L_UP      */ { y: 195, x1: 286, x2: 372, slope: (150 - 195) / (372 - 286) },
 
-  // ── Band 3 (dragon roam: D-flat ←M→ TENT ←M→ right-flat) ──
-  /*  7 D_FLAT         */ { y: 276, x1: 0,   x2: 130 },
-  /*  8 TENT_LEFT      */ { y: 276, x1: 190, x2: 218, slope: (246 - 276) / (218 - 190) },
-  /*  9 TENT_TOP       */ { y: 246, x1: 218, x2: 304 },
-  /* 10 TENT_RIGHT     */ { y: 246, x1: 304, x2: 332, slope: (276 - 246) / (332 - 304) },
-  /* 11 RIGHT_B3       */ { y: 276, x1: 384, x2: 512 },
-  /* 12 M_B3_L         */ { y: 280, x1: 132, x2: 184 },
-  /* 13 M_B3_R         */ { y: 280, x1: 336, x2: 380 },
+  // ── Band 3 (D-flat ←M→ TENT(top@B3, legs↓B4) ←M→ right-flat) ──
+  /*  7 D_FLAT         */ { y: 270, x1: 0,   x2: 130 },
+  /*  8 TENT_LEFT      */ { y: 330, x1: 190, x2: 230, slope: (270 - 330) / (230 - 190) },
+  /*  9 TENT_TOP       */ { y: 270, x1: 230, x2: 292 },
+  /* 10 TENT_RIGHT     */ { y: 270, x1: 292, x2: 332, slope: (330 - 270) / (332 - 292) },
+  /* 11 RIGHT_B3       */ { y: 270, x1: 384, x2: 512 },
+  /* 12 M_B3_L         */ { y: 270, x1: 140, x2: 184 },
+  /* 13 M_B3_R         */ { y: 270, x1: 336, x2: 380 },
+
 
   // ── Band 4 (small stubs + center mover) ──
-  /* 14 LEFT_B4        */ { y: 332, x1: 0,   x2: 80  },
-  /* 15 M_B4           */ { y: 332, x1: 196, x2: 304 },
-  /* 16 RIGHT_B4       */ { y: 332, x1: 432, x2: 512 },
+  /* 14 LEFT_B4        */ { y: 330, x1: 0,   x2: 80  },
+  /* 15 M_B4           */ { y: 330, x1: 196, x2: 304 },
+  /* 16 RIGHT_B4       */ { y: 330, x1: 432, x2: 512 },
 
   // ── Band 5 (F flat + ramp inward; N-pair; G flat + ramp inward) ──
-  /* 17 LEFT_B5        */ { y: 392, x1: 0,   x2: 132 },
-  /* 18 LEFT_B5_RAMP   */ { y: 392, x1: 132, x2: 188, slope: (448 - 392) / (188 - 132) },
-  /* 19 RIGHT_B5_RAMP  */ { y: 448, x1: 324, x2: 380, slope: (392 - 448) / (380 - 324) },
-  /* 20 RIGHT_B5       */ { y: 392, x1: 380, x2: 512 },
-  /* 21 M_B5_L         */ { y: 396, x1: 148, x2: 248 },
-  /* 22 M_B5_R         */ { y: 396, x1: 264, x2: 364 },
+  /* 17 LEFT_B5        */ { y: 388, x1: 0,   x2: 132 },
+  /* 18 LEFT_B5_RAMP   */ { y: 388, x1: 132, x2: 188, slope: (450 - 388) / (188 - 132) },
+  /* 19 RIGHT_B5_RAMP  */ { y: 450, x1: 324, x2: 380, slope: (388 - 450) / (380 - 324) },
+  /* 20 RIGHT_B5       */ { y: 388, x1: 380, x2: 512 },
+  /* 21 M_B5_L         */ { y: 388, x1: 150, x2: 210 },
+  /* 22 M_B5_R         */ { y: 388, x1: 302, x2: 362 },
 
   // ── Band 6 (ground) ──
-  /* 23 LEFT_GROUND    */ { y: 448, x1: 0,   x2: 188 },
-  /* 24 RIGHT_GROUND   */ { y: 448, x1: 324, x2: 512 },
-  /* 25 M_B6           */ { y: 452, x1: 200, x2: 312 },
+  /* 23 LEFT_GROUND    */ { y: 450, x1: 0,   x2: 188 },
+  /* 24 RIGHT_GROUND   */ { y: 450, x1: 324, x2: 512 },
+  /* 25 M_B6           */ { y: 450, x1: 200, x2: 312 },
 ];
 
-L4_PLATFORMS[12].moving = { min: 132, max: 184, speed: -0.7 };
-L4_PLATFORMS[13].moving = { min: 304, max: 380, speed:  0.7 };
-L4_PLATFORMS[15].moving = { min: 80,  max: 432, speed:  0.9 };
-L4_PLATFORMS[21].moving = { min: 132, max: 248, speed:  0.9, pairIdx: 22 };
-L4_PLATFORMS[22].moving = { min: 264, max: 380, speed: -0.9, pairIdx: 21 };
-L4_PLATFORMS[25].moving = { min: 188, max: 324, speed:  0.8 };
+// Helper for random speed in [min,max] with random sign.
+function rsp(lo: number, hi: number): number {
+  return (Math.random() < 0.5 ? -1 : 1) * (lo + Math.random() * (hi - lo));
+}
+
+// min/max are bounds for the platform's LEFT edge (x1).
+L4_PLATFORMS[12].moving = { min: 130, max: 186, speed: rsp(0.5, 1.1) };
+L4_PLATFORMS[13].moving = { min: 332, max: 340, speed: rsp(0.5, 1.1) };
+L4_PLATFORMS[15].moving = { min: 80,  max: 324, speed: rsp(0.6, 1.2) };
+L4_PLATFORMS[21].moving = { min: 132, max: 242, speed: rsp(0.6, 1.4), pairIdx: 22 };
+L4_PLATFORMS[22].moving = { min: 270, max: 320, speed: rsp(0.6, 1.4), pairIdx: 21 };
+L4_PLATFORMS[25].moving = { min: 188, max: 212, speed: rsp(0.5, 1.0) };
 
 // Named anchors
 const PRINCESS_X = 130;
 const PRINCESS_Y = L4_PLATFORMS[0].y - 48;
 const VOLCANO_X  = 350;
-const C_X = 290;
+const C_X = 280;
 const E_X = 220;
-const A_X = 270;
+const A_X = 260;
 const D_X = 24;
 
 const PRINCESS_PLAT_IDX = 0;
@@ -313,6 +322,24 @@ function makeMonkey(platIdx: number): Monkey {
 // ── Init ─────────────────────────────────────────────────────
 export function initLevel4(iter: number): L4State {
   const diff = getLevel4Difficulty(iter);
+
+  // Randomize mover speeds + reset positions each iteration.
+  const randomizeMover = (idx: number, lo: number, hi: number) => {
+    const pl = L4_PLATFORMS[idx];
+    if (!pl.moving) return;
+    const w = pl.x2 - pl.x1;
+    const startX = pl.moving.min + Math.random() * (pl.moving.max - pl.moving.min);
+    pl.x1 = startX; pl.x2 = startX + w;
+    pl.moving.speed = rsp(lo, hi);
+  };
+  randomizeMover(12, 0.5, 1.1);
+  randomizeMover(13, 0.5, 1.1);
+  randomizeMover(15, 0.6, 1.2);
+  randomizeMover(21, 0.6, 1.4);
+  randomizeMover(22, 0.6, 1.4);
+  randomizeMover(25, 0.5, 1.0);
+
+
 
   // Caveman on LEFT_GROUND.
   const player: Player = {
