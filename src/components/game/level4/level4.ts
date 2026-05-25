@@ -298,10 +298,11 @@ function buildMonkeyDistribution(iter: number): number[] {
 function makeMonkey(platIdx: number): Monkey {
   const plat = L4_PLATFORMS[platIdx];
   const w = plat.x2 - plat.x1;
+  const mx = plat.x1 + 16 + Math.random() * Math.max(8, w - 40);
   return {
     alive: true,
-    x: plat.x1 + 16 + Math.random() * Math.max(8, w - 40),
-    y: plat.y - 16,
+    x: mx,
+    y: platY(plat, mx) - 16,
     platIdx,
     vx: (Math.random() < 0.5 ? -1 : 1) * 0.55,
     facing: 1,
