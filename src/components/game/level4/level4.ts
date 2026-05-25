@@ -343,23 +343,23 @@ export function initLevel4(iter: number): L4State {
     pl.moving.speed = speed;
   };
   randomizeMover(6,  rsp(0.5, 1.0));
-  randomizeMover(8,  rsp(0.6, 1.2));
-  randomizeMover(12, rsp(0.6, 1.2));
-  // B5 N-pair: opposite directions, different magnitudes.
-  randomizeMover(15,  rmag(0.6, 1.2));
-  randomizeMover(16, -rmag(0.6, 1.2));
-  randomizeMover(19, rsp(0.5, 1.0));
+  randomizeMover(8,  rsp(0.5, 1.0));
+  randomizeMover(13, rsp(0.6, 1.2));
+  // P2 pair: opposite directions, different magnitudes.
+  randomizeMover(16,  rmag(0.6, 1.2));
+  randomizeMover(17, -rmag(0.6, 1.2));
+  randomizeMover(22, rsp(0.5, 1.0));
 
-  // Caveman on B6_LEFT (idx 18).
+  // Caveman on P1_LEFT (idx 21).
   const player: Player = {
-    x: 20, y: platY(L4_PLATFORMS[18], 20) - 24, w: 16, h: 24,
-    vx: 0, vy: 0, onGround: true, groundPlatIdx: 18, jumpStartPlatIdx: 18,
+    x: 20, y: platY(L4_PLATFORMS[21], 20) - 24, w: 16, h: 24,
+    vx: 0, vy: 0, onGround: true, groundPlatIdx: 21, jumpStartPlatIdx: 21,
     climbing: false, facing: 1, jumping: false,
     walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0,
     climbFrame: 0, climbTimer: 0, kickTimer: 0,
   };
 
-  // Dragon spawns next to princess on B1, intro-jumps to TENT_TOP (idx 7).
+  // Dragon spawns next to princess on P6, intro-jumps to TENT_TOP (idx 7).
   const dragon: Dragon = {
     x: 140, y: L4_PLATFORMS[0].y - DRAGON_H,
     vx: 0, vy: 0, airborne: false,
