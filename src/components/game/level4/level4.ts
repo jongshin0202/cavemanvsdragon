@@ -323,17 +323,15 @@ export function initLevel4(iter: number): L4State {
     pl.x1 = startX; pl.x2 = startX + w;
     pl.moving.speed = speed;
   };
-  randomizeMover(9,  rsp(0.5, 1.1));
-  randomizeMover(10, rsp(0.5, 1.1));
   // N-pair: opposite directions, different magnitudes.
-  randomizeMover(15,  rmag(0.6, 1.2));
-  randomizeMover(16, -rmag(0.6, 1.2));
-  randomizeMover(19, rsp(0.5, 1.0));
+  randomizeMover(12,  rmag(0.6, 1.2));
+  randomizeMover(13, -rmag(0.6, 1.2));
+  randomizeMover(16, rsp(0.5, 1.0));
 
-  // Caveman on LEFT_GROUND (idx 17).
+  // Caveman on LEFT_GROUND (idx 14).
   const player: Player = {
-    x: 20, y: platY(L4_PLATFORMS[17], 20) - 24, w: 16, h: 24,
-    vx: 0, vy: 0, onGround: true, groundPlatIdx: 17, jumpStartPlatIdx: 17,
+    x: 20, y: platY(L4_PLATFORMS[14], 20) - 24, w: 16, h: 24,
+    vx: 0, vy: 0, onGround: true, groundPlatIdx: 14, jumpStartPlatIdx: 14,
     climbing: false, facing: 1, jumping: false,
     walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0,
     climbFrame: 0, climbTimer: 0, kickTimer: 0,
