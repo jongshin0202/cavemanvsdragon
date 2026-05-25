@@ -534,8 +534,9 @@ function tickRocks(s: L4State) {
         for (let pi = 0; pi < L4_PLATFORMS.length; pi++) {
           const pl = L4_PLATFORMS[pi];
           if (r.x < pl.x1 || r.x > pl.x2) continue;
-          if (r.vy > 0 && r.y + r.r >= pl.y && r.y + r.r <= pl.y + 10) {
-            r.y = pl.y - r.r;
+          const py = platY(pl, r.x);
+          if (r.vy > 0 && r.y + r.r >= py && r.y + r.r <= py + 10) {
+            r.y = py - r.r;
             r.vy = 0;
             r.platIdx = pi;
             if (r.vx === 0) r.vx = Math.random() < 0.5 ? -1 : 1;
