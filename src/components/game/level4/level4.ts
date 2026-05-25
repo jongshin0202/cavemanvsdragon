@@ -1110,15 +1110,17 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     const plat = L4_PLATFORMS[i];
     const y1 = platY(plat, plat.x1);
     const y2 = platY(plat, plat.x2);
-    // dirt underside
-    ctx.fillStyle = '#6B4226';
-    ctx.beginPath();
-    ctx.moveTo(plat.x1, y1 + 2);
-    ctx.lineTo(plat.x2, y2 + 2);
-    ctx.lineTo(plat.x2, y2 + 8);
-    ctx.lineTo(plat.x1, y1 + 8);
-    ctx.closePath();
-    ctx.fill();
+    // dirt underside (skip for ice ramps and movers — they float)
+    if (!plat.ice && !plat.moving) {
+      ctx.fillStyle = '#6B4226';
+      ctx.beginPath();
+      ctx.moveTo(plat.x1, y1 + 2);
+      ctx.lineTo(plat.x2, y2 + 2);
+      ctx.lineTo(plat.x2, y2 + 8);
+      ctx.lineTo(plat.x1, y1 + 8);
+      ctx.closePath();
+      ctx.fill();
+    }
     // top surface — blue for ice, green-light for movers, green for static
     ctx.fillStyle = plat.ice ? '#7FD4F5' : (plat.moving ? '#FF5252' : '#3CB043');
     ctx.beginPath();
