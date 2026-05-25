@@ -766,8 +766,8 @@ function tickDragon(s: L4State) {
     return;
   }
 
-  // Dragon roams Band 3 static platforms: E_VALLEY, TENT_TOP.
-  const reachable = [5, 7];
+  // Dragon roams P4 statics: TENT_TOP, P4_RIGHT.
+  const reachable = [7, 9];
   if (d.airborne) {
     d.vy += GRAVITY;
     d.x += d.vx;
