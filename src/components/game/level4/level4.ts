@@ -59,11 +59,11 @@ function platY(p: L4Platform, x: number): number {
 
 // 7 bands. P1=445 P2=370 P3=295 P4=220 P5=145 P5.5=107 P6=70 (equal 75 except P5↔P5.5 = 37).
 export const L4_PLATFORMS: L4Platform[] = [
-  // ── P6 (y=70) full top: princess + volcano ──
-  /*  0 P6_FULL          */ { y: 70,  x1: 0,   x2: 512 },
+  // ── P6 (y=70) top: princess + volcano. HOLES: <60 and >430 ──
+  /*  0 P6_MAIN          */ { y: 70,  x1: 60,  x2: 430 },
 
   // long ICE diagonal from P6 right down-left to P5 right
-  /*  1 ICE_TR           */ { y: 145, x1: 320, x2: 470, slope: (70 - 145) / (470 - 320), ice: true },
+  /*  1 ICE_TR           */ { y: 145, x1: 320, x2: 430, slope: (70 - 145) / (430 - 320), ice: true },
 
   // ── P5.5 (y=107) small left stub ──
   /*  2 P55_LEFT         */ { y: 107, x1: 20,  x2: 130 },
@@ -71,24 +71,26 @@ export const L4_PLATFORMS: L4Platform[] = [
   // ICE ramp from P5.5 right edge down to P5 left
   /*  3 ICE_55           */ { y: 107, x1: 130, x2: 230, slope: (145 - 107) / (230 - 130), ice: true },
 
-  // ── P5 (y=145) small middle flat (E purple sprout) ──
-  /*  4 P5_E_FLAT        */ { y: 145, x1: 230, x2: 320 },
+  // ── P5 (y=145) E flat (purple sprout). HOLE: >290 ──
+  /*  4 P5_E_FLAT        */ { y: 145, x1: 230, x2: 290 },
 
-  // ── P4 (y=220) ── D-flat | mover_L | tent_top | mover_R | right
-  /*  5 P4_LEFT_D        */ { y: 220, x1: 0,   x2: 130 },
+  // ── P4 (y=220) ── D-flat (HOLE >70) | mover_L | tent_top | mover_R | right
+  /*  5 P4_LEFT_D        */ { y: 220, x1: 0,   x2: 70  },
   /*  6 P4_MOVER_L       */ { y: 220, x1: 145, x2: 185 },
   /*  7 P4_TENT_TOP      */ { y: 220, x1: 215, x2: 297 },
   /*  8 P4_MOVER_R       */ { y: 220, x1: 312, x2: 352 },
   /*  9 P4_RIGHT         */ { y: 220, x1: 380, x2: 512 },
 
-  // ICE tent legs (P4 tent edges → P3 surface)
-  /* 10 ICE_TENT_L       */ { y: 220, x1: 180, x2: 215, slope: (220 - 295) / (215 - 180), ice: true },
-  /* 11 ICE_TENT_R       */ { y: 220, x1: 297, x2: 332, slope: (295 - 220) / (332 - 297), ice: true },
+  // NEW ICE (replaces removed ICE_TENT_L): from P2_LEFT right edge UP to P3_MOVER left edge.
+  /* 10 ICE_NEW          */ { y: 370, x1: 130, x2: 230, slope: (295 - 370) / (230 - 130), ice: true },
 
-  // ── P3 (y=295) ── left | mover | right (H3 ladder right)
-  /* 12 P3_LEFT          */ { y: 295, x1: 0,   x2: 180 },
+  // ICE_TENT_R extended further-right so it lands inside the trimmed P3_RIGHT (past hole).
+  /* 11 ICE_TENT_R       */ { y: 220, x1: 297, x2: 435, slope: (295 - 220) / (435 - 297), ice: true },
+
+  // ── P3 (y=295) ── left (HOLE >70) | mover | right (HOLE on left, starts at 435)
+  /* 12 P3_LEFT          */ { y: 295, x1: 0,   x2: 70  },
   /* 13 P3_MOVER         */ { y: 295, x1: 230, x2: 290 },
-  /* 14 P3_RIGHT         */ { y: 295, x1: 332, x2: 512 },
+  /* 14 P3_RIGHT         */ { y: 295, x1: 435, x2: 512 },
 
   // ── P2 (y=370) ── left (H2) | mover_A | mover_B | farright
   /* 15 P2_LEFT          */ { y: 370, x1: 0,   x2: 130 },
@@ -122,7 +124,7 @@ L4_PLATFORMS[17].moving = { min: 240, max: 348, speed: -rmag(0.6, 1.2), pairIdx:
 L4_PLATFORMS[22].moving = { min: 188, max: 318, speed: rsp(0.5, 1.0) };
 
 // Named anchors
-const PRINCESS_X = 100;
+const PRINCESS_X = 380;
 const PRINCESS_Y = L4_PLATFORMS[0].y - 48;
 const VOLCANO_X  = 340;
 const C_X = 270;   // rock decision point on P6 (above E)
