@@ -645,7 +645,7 @@ function tickMonkeys(s: L4State) {
     if (m.x < plat.x1 + 4) { m.x = plat.x1 + 4; m.vx = Math.abs(m.vx); }
     if (m.x > plat.x2 - 18) { m.x = plat.x2 - 18; m.vx = -Math.abs(m.vx); }
     m.facing = m.vx >= 0 ? 1 : -1;
-    m.y = plat.y - 16;
+    m.y = platY(plat, m.x) - 16;
     m.walkTimer++;
     if (m.walkTimer >= 6) { m.walkTimer = 0; m.walkFrame = (m.walkFrame + 1) % ROBOT_FRAMES; }
   }
