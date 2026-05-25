@@ -116,25 +116,25 @@ L4_PLATFORMS[19].moving = { min: 210, max: 290, speed: rsp(0.5, 1.0) };
 const PRINCESS_X = 70;
 const PRINCESS_Y = L4_PLATFORMS[0].y - 48;
 const VOLCANO_X  = 290;
-const C_X = 260;   // rock decision point on B1_LEFT
-const E_X = 200;   // E sprout on E_VALLEY
-const A_X = 260;   // rock-rest A on E_VALLEY (directly below C)
-const D_X = 30;    // D sprout on D_FLAT
+const C_X = 210;   // rock decision point on B1_PRINCESS (directly above A)
+const E_X = 170;   // E (purple) on B3_E_VALLEY
+const A_X = 210;   // rock-rest A on B3_E_VALLEY (under C)
+const D_X = 30;    // D (green) on B4_GREEN_D
 
 const PRINCESS_PLAT_IDX = 0;
-const E_BASE_PLAT_IDX   = 4;   // E_VALLEY
-const E_TOP_PLAT_IDX    = 0;   // B1_LEFT
-const D_BASE_PLAT_IDX   = 6;   // D_FLAT
-const D_TOP_PLAT_IDX    = 2;   // B2_LEFT_HIGH
-const A_PLAT_IDX        = 4;   // E_VALLEY
+const E_BASE_PLAT_IDX   = 5;   // B3_E_VALLEY
+const E_TOP_PLAT_IDX    = 0;   // B1_PRINCESS
+const D_BASE_PLAT_IDX   = 9;   // B4_GREEN_D
+const D_TOP_PLAT_IDX    = 3;   // B2_LEFT_STUB
+const A_PLAT_IDX        = 5;   // B3_E_VALLEY
 
-// H ladder sprouts (each spans exactly one band gap)
-const H1_X = 60,  H1_TOP_IDX = 13, H1_BOT_IDX = 16;  // B4_LEFT  → B5_LEFT
-const H2_X = 480, H2_TOP_IDX = 12, H2_BOT_IDX = 15;  // B3_RIGHT → B4_RIGHT
-const H3_X = 490, H3_TOP_IDX = 19, H3_BOT_IDX = 23;  // B5_RIGHT → B6_RIGHT
+// H ladder sprouts
+const H1_X = 60,  H1_TOP_IDX = 14, H1_BOT_IDX = 18;  // B5_LEFT  → B6_LEFT
+const H2_X = 480, H2_TOP_IDX = 13, H2_BOT_IDX = 17;  // B4_RIGHT → B5_RIGHT
+const H3_X = 480, H3_TOP_IDX = 17, H3_BOT_IDX = 20;  // B5_RIGHT → B6_RIGHT
 
 const MONKEY_PLAT_ANCHORS: number[] = [
-  6, 9, 12, 13, 14, 15, 16, 19, 22, 23, 24,
+  9, 12, 13, 14, 15, 16, 17, 19, 20,
 ];
 const MONKEY_PER_PLAT_CAP = 5;
 const MONKEY_TOTAL_CAP    = 20;
