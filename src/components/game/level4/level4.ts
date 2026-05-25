@@ -660,7 +660,7 @@ function spawnCan(s: L4State, color: 'green' | 'purple') {
   const pi = candidates[Math.floor(Math.random() * candidates.length)];
   const pl = L4_PLATFORMS[pi];
   const x = pl.x1 + 14 + Math.random() * Math.max(8, pl.x2 - pl.x1 - 32);
-  const can: Can = { x, y: pl.y - 14, color, picked: false };
+  const can: Can = { x, y: platY(pl, x) - 14, color, picked: false };
   if (color === 'green') s.greenCan = can; else s.purpleCan = can;
 }
 
