@@ -48,6 +48,8 @@ export interface L4Platform {
   x2: number;
   slope?: number;
   moving?: L4Mover;
+  /** Blue ICE ramp — everything slides downhill; jump still works for player. */
+  ice?: boolean;
 }
 
 function platY(p: L4Platform, x: number): number {
@@ -55,48 +57,46 @@ function platY(p: L4Platform, x: number): number {
   return p.y + (cx - p.x1) * (p.slope || 0);
 }
 
-// Band Y rows — EQUAL spacing of 76px between every band.
-//  B1=80  B2=156  B3=232  B4=308  B5=384  B6=460
+// 6 bands, equal 75px spacing: B1=70 B2=145 B3=220 B4=295 B5=370 B6=445.
 export const L4_PLATFORMS: L4Platform[] = [
-  // ── B1 (y=80) — princess platform + small right stub ──
-  /*  0 B1_LEFT          */ { y: 80,  x1: 30,  x2: 340 },
-  /*  1 B1_RIGHT         */ { y: 80,  x1: 448, x2: 512 },
+  // ── B1 (y=70) princess top + far-right stub ──
+  /*  0 B1_PRINCESS    */ { y: 70,  x1: 30,  x2: 340 },
+  /*  1 B1_RIGHT_STUB  */ { y: 70,  x1: 448, x2: 512 },
 
-  // ── B2 area — LEFT W-zigzag (high stub + ramp down to E valley) + RIGHT long diagonal ──
-  /*  2 B2_LEFT_HIGH     */ { y: 156, x1: 0,   x2: 60  },
-  /*  3 B2_LEFT_RAMP     */ { y: 156, x1: 60,  x2: 170, slope: (232 - 156) / (170 - 60) },
-  /*  4 E_VALLEY         */ { y: 232, x1: 170, x2: 320 },
-  /*  5 B2_RIGHT_RAMP    */ { y: 232, x1: 348, x2: 448, slope: (80 - 232) / (448 - 348) },
+  // long ICE ramp from B1 right stub down to B3 tent-top right area
+  /*  2 ICE_TOPRIGHT   */ { y: 220, x1: 320, x2: 448, slope: (70 - 220) / (448 - 320), ice: true },
 
-  // ── B3 (y=232) — D-flat ← M → TENT (flat top, legs down to B4) ← M → right-flat ──
-  /*  6 D_FLAT           */ { y: 232, x1: 0,   x2: 90  },
-  /*  7 M_B3_L           */ { y: 232, x1: 100, x2: 150 },
-  /*  8 TENT_LEFT_LEG    */ { y: 308, x1: 180, x2: 240, slope: (232 - 308) / (240 - 180) },
-  /*  9 TENT_TOP         */ { y: 232, x1: 240, x2: 272 },
-  /* 10 TENT_RIGHT_LEG   */ { y: 232, x1: 272, x2: 332, slope: (308 - 232) / (332 - 272) },
-  /* 11 M_B3_R           */ { y: 232, x1: 350, x2: 400 },
-  /* 12 B3_RIGHT         */ { y: 232, x1: 448, x2: 512 },
+  // ── B2 (y=145) small left stub ──
+  /*  3 B2_LEFT_STUB   */ { y: 145, x1: 0,   x2: 70  },
 
-  // ── B4 (y=308) — left flat, long center mover, right flat ──
-  /* 13 B4_LEFT          */ { y: 308, x1: 0,   x2: 120 },
-  /* 14 M_B4             */ { y: 308, x1: 180, x2: 280 },
-  /* 15 B4_RIGHT         */ { y: 308, x1: 392, x2: 512 },
+  // ICE ramp from B2 stub down to E_VALLEY
+  /*  4 ICE_B2         */ { y: 145, x1: 70,  x2: 150, slope: (220 - 145) / (150 - 70), ice: true },
 
-  // ── B5 (y=384) — F-flat + ramp down; M ← N → M pair; ramp up + G-flat ──
-  /* 16 B5_LEFT          */ { y: 384, x1: 0,   x2: 130 },
-  /* 17 B5_LEFT_RAMP     */ { y: 384, x1: 130, x2: 190, slope: (460 - 384) / (190 - 130) },
-  /* 18 B5_RIGHT_RAMP    */ { y: 460, x1: 322, x2: 382, slope: (384 - 460) / (382 - 322) },
-  /* 19 B5_RIGHT         */ { y: 384, x1: 382, x2: 512 },
-  /* 20 M_B5_L           */ { y: 384, x1: 140, x2: 190 },
-  /* 21 M_B5_R           */ { y: 384, x1: 322, x2: 372 },
+  // ── B3 (y=220) — E_VALLEY | M_L | TENT_TOP | M_R ──
+  /*  5 B3_E_VALLEY    */ { y: 220, x1: 150, x2: 240 },
+  /*  6 B3_MOVER_L     */ { y: 220, x1: 246, x2: 280 },
+  /*  7 B3_TENT_TOP    */ { y: 220, x1: 262, x2: 320 },
+  /*  8 B3_MOVER_R     */ { y: 220, x1: 340, x2: 400 },
 
-  // ── B6 (y=460) — left ground, center mover, right ground ──
-  /* 22 B6_LEFT          */ { y: 460, x1: 0,   x2: 180 },
-  /* 23 B6_RIGHT         */ { y: 460, x1: 332, x2: 512 },
-  /* 24 M_B6             */ { y: 460, x1: 200, x2: 260 },
+  // ── B4 (y=295) — D-flat | ICE tent legs | center mover | right flat ──
+  /*  9 B4_GREEN_D     */ { y: 295, x1: 0,   x2: 140 },
+  /* 10 ICE_TENT_L     */ { x1: 170, x2: 230, y: 295, slope: (220 - 295) / (230 - 170), ice: true },
+  /* 11 ICE_TENT_R     */ { x1: 300, x2: 360, y: 220, slope: (295 - 220) / (360 - 300), ice: true },
+  /* 12 B4_MOVER       */ { y: 295, x1: 378, x2: 432 },
+  /* 13 B4_RIGHT       */ { y: 295, x1: 442, x2: 512 },
+
+  // ── B5 (y=370) — left flat | 2 center movers (pair) | right flat ──
+  /* 14 B5_LEFT        */ { y: 370, x1: 0,   x2: 140 },
+  /* 15 B5_MOVER_A     */ { y: 370, x1: 170, x2: 225 },
+  /* 16 B5_MOVER_B     */ { y: 370, x1: 265, x2: 320 },
+  /* 17 B5_RIGHT       */ { y: 370, x1: 380, x2: 512 },
+
+  // ── B6 (y=445) — left ground | center mover | right ground ──
+  /* 18 B6_LEFT        */ { y: 445, x1: 0,   x2: 200 },
+  /* 19 B6_MOVER       */ { y: 445, x1: 228, x2: 288 },
+  /* 20 B6_RIGHT       */ { y: 445, x1: 320, x2: 512 },
 ];
 
-// Helper for random speed in [min,max] with random sign.
 function rsp(lo: number, hi: number): number {
   return (Math.random() < 0.5 ? -1 : 1) * (lo + Math.random() * (hi - lo));
 }
@@ -104,37 +104,37 @@ function rmag(lo: number, hi: number): number {
   return lo + Math.random() * (hi - lo);
 }
 
-// Movers — min/max = LEFT-edge range, bounded by neighbour steady platforms.
-L4_PLATFORMS[7].moving  = { min: 100, max: 130, speed: rsp(0.5, 1.0) };
-L4_PLATFORMS[11].moving = { min: 332, max: 398, speed: rsp(0.5, 1.0) };
-L4_PLATFORMS[14].moving = { min: 120, max: 312, speed: rsp(0.6, 1.2) };
-L4_PLATFORMS[20].moving = { min: 130, max: 230, speed:  rmag(0.6, 1.2), pairIdx: 21 };
-L4_PLATFORMS[21].moving = { min: 282, max: 382, speed: -rmag(0.6, 1.2), pairIdx: 20 };
-L4_PLATFORMS[24].moving = { min: 180, max: 282, speed: rsp(0.5, 1.0) };
+// 6 movers — flanking tent (B3), B4 center, 2 on B5 center (pair), B6 center.
+L4_PLATFORMS[6].moving  = { min: 230, max: 256, speed: rsp(0.5, 1.0) };
+L4_PLATFORMS[8].moving  = { min: 322, max: 400, speed: rsp(0.6, 1.2) };
+L4_PLATFORMS[12].moving = { min: 360, max: 432, speed: rsp(0.6, 1.2) };
+L4_PLATFORMS[15].moving = { min: 150, max: 240, speed:  rmag(0.6, 1.2), pairIdx: 16 };
+L4_PLATFORMS[16].moving = { min: 255, max: 345, speed: -rmag(0.6, 1.2), pairIdx: 15 };
+L4_PLATFORMS[19].moving = { min: 210, max: 290, speed: rsp(0.5, 1.0) };
 
 // Named anchors
 const PRINCESS_X = 70;
 const PRINCESS_Y = L4_PLATFORMS[0].y - 48;
 const VOLCANO_X  = 290;
-const C_X = 260;   // rock decision point on B1_LEFT
-const E_X = 200;   // E sprout on E_VALLEY
-const A_X = 260;   // rock-rest A on E_VALLEY (directly below C)
-const D_X = 30;    // D sprout on D_FLAT
+const C_X = 210;   // rock decision point on B1_PRINCESS (directly above A)
+const E_X = 170;   // E (purple) on B3_E_VALLEY
+const A_X = 210;   // rock-rest A on B3_E_VALLEY (under C)
+const D_X = 30;    // D (green) on B4_GREEN_D
 
 const PRINCESS_PLAT_IDX = 0;
-const E_BASE_PLAT_IDX   = 4;   // E_VALLEY
-const E_TOP_PLAT_IDX    = 0;   // B1_LEFT
-const D_BASE_PLAT_IDX   = 6;   // D_FLAT
-const D_TOP_PLAT_IDX    = 2;   // B2_LEFT_HIGH
-const A_PLAT_IDX        = 4;   // E_VALLEY
+const E_BASE_PLAT_IDX   = 5;   // B3_E_VALLEY
+const E_TOP_PLAT_IDX    = 0;   // B1_PRINCESS
+const D_BASE_PLAT_IDX   = 9;   // B4_GREEN_D
+const D_TOP_PLAT_IDX    = 3;   // B2_LEFT_STUB
+const A_PLAT_IDX        = 5;   // B3_E_VALLEY
 
-// H ladder sprouts (each spans exactly one band gap)
-const H1_X = 60,  H1_TOP_IDX = 13, H1_BOT_IDX = 16;  // B4_LEFT  → B5_LEFT
-const H2_X = 480, H2_TOP_IDX = 12, H2_BOT_IDX = 15;  // B3_RIGHT → B4_RIGHT
-const H3_X = 490, H3_TOP_IDX = 19, H3_BOT_IDX = 23;  // B5_RIGHT → B6_RIGHT
+// H ladder sprouts
+const H1_X = 60,  H1_TOP_IDX = 14, H1_BOT_IDX = 18;  // B5_LEFT  → B6_LEFT
+const H2_X = 480, H2_TOP_IDX = 13, H2_BOT_IDX = 17;  // B4_RIGHT → B5_RIGHT
+const H3_X = 480, H3_TOP_IDX = 17, H3_BOT_IDX = 20;  // B5_RIGHT → B6_RIGHT
 
 const MONKEY_PLAT_ANCHORS: number[] = [
-  6, 9, 12, 13, 14, 15, 16, 19, 22, 23, 24,
+  9, 12, 13, 14, 15, 16, 17, 19, 20,
 ];
 const MONKEY_PER_PLAT_CAP = 5;
 const MONKEY_TOTAL_CAP    = 20;
@@ -333,28 +333,28 @@ export function initLevel4(iter: number): L4State {
     pl.x1 = startX; pl.x2 = startX + w;
     pl.moving.speed = speed;
   };
-  randomizeMover(7,  rsp(0.5, 1.0));
-  randomizeMover(11, rsp(0.5, 1.0));
-  randomizeMover(14, rsp(0.6, 1.2));
-  // N-pair: opposite directions, different magnitudes.
-  randomizeMover(20,  rmag(0.6, 1.2));
-  randomizeMover(21, -rmag(0.6, 1.2));
-  randomizeMover(24, rsp(0.5, 1.0));
+  randomizeMover(6,  rsp(0.5, 1.0));
+  randomizeMover(8,  rsp(0.6, 1.2));
+  randomizeMover(12, rsp(0.6, 1.2));
+  // B5 N-pair: opposite directions, different magnitudes.
+  randomizeMover(15,  rmag(0.6, 1.2));
+  randomizeMover(16, -rmag(0.6, 1.2));
+  randomizeMover(19, rsp(0.5, 1.0));
 
-  // Caveman on B6_LEFT (idx 22).
+  // Caveman on B6_LEFT (idx 18).
   const player: Player = {
-    x: 20, y: platY(L4_PLATFORMS[22], 20) - 24, w: 16, h: 24,
-    vx: 0, vy: 0, onGround: true, groundPlatIdx: 22, jumpStartPlatIdx: 22,
+    x: 20, y: platY(L4_PLATFORMS[18], 20) - 24, w: 16, h: 24,
+    vx: 0, vy: 0, onGround: true, groundPlatIdx: 18, jumpStartPlatIdx: 18,
     climbing: false, facing: 1, jumping: false,
     walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0,
     climbFrame: 0, climbTimer: 0, kickTimer: 0,
   };
 
-  // Dragon spawns next to princess on B1_LEFT, intro-jumps to TENT_TOP (idx 9).
+  // Dragon spawns next to princess on B1, intro-jumps to TENT_TOP (idx 7).
   const dragon: Dragon = {
     x: 140, y: L4_PLATFORMS[0].y - DRAGON_H,
     vx: 0, vy: 0, airborne: false,
-    platIdx: 0, targetPlatIdx: 9,
+    platIdx: 0, targetPlatIdx: 7,
     facing: -1, jumpCooldown: 60,
     state: 'intro', downedTimer: 0, dyingTimer: 0, hits: 0,
     frame: 0, frameTimer: 0,
@@ -434,10 +434,10 @@ export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: 
 
 function respawnPlayer(s: L4State) {
   const p = s.player;
-  p.x = 20; p.y = platY(L4_PLATFORMS[22], 20) - 24;
+  p.x = 20; p.y = platY(L4_PLATFORMS[18], 20) - 24;
   p.vx = 0; p.vy = 0;
   p.onGround = true; p.climbing = false; p.jumping = false;
-  p.groundPlatIdx = 22; p.jumpStartPlatIdx = 22;
+  p.groundPlatIdx = 18; p.jumpStartPlatIdx = 18;
   p.facing = 1; p.kickTimer = 0;
 }
 
@@ -726,9 +726,9 @@ function tickDragon(s: L4State) {
     return;
   }
   if (d.state === 'intro') {
-    // Jump from princess top down to TENT_TOP (band 3 center).
+    // Jump from princess top down to TENT_TOP (idx 7).
     if (!d.airborne) {
-      const tgt = 9;
+      const tgt = 7;
       const tp = L4_PLATFORMS[tgt];
       const tcx = (tp.x1 + tp.x2) / 2;
       d.targetPlatIdx = tgt;
@@ -748,17 +748,17 @@ function tickDragon(s: L4State) {
       d.state = 'roam';
       d.jumpCooldown = 90;
     } else if (d.y > CANVAS_H + 40) {
-      d.y = L4_PLATFORMS[9].y - DRAGON_H;
-      d.x = (L4_PLATFORMS[9].x1 + L4_PLATFORMS[9].x2) / 2 - DRAGON_W / 2;
+      d.y = L4_PLATFORMS[7].y - DRAGON_H;
+      d.x = (L4_PLATFORMS[7].x1 + L4_PLATFORMS[7].x2) / 2 - DRAGON_W / 2;
       d.airborne = false;
-      d.platIdx = 9;
+      d.platIdx = 7;
       d.state = 'roam';
     }
     return;
   }
 
-  // Dragon roams Band 3 platforms: D_FLAT, TENT_TOP, B3_RIGHT.
-  const reachable = [6, 9, 12];
+  // Dragon roams Band 3 static platforms: E_VALLEY, TENT_TOP.
+  const reachable = [5, 7];
   if (d.airborne) {
     d.vy += GRAVITY;
     d.x += d.vx;
@@ -772,9 +772,9 @@ function tickDragon(s: L4State) {
       d.platIdx = d.targetPlatIdx;
       d.jumpCooldown = 60 + Math.floor(Math.random() * 90);
     } else if (d.y > CANVAS_H + 40) {
-      d.y = L4_PLATFORMS[9].y - DRAGON_H;
-      d.x = (L4_PLATFORMS[9].x1 + L4_PLATFORMS[9].x2) / 2 - DRAGON_W / 2;
-      d.platIdx = 9; d.airborne = false; d.vy = 0;
+      d.y = L4_PLATFORMS[7].y - DRAGON_H;
+      d.x = (L4_PLATFORMS[7].x1 + L4_PLATFORMS[7].x2) / 2 - DRAGON_W / 2;
+      d.platIdx = 7; d.airborne = false; d.vy = 0;
     }
     return;
   }
@@ -929,11 +929,16 @@ function tickPlayer(s: L4State, input: L4Input) {
     }
   }
 
-  // Gravity & ride moving platform
+  // Gravity & ride moving platform / ICE slide
   let carriedVx = 0;
   if (p.onGround && p.groundPlatIdx >= 0) {
     const pl = L4_PLATFORMS[p.groundPlatIdx];
     if (pl.moving) carriedVx = pl.moving.speed;
+    if (pl.ice) {
+      const slope = pl.slope || 0;
+      const SLIDE = 2.6;
+      p.vx = Math.sign(slope) * SLIDE; // override input
+    }
   }
   p.vy += GRAVITY;
   p.x += p.vx + carriedVx;
@@ -1105,17 +1110,19 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     const plat = L4_PLATFORMS[i];
     const y1 = platY(plat, plat.x1);
     const y2 = platY(plat, plat.x2);
-    // dirt underside
-    ctx.fillStyle = '#6B4226';
-    ctx.beginPath();
-    ctx.moveTo(plat.x1, y1 + 2);
-    ctx.lineTo(plat.x2, y2 + 2);
-    ctx.lineTo(plat.x2, y2 + 8);
-    ctx.lineTo(plat.x1, y1 + 8);
-    ctx.closePath();
-    ctx.fill();
-    // green top
-    ctx.fillStyle = plat.moving ? '#5CD068' : '#3CB043';
+    // dirt underside (skip for ice ramps and movers — they float)
+    if (!plat.ice && !plat.moving) {
+      ctx.fillStyle = '#6B4226';
+      ctx.beginPath();
+      ctx.moveTo(plat.x1, y1 + 2);
+      ctx.lineTo(plat.x2, y2 + 2);
+      ctx.lineTo(plat.x2, y2 + 8);
+      ctx.lineTo(plat.x1, y1 + 8);
+      ctx.closePath();
+      ctx.fill();
+    }
+    // top surface — blue for ice, green-light for movers, green for static
+    ctx.fillStyle = plat.ice ? '#7FD4F5' : (plat.moving ? '#FF5252' : '#3CB043');
     ctx.beginPath();
     ctx.moveTo(plat.x1, y1);
     ctx.lineTo(plat.x2, y2);
