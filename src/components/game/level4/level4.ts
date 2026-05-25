@@ -922,9 +922,10 @@ function tickPlayer(s: L4State, input: L4Input) {
     if (limitIdx >= 0 && i !== limitIdx) continue;
     const plat = L4_PLATFORMS[i];
     if (p.x + p.w < plat.x1 || p.x > plat.x2) continue;
-    const wasAbove = (p.y + p.h - p.vy) <= plat.y + 1;
-    if (wasAbove && p.y + p.h >= plat.y && p.y + p.h <= plat.y + 12 && p.vy >= 0) {
-      p.y = plat.y - p.h;
+    const py = platY(plat, p.x + p.w / 2);
+    const wasAbove = (p.y + p.h - p.vy) <= py + 1;
+    if (wasAbove && p.y + p.h >= py && p.y + p.h <= py + 14 && p.vy >= 0) {
+      p.y = py - p.h;
       p.vy = 0;
       p.onGround = true;
       p.groundPlatIdx = i;
