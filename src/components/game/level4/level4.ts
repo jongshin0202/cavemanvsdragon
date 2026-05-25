@@ -48,6 +48,8 @@ export interface L4Platform {
   x2: number;
   slope?: number;
   moving?: L4Mover;
+  /** Blue ICE ramp — everything slides downhill; jump still works for player. */
+  ice?: boolean;
 }
 
 function platY(p: L4Platform, x: number): number {
@@ -55,48 +57,46 @@ function platY(p: L4Platform, x: number): number {
   return p.y + (cx - p.x1) * (p.slope || 0);
 }
 
-// Band Y rows — EQUAL spacing of 76px between every band.
-//  B1=80  B2=156  B3=232  B4=308  B5=384  B6=460
+// 6 bands, equal 75px spacing: B1=70 B2=145 B3=220 B4=295 B5=370 B6=445.
 export const L4_PLATFORMS: L4Platform[] = [
-  // ── B1 (y=80) — princess platform + small right stub ──
-  /*  0 B1_LEFT          */ { y: 80,  x1: 30,  x2: 340 },
-  /*  1 B1_RIGHT         */ { y: 80,  x1: 448, x2: 512 },
+  // ── B1 (y=70) princess top + far-right stub ──
+  /*  0 B1_PRINCESS    */ { y: 70,  x1: 30,  x2: 340 },
+  /*  1 B1_RIGHT_STUB  */ { y: 70,  x1: 448, x2: 512 },
 
-  // ── B2 area — LEFT W-zigzag (high stub + ramp down to E valley) + RIGHT long diagonal ──
-  /*  2 B2_LEFT_HIGH     */ { y: 156, x1: 0,   x2: 60  },
-  /*  3 B2_LEFT_RAMP     */ { y: 156, x1: 60,  x2: 170, slope: (232 - 156) / (170 - 60) },
-  /*  4 E_VALLEY         */ { y: 232, x1: 170, x2: 320 },
-  /*  5 B2_RIGHT_RAMP    */ { y: 232, x1: 348, x2: 448, slope: (80 - 232) / (448 - 348) },
+  // long ICE ramp from B1 right stub down to B3 tent-top right area
+  /*  2 ICE_TOPRIGHT   */ { y: 220, x1: 320, x2: 448, slope: (70 - 220) / (448 - 320), ice: true },
 
-  // ── B3 (y=232) — D-flat ← M → TENT (flat top, legs down to B4) ← M → right-flat ──
-  /*  6 D_FLAT           */ { y: 232, x1: 0,   x2: 90  },
-  /*  7 M_B3_L           */ { y: 232, x1: 100, x2: 150 },
-  /*  8 TENT_LEFT_LEG    */ { y: 308, x1: 180, x2: 240, slope: (232 - 308) / (240 - 180) },
-  /*  9 TENT_TOP         */ { y: 232, x1: 240, x2: 272 },
-  /* 10 TENT_RIGHT_LEG   */ { y: 232, x1: 272, x2: 332, slope: (308 - 232) / (332 - 272) },
-  /* 11 M_B3_R           */ { y: 232, x1: 350, x2: 400 },
-  /* 12 B3_RIGHT         */ { y: 232, x1: 448, x2: 512 },
+  // ── B2 (y=145) small left stub ──
+  /*  3 B2_LEFT_STUB   */ { y: 145, x1: 0,   x2: 70  },
 
-  // ── B4 (y=308) — left flat, long center mover, right flat ──
-  /* 13 B4_LEFT          */ { y: 308, x1: 0,   x2: 120 },
-  /* 14 M_B4             */ { y: 308, x1: 180, x2: 280 },
-  /* 15 B4_RIGHT         */ { y: 308, x1: 392, x2: 512 },
+  // ICE ramp from B2 stub down to E_VALLEY
+  /*  4 ICE_B2         */ { y: 145, x1: 70,  x2: 150, slope: (220 - 145) / (150 - 70), ice: true },
 
-  // ── B5 (y=384) — F-flat + ramp down; M ← N → M pair; ramp up + G-flat ──
-  /* 16 B5_LEFT          */ { y: 384, x1: 0,   x2: 130 },
-  /* 17 B5_LEFT_RAMP     */ { y: 384, x1: 130, x2: 190, slope: (460 - 384) / (190 - 130) },
-  /* 18 B5_RIGHT_RAMP    */ { y: 460, x1: 322, x2: 382, slope: (384 - 460) / (382 - 322) },
-  /* 19 B5_RIGHT         */ { y: 384, x1: 382, x2: 512 },
-  /* 20 M_B5_L           */ { y: 384, x1: 140, x2: 190 },
-  /* 21 M_B5_R           */ { y: 384, x1: 322, x2: 372 },
+  // ── B3 (y=220) — E_VALLEY | M_L | TENT_TOP | M_R ──
+  /*  5 B3_E_VALLEY    */ { y: 220, x1: 150, x2: 240 },
+  /*  6 B3_MOVER_L     */ { y: 220, x1: 246, x2: 280 },
+  /*  7 B3_TENT_TOP    */ { y: 220, x1: 262, x2: 320 },
+  /*  8 B3_MOVER_R     */ { y: 220, x1: 340, x2: 400 },
 
-  // ── B6 (y=460) — left ground, center mover, right ground ──
-  /* 22 B6_LEFT          */ { y: 460, x1: 0,   x2: 180 },
-  /* 23 B6_RIGHT         */ { y: 460, x1: 332, x2: 512 },
-  /* 24 M_B6             */ { y: 460, x1: 200, x2: 260 },
+  // ── B4 (y=295) — D-flat | ICE tent legs | center mover | right flat ──
+  /*  9 B4_GREEN_D     */ { y: 295, x1: 0,   x2: 140 },
+  /* 10 ICE_TENT_L     */ { x1: 170, x2: 230, y: 295, slope: (220 - 295) / (230 - 170), ice: true },
+  /* 11 ICE_TENT_R     */ { x1: 300, x2: 360, y: 220, slope: (295 - 220) / (360 - 300), ice: true },
+  /* 12 B4_MOVER       */ { y: 295, x1: 378, x2: 432 },
+  /* 13 B4_RIGHT       */ { y: 295, x1: 442, x2: 512 },
+
+  // ── B5 (y=370) — left flat | 2 center movers (pair) | right flat ──
+  /* 14 B5_LEFT        */ { y: 370, x1: 0,   x2: 140 },
+  /* 15 B5_MOVER_A     */ { y: 370, x1: 170, x2: 225 },
+  /* 16 B5_MOVER_B     */ { y: 370, x1: 265, x2: 320 },
+  /* 17 B5_RIGHT       */ { y: 370, x1: 380, x2: 512 },
+
+  // ── B6 (y=445) — left ground | center mover | right ground ──
+  /* 18 B6_LEFT        */ { y: 445, x1: 0,   x2: 200 },
+  /* 19 B6_MOVER       */ { y: 445, x1: 228, x2: 288 },
+  /* 20 B6_RIGHT       */ { y: 445, x1: 320, x2: 512 },
 ];
 
-// Helper for random speed in [min,max] with random sign.
 function rsp(lo: number, hi: number): number {
   return (Math.random() < 0.5 ? -1 : 1) * (lo + Math.random() * (hi - lo));
 }
@@ -104,13 +104,13 @@ function rmag(lo: number, hi: number): number {
   return lo + Math.random() * (hi - lo);
 }
 
-// Movers — min/max = LEFT-edge range, bounded by neighbour steady platforms.
-L4_PLATFORMS[7].moving  = { min: 100, max: 130, speed: rsp(0.5, 1.0) };
-L4_PLATFORMS[11].moving = { min: 332, max: 398, speed: rsp(0.5, 1.0) };
-L4_PLATFORMS[14].moving = { min: 120, max: 312, speed: rsp(0.6, 1.2) };
-L4_PLATFORMS[20].moving = { min: 130, max: 230, speed:  rmag(0.6, 1.2), pairIdx: 21 };
-L4_PLATFORMS[21].moving = { min: 282, max: 382, speed: -rmag(0.6, 1.2), pairIdx: 20 };
-L4_PLATFORMS[24].moving = { min: 180, max: 282, speed: rsp(0.5, 1.0) };
+// 6 movers — flanking tent (B3), B4 center, 2 on B5 center (pair), B6 center.
+L4_PLATFORMS[6].moving  = { min: 230, max: 256, speed: rsp(0.5, 1.0) };
+L4_PLATFORMS[8].moving  = { min: 322, max: 400, speed: rsp(0.6, 1.2) };
+L4_PLATFORMS[12].moving = { min: 360, max: 432, speed: rsp(0.6, 1.2) };
+L4_PLATFORMS[15].moving = { min: 150, max: 240, speed:  rmag(0.6, 1.2), pairIdx: 16 };
+L4_PLATFORMS[16].moving = { min: 255, max: 345, speed: -rmag(0.6, 1.2), pairIdx: 15 };
+L4_PLATFORMS[19].moving = { min: 210, max: 290, speed: rsp(0.5, 1.0) };
 
 // Named anchors
 const PRINCESS_X = 70;
