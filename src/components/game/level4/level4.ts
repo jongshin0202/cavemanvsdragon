@@ -102,9 +102,8 @@ function rsp(lo: number, hi: number): number {
   return (Math.random() < 0.5 ? -1 : 1) * (lo + Math.random() * (hi - lo));
 }
 
-L4_PLATFORMS[12].moving = { min: 130, max: 184 - (184 - 132), speed: rsp(0.5, 1.1) };
-// fix min/max: store as left-edge bounds [min..max] of x1.
 L4_PLATFORMS[12].moving = { min: 130, max: 184 - 52, speed: rsp(0.5, 1.1) };
+
 L4_PLATFORMS[13].moving = { min: 336, max: 380 - 44, speed: rsp(0.5, 1.1) };
 L4_PLATFORMS[15].moving = { min: 80,  max: 432 - 108, speed: rsp(0.6, 1.2) };
 L4_PLATFORMS[21].moving = { min: 132, max: 302 - 60, speed: rsp(0.6, 1.4), pairIdx: 22 };
