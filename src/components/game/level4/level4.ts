@@ -57,44 +57,53 @@ function platY(p: L4Platform, x: number): number {
   return p.y + (cx - p.x1) * (p.slope || 0);
 }
 
-// 6 bands, equal 75px spacing: B1=70 B2=145 B3=220 B4=295 B5=370 B6=445.
+// 7 bands. P1=445 P2=370 P3=295 P4=220 P5=145 P5.5=107 P6=70 (equal 75 except P5↔P5.5 = 37).
 export const L4_PLATFORMS: L4Platform[] = [
-  // ── B1 (y=70) princess top + far-right stub ──
-  /*  0 B1_PRINCESS    */ { y: 70,  x1: 30,  x2: 340 },
-  /*  1 B1_RIGHT_STUB  */ { y: 70,  x1: 448, x2: 512 },
+  // ── P6 (y=70) full top: princess + volcano ──
+  /*  0 P6_FULL          */ { y: 70,  x1: 0,   x2: 512 },
 
-  // long ICE ramp from B1 right stub down to B3 tent-top right area
-  /*  2 ICE_TOPRIGHT   */ { y: 220, x1: 320, x2: 448, slope: (70 - 220) / (448 - 320), ice: true },
+  // long ICE diagonal from P6 right down-left to P5 right
+  /*  1 ICE_TR           */ { y: 145, x1: 320, x2: 470, slope: (70 - 145) / (470 - 320), ice: true },
 
-  // ── B2 (y=145) small left stub ──
-  /*  3 B2_LEFT_STUB   */ { y: 145, x1: 0,   x2: 70  },
+  // ── P5.5 (y=107) small left stub ──
+  /*  2 P55_LEFT         */ { y: 107, x1: 20,  x2: 130 },
 
-  // ICE ramp from B2 stub down to E_VALLEY
-  /*  4 ICE_B2         */ { y: 145, x1: 70,  x2: 150, slope: (220 - 145) / (150 - 70), ice: true },
+  // ICE ramp from P5.5 right edge down to P5 left
+  /*  3 ICE_55           */ { y: 107, x1: 130, x2: 230, slope: (145 - 107) / (230 - 130), ice: true },
 
-  // ── B3 (y=220) — E_VALLEY | M_L | TENT_TOP | M_R ──
-  /*  5 B3_E_VALLEY    */ { y: 220, x1: 150, x2: 240 },
-  /*  6 B3_MOVER_L     */ { y: 220, x1: 246, x2: 280 },
-  /*  7 B3_TENT_TOP    */ { y: 220, x1: 262, x2: 320 },
-  /*  8 B3_MOVER_R     */ { y: 220, x1: 340, x2: 400 },
+  // ── P5 (y=145) small middle flat (E purple sprout) ──
+  /*  4 P5_E_FLAT        */ { y: 145, x1: 230, x2: 320 },
 
-  // ── B4 (y=295) — D-flat | ICE tent legs | center mover | right flat ──
-  /*  9 B4_GREEN_D     */ { y: 295, x1: 0,   x2: 140 },
-  /* 10 ICE_TENT_L     */ { x1: 170, x2: 230, y: 295, slope: (220 - 295) / (230 - 170), ice: true },
-  /* 11 ICE_TENT_R     */ { x1: 300, x2: 360, y: 220, slope: (295 - 220) / (360 - 300), ice: true },
-  /* 12 B4_MOVER       */ { y: 295, x1: 378, x2: 432 },
-  /* 13 B4_RIGHT       */ { y: 295, x1: 442, x2: 512 },
+  // ── P4 (y=220) ── D-flat | mover_L | tent_top | mover_R | right
+  /*  5 P4_LEFT_D        */ { y: 220, x1: 0,   x2: 130 },
+  /*  6 P4_MOVER_L       */ { y: 220, x1: 145, x2: 185 },
+  /*  7 P4_TENT_TOP      */ { y: 220, x1: 215, x2: 297 },
+  /*  8 P4_MOVER_R       */ { y: 220, x1: 312, x2: 352 },
+  /*  9 P4_RIGHT         */ { y: 220, x1: 380, x2: 512 },
 
-  // ── B5 (y=370) — left flat | 2 center movers (pair) | right flat ──
-  /* 14 B5_LEFT        */ { y: 370, x1: 0,   x2: 140 },
-  /* 15 B5_MOVER_A     */ { y: 370, x1: 170, x2: 225 },
-  /* 16 B5_MOVER_B     */ { y: 370, x1: 265, x2: 320 },
-  /* 17 B5_RIGHT       */ { y: 370, x1: 380, x2: 512 },
+  // ICE tent legs (P4 tent edges → P3 surface)
+  /* 10 ICE_TENT_L       */ { y: 220, x1: 180, x2: 215, slope: (220 - 295) / (215 - 180), ice: true },
+  /* 11 ICE_TENT_R       */ { y: 220, x1: 297, x2: 332, slope: (295 - 220) / (332 - 297), ice: true },
 
-  // ── B6 (y=445) — left ground | center mover | right ground ──
-  /* 18 B6_LEFT        */ { y: 445, x1: 0,   x2: 200 },
-  /* 19 B6_MOVER       */ { y: 445, x1: 228, x2: 288 },
-  /* 20 B6_RIGHT       */ { y: 445, x1: 320, x2: 512 },
+  // ── P3 (y=295) ── left | mover | right (H3 ladder right)
+  /* 12 P3_LEFT          */ { y: 295, x1: 0,   x2: 180 },
+  /* 13 P3_MOVER         */ { y: 295, x1: 230, x2: 290 },
+  /* 14 P3_RIGHT         */ { y: 295, x1: 332, x2: 512 },
+
+  // ── P2 (y=370) ── left (H2) | mover_A | mover_B | farright
+  /* 15 P2_LEFT          */ { y: 370, x1: 0,   x2: 130 },
+  /* 16 P2_MOVER_A       */ { y: 370, x1: 160, x2: 215 },
+  /* 17 P2_MOVER_B       */ { y: 370, x1: 250, x2: 305 },
+  /* 18 P2_FARRIGHT      */ { y: 370, x1: 420, x2: 512 },
+
+  // ICE trapezoid legs (P2 → P1)
+  /* 19 ICE_TRAP_L       */ { y: 370, x1: 130, x2: 175, slope: (445 - 370) / (175 - 130), ice: true },
+  /* 20 ICE_TRAP_R       */ { y: 445, x1: 370, x2: 420, slope: (370 - 445) / (420 - 370), ice: true },
+
+  // ── P1 (y=445) ── left | mover | right (H1 ladder right)
+  /* 21 P1_LEFT          */ { y: 445, x1: 0,   x2: 175 },
+  /* 22 P1_MOVER         */ { y: 445, x1: 220, x2: 280 },
+  /* 23 P1_RIGHT         */ { y: 445, x1: 370, x2: 512 },
 ];
 
 function rsp(lo: number, hi: number): number {
@@ -104,37 +113,37 @@ function rmag(lo: number, hi: number): number {
   return lo + Math.random() * (hi - lo);
 }
 
-// 6 movers — flanking tent (B3), B4 center, 2 on B5 center (pair), B6 center.
-L4_PLATFORMS[6].moving  = { min: 230, max: 256, speed: rsp(0.5, 1.0) };
-L4_PLATFORMS[8].moving  = { min: 322, max: 400, speed: rsp(0.6, 1.2) };
-L4_PLATFORMS[12].moving = { min: 360, max: 432, speed: rsp(0.6, 1.2) };
-L4_PLATFORMS[15].moving = { min: 150, max: 240, speed:  rmag(0.6, 1.2), pairIdx: 16 };
-L4_PLATFORMS[16].moving = { min: 255, max: 345, speed: -rmag(0.6, 1.2), pairIdx: 15 };
-L4_PLATFORMS[19].moving = { min: 210, max: 290, speed: rsp(0.5, 1.0) };
+// 6 movers: P4 flanking tent (6,8), P3 center (13), P2 pair (16,17), P1 center (22).
+L4_PLATFORMS[6].moving  = { min: 132, max: 212, speed: rsp(0.5, 1.0) };
+L4_PLATFORMS[8].moving  = { min: 300, max: 378, speed: rsp(0.5, 1.0) };
+L4_PLATFORMS[13].moving = { min: 188, max: 326, speed: rsp(0.6, 1.2) };
+L4_PLATFORMS[16].moving = { min: 132, max: 230, speed:  rmag(0.6, 1.2), pairIdx: 17 };
+L4_PLATFORMS[17].moving = { min: 240, max: 348, speed: -rmag(0.6, 1.2), pairIdx: 16 };
+L4_PLATFORMS[22].moving = { min: 188, max: 318, speed: rsp(0.5, 1.0) };
 
 // Named anchors
-const PRINCESS_X = 70;
+const PRINCESS_X = 100;
 const PRINCESS_Y = L4_PLATFORMS[0].y - 48;
-const VOLCANO_X  = 290;
-const C_X = 210;   // rock decision point on B1_PRINCESS (directly above A)
-const E_X = 170;   // E (purple) on B3_E_VALLEY
-const A_X = 210;   // rock-rest A on B3_E_VALLEY (under C)
-const D_X = 30;    // D (green) on B4_GREEN_D
+const VOLCANO_X  = 340;
+const C_X = 270;   // rock decision point on P6 (above E)
+const E_X = 270;   // E (purple) on P5_E_FLAT
+const A_X = 270;   // rock-rest A on P5_E_FLAT (under C)
+const D_X = 30;    // D (green) on P4_LEFT_D
 
 const PRINCESS_PLAT_IDX = 0;
-const E_BASE_PLAT_IDX   = 5;   // B3_E_VALLEY
-const E_TOP_PLAT_IDX    = 0;   // B1_PRINCESS
-const D_BASE_PLAT_IDX   = 9;   // B4_GREEN_D
-const D_TOP_PLAT_IDX    = 3;   // B2_LEFT_STUB
-const A_PLAT_IDX        = 5;   // B3_E_VALLEY
+const E_BASE_PLAT_IDX   = 4;   // P5_E_FLAT
+const E_TOP_PLAT_IDX    = 0;   // P6_FULL
+const D_BASE_PLAT_IDX   = 5;   // P4_LEFT_D
+const D_TOP_PLAT_IDX    = 2;   // P55_LEFT
+const A_PLAT_IDX        = 4;   // P5_E_FLAT
 
 // H ladder sprouts
-const H1_X = 60,  H1_TOP_IDX = 14, H1_BOT_IDX = 18;  // B5_LEFT  → B6_LEFT
-const H2_X = 480, H2_TOP_IDX = 13, H2_BOT_IDX = 17;  // B4_RIGHT → B5_RIGHT
-const H3_X = 480, H3_TOP_IDX = 17, H3_BOT_IDX = 20;  // B5_RIGHT → B6_RIGHT
+const H1_X = 480, H1_TOP_IDX = 18, H1_BOT_IDX = 23;  // P2_FARRIGHT → P1_RIGHT
+const H2_X = 30,  H2_TOP_IDX = 12, H2_BOT_IDX = 15;  // P3_LEFT     → P2_LEFT
+const H3_X = 480, H3_TOP_IDX = 9,  H3_BOT_IDX = 14;  // P4_RIGHT    → P3_RIGHT
 
 const MONKEY_PLAT_ANCHORS: number[] = [
-  9, 12, 13, 14, 15, 16, 17, 19, 20,
+  5, 9, 12, 13, 14, 15, 18, 21, 22, 23,
 ];
 const MONKEY_PER_PLAT_CAP = 5;
 const MONKEY_TOTAL_CAP    = 20;
@@ -334,23 +343,23 @@ export function initLevel4(iter: number): L4State {
     pl.moving.speed = speed;
   };
   randomizeMover(6,  rsp(0.5, 1.0));
-  randomizeMover(8,  rsp(0.6, 1.2));
-  randomizeMover(12, rsp(0.6, 1.2));
-  // B5 N-pair: opposite directions, different magnitudes.
-  randomizeMover(15,  rmag(0.6, 1.2));
-  randomizeMover(16, -rmag(0.6, 1.2));
-  randomizeMover(19, rsp(0.5, 1.0));
+  randomizeMover(8,  rsp(0.5, 1.0));
+  randomizeMover(13, rsp(0.6, 1.2));
+  // P2 pair: opposite directions, different magnitudes.
+  randomizeMover(16,  rmag(0.6, 1.2));
+  randomizeMover(17, -rmag(0.6, 1.2));
+  randomizeMover(22, rsp(0.5, 1.0));
 
-  // Caveman on B6_LEFT (idx 18).
+  // Caveman on P1_LEFT (idx 21).
   const player: Player = {
-    x: 20, y: platY(L4_PLATFORMS[18], 20) - 24, w: 16, h: 24,
-    vx: 0, vy: 0, onGround: true, groundPlatIdx: 18, jumpStartPlatIdx: 18,
+    x: 20, y: platY(L4_PLATFORMS[21], 20) - 24, w: 16, h: 24,
+    vx: 0, vy: 0, onGround: true, groundPlatIdx: 21, jumpStartPlatIdx: 21,
     climbing: false, facing: 1, jumping: false,
     walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0,
     climbFrame: 0, climbTimer: 0, kickTimer: 0,
   };
 
-  // Dragon spawns next to princess on B1, intro-jumps to TENT_TOP (idx 7).
+  // Dragon spawns next to princess on P6, intro-jumps to TENT_TOP (idx 7).
   const dragon: Dragon = {
     x: 140, y: L4_PLATFORMS[0].y - DRAGON_H,
     vx: 0, vy: 0, airborne: false,
@@ -434,10 +443,10 @@ export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: 
 
 function respawnPlayer(s: L4State) {
   const p = s.player;
-  p.x = 20; p.y = platY(L4_PLATFORMS[18], 20) - 24;
+  p.x = 20; p.y = platY(L4_PLATFORMS[21], 20) - 24;
   p.vx = 0; p.vy = 0;
   p.onGround = true; p.climbing = false; p.jumping = false;
-  p.groundPlatIdx = 18; p.jumpStartPlatIdx = 18;
+  p.groundPlatIdx = 21; p.jumpStartPlatIdx = 21;
   p.facing = 1; p.kickTimer = 0;
 }
 
@@ -757,8 +766,8 @@ function tickDragon(s: L4State) {
     return;
   }
 
-  // Dragon roams Band 3 static platforms: E_VALLEY, TENT_TOP.
-  const reachable = [5, 7];
+  // Dragon roams P4 statics: TENT_TOP, P4_RIGHT.
+  const reachable = [7, 9];
   if (d.airborne) {
     d.vy += GRAVITY;
     d.x += d.vx;
