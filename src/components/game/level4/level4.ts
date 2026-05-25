@@ -745,17 +745,17 @@ function tickDragon(s: L4State) {
       d.jumpCooldown = 90;
     } else if (d.y > CANVAS_H + 40) {
       // Safety net
-      d.y = L4_PLATFORMS[9].y - DRAGON_H;
-      d.x = (L4_PLATFORMS[9].x1 + L4_PLATFORMS[9].x2) / 2 - DRAGON_W / 2;
+      d.y = L4_PLATFORMS[4].y - DRAGON_H;
+      d.x = (L4_PLATFORMS[4].x1 + L4_PLATFORMS[4].x2) / 2 - DRAGON_W / 2;
       d.airborne = false;
-      d.platIdx = 9;
+      d.platIdx = 4;
       d.state = 'roam';
     }
     return;
   }
 
-  // Dragon roams band 3 platforms.
-  const reachable = [7, 9, 11];
+  // Dragon roams Band 3 / TENT_TOP platforms.
+  const reachable = [2, 4, 6];
   if (d.airborne) {
     d.vy += GRAVITY;
     d.x += d.vx;
@@ -769,9 +769,9 @@ function tickDragon(s: L4State) {
       d.platIdx = d.targetPlatIdx;
       d.jumpCooldown = 60 + Math.floor(Math.random() * 90);
     } else if (d.y > CANVAS_H + 40) {
-      d.y = L4_PLATFORMS[9].y - DRAGON_H;
-      d.x = (L4_PLATFORMS[9].x1 + L4_PLATFORMS[9].x2) / 2 - DRAGON_W / 2;
-      d.platIdx = 9; d.airborne = false; d.vy = 0;
+      d.y = L4_PLATFORMS[4].y - DRAGON_H;
+      d.x = (L4_PLATFORMS[4].x1 + L4_PLATFORMS[4].x2) / 2 - DRAGON_W / 2;
+      d.platIdx = 4; d.airborne = false; d.vy = 0;
     }
     return;
   }
