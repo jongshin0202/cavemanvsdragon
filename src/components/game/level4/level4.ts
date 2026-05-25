@@ -164,6 +164,10 @@ export interface L4State {
   greenCanSpawned: boolean;
   /** Rock currently parked at A (if any). */
   rockAtAIdx: number;
+  fireballs: Fireball[];
+  fireballTimer: number;
+  fireballMax: number;
+  fireballFlightFrames: number;
   ending: Ending;
   won: boolean;
   died: boolean;
