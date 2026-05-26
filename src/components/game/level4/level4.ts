@@ -148,6 +148,7 @@ const H3_X = 480, H3_TOP_IDX = 9,  H3_BOT_IDX = 14;  // P4_RIGHT    → P3_RIGHT
 const H4_X = 30,  H4_TOP_IDX = 5,  H4_BOT_IDX = 12;  // P4_LEFT_D   → P3_LEFT
 const H5_X = 30,  H5_TOP_IDX = 15, H5_BOT_IDX = 21;  // P2_LEFT     → P1_LEFT
 const H6_X = 480, H6_TOP_IDX = 14, H6_BOT_IDX = 18;  // P3_RIGHT    → P2_FARRIGHT
+const H7_X = 30,  H7_TOP_IDX = 2,  H7_BOT_IDX = 5;   // P55_LEFT    → P4_LEFT_D
 
 const MONKEY_PLAT_ANCHORS: number[] = [
   5, 9, 12, 13, 14, 15, 18, 21, 22, 23,
@@ -265,6 +266,7 @@ export interface L4State {
   sproutH4: Sprout;
   sproutH5: Sprout;
   sproutH6: Sprout;
+  sproutH7: Sprout;
   greenCan: Can | null;
   purpleCan: Can | null;
   carrying: null | 'green' | 'purple';
@@ -422,6 +424,7 @@ export function initLevel4(iter: number): L4State {
     sproutH4: mkSprout(H4_X, H4_TOP_IDX, H4_BOT_IDX),
     sproutH5: mkSprout(H5_X, H5_TOP_IDX, H5_BOT_IDX),
     sproutH6: mkSprout(H6_X, H6_TOP_IDX, H6_BOT_IDX),
+    sproutH7: mkSprout(H7_X, H7_TOP_IDX, H7_BOT_IDX),
     greenCan: null,
     purpleCan: null,
     carrying: null,
@@ -731,12 +734,14 @@ function tickSprouts(s: L4State) {
   autoRegrow(s.sproutH4);
   autoRegrow(s.sproutH5);
   autoRegrow(s.sproutH6);
+  autoRegrow(s.sproutH7);
   tickOneSprout(s.sproutH1);
   tickOneSprout(s.sproutH2);
   tickOneSprout(s.sproutH3);
   tickOneSprout(s.sproutH4);
   tickOneSprout(s.sproutH5);
   tickOneSprout(s.sproutH6);
+  tickOneSprout(s.sproutH7);
 }
 
 // ── Monkeys ─────────────────────────────────────────────────
@@ -1012,7 +1017,7 @@ function tickPlayer(s: L4State, input: L4Input) {
   // the player's intent: input.up → sprout whose BOTTOM is here; input.down →
   // sprout whose TOP is here.
   let nearSprout: Sprout | null = null;
-  const sproutList = [s.sproutD, s.sproutE, s.sproutH1, s.sproutH2, s.sproutH3, s.sproutH4, s.sproutH5, s.sproutH6];
+  const sproutList = [s.sproutD, s.sproutE, s.sproutH1, s.sproutH2, s.sproutH3, s.sproutH4, s.sproutH5, s.sproutH6, s.sproutH7];
   const matches: Sprout[] = [];
   for (const sp of sproutList) {
     if (sp.growProgress < 0.6) continue;
@@ -1425,6 +1430,7 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
   drawSprout(ctx, s.sproutH4);
   drawSprout(ctx, s.sproutH5);
   drawSprout(ctx, s.sproutH6);
+  drawSprout(ctx, s.sproutH7);
 
   // Cans
   if (s.greenCan) drawCan(ctx, sprites, s.greenCan);
