@@ -612,3 +612,63 @@ export function playPrincessHelpSound() {
   pop.connect(popG); popG.connect(ctx.destination);
   pop.start(t2); pop.stop(t2 + dur2);
 }
+
+// Flamethrower / dragon fire-breath burst — heavy low-end roar with crackle.
+// 0.5s duration to match the on-screen flame.
+export function playFireBreathSound() {
+  const ctx = getCtx();
+  const t0 = ctx.currentTime;
+  const dur = 1.5;
+
+  // ----- 1) Rushing air + flame crackle (filtered noise) -----
+  const bufferSize = Math.floor(ctx.sampleRate * dur);
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    const t = i / bufferSize;
+    // envelope: sharp attack, slight sustain, quick decay
+    const env = t < 1.0 ? (t < 0.05 ? t / 0.05 : Math.pow(1 - (t - 0.05) / 0.95, 1.2)) : 1;
+    data[i] = (Math.random() * 2 - 1) * env;
+  }
+  const noise = ctx.createBufferSource();
+  noise.buffer = buffer;
+
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.setValueAtTime(800, t0);
+  lp.frequency.exponentialRampToValueAtTime(220, t2 + dur);
+  lp.Q.value = 0.8;
+
+  const hp = ctx.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.value = 40;
+
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.setValueAtTime(1.2, t0);
+  noiseGain.gain.exponentialRampToValueAtTime(0.01, t2 + dur);
+
+  noise.connect(hp); hp.connect(lp); lp.connect(noiseGain); noiseGain.connect(ctx.destination);
+  noise.start(t0); noise.stop(t0 + dur);
+
+  // ----- 2) Low-frequency flame "whoosh" (sawtooth sweep) -----
+  const osc = ctx.createOscillator();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(120, t0);
+  osc.frequency.exponentialRampToValueAtTime(60, t2 + dur);
+  const oscGain = ctx.createGain();
+  oscGain.gain.setValueAtTime(0.55, t0);
+  oscGain.gain.exponentialRampToValueAtTime(0.01, t2 + dur);
+  osc.connect(oscGain); oscGain.connect(ctx.destination);
+  osc.start(t0); osc.stop(t0 + dur);
+
+  // ----- 3) Sub rumble for body -----
+  const sub = ctx.createOscillator();
+  sub.type = 'sine';
+  sub.frequency.setValueAtTime(50, t0);
+  sub.frequency.exponentialRampToValueAtTime(30, t2 + dur);
+  const subGain = ctx.createGain();
+  subGain.gain.setValueAtTime(0.45, t0);
+  subGain.gain.exponentialRampToValueAtTime(1.0, t2 + dur);
+  sub.connect(subGain); subGain.connect(ctx.destination);
+  sub.start(t0); sub.stop(t0 + dur);
+}
