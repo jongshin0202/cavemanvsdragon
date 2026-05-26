@@ -208,6 +208,7 @@ interface Rock {
   age: number;
   hitConsumed?: boolean;
   kicked?: boolean;
+  rollPhase?: number;
 }
 
 type DragonState = 'intro' | 'roam' | 'downed' | 'dying' | 'dead';
@@ -533,6 +534,7 @@ function tickRocks(s: L4State) {
   for (let i = 0; i < s.rocks.length; i++) {
     const r = s.rocks[i];
     r.age++;
+    r.rollPhase = (r.rollPhase ?? 0) + Math.abs(r.vx) + (r.state === 'falling' ? Math.abs(r.vy) * 0.5 : 0);
     switch (r.state) {
       case 'flying': {
         r.vy += 0.18;
@@ -1382,16 +1384,26 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     }
   }
 
-  // Rocks
+  // Rocks — match Level 1 visual: aspect-correct, circumference-based rotation.
   for (const r of s.rocks) {
+    const img = sprites.rockWheel;
+    const ready = img && img.complete && img.naturalWidth > 0;
+    const baseW = 14;
+    const diameter = (baseW + 4) * 1.5; // = 27, same as L1
+    const aspect = ready ? img.naturalWidth / img.naturalHeight : 1;
+    const drawH = diameter;
+    const drawW = diameter * aspect;
+    const radius = diameter / 2;
+    const dir = r.vx >= 0 ? 1 : (r.vx < 0 ? -1 : 1);
+    const angle = ((r.rollPhase ?? 0) / radius) * dir;
     ctx.save();
     ctx.translate(r.x, r.y);
-    ctx.rotate(r.age * 0.2);
-    if (sprites.rockWheel.complete) {
-      ctx.drawImage(sprites.rockWheel, -r.r, -r.r, r.r * 2, r.r * 2);
+    ctx.rotate(angle);
+    if (ready) {
+      ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, -drawW / 2, -drawH / 2, drawW, drawH);
     } else {
       ctx.fillStyle = '#888';
-      ctx.beginPath(); ctx.arc(0, 0, r.r, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.fill();
     }
     ctx.restore();
   }
