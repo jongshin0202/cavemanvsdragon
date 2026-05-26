@@ -535,12 +535,13 @@ function tickRocks(s: L4State) {
     const round = 1 + (s.iter - 1) * 4;
     const d = getRoundDifficulty(round);
     s.spawnRockTimer = Math.round(d.barrelSpawnMin + Math.random() * d.barrelSpawnRange);
-    // Launch from K, arc up either LEFT or RIGHT across the princess-top platform.
+    // Launch from K, rolling directly along the top of P6 either LEFT or RIGHT.
     const dir = Math.random() < 0.5 ? -1 : 1;
+    const top0 = L4_PLATFORMS[0];
     s.rocks.push({
-      x: VOLCANO_X, y: L4_PLATFORMS[0].y - 36,
-      vx: 2.2 * dir, vy: -3.4, r: 8,
-      state: 'flying', platIdx: -1, age: 0,
+      x: VOLCANO_X, y: top0.y - 8,
+      vx: 1.4 * dir, vy: 0, r: 8,
+      state: 'rollingTop', platIdx: 0, age: 0,
     });
     playBarrelRollSound();
   } else if (s.spawnRockTimer <= 0) {
