@@ -724,7 +724,7 @@ function tickDragon(s: L4State) {
   const dd = d as Dragon & { flapAudio?: number };
   if ((d.state === 'intro' || (d.state === 'roam' && d.airborne))) {
     dd.flapAudio = (dd.flapAudio ?? 0) + 1;
-    if (dd.flapAudio >= 14) {
+    if (dd.flapAudio >= 36) {
       dd.flapAudio = 0;
       playWingFlapSound();
     }
