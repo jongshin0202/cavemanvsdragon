@@ -680,16 +680,8 @@ function tickRocks(s: L4State) {
     }
   }
   if (s.rocks.some(r => r.state === 'dead')) {
-    const oldAtA = s.rockAtAIdx;
-    const survivors: Rock[] = [];
-    let newAtA = -1;
-    for (let i = 0; i < s.rocks.length; i++) {
-      if (s.rocks[i].state === 'dead') continue;
-      if (i === oldAtA) newAtA = survivors.length;
-      survivors.push(s.rocks[i]);
-    }
-    s.rocks = survivors;
-    s.rockAtAIdx = newAtA;
+    s.rocks = s.rocks.filter(r => r.state !== 'dead');
+    s.rockAtAIdx = -1;
   }
 }
 
