@@ -1369,6 +1369,36 @@ function drawDragon(ctx: CanvasRenderingContext2D, sprites: L4Sprites, d: Dragon
   ctx.save();
   if (d.state === 'downed') ctx.globalAlpha = 0.7;
   if (d.state === 'dying') ctx.globalAlpha = 0.5;
+
+  // Flapping wings overlay during intro flight
+  if (d.state === 'intro') {
+    const cx = d.x + DRAGON_W / 2;
+    const cy = d.y + DRAGON_H * 0.45;
+    // Wing angle oscillates with frame for flap effect
+    const flap = Math.sin(d.frame * (Math.PI * 2 / DRAGON_FRAMES)) * 0.9;
+    const wingLen = 28;
+    const wingH = 14;
+    ctx.fillStyle = '#2e5a2a';
+    ctx.strokeStyle = '#1a3a18';
+    ctx.lineWidth = 1.5;
+    // Left wing
+    ctx.save();
+    ctx.translate(cx - 10, cy);
+    ctx.rotate(-0.4 + flap);
+    ctx.beginPath();
+    ctx.ellipse(-wingLen / 2, 0, wingLen / 2, wingH / 2, 0, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+    // Right wing
+    ctx.save();
+    ctx.translate(cx + 10, cy);
+    ctx.rotate(0.4 - flap);
+    ctx.beginPath();
+    ctx.ellipse(wingLen / 2, 0, wingLen / 2, wingH / 2, 0, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+
   if (img && img.complete && img.naturalWidth > 0) {
     const fw = img.naturalWidth / DRAGON_FRAMES;
     const fh = img.naturalHeight;
