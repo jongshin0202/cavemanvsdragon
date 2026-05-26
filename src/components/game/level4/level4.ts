@@ -27,7 +27,7 @@
 
 import { CANVAS_W, CANVAS_H, getRoundDifficulty } from '../constants';
 import { LEVEL4_PARAMS, getLevel4Difficulty, type Level4Difficulty } from './params';
-import { playWingFlapSound, playJumpSound, playRobotKillSound, playHitSound, playBarrelRollSound, playFireBreathSound } from '../sounds';
+import { playWingFlapSound, playJumpSound, playRobotKillSound, playHitSound, playBarrelRollSound, playFireBreathSound, playDragonRoarSound } from '../sounds';
 
 const GRAVITY = 0.38;
 const MOVE_SPEED = 1.9;
@@ -1529,6 +1529,7 @@ function tickCollisions(s: L4State) {
         d.dyingTimer = 240;
         d.dyingVy = -2;
         d.dyingSpin = 0;
+        playDragonRoarSound();
       } else {
         d.state = 'downed';
         d.downedTimer = Math.round(5 * 60);
