@@ -593,8 +593,7 @@ function tickRocks(s: L4State) {
           r.y = top.y - r.r;
           r.vy = 0;
           // Continue in the direction it was thrown — left or right.
-          // If a rock is already resting at A, force subsequent rocks to roll right.
-          r.vx = (s.rockAtAIdx >= 0) ? 1.4 : (r.vx >= 0 ? 1.4 : -1.4);
+          r.vx = (r.vx >= 0 ? 1.4 : -1.4);
           r.state = 'rollingTop';
           r.platIdx = 0;
         } else if (r.y > CANVAS_H + 30 || r.x < -30 || r.x > CANVAS_W + 30) {
