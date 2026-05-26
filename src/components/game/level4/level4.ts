@@ -545,7 +545,8 @@ function tickRocks(s: L4State) {
         if (r.vy > 0 && r.y + r.r >= top.y && r.x >= top.x1 && r.x <= top.x2) {
           r.y = top.y - r.r;
           r.vy = 0;
-          r.vx = 1.4; // roll RIGHT toward C
+          // Continue in the direction it was thrown — left or right.
+          r.vx = r.vx >= 0 ? 1.4 : -1.4;
           r.state = 'rollingTop';
           r.platIdx = 0;
         } else if (r.y > CANVAS_H + 30 || r.x < -30 || r.x > CANVAS_W + 30) {
@@ -557,21 +558,26 @@ function tickRocks(s: L4State) {
         r.x += r.vx;
         const top = L4_PLATFORMS[0];
         const aOccupied = s.rockAtAIdx >= 0 && s.rockAtAIdx !== i;
+        // Drop straight down via L gap at point C when rolling rightward.
         if (!aOccupied && r.vx > 0 && r.x >= C_X) {
-          // Drop straight down via L gap.
           r.x = C_X;
           r.state = 'falling';
           r.vy = 0; r.vx = 0;
           break;
         }
-        // Off right edge → cascade
+        // Off either edge → cascade down platforms.
         if (r.x > top.x2 + 2) {
           r.state = 'rollingDown';
           r.vx = 1.0; r.vy = 0;
           r.platIdx = -1;
           break;
         }
-        if (r.x < top.x1 - 2) { r.state = 'dead'; }
+        if (r.x < top.x1 - 2) {
+          r.state = 'rollingDown';
+          r.vx = -1.0; r.vy = 0;
+          r.platIdx = -1;
+          break;
+        }
         break;
       }
       case 'falling': {
