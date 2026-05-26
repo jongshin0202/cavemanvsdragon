@@ -334,11 +334,11 @@ function mkSprout(x: number, topIdx: number, botIdx: number, opts: { purple?: bo
 function buildMonkeyDistribution(iter: number, excludeSpawn: boolean = false): number[] {
   // L1-style: round-robin onto platform with current min count, cap per-plat=5, total cap=20.
   const counts = new Array<number>(MONKEY_PLAT_ANCHORS.length).fill(0);
-  // Caveman spawn platform (P1_LEFT = 21) — never seed monkeys here at level start.
+  // Caveman spawn platform (P1_LEFT = idx 19) — never seed monkeys here at level start.
   const blocked = new Set<number>();
   if (excludeSpawn) {
-    const i21 = MONKEY_PLAT_ANCHORS.indexOf(21);
-    if (i21 >= 0) blocked.add(i21);
+    const i19 = MONKEY_PLAT_ANCHORS.indexOf(19);
+    if (i19 >= 0) blocked.add(i19);
   }
   const total = Math.min(MONKEY_TOTAL_CAP, LEVEL4_PARAMS.MONKEYS_BASE + Math.max(0, iter - 1));
   for (let i = 0; i < total; i++) {
