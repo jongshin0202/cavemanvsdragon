@@ -66,11 +66,11 @@ export const L4_PLATFORMS: L4Platform[] = [
   // Rocks rolling RIGHT off P6 fall through gap (410..430) onto the ice top, slide down-left.
   /*  1 ICE_TR           */ { y: 145, x1: 430, x2: 512, slope: (70 - 145) / (512 - 430), ice: true },
 
-  // ── P5.5 (y=107) small left stub ──
-  /*  2 P55_LEFT         */ { y: 107, x1: 20,  x2: 130 },
+  // ── P5.5 (y=107.5) small left stub — exactly half-way between P5 and P6 ──
+  /*  2 P55_LEFT         */ { y: 107.5, x1: 20,  x2: 130 },
 
   // ICE ramp from P5.5 right edge down to P5 left
-  /*  3 ICE_55           */ { y: 107, x1: 130, x2: 230, slope: (145 - 107) / (230 - 130), ice: true },
+  /*  3 ICE_55           */ { y: 107.5, x1: 130, x2: 230, slope: (145 - 107.5) / (230 - 130), ice: true },
 
   // ── P5 (y=145) E flat (purple sprout). HOLE: >290 ──
   /*  4 P5_E_FLAT        */ { y: 145, x1: 230, x2: 290 },
@@ -82,11 +82,13 @@ export const L4_PLATFORMS: L4Platform[] = [
   /*  8 P4_MOVER_R       */ { y: 220, x1: 312, x2: 352 },
   /*  9 P4_RIGHT         */ { y: 220, x1: 380, x2: 512 },
 
-  // ICE_NEW moved UP one band: from P3_LEFT right edge (x=70) up to P4_MOVER_L left edge (x=145).
-  /* 10 ICE_NEW          */ { y: 295, x1: 70,  x2: 145, slope: (220 - 295) / (145 - 70), ice: true },
+  // ICE_NEW shifted RIGHT: top connects to P4_TENT_TOP left edge (215,220);
+  // bottom (130,295) leaves a GAP above P3_LEFT (which ends at x=70).
+  /* 10 ICE_NEW          */ { y: 295, x1: 130, x2: 215, slope: (220 - 295) / (215 - 130), ice: true },
 
-  // ICE_TENT_R shortened so a GAP exists between its bottom and P3_RIGHT (rocks/caveman fall through).
-  /* 11 ICE_TENT_R       */ { y: 220, x1: 297, x2: 415, slope: (295 - 220) / (415 - 297), ice: true },
+  // ICE_TENT_R shifted RIGHT: top connects to P4_RIGHT left edge (380,220);
+  // bottom (435,295) leaves a GAP above P3_RIGHT (which starts at x=450).
+  /* 11 ICE_TENT_R       */ { y: 220, x1: 380, x2: 435, slope: (295 - 220) / (435 - 380), ice: true },
 
   // ── P3 (y=295) ── left (HOLE >70) | mover | right (gap on left: starts at 450 → hole 415..450)
   /* 12 P3_LEFT          */ { y: 295, x1: 0,   x2: 70  },
@@ -125,7 +127,7 @@ L4_PLATFORMS[17].moving = { min: 240, max: 348, speed: -rmag(0.6, 1.2), pairIdx:
 L4_PLATFORMS[22].moving = { min: 188, max: 318, speed: rsp(0.5, 1.0) };
 
 // Named anchors
-const PRINCESS_X = 380;
+const PRINCESS_X = 220;
 const PRINCESS_Y = L4_PLATFORMS[0].y - 48;
 const VOLCANO_X  = 340;
 const C_X = 270;   // rock decision point on P6 (above E)
