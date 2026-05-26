@@ -1596,26 +1596,26 @@ function drawDragon(ctx: CanvasRenderingContext2D, sprites: L4Sprites, d: Dragon
   }
   ctx.restore();
 
-  // Fire breath
+  // Fire breath — originates at dragon's mouth, sweeps down to ground level.
   if (d.fireTimer > 0 && d.state === 'roam' && !d.airborne) {
     const fr = getFireRect(d);
-    const t = 1 - d.fireTimer / FIRE_DURATION; // 0..1
+    const mouthY = d.y + DRAGON_H * 0.35;
+    const mouthX = d.facing >= 0 ? d.x + DRAGON_W - 8 : d.x + 8;
+    const tipX = d.facing >= 0 ? fr.x + fr.w : fr.x;
+    const groundY = fr.y + fr.h;
     ctx.save();
-    const grad = ctx.createLinearGradient(
-      d.facing >= 0 ? fr.x : fr.x + fr.w, 0,
-      d.facing >= 0 ? fr.x + fr.w : fr.x, 0,
-    );
+    const grad = ctx.createLinearGradient(mouthX, mouthY, tipX, groundY);
     grad.addColorStop(0, 'rgba(255,240,120,0.95)');
     grad.addColorStop(0.5, 'rgba(255,140,30,0.85)');
     grad.addColorStop(1, 'rgba(220,40,20,0)');
     ctx.fillStyle = grad;
-    const wob = Math.sin(d.frame * 0.8) * 2;
+    const wob = Math.sin(d.frame * 0.8) * 3;
+    // Flame teardrop from mouth (narrow) to ground tip (wide).
     ctx.beginPath();
-    const x0 = d.facing >= 0 ? fr.x : fr.x + fr.w;
-    const x1 = d.facing >= 0 ? fr.x + fr.w : fr.x;
-    ctx.moveTo(x0, fr.y + fr.h / 2 - 4);
-    ctx.quadraticCurveTo((x0 + x1) / 2, fr.y - 4 + wob, x1, fr.y + fr.h / 2);
-    ctx.quadraticCurveTo((x0 + x1) / 2, fr.y + fr.h + 4 - wob, x0, fr.y + fr.h / 2 + 4);
+    ctx.moveTo(mouthX, mouthY - 4);
+    ctx.quadraticCurveTo((mouthX + tipX) / 2, mouthY + wob - 6, tipX, groundY - 6);
+    ctx.lineTo(tipX, groundY);
+    ctx.quadraticCurveTo((mouthX + tipX) / 2, groundY + 2 - wob, mouthX, mouthY + 4);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
