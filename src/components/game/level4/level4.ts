@@ -260,6 +260,8 @@ interface Can {
   /** Flying = in-arc from dragon mouth; false once it lands on a platform. */
   flying?: boolean;
   vx?: number; vy?: number;
+  /** Visual spin angle in radians while flying. */
+  spin?: number;
   /** Platform it landed on (for moving-platform tracking). -1 if static. */
   riderPlatIdx?: number;
   /** Offset from platform.x1 used to ride movers. */
