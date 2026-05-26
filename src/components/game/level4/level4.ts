@@ -1168,6 +1168,19 @@ function tickPlayer(s: L4State, input: L4Input) {
         p.vy = JUMP_FORCE; p.onGround = false; p.jumping = true; p.jumpStartPlatIdx = p.groundPlatIdx;
       }
     }
+    // WATER H4 (ladder from P3_LEFT up to P4_LEFT_D). Does NOT consume the can —
+    // player still needs it to grow D afterwards.
+    else if (p.groundPlatIdx === H4_BOT_IDX && s.carrying === 'green') {
+      const cx = p.x + p.w / 2;
+      if (Math.abs(cx - H4_X) < 22) {
+        if (s.sproutH4.phase === 'seed' || s.sproutH4.phase === 'withering') {
+          s.sproutH4.phase = 'growing';
+        }
+      } else {
+        playJumpSound();
+        p.vy = JUMP_FORCE; p.onGround = false; p.jumping = true; p.jumpStartPlatIdx = p.groundPlatIdx;
+      }
+    }
     else {
       playJumpSound();
       p.vy = JUMP_FORCE;
