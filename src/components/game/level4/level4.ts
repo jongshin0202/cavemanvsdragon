@@ -223,6 +223,8 @@ interface Dragon {
   state: DragonState;
   downedTimer: number;
   dyingTimer: number;
+  dyingVy?: number;
+  dyingSpin?: number;
   hits: number;
   frame: number; frameTimer: number;
   fireTimer: number;     // frames remaining of active fire
