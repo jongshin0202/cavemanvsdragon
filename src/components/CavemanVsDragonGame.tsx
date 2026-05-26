@@ -584,6 +584,28 @@ const CavemanVsDragonGame = () => {
     recordLaunchAndMaybeFlush().catch(() => { /* logged in module */ });
     playLevelIntro(4, () => resetLevel());
   }, [resetLevel, playLevelIntro]);
+  // DEV/TEST: jump straight into Level 4 iteration 2 (round 8 under 4-level cycle).
+  const startInLevel4Iter2Test = useCallback(() => {
+    if (!LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2) return;
+    const g = gameRef.current;
+    g.score = 0; g.lives = 3; g.round = 8;
+    setScore(0); setLives(3);
+    setGameState('playing');
+    recordRound();
+    recordLaunchAndMaybeFlush().catch(() => { /* logged in module */ });
+    playLevelIntro(4, () => resetLevel());
+  }, [resetLevel, playLevelIntro]);
+  // DEV/TEST: jump straight into Level 4 iteration 3 (round 12 under 4-level cycle).
+  const startInLevel4Iter3Test = useCallback(() => {
+    if (!LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2) return;
+    const g = gameRef.current;
+    g.score = 0; g.lives = 3; g.round = 12;
+    setScore(0); setLives(3);
+    setGameState('playing');
+    recordRound();
+    recordLaunchAndMaybeFlush().catch(() => { /* logged in module */ });
+    playLevelIntro(4, () => resetLevel());
+  }, [resetLevel, playLevelIntro]);
   // with increased difficulty (next round) while preserving score and lives.
   const startNextLevel = useCallback(() => {
     const g = gameRef.current;
@@ -799,7 +821,7 @@ const CavemanVsDragonGame = () => {
           }
           return true; // swallow C — don't start the game
         }
-        // DEV/TEST: PC presses "2" → Level 2, "3" → Level 3.
+        // DEV/TEST: PC presses "2" → Level 2, "3" → Level 3, "5" → L4 iter 2, "6" → L4 iter 3.
         if (
           _source === 'keyboard' &&
           (gs === 'intro' || gs === 'attractControls') &&
@@ -818,8 +840,27 @@ const CavemanVsDragonGame = () => {
           startInLevel3Test();
           return true;
         }
+        if (
+          _source === 'keyboard' &&
+          (gs === 'intro' || gs === 'attractControls') &&
+          key === '5' &&
+          LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2
+        ) {
+          startInLevel4Iter2Test();
+          return true;
+        }
+        if (
+          _source === 'keyboard' &&
+          (gs === 'intro' || gs === 'attractControls') &&
+          key === '6' &&
+          LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2
+        ) {
+          startInLevel4Iter3Test();
+          return true;
+        }
         // DEV/TEST: mobile tap-count shortcut on intro/attract:
-        //   2 taps within ~400ms → Level 2; 3 taps → Level 3.
+        //   2 taps → Level 2; 3 taps → Level 3; 4 taps → L4 iter 1;
+        //   5 taps → L4 iter 2; 6 taps → L4 iter 3.
         if (
           _source === 'pad' &&
           (gs === 'intro' ||
@@ -843,7 +884,8 @@ const CavemanVsDragonGame = () => {
               gameStateRef.current === 'attractGlobalLeaderboard' ||
               gameStateRef.current === 'attractControls';
             if (!stillIntro) return;
-            if (taps >= 5) startInLevel3Iter4Test();
+            if (taps >= 6) startInLevel4Iter3Test();
+            else if (taps === 5) startInLevel4Iter2Test();
             else if (taps === 4) startInLevel4Test();
             else if (taps === 3) startInLevel3Test();
             else if (taps === 2) startInLevel2Test();
