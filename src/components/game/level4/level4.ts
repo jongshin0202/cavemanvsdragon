@@ -1124,13 +1124,14 @@ function tickPlayer(s: L4State, input: L4Input) {
       const rock = s.rocks[s.rockAtAIdx];
       const cx = p.x + p.w / 2;
       if (Math.abs(cx - rock.x) < 22) {
-        rock.state = 'falling';
-        rock.vy = 0.5;
+        rock.state = 'rollingDown';
+        rock.vy = 0;
         rock.vx = (p.facing || 1) * 1.6;
         rock.hitConsumed = false;
         rock.kicked = true;
         s.rockAtAIdx = -1;
         p.kickTimer = 18;
+        s.invuln = Math.max(s.invuln, 20);
       } else {
         playJumpSound();
         p.vy = JUMP_FORCE;
