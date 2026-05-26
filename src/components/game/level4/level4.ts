@@ -924,6 +924,32 @@ function spawnCan(s: L4State, color: 'green' | 'purple') {
   if (color === 'green') s.greenCan = can; else s.purpleCan = can;
 }
 
+/** Dragon spits a can: it arcs from the dragon's mouth and lands on a
+ *  random P1–P4 platform (static OR moving). After landing it tracks
+ *  the platform if it's a mover. */
+function spawnCanFromDragon(s: L4State, color: 'green' | 'purple') {
+  const d = s.dragon;
+  const originX = d.x + (d.facing >= 0 ? DRAGON_W - 6 : 6);
+  const originY = d.y + 18;
+  // Candidate platforms: every P1–P4 platform (static + movers).
+  const targetIdxs = [5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
+  const ti = targetIdxs[Math.floor(Math.random() * targetIdxs.length)];
+  const pl = L4_PLATFORMS[ti];
+  const tx = pl.x1 + 14 + Math.random() * Math.max(8, pl.x2 - pl.x1 - 32);
+  const ty = platY(pl, tx) - 14;
+  // Solve ballistic arc: pick a flight time, derive vx/vy from gravity.
+  const flightFrames = 36;
+  const vx = (tx - originX) / flightFrames;
+  const vy = (ty - originY - 0.5 * GRAVITY * flightFrames * flightFrames) / flightFrames;
+  const can: Can = {
+    x: originX, y: originY, color, picked: false,
+    flying: true, vx, vy,
+    riderPlatIdx: ti,
+    riderOffset: tx - pl.x1,
+  };
+  if (color === 'green') s.greenCan = can; else s.purpleCan = can;
+}
+
 function respawnMonkeyWave(s: L4State) {
   const dist = buildMonkeyDistribution(s.iter);
   s.monkeys = [];
