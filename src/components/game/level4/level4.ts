@@ -743,9 +743,7 @@ function tickSprouts(s: L4State) {
   // H4 does NOT auto-regrow — it requires watering with the green can (like D).
   autoRegrow(s.sproutH5);
   autoRegrow(s.sproutH6);
-  // H7 does NOT auto-regrow — it overlaps with D (same column, same vertical span)
-  // which requires the green watering can. Auto-growing it would visually look like
-  // the green-can sprout grew on its own at level start.
+  autoRegrow(s.sproutH7);
   tickOneSprout(s.sproutH1);
   tickOneSprout(s.sproutH2);
   tickOneSprout(s.sproutH3);
