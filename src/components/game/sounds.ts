@@ -17,7 +17,7 @@ export function unlockAudio() {
 export function playWingFlapSound() {
   const ctx = getCtx();
   const now = ctx.currentTime;
-  const dur = 0.7;
+  const dur = 0.3;
 
   // ── 1) Big airy whoosh (filtered noise, fast attack, long tail) ──
   const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
@@ -49,13 +49,13 @@ export function playWingFlapSound() {
   const sub = ctx.createOscillator();
   sub.type = 'sine';
   sub.frequency.setValueAtTime(90, now);
-  sub.frequency.exponentialRampToValueAtTime(30, now + 0.4);
+  sub.frequency.exponentialRampToValueAtTime(35, now + 0.22);
   const subGain = ctx.createGain();
   subGain.gain.setValueAtTime(0, now);
-  subGain.gain.linearRampToValueAtTime(0.85, now + 0.04);
-  subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+  subGain.gain.linearRampToValueAtTime(0.85, now + 0.03);
+  subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
   sub.connect(subGain); subGain.connect(ctx.destination);
-  sub.start(now); sub.stop(now + 0.52);
+  sub.start(now); sub.stop(now + 0.3);
 
   // ── 3) Leathery membrane snap (short bandpassed noise crack) ──
   const snapBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.12), ctx.sampleRate);
