@@ -104,9 +104,9 @@ export const L4_PLATFORMS: L4Platform[] = [
 
 
   // ── P1 (y=445) ── left | mover | right (H1 ladder right)
-  /* 21 P1_LEFT          */ { y: 445, x1: 0,   x2: 175 },
-  /* 22 P1_MOVER         */ { y: 445, x1: 220, x2: 280 },
-  /* 23 P1_RIGHT         */ { y: 445, x1: 370, x2: 512 },
+  /* 19 P1_LEFT          */ { y: 445, x1: 0,   x2: 175 },
+  /* 20 P1_MOVER         */ { y: 445, x1: 220, x2: 280 },
+  /* 21 P1_RIGHT         */ { y: 445, x1: 370, x2: 512 },
 ];
 
 function rsp(lo: number, hi: number): number {
@@ -122,7 +122,7 @@ L4_PLATFORMS[8].moving  = { min: 300, max: 340, speed: rsp(0.5, 1.0) }; // bounc
 L4_PLATFORMS[13].moving = { min: 188, max: 326, speed: rsp(0.6, 1.2) };
 L4_PLATFORMS[16].moving = { min: 132, max: 230, speed:  rmag(0.6, 1.2), pairIdx: 17 };
 L4_PLATFORMS[17].moving = { min: 240, max: 348, speed: -rmag(0.6, 1.2), pairIdx: 16 };
-L4_PLATFORMS[22].moving = { min: 188, max: 310, speed: rsp(0.5, 1.0) }; // bounces before P1_RIGHT (x=370, w=60)
+L4_PLATFORMS[20].moving = { min: 188, max: 310, speed: rsp(0.5, 1.0) }; // bounces before P1_RIGHT (x=370, w=60)
 
 // Named anchors
 const PRINCESS_X = 220;
@@ -141,16 +141,16 @@ const D_TOP_PLAT_IDX    = 2;   // P55_LEFT
 const A_PLAT_IDX        = 4;   // P5_E_FLAT
 
 // H ladder sprouts
-const H1_X = 480, H1_TOP_IDX = 18, H1_BOT_IDX = 23;  // P2_FARRIGHT → P1_RIGHT
+const H1_X = 480, H1_TOP_IDX = 18, H1_BOT_IDX = 21;  // P2_FARRIGHT → P1_RIGHT
 const H2_X = 30,  H2_TOP_IDX = 12, H2_BOT_IDX = 15;  // P3_LEFT     → P2_LEFT
 const H3_X = 480, H3_TOP_IDX = 9,  H3_BOT_IDX = 14;  // P4_RIGHT    → P3_RIGHT
 const H4_X = 30,  H4_TOP_IDX = 5,  H4_BOT_IDX = 12;  // P4_LEFT_D   → P3_LEFT
-const H5_X = 30,  H5_TOP_IDX = 15, H5_BOT_IDX = 21;  // P2_LEFT     → P1_LEFT
+const H5_X = 30,  H5_TOP_IDX = 15, H5_BOT_IDX = 19;  // P2_LEFT     → P1_LEFT
 const H6_X = 480, H6_TOP_IDX = 14, H6_BOT_IDX = 18;  // P3_RIGHT    → P2_FARRIGHT
 const H7_X = 30,  H7_TOP_IDX = 2,  H7_BOT_IDX = 5;   // P55_LEFT    → P4_LEFT_D
 
 const MONKEY_PLAT_ANCHORS: number[] = [
-  5, 9, 12, 13, 14, 15, 18, 21, 22, 23,
+  5, 9, 12, 13, 14, 15, 18, 19, 20, 21,
 ];
 const MONKEY_PER_PLAT_CAP = 5;
 const MONKEY_TOTAL_CAP    = 20;
@@ -377,12 +377,12 @@ export function initLevel4(iter: number): L4State {
   // P2 pair: opposite directions, different magnitudes.
   randomizeMover(16,  rmag(0.6, 1.2));
   randomizeMover(17, -rmag(0.6, 1.2));
-  randomizeMover(22, rsp(0.5, 1.0));
+  randomizeMover(20, rsp(0.5, 1.0));
 
-  // Caveman on P1_LEFT (idx 21).
+  // Caveman on P1_LEFT (idx 19).
   const player: Player = {
-    x: 20, y: platY(L4_PLATFORMS[21], 20) - 24, w: 16, h: 24,
-    vx: 0, vy: 0, onGround: true, groundPlatIdx: 21, jumpStartPlatIdx: 21,
+    x: 20, y: platY(L4_PLATFORMS[19], 20) - 24, w: 16, h: 24,
+    vx: 0, vy: 0, onGround: true, groundPlatIdx: 19, jumpStartPlatIdx: 19,
     climbing: false, facing: 1, jumping: false,
     walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0,
     climbFrame: 0, climbTimer: 0, kickTimer: 0,
@@ -477,10 +477,10 @@ export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: 
 
 function respawnPlayer(s: L4State) {
   const p = s.player;
-  p.x = 20; p.y = platY(L4_PLATFORMS[21], 20) - 24;
+  p.x = 20; p.y = platY(L4_PLATFORMS[19], 20) - 24;
   p.vx = 0; p.vy = 0;
   p.onGround = true; p.climbing = false; p.jumping = false;
-  p.groundPlatIdx = 21; p.jumpStartPlatIdx = 21;
+  p.groundPlatIdx = 19; p.jumpStartPlatIdx = 19;
   p.facing = 1; p.kickTimer = 0;
 }
 
