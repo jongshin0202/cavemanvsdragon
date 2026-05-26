@@ -27,7 +27,7 @@
 
 import { CANVAS_W, CANVAS_H, getRoundDifficulty } from '../constants';
 import { LEVEL4_PARAMS, getLevel4Difficulty, type Level4Difficulty } from './params';
-import { playWingFlapSound, playJumpSound, playRobotKillSound } from '../sounds';
+import { playWingFlapSound, playJumpSound, playRobotKillSound, playHitSound } from '../sounds';
 
 const GRAVITY = 0.38;
 const MOVE_SPEED = 1.9;
@@ -1231,6 +1231,7 @@ function loseLife(s: L4State) {
   s.dying = true;
   s.deathTimer = 0;
   s.deathReported = false;
+  playHitSound();
 }
 
 // ── Ending ──────────────────────────────────────────────────
