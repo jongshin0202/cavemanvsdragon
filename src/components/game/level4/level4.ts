@@ -993,8 +993,25 @@ function tickDragon(s: L4State) {
   }
   const speed = 0.9 * s.diff.dragonSpeedMul;
   d.x += d.facing * speed;
-  if (d.x < leftLim) { d.x = leftLim; d.facing = 1; }
-  if (d.x > rightLim) { d.x = rightLim; d.facing = -1; }
+  // From iter 2+, dragon can wrap around screen edges if a same-row platform
+  // exists on the opposite side.
+  const WRAP_PAIRS: Record<number, number> = { 5: 9, 9: 5, 12: 14, 14: 12, 15: 18, 18: 15, 19: 21, 21: 19 };
+  const wrapPartner = (s.iter >= 2) ? WRAP_PAIRS[d.platIdx] : undefined;
+  if (wrapPartner !== undefined) {
+    if (d.x + DRAGON_W < 0) {
+      const np = L4_PLATFORMS[wrapPartner];
+      d.platIdx = wrapPartner; d.x = CANVAS_W - 2; d.y = np.y - DRAGON_H;
+    } else if (d.x > CANVAS_W) {
+      const np = L4_PLATFORMS[wrapPartner];
+      d.platIdx = wrapPartner; d.x = 2 - DRAGON_W; d.y = np.y - DRAGON_H;
+    } else {
+      if (d.x < -DRAGON_W) d.x = -DRAGON_W;
+      if (d.x > CANVAS_W) d.x = CANVAS_W;
+    }
+  } else {
+    if (d.x < leftLim) { d.x = leftLim; d.facing = 1; }
+    if (d.x > rightLim) { d.x = rightLim; d.facing = -1; }
+  }
   d.y = plat.y - DRAGON_H;
 
   d.jumpCooldown--;
