@@ -1373,7 +1373,7 @@ function drawDragon(ctx: CanvasRenderingContext2D, sprites: L4Sprites, d: Dragon
   if (d.state === 'dying') ctx.globalAlpha = 0.5;
 
   // Flapping wings overlay during intro flight
-  if (d.state === 'intro') {
+  if (d.state === 'intro' || (d.state === 'roam' && d.airborne)) {
     const cx = d.x + DRAGON_W / 2;
     const cy = d.y + DRAGON_H * 0.45;
     // Wing angle oscillates with frame for flap effect
