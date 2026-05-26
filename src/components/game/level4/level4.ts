@@ -266,6 +266,7 @@ export interface L4State {
   sproutH4: Sprout;
   sproutH5: Sprout;
   sproutH6: Sprout;
+  sproutH7: Sprout;
   greenCan: Can | null;
   purpleCan: Can | null;
   carrying: null | 'green' | 'purple';
