@@ -70,7 +70,7 @@ export const L4_PLATFORMS: L4Platform[] = [
   /*  2 P55_LEFT         */ { y: 107.5, x1: 20,  x2: 130 },
 
   // ICE ramp from P5.5 right edge down to P5 left
-  /*  3 ICE_55           */ { y: 107.5, x1: 130, x2: 230, slope: (145 - 107.5) / (230 - 130), ice: true },
+  /*  3 ICE_55           */ { y: 107.5, x1: 160, x2: 230, slope: (145 - 107.5) / (230 - 160), ice: true },
 
   // ── P5 (y=145) E flat (purple sprout). HOLE: >290 ──
   /*  4 P5_E_FLAT        */ { y: 145, x1: 230, x2: 290 },
@@ -86,9 +86,10 @@ export const L4_PLATFORMS: L4Platform[] = [
   // bottom (130,295) leaves a GAP above P3_LEFT (which ends at x=70).
   /* 10 ICE_NEW          */ { y: 295, x1: 130, x2: 215, slope: (220 - 295) / (215 - 130), ice: true },
 
-  // ICE_TENT_R shifted RIGHT: top connects to P4_RIGHT left edge (380,220);
-  // bottom (435,295) leaves a GAP above P3_RIGHT (which starts at x=450).
-  /* 11 ICE_TENT_R       */ { y: 220, x1: 380, x2: 435, slope: (295 - 220) / (435 - 380), ice: true },
+  // ICE_TENT_R: top connects to P4_TENT_TOP right edge (297,220);
+  // bottom (415,295) leaves a GAP above P3_RIGHT (which starts at x=450).
+  /* 11 ICE_TENT_R       */ { y: 220, x1: 297, x2: 415, slope: (295 - 220) / (415 - 297), ice: true },
+
 
   // ── P3 (y=295) ── left (HOLE >70) | mover | right (gap on left: starts at 450 → hole 415..450)
   /* 12 P3_LEFT          */ { y: 295, x1: 0,   x2: 70  },
