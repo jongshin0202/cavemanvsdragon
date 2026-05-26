@@ -554,23 +554,17 @@ function tickMovingPlatforms(s: L4State) {
 // ── Rocks ───────────────────────────────────────────────────
 function tickRocks(s: L4State) {
   s.spawnRockTimer--;
-  // Count ROLLING rocks (exclude dead + the one resting at A waiting to be kicked).
   let rollingCount = 0;
-  let restingExists = false;
   for (const r of s.rocks) {
     if (r.state === 'dead') continue;
-    if (r.state === 'restingAtA') { restingExists = true; continue; }
     rollingCount++;
   }
-  // At iteration N there should always be N rocks rolling (in addition to any
-  // rock that is waiting at A to be kicked).
   const maxRolling = Math.max(1, s.iter);
   if (s.spawnRockTimer <= 0 && rollingCount < maxRolling) {
     const round = 1 + (s.iter - 1) * 4;
     const d = getRoundDifficulty(round);
     s.spawnRockTimer = Math.round(d.barrelSpawnMin + Math.random() * d.barrelSpawnRange);
-    // While a rock waits at A, always launch new rocks rolling RIGHT (away from A).
-    const dir = restingExists ? 1 : (Math.random() < 0.5 ? -1 : 1);
+    const dir = Math.random() < 0.5 ? -1 : 1;
     const top0 = L4_PLATFORMS[0];
     s.rocks.push({
       x: VOLCANO_X, y: top0.y - 8,
@@ -579,7 +573,6 @@ function tickRocks(s: L4State) {
     });
     playBarrelRollSound();
   } else if (s.spawnRockTimer <= 0) {
-    // Wait a bit and re-check next frame.
     s.spawnRockTimer = 15;
   }
 
