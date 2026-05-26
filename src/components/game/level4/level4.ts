@@ -69,11 +69,11 @@ export const L4_PLATFORMS: L4Platform[] = [
   // ── P5.5 (y=107.5) small left stub — extends to far-left edge of screen ──
   /*  2 P55_LEFT         */ { y: 107.5, x1: 0,   x2: 126 },
 
-  // ICE ramp from P5.5 right edge (126,107.5) down to P5 left (196,145)
-  /*  3 ICE_55           */ { y: 107.5, x1: 126, x2: 196, slope: (145 - 107.5) / (196 - 126), ice: true },
+  // ICE ramp from P5.5 right edge (126,107.5) down to P5 left (155,145)
+  /*  3 ICE_55           */ { y: 107.5, x1: 126, x2: 155, slope: (145 - 107.5) / (155 - 126), ice: true },
 
-  // ── P5 (y=145) E flat (purple sprout). Right edge aligns to middle of screen (256). ──
-  /*  4 P5_E_FLAT        */ { y: 145, x1: 196, x2: 256 },
+  // ── P5 (y=145) E flat (purple sprout). Right edge aligns to P4_TENT_TOP left (215). ──
+  /*  4 P5_E_FLAT        */ { y: 145, x1: 155, x2: 215 },
 
   // ── P4 (y=220) ── D-flat (HOLE >70) | mover_L | tent_top | mover_R | right
   /*  5 P4_LEFT_D        */ { y: 220, x1: 0,   x2: 70  },
