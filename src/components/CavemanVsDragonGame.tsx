@@ -2414,11 +2414,22 @@ const CavemanVsDragonGame = () => {
             const isSsCommit = isLevel3Round(g.round) && (r as any)._ssL3;
             if (climbChoice && (isSsCommit || Math.random() < 0.6)) {
               const l = LADDERS[climbChoice.ladderIdx];
-              r.climbing = true;
-              r.targetLadder = climbChoice.ladderIdx;
-              r.vx = 0;
-              r.vy = climbChoice.climbVy;
-              r.x = l.x + (16 - r.w) / 2;
+              const ladderX = l.x + (16 - r.w) / 2;
+              // Smoothly walk toward ladder center instead of snapping X.
+              const dx = ladderX - r.x;
+              const maxStep = Math.max(r.speed, 0.6);
+              if (Math.abs(dx) > 0.5) {
+                r.x += Math.max(-maxStep, Math.min(maxStep, dx));
+                r.direction = dx > 0 ? 1 : -1;
+                r.wanderDir = r.direction;
+                r.vx = r.direction * r.speed;
+              } else {
+                r.x = ladderX;
+                r.climbing = true;
+                r.targetLadder = climbChoice.ladderIdx;
+                r.vx = 0;
+                r.vy = climbChoice.climbVy;
+              }
             } else {
               // Always moving — never stop, even if aligned with player
               r.direction = r.wanderDir;
