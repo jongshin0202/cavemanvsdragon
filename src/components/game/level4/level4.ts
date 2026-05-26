@@ -255,7 +255,16 @@ interface VolcanoFireball {
   landed: boolean;
 }
 
-interface Can { x: number; y: number; color: 'green' | 'purple'; picked: boolean }
+interface Can {
+  x: number; y: number; color: 'green' | 'purple'; picked: boolean;
+  /** Flying = in-arc from dragon mouth; false once it lands on a platform. */
+  flying?: boolean;
+  vx?: number; vy?: number;
+  /** Platform it landed on (for moving-platform tracking). -1 if static. */
+  riderPlatIdx?: number;
+  /** Offset from platform.x1 used to ride movers. */
+  riderOffset?: number;
+}
 
 interface Ending { active: boolean; phase: 'hug' | 'pause' | 'kidnap' | 'follow' | 'done'; timer: number; newDragonX: number }
 
@@ -915,6 +924,32 @@ function spawnCan(s: L4State, color: 'green' | 'purple') {
   if (color === 'green') s.greenCan = can; else s.purpleCan = can;
 }
 
+/** Dragon spits a can: it arcs from the dragon's mouth and lands on a
+ *  random P1–P4 platform (static OR moving). After landing it tracks
+ *  the platform if it's a mover. */
+function spawnCanFromDragon(s: L4State, color: 'green' | 'purple') {
+  const d = s.dragon;
+  const originX = d.x + (d.facing >= 0 ? DRAGON_W - 6 : 6);
+  const originY = d.y + 18;
+  // Candidate platforms: every P1–P4 platform (static + movers).
+  const targetIdxs = [5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
+  const ti = targetIdxs[Math.floor(Math.random() * targetIdxs.length)];
+  const pl = L4_PLATFORMS[ti];
+  const tx = pl.x1 + 14 + Math.random() * Math.max(8, pl.x2 - pl.x1 - 32);
+  const ty = platY(pl, tx) - 14;
+  // Solve ballistic arc: pick a flight time, derive vx/vy from gravity.
+  const flightFrames = 36;
+  const vx = (tx - originX) / flightFrames;
+  const vy = (ty - originY - 0.5 * GRAVITY * flightFrames * flightFrames) / flightFrames;
+  const can: Can = {
+    x: originX, y: originY, color, picked: false,
+    flying: true, vx, vy,
+    riderPlatIdx: ti,
+    riderOffset: tx - pl.x1,
+  };
+  if (color === 'green') s.greenCan = can; else s.purpleCan = can;
+}
+
 function respawnMonkeyWave(s: L4State) {
   const dist = buildMonkeyDistribution(s.iter);
   s.monkeys = [];
@@ -1408,8 +1443,36 @@ function tickPlayer(s: L4State, input: L4Input) {
 // ── Cans ────────────────────────────────────────────────────
 function tickCans(s: L4State) {
   const p = s.player;
+  // Update flying/landed state for each can.
+  const updateCan = (c: Can | null) => {
+    if (!c || c.picked) return;
+    if (c.flying) {
+      c.vy = (c.vy ?? 0) + GRAVITY;
+      c.x += (c.vx ?? 0);
+      c.y += (c.vy ?? 0);
+      const ti = c.riderPlatIdx ?? -1;
+      if (ti >= 0) {
+        const pl = L4_PLATFORMS[ti];
+        const landY = platY(pl, pl.x1 + (c.riderOffset ?? 0)) - 14;
+        if (c.vy >= 0 && c.y >= landY) {
+          c.y = landY;
+          c.flying = false;
+          c.vx = 0; c.vy = 0;
+        }
+      }
+    } else if ((c.riderPlatIdx ?? -1) >= 0) {
+      // Ride moving platforms.
+      const pl = L4_PLATFORMS[c.riderPlatIdx!];
+      const baseX = pl.x1 + (c.riderOffset ?? 0);
+      c.x = baseX;
+      c.y = platY(pl, baseX) - 14;
+    }
+  };
+  updateCan(s.greenCan);
+  updateCan(s.purpleCan);
+
   const pickup = (c: Can | null): boolean => {
-    if (!c || c.picked || s.carrying) return false;
+    if (!c || c.picked || s.carrying || c.flying) return false;
     if (Math.abs((p.x + p.w / 2) - (c.x + 7)) < 16 && Math.abs((p.y + p.h) - (c.y + 14)) < 22) {
       c.picked = true;
       s.carrying = c.color;
@@ -1446,7 +1509,7 @@ function tickCollisions(s: L4State) {
       d.hits++;
       d.state = 'downed';
       d.downedTimer = Math.round(5 * 60);
-      if (!s.purpleCan) spawnCan(s, 'purple');
+      if (!s.purpleCan) spawnCanFromDragon(s, 'purple');
       // bounce caveman off dragon's head
       p.vy = JUMP_FORCE * 0.8;
       p.jumping = true;
