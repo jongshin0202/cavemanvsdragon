@@ -119,7 +119,7 @@ function rmag(lo: number, hi: number): number {
 // 6 movers: P4 flanking tent (6,8), P3 center (13), P2 pair (16,17), P1 center (22).
 L4_PLATFORMS[6].moving  = { min: 132, max: 175, speed: rsp(0.5, 1.0) }; // bounces before tent (x=215, w=40)
 L4_PLATFORMS[8].moving  = { min: 300, max: 340, speed: rsp(0.5, 1.0) }; // bounces before P4_RIGHT (x=380, w=40)
-L4_PLATFORMS[13].moving = { min: 188, max: 326, speed: rsp(0.6, 1.2) };
+L4_PLATFORMS[13].moving = { min: 70, max: 390, speed: rsp(0.6, 1.2) }; // touches P3_LEFT (x2=70) and P3_RIGHT (x1=450, w=60)
 L4_PLATFORMS[16].moving = { min: 132, max: 230, speed:  rmag(0.6, 1.2), pairIdx: 17 };
 L4_PLATFORMS[17].moving = { min: 240, max: 348, speed: -rmag(0.6, 1.2), pairIdx: 16 };
 L4_PLATFORMS[20].moving = { min: 188, max: 310, speed: rsp(0.5, 1.0) }; // bounces before P1_RIGHT (x=370, w=60)
