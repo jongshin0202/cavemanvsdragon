@@ -145,6 +145,9 @@ const A_PLAT_IDX        = 4;   // P5_E_FLAT
 const H1_X = 480, H1_TOP_IDX = 18, H1_BOT_IDX = 23;  // P2_FARRIGHT → P1_RIGHT
 const H2_X = 30,  H2_TOP_IDX = 12, H2_BOT_IDX = 15;  // P3_LEFT     → P2_LEFT
 const H3_X = 480, H3_TOP_IDX = 9,  H3_BOT_IDX = 14;  // P4_RIGHT    → P3_RIGHT
+const H4_X = 30,  H4_TOP_IDX = 5,  H4_BOT_IDX = 12;  // P4_LEFT_D   → P3_LEFT
+const H5_X = 30,  H5_TOP_IDX = 15, H5_BOT_IDX = 21;  // P2_LEFT     → P1_LEFT
+const H6_X = 480, H6_TOP_IDX = 14, H6_BOT_IDX = 18;  // P3_RIGHT    → P2_FARRIGHT
 
 const MONKEY_PLAT_ANCHORS: number[] = [
   5, 9, 12, 13, 14, 15, 18, 21, 22, 23,
