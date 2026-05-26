@@ -740,7 +740,7 @@ function tickSprouts(s: L4State) {
   autoRegrow(s.sproutH1);
   autoRegrow(s.sproutH2);
   autoRegrow(s.sproutH3);
-  autoRegrow(s.sproutH4);
+  // H4 does NOT auto-regrow — it requires watering with the green can (like D).
   autoRegrow(s.sproutH5);
   autoRegrow(s.sproutH6);
   autoRegrow(s.sproutH7);
@@ -1163,6 +1163,19 @@ function tickPlayer(s: L4State, input: L4Input) {
           s.sproutD.phase = 'growing';
         }
         s.carrying = null;
+      } else {
+        playJumpSound();
+        p.vy = JUMP_FORCE; p.onGround = false; p.jumping = true; p.jumpStartPlatIdx = p.groundPlatIdx;
+      }
+    }
+    // WATER H4 (ladder from P3_LEFT up to P4_LEFT_D). Does NOT consume the can —
+    // player still needs it to grow D afterwards.
+    else if (p.groundPlatIdx === H4_BOT_IDX && s.carrying === 'green') {
+      const cx = p.x + p.w / 2;
+      if (Math.abs(cx - H4_X) < 22) {
+        if (s.sproutH4.phase === 'seed' || s.sproutH4.phase === 'withering') {
+          s.sproutH4.phase = 'growing';
+        }
       } else {
         playJumpSound();
         p.vy = JUMP_FORCE; p.onGround = false; p.jumping = true; p.jumpStartPlatIdx = p.groundPlatIdx;
