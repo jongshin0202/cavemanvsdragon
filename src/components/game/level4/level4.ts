@@ -244,6 +244,8 @@ interface Monkey {
   walkFrame: number; walkTimer: number;
 }
 
+interface MonkeyFireball { x: number; y: number; vx: number; vy: number; r: number; age: number }
+
 interface Can { x: number; y: number; color: 'green' | 'purple'; picked: boolean }
 
 interface Ending { active: boolean; phase: 'hug' | 'pause' | 'kidnap' | 'follow' | 'done'; timer: number; newDragonX: number }
@@ -257,6 +259,8 @@ export interface L4State {
   monkeys: Monkey[];
   rocks: Rock[];
   spawnRockTimer: number;
+  monkeyFireballs: MonkeyFireball[];
+  monkeyFireballTimer: number;
   sproutD: Sprout;
   sproutE: Sprout;
   sproutH1: Sprout;
@@ -415,6 +419,8 @@ export function initLevel4(iter: number): L4State {
     monkeys,
     rocks: [],
     spawnRockTimer: 90,
+    monkeyFireballs: [],
+    monkeyFireballTimer: 180,
     sproutD: mkSprout(D_X, D_TOP_PLAT_IDX, D_BASE_PLAT_IDX),
     sproutE: mkSprout(E_X, E_TOP_PLAT_IDX, E_BASE_PLAT_IDX, { purple: true, noAutoWither: true, partialGrow: true }),
     sproutH1: mkSprout(H1_X, H1_TOP_IDX, H1_BOT_IDX),
@@ -467,6 +473,7 @@ export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: 
   tickRocks(s);
   tickSprouts(s);
   tickMonkeys(s);
+  tickMonkeyFireballs(s);
   tickDragon(s);
   tickPlayer(s, input);
   tickCans(s);
@@ -830,6 +837,43 @@ function tickMonkeys(s: L4State) {
     spawnCan(s, 'green');
     s.greenCanSpawned = true;
   }
+}
+
+// ── Monkey fireballs ────────────────────────────────────────
+// From L4 iter 2+, monkeys throw fireballs at the caveman.
+// Scaling follows L2 fireball ramp (steps = L4iter - 2):
+//   - max simultaneous = 1 + floor(steps/3)
+//   - interval (sec)   = 5.95 * 0.9^steps  (jittered 0.5..1.5x)
+//   - speed (px/frame) = baseline 2.2 * 1.1^steps
+function tickMonkeyFireballs(s: L4State) {
+  // Move existing
+  for (const fb of s.monkeyFireballs) {
+    fb.x += fb.vx;
+    fb.y += fb.vy;
+    fb.age++;
+  }
+  s.monkeyFireballs = s.monkeyFireballs.filter(
+    fb => fb.age < 600 && fb.x > -30 && fb.x < CANVAS_W + 30 && fb.y > -30 && fb.y < CANVAS_H + 30,
+  );
+  if (s.iter < 2) return;
+  const steps = s.iter - 2;
+  const maxFireballs = 1 + Math.floor(steps / 3);
+  if (s.monkeyFireballs.length >= maxFireballs) return;
+  if (s.monkeyFireballTimer > 0) { s.monkeyFireballTimer--; return; }
+  const alive = s.monkeys.filter(m => m.alive);
+  if (!alive.length) { s.monkeyFireballTimer = 60; return; }
+  const m = alive[Math.floor(Math.random() * alive.length)];
+  const p = s.player;
+  const tx = p.x + p.w / 2;
+  const ty = p.y + p.h / 2;
+  const sx = m.x + 7;
+  const sy = m.y + 4;
+  const dx = tx - sx, dy = ty - sy;
+  const L = Math.hypot(dx, dy) || 1;
+  const speed = 2.2 * Math.pow(1.1, steps);
+  s.monkeyFireballs.push({ x: sx, y: sy, vx: (dx / L) * speed, vy: (dy / L) * speed, r: 5, age: 0 });
+  const intervalSec = 5.95 * Math.pow(0.9, steps);
+  s.monkeyFireballTimer = Math.round(intervalSec * 60 * (0.5 + Math.random()));
 }
 
 function spawnCan(s: L4State, color: 'green' | 'purple') {
@@ -1398,6 +1442,17 @@ function tickCollisions(s: L4State) {
     }
   }
 
+  // Monkey fireballs vs player
+  if (s.invuln <= 0) {
+    for (const fb of s.monkeyFireballs) {
+      const dx = (p.x + p.w / 2) - fb.x;
+      const dy = (p.y + p.h / 2) - fb.y;
+      if (dx * dx + dy * dy < (fb.r + 8) * (fb.r + 8)) {
+        loseLife(s); break;
+      }
+    }
+  }
+
   // Dragon touch
   if (s.invuln <= 0 && d.state === 'roam') {
     if (p.x < d.x + DRAGON_W && p.x + p.w > d.x && p.y < d.y + DRAGON_H && p.y + p.h > d.y) {
@@ -1616,6 +1671,18 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
       }
       ctx.restore();
     }
+  }
+
+  // Monkey fireballs — orange glowing balls
+  for (const fb of s.monkeyFireballs) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,160,40,0.35)';
+    ctx.beginPath(); ctx.arc(fb.x, fb.y, fb.r + 3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ff6a1a';
+    ctx.beginPath(); ctx.arc(fb.x, fb.y, fb.r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffd24a';
+    ctx.beginPath(); ctx.arc(fb.x - 1, fb.y - 1, fb.r * 0.45, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
   }
 
   // Player
