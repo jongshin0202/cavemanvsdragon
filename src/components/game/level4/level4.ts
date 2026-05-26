@@ -626,6 +626,12 @@ function tickRocks(s: L4State) {
         r.vy += GRAVITY * 0.5;
         r.x += r.vx;
         r.y += r.vy;
+        // Screen-edge bounce while rolling on a P3 platform (the long mid row).
+        const onP3Now = r.platIdx === 12 || r.platIdx === 13 || r.platIdx === 14;
+        if (onP3Now && r.vy === 0) {
+          if (r.x - r.r < 0) { r.x = r.r; r.vx = Math.abs(r.vx) || 1.4; }
+          else if (r.x + r.r > CANVAS_W) { r.x = CANVAS_W - r.r; r.vx = -(Math.abs(r.vx) || 1.4); }
+        }
         for (let pi = 0; pi < L4_PLATFORMS.length; pi++) {
           const pl = L4_PLATFORMS[pi];
           if (r.x < pl.x1 || r.x > pl.x2) continue;
@@ -633,6 +639,7 @@ function tickRocks(s: L4State) {
           if (r.vy > 0 && r.y + r.r >= py && r.y + r.r <= py + 10) {
             r.y = py - r.r;
             r.vy = 0;
+            const prevPlat = r.platIdx;
             r.platIdx = pi;
             // Rest at point A when landing on P5_E_FLAT and A is free (but kicked rocks skip A).
             if (pi === A_PLAT_IDX && s.rockAtAIdx < 0 && !r.kicked) {
@@ -649,6 +656,11 @@ function tickRocks(s: L4State) {
             if (pl.ice && pl.slope) {
               const downSign = pl.slope > 0 ? 1 : -1; // downhill direction (higher y)
               r.vx = downSign * Math.max(1.2, Math.abs(r.vx));
+            }
+            // On any P3 platform (long mid row), 50/50 randomize direction on landing.
+            if ((pi === 12 || pi === 13 || pi === 14) && prevPlat !== pi) {
+              const sp = Math.max(1.4, Math.abs(r.vx) || 1.4);
+              r.vx = (Math.random() < 0.5 ? -1 : 1) * sp;
             }
             break;
           }
