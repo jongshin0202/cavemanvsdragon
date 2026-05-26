@@ -740,7 +740,7 @@ function tickSprouts(s: L4State) {
   autoRegrow(s.sproutH1);
   autoRegrow(s.sproutH2);
   autoRegrow(s.sproutH3);
-  autoRegrow(s.sproutH4);
+  // H4 does NOT auto-regrow — it requires watering with the green can (like D).
   autoRegrow(s.sproutH5);
   autoRegrow(s.sproutH6);
   autoRegrow(s.sproutH7);
