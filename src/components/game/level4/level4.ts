@@ -1442,6 +1442,17 @@ function tickCollisions(s: L4State) {
     }
   }
 
+  // Monkey fireballs vs player
+  if (s.invuln <= 0) {
+    for (const fb of s.monkeyFireballs) {
+      const dx = (p.x + p.w / 2) - fb.x;
+      const dy = (p.y + p.h / 2) - fb.y;
+      if (dx * dx + dy * dy < (fb.r + 8) * (fb.r + 8)) {
+        loseLife(s); break;
+      }
+    }
+  }
+
   // Dragon touch
   if (s.invuln <= 0 && d.state === 'roam') {
     if (p.x < d.x + DRAGON_W && p.x + p.w > d.x && p.y < d.y + DRAGON_H && p.y + p.h > d.y) {
