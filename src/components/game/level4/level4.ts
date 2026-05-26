@@ -245,6 +245,15 @@ interface Monkey {
 }
 
 interface MonkeyFireball { x: number; y: number; vx: number; vy: number; r: number; age: number }
+interface VolcanoFireball {
+  startX: number; startY: number;
+  endX: number; endY: number;
+  apexX: number; apexY: number;
+  t: number; duration: number;
+  x: number; y: number;
+  radius: number;
+  landed: boolean;
+}
 
 interface Can { x: number; y: number; color: 'green' | 'purple'; picked: boolean }
 
