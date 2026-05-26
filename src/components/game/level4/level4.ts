@@ -629,9 +629,9 @@ function tickRocks(s: L4State) {
         r.vy += GRAVITY * 0.5;
         r.x += r.vx;
         r.y += r.vy;
-        // Screen-edge bounce while rolling on a P3 platform (the long mid row).
-        const onP3Now = r.platIdx === 12 || r.platIdx === 13 || r.platIdx === 14;
-        if (onP3Now && r.vy === 0) {
+        // Screen-edge bounce: any rolling rock that hits the left/right side
+        // of the screen reverses direction and keeps rolling.
+        if (r.vy === 0 && r.platIdx >= 0) {
           if (r.x - r.r < 0) { r.x = r.r; r.vx = Math.abs(r.vx) || 1.4; }
           else if (r.x + r.r > CANVAS_W) { r.x = CANVAS_W - r.r; r.vx = -(Math.abs(r.vx) || 1.4); }
         }
