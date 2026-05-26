@@ -521,22 +521,23 @@ function tickMovingPlatforms(s: L4State) {
 // ── Rocks ───────────────────────────────────────────────────
 function tickRocks(s: L4State) {
   s.spawnRockTimer--;
-  // Hard cap: at most ONE active rock (L1-style). Kill extras left over from
-  // earlier code paths / hot-reloads.
-  let kept = 0;
+  // Count ROLLING rocks (exclude dead + the one resting at A waiting to be kicked).
+  let rollingCount = 0;
+  let restingExists = false;
   for (const r of s.rocks) {
     if (r.state === 'dead') continue;
-    if (kept === 0) { kept = 1; continue; }
-    r.state = 'dead';
-    if (s.rockAtAIdx >= 0 && s.rocks[s.rockAtAIdx] === r) s.rockAtAIdx = -1;
+    if (r.state === 'restingAtA') { restingExists = true; continue; }
+    rollingCount++;
   }
-  const liveRocks = kept;
-  if (s.spawnRockTimer <= 0 && liveRocks === 0) {
+  // At iteration N there should always be N rocks rolling (in addition to any
+  // rock that is waiting at A to be kicked).
+  const maxRolling = Math.max(1, s.iter);
+  if (s.spawnRockTimer <= 0 && rollingCount < maxRolling) {
     const round = 1 + (s.iter - 1) * 4;
     const d = getRoundDifficulty(round);
     s.spawnRockTimer = Math.round(d.barrelSpawnMin + Math.random() * d.barrelSpawnRange);
-    // Launch from K, rolling directly along the top of P6 either LEFT or RIGHT.
-    const dir = Math.random() < 0.5 ? -1 : 1;
+    // While a rock waits at A, always launch new rocks rolling RIGHT (away from A).
+    const dir = restingExists ? 1 : (Math.random() < 0.5 ? -1 : 1);
     const top0 = L4_PLATFORMS[0];
     s.rocks.push({
       x: VOLCANO_X, y: top0.y - 8,
