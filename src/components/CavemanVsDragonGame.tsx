@@ -821,7 +821,7 @@ const CavemanVsDragonGame = () => {
           }
           return true; // swallow C — don't start the game
         }
-        // DEV/TEST: PC presses "2" → Level 2, "3" → Level 3.
+        // DEV/TEST: PC presses "2" → Level 2, "3" → Level 3, "5" → L4 iter 2, "6" → L4 iter 3.
         if (
           _source === 'keyboard' &&
           (gs === 'intro' || gs === 'attractControls') &&
@@ -838,6 +838,24 @@ const CavemanVsDragonGame = () => {
           LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2
         ) {
           startInLevel3Test();
+          return true;
+        }
+        if (
+          _source === 'keyboard' &&
+          (gs === 'intro' || gs === 'attractControls') &&
+          key === '5' &&
+          LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2
+        ) {
+          startInLevel4Iter2Test();
+          return true;
+        }
+        if (
+          _source === 'keyboard' &&
+          (gs === 'intro' || gs === 'attractControls') &&
+          key === '6' &&
+          LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2
+        ) {
+          startInLevel4Iter3Test();
           return true;
         }
         // DEV/TEST: mobile tap-count shortcut on intro/attract:
