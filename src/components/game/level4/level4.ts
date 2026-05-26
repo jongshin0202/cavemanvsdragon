@@ -130,8 +130,8 @@ const PRINCESS_X = 220;
 const PRINCESS_Y = L4_PLATFORMS[0].y - 48;
 const VOLCANO_X  = 340;
 const C_X = 270;   // rock decision point on P6 (above E)
-const E_X = 226;   // E (purple) — middle of P5_E_FLAT (196..256)
-const A_X = 226;   // rock-rest A on P5_E_FLAT (under C)
+const E_X = 185;   // E (purple) — middle of P5_E_FLAT (155..215)
+const A_X = 185;   // rock-rest A on P5_E_FLAT (under C)
 const D_X = 30;    // D (green) on P4_LEFT_D
 
 const PRINCESS_PLAT_IDX = 0;
