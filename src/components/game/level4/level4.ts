@@ -255,7 +255,16 @@ interface VolcanoFireball {
   landed: boolean;
 }
 
-interface Can { x: number; y: number; color: 'green' | 'purple'; picked: boolean }
+interface Can {
+  x: number; y: number; color: 'green' | 'purple'; picked: boolean;
+  /** Flying = in-arc from dragon mouth; false once it lands on a platform. */
+  flying?: boolean;
+  vx?: number; vy?: number;
+  /** Platform it landed on (for moving-platform tracking). -1 if static. */
+  riderPlatIdx?: number;
+  /** Offset from platform.x1 used to ride movers. */
+  riderOffset?: number;
+}
 
 interface Ending { active: boolean; phase: 'hug' | 'pause' | 'kidnap' | 'follow' | 'done'; timer: number; newDragonX: number }
 
