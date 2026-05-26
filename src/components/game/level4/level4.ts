@@ -1142,7 +1142,12 @@ function tickPlayer(s: L4State, input: L4Input) {
   p.vy += GRAVITY;
   p.x += p.vx + carriedVx;
   p.y += p.vy;
-  p.x = Math.max(0, Math.min(CANVAS_W - p.w, p.x));
+  // Screen wrap: left edge <-> right edge at same platform level
+  if (p.x < 0) {
+    p.x = CANVAS_W - p.w;
+  } else if (p.x > CANVAS_W - p.w) {
+    p.x = 1;
+  }
 
   // Platform collisions — while jumping, allow landing on any platform on the same row
   // as the jump-start platform (so the caveman can hop onto adjacent moving platforms).
