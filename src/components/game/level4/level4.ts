@@ -671,19 +671,24 @@ function tickSprouts(s: L4State) {
   // E: only grows on watering. We still tick to keep growProgress correct.
   tickOneSprout(s.sproutE);
 
-  // H1/H2/H3 auto-regrow.
-  if (s.sproutH1.phase === 'seed' && s.sproutH1.regrowTimer <= 0 && s.sproutH1.growProgress === 0) {
-    s.sproutH1.phase = 'growing';
-  }
-  if (s.sproutH2.phase === 'seed' && s.sproutH2.regrowTimer <= 0 && s.sproutH2.growProgress === 0) {
-    s.sproutH2.phase = 'growing';
-  }
-  if (s.sproutH3.phase === 'seed' && s.sproutH3.regrowTimer <= 0 && s.sproutH3.growProgress === 0) {
-    s.sproutH3.phase = 'growing';
-  }
+  // H1..H6 auto-regrow.
+  const autoRegrow = (sp: Sprout) => {
+    if (sp.phase === 'seed' && sp.regrowTimer <= 0 && sp.growProgress === 0) {
+      sp.phase = 'growing';
+    }
+  };
+  autoRegrow(s.sproutH1);
+  autoRegrow(s.sproutH2);
+  autoRegrow(s.sproutH3);
+  autoRegrow(s.sproutH4);
+  autoRegrow(s.sproutH5);
+  autoRegrow(s.sproutH6);
   tickOneSprout(s.sproutH1);
   tickOneSprout(s.sproutH2);
   tickOneSprout(s.sproutH3);
+  tickOneSprout(s.sproutH4);
+  tickOneSprout(s.sproutH5);
+  tickOneSprout(s.sproutH6);
 }
 
 // ── Monkeys ─────────────────────────────────────────────────
