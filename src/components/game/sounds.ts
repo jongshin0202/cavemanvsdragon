@@ -35,6 +35,9 @@ export function playWingFlapSound() {
   src.connect(bp); bp.connect(gain); gain.connect(ctx.destination);
   src.start(ctx.currentTime);
   src.stop(ctx.currentTime + 0.2);
+}
+
+
 
 export function playJumpSound() {
   const ctx = getCtx();
