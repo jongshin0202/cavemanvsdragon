@@ -1007,15 +1007,34 @@ function tickPlayer(s: L4State, input: L4Input) {
   const p = s.player;
   if (p.kickTimer > 0) p.kickTimer--;
 
-  // Climbing detection across D, E, H1, H2, H3
+  // Climbing detection across D, E, H1..H6. When two ladders meet at a platform
+  // (e.g. P3_RIGHT is top of H6 and bottom of H3), prefer the one that matches
+  // the player's intent: input.up → sprout whose BOTTOM is here; input.down →
+  // sprout whose TOP is here.
   let nearSprout: Sprout | null = null;
   const sproutList = [s.sproutD, s.sproutE, s.sproutH1, s.sproutH2, s.sproutH3, s.sproutH4, s.sproutH5, s.sproutH6];
+  const matches: Sprout[] = [];
   for (const sp of sproutList) {
     if (sp.growProgress < 0.6) continue;
     const cx = p.x + p.w / 2;
     const topReach = sp.yBot - (sp.yBot - sp.yTop) * sp.growProgress;
     if (Math.abs(cx - sp.x) < 12 && p.y + p.h >= topReach - 4 && p.y <= sp.yBot + 20) {
-      nearSprout = sp;
+      matches.push(sp);
+    }
+  }
+  if (matches.length > 0) {
+    nearSprout = matches[matches.length - 1];
+    if (matches.length > 1) {
+      if (input.up) {
+        const pref = matches.find(sp => Math.abs((p.y + p.h) - sp.yBot) < 6);
+        if (pref) nearSprout = pref;
+      } else if (input.down) {
+        const pref = matches.find(sp => {
+          const tr = sp.yBot - (sp.yBot - sp.yTop) * sp.growProgress;
+          return Math.abs((p.y + p.h) - tr) < 6;
+        });
+        if (pref) nearSprout = pref;
+      }
     }
   }
 
