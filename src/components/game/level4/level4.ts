@@ -260,6 +260,8 @@ interface Can {
   /** Flying = in-arc from dragon mouth; false once it lands on a platform. */
   flying?: boolean;
   vx?: number; vy?: number;
+  /** Visual spin angle in radians while flying. */
+  spin?: number;
   /** Platform it landed on (for moving-platform tracking). -1 if static. */
   riderPlatIdx?: number;
   /** Offset from platform.x1 used to ride movers. */
@@ -938,12 +940,12 @@ function spawnCanFromDragon(s: L4State, color: 'green' | 'purple') {
   const tx = pl.x1 + 14 + Math.random() * Math.max(8, pl.x2 - pl.x1 - 32);
   const ty = platY(pl, tx) - 14;
   // Solve ballistic arc: pick a flight time, derive vx/vy from gravity.
-  const flightFrames = 36;
+  const flightFrames = 90;
   const vx = (tx - originX) / flightFrames;
   const vy = (ty - originY - 0.5 * GRAVITY * flightFrames * flightFrames) / flightFrames;
   const can: Can = {
     x: originX, y: originY, color, picked: false,
-    flying: true, vx, vy,
+    flying: true, vx, vy, spin: 0,
     riderPlatIdx: ti,
     riderOffset: tx - pl.x1,
   };
@@ -1450,6 +1452,7 @@ function tickCans(s: L4State) {
       c.vy = (c.vy ?? 0) + GRAVITY;
       c.x += (c.vx ?? 0);
       c.y += (c.vy ?? 0);
+      c.spin = (c.spin ?? 0) + 0.35;
       const ti = c.riderPlatIdx ?? -1;
       if (ti >= 0) {
         const pl = L4_PLATFORMS[ti];
@@ -1457,7 +1460,7 @@ function tickCans(s: L4State) {
         if (c.vy >= 0 && c.y >= landY) {
           c.y = landY;
           c.flying = false;
-          c.vx = 0; c.vy = 0;
+          c.vx = 0; c.vy = 0; c.spin = 0;
         }
       }
     } else if ((c.riderPlatIdx ?? -1) >= 0) {
@@ -1943,18 +1946,26 @@ function drawSprout(ctx: CanvasRenderingContext2D, sp: Sprout) {
 }
 
 function drawCan(ctx: CanvasRenderingContext2D, sprites: L4Sprites, c: Can) {
+  const cx = c.x + 7, cy = c.y + 7;
+  ctx.save();
+  if (c.flying) {
+    ctx.translate(cx, cy);
+    ctx.rotate(c.spin ?? 0);
+    ctx.translate(-cx, -cy);
+  }
   if (sprites.wateringCan.complete) {
     ctx.drawImage(sprites.wateringCan, c.x - 2, c.y, 18, 14);
     if (c.color === 'purple') {
-      ctx.save(); ctx.globalAlpha = 0.55;
+      ctx.globalAlpha = 0.55;
       ctx.fillStyle = '#9b59b6';
       ctx.fillRect(c.x - 2, c.y, 18, 14);
-      ctx.restore();
+      ctx.globalAlpha = 1;
     }
   } else {
     ctx.fillStyle = c.color === 'green' ? '#3CB043' : '#9b59b6';
     ctx.fillRect(c.x - 2, c.y, 18, 14);
   }
+  ctx.restore();
 }
 
 function drawDragon(ctx: CanvasRenderingContext2D, sprites: L4Sprites, d: Dragon) {
