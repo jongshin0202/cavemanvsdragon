@@ -204,6 +204,7 @@ interface Rock {
   platIdx: number;
   age: number;
   hitConsumed?: boolean;
+  kicked?: boolean;
 }
 
 type DragonState = 'intro' | 'roam' | 'downed' | 'dying' | 'dead';
