@@ -1369,10 +1369,8 @@ function tickPlayer(s: L4State, input: L4Input) {
   const jumpStartY = (p.jumping && p.jumpStartPlatIdx >= 0) ? L4_PLATFORMS[p.jumpStartPlatIdx].y : -1;
   for (let i = 0; i < L4_PLATFORMS.length; i++) {
     const plat = L4_PLATFORMS[i];
-    // While jumping, allow landing on the same row OR any lower platform
-    // (so a hop off a small ledge falls onto something below instead of
-    // sailing through to the bottom of the screen).
-    if (p.jumping && jumpStartY >= 0 && plat.y < jumpStartY) continue;
+    // Allow landing on any platform the player's arc actually reaches —
+    // standard wasAbove + falling check below handles correctness.
     if (p.x + p.w < plat.x1 || p.x > plat.x2) continue;
     const py = platY(plat, p.x + p.w / 2);
     const wasAbove = (p.y + p.h - p.vy) <= py + 1;
