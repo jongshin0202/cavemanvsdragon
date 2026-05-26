@@ -486,6 +486,14 @@ export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: 
   }
   if (s.invuln > 0) s.invuln--;
 
+  // Princess "Help!" animation timer (same cadence as L1)
+  s.helpTimer++;
+  if (s.helpTimer > 120) {
+    s.helpTimer = 0;
+    s.showHelp = !s.showHelp;
+    if (s.showHelp) playPrincessHelpSound();
+  }
+
   tickMovingPlatforms(s);
   tickRocks(s);
   tickSprouts(s);
