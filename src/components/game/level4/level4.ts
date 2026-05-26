@@ -436,7 +436,7 @@ export function initLevel4(iter: number): L4State {
     monkeyFireballTimer: 180,
     volcanoFireballs: [],
     volcanoFireballTimer: 180,
-    sproutD: mkSprout(D_X, D_TOP_PLAT_IDX, D_BASE_PLAT_IDX),
+    sproutD: mkSprout(D_X, D_TOP_PLAT_IDX, D_BASE_PLAT_IDX, { noAutoWither: true }),
     sproutE: mkSprout(E_X, E_TOP_PLAT_IDX, E_BASE_PLAT_IDX, { purple: true, noAutoWither: true, partialGrow: true }),
     sproutH1: mkSprout(H1_X, H1_TOP_IDX, H1_BOT_IDX),
     sproutH2: mkSprout(H2_X, H2_TOP_IDX, H2_BOT_IDX),
