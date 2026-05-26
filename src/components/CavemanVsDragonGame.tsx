@@ -3738,7 +3738,7 @@ const CavemanVsDragonGame = () => {
           <button
             className="h-full w-full min-w-0 rounded-full bg-primary text-primary-foreground text-2xl font-bold active:scale-95"
             {...tapHandlers(' ', 45)}
-          >JUMP</button>
+          >{jumpLabel}</button>
         </div>
       </div>
       )}
