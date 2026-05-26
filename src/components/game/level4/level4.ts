@@ -27,7 +27,7 @@
 
 import { CANVAS_W, CANVAS_H, getRoundDifficulty } from '../constants';
 import { LEVEL4_PARAMS, getLevel4Difficulty, type Level4Difficulty } from './params';
-import { playWingFlapSound, playJumpSound, playRobotKillSound, playHitSound, playBarrelRollSound } from '../sounds';
+import { playWingFlapSound, playJumpSound, playRobotKillSound, playHitSound, playBarrelRollSound, playFireBreathSound } from '../sounds';
 
 const GRAVITY = 0.38;
 const MOVE_SPEED = 1.9;
@@ -869,6 +869,7 @@ function tickDragon(s: L4State) {
       d.facing = s.player.x < d.x ? -1 : 1;
       d.fireTimer = FIRE_DURATION;
       d.fireCooldown = FIRE_COOLDOWN;
+      playFireBreathSound();
     }
   }
 
