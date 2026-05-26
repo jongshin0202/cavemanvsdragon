@@ -1481,7 +1481,7 @@ function tickCollisions(s: L4State) {
       d.hits++;
       d.state = 'downed';
       d.downedTimer = Math.round(5 * 60);
-      if (!s.purpleCan) spawnCan(s, 'purple');
+      if (!s.purpleCan) spawnCanFromDragon(s, 'purple');
       // bounce caveman off dragon's head
       p.vy = JUMP_FORCE * 0.8;
       p.jumping = true;
