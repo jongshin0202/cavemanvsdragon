@@ -1678,11 +1678,17 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
   drawVolcano(ctx, VOLCANO_X, L4_PLATFORMS[0].y);
 
   // Princess
+  const pFrameW = sprites.princess.width / 5;
+  const pFrameIdx = s.showHelp ? 2 : 0;
   if (sprites.princess.complete) {
-    ctx.drawImage(sprites.princess, 0, 0, sprites.princess.width / 5, sprites.princess.height,
+    ctx.drawImage(sprites.princess, pFrameIdx * pFrameW, 0, pFrameW, sprites.princess.height,
       s.princessX, s.princessY, PRINCESS_W, PRINCESS_H);
   } else {
     ctx.fillStyle = '#ff80c0'; ctx.fillRect(s.princessX, s.princessY, PRINCESS_W, PRINCESS_H);
+  }
+  if (s.showHelp) {
+    ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 14px "Press Start 2P", monospace';
+    ctx.fillText('HELP!', s.princessX - 4, s.princessY - 8);
   }
 
   // Sprouts
