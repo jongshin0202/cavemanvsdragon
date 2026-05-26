@@ -1946,18 +1946,26 @@ function drawSprout(ctx: CanvasRenderingContext2D, sp: Sprout) {
 }
 
 function drawCan(ctx: CanvasRenderingContext2D, sprites: L4Sprites, c: Can) {
+  const cx = c.x + 7, cy = c.y + 7;
+  ctx.save();
+  if (c.flying) {
+    ctx.translate(cx, cy);
+    ctx.rotate(c.spin ?? 0);
+    ctx.translate(-cx, -cy);
+  }
   if (sprites.wateringCan.complete) {
     ctx.drawImage(sprites.wateringCan, c.x - 2, c.y, 18, 14);
     if (c.color === 'purple') {
-      ctx.save(); ctx.globalAlpha = 0.55;
+      ctx.globalAlpha = 0.55;
       ctx.fillStyle = '#9b59b6';
       ctx.fillRect(c.x - 2, c.y, 18, 14);
-      ctx.restore();
+      ctx.globalAlpha = 1;
     }
   } else {
     ctx.fillStyle = c.color === 'green' ? '#3CB043' : '#9b59b6';
     ctx.fillRect(c.x - 2, c.y, 18, 14);
   }
+  ctx.restore();
 }
 
 function drawDragon(ctx: CanvasRenderingContext2D, sprites: L4Sprites, d: Dragon) {
