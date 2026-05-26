@@ -1231,6 +1231,7 @@ function loseLife(s: L4State) {
   s.dying = true;
   s.deathTimer = 0;
   s.deathReported = false;
+  playHitSound();
 }
 
 // ── Ending ──────────────────────────────────────────────────
