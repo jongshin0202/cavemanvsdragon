@@ -602,7 +602,11 @@ function tickRocks(s: L4State) {
         if (r.x >= ev.x1 && r.x <= ev.x2 && r.y + r.r >= ev.y) {
           r.y = ev.y - r.r;
           r.vy = 0;
-          if (s.rockAtAIdx < 0) {
+          if (r.kicked) {
+            // Kicked rocks skip A-rest and cascade down toward the dragon.
+            r.state = 'rollingDown';
+            if (r.vx === 0) r.vx = Math.random() < 0.5 ? -1.4 : 1.4;
+          } else if (s.rockAtAIdx < 0) {
             r.x = A_X;
             r.state = 'restingAtA';
             r.platIdx = E_BASE_PLAT_IDX;
