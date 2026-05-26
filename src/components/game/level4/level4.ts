@@ -1673,6 +1673,18 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     }
   }
 
+  // Monkey fireballs — orange glowing balls
+  for (const fb of s.monkeyFireballs) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,160,40,0.35)';
+    ctx.beginPath(); ctx.arc(fb.x, fb.y, fb.r + 3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ff6a1a';
+    ctx.beginPath(); ctx.arc(fb.x, fb.y, fb.r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffd24a';
+    ctx.beginPath(); ctx.arc(fb.x - 1, fb.y - 1, fb.r * 0.45, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
   // Player
   const p = s.player;
   const blink = s.dying ? Math.floor(s.deathTimer / 18) % 2 !== 0 : (s.invuln > 0 && (s.invuln % 8 < 4));
