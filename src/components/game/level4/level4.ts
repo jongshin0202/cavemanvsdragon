@@ -629,27 +629,14 @@ function tickRocks(s: L4State) {
         if (r.x >= ev.x1 && r.x <= ev.x2 && r.y + r.r >= ev.y) {
           r.y = ev.y - r.r;
           r.vy = 0;
-          if (r.kicked) {
-            // Kicked rocks skip A-rest and cascade down toward the dragon.
-            r.state = 'rollingDown';
-            if (r.vx === 0) r.vx = Math.random() < 0.5 ? -1.4 : 1.4;
-          } else if (s.rockAtAIdx < 0) {
-            // Hand off to rollingDown so the rock rolls smoothly to the right
-            // edge of P5_E_FLAT before resting (handled in rollingDown case).
-            r.state = 'rollingDown';
-            r.vx = 1.4;
-            r.platIdx = E_BASE_PLAT_IDX;
-          } else {
-            r.state = 'rollingDown';
-            r.vx = -1.2;
-          }
+          r.state = 'rollingDown';
+          r.vx = 1.4;
+          r.platIdx = E_BASE_PLAT_IDX;
           break;
         }
         if (r.y > CANVAS_H + 20) r.state = 'dead';
         break;
       }
-      case 'restingAtA':
-        break;
       case 'rollingDown': {
         r.vy += GRAVITY * 0.5;
         r.x += r.vx;
@@ -663,19 +650,6 @@ function tickRocks(s: L4State) {
             r.vy = 0;
             const prevPlat = r.platIdx;
             r.platIdx = pi;
-            // On P5_E_FLAT, keep rolling to the RIGHT edge, then rest there
-            // (waiting for caveman kick). Avoids the mid-platform snap jitter.
-            if (pi === A_PLAT_IDX && s.rockAtAIdx < 0 && !r.kicked) {
-              const restX = pl.x2 - r.r;
-              if (r.vx <= 0) r.vx = 1.4;
-              if (r.x >= restX) {
-                r.x = restX;
-                r.vx = 0;
-                r.state = 'restingAtA';
-                s.rockAtAIdx = i;
-              }
-              break;
-            }
             if (r.vx === 0) r.vx = Math.random() < 0.5 ? -1 : 1;
             // On P5.5 left stub, always roll right toward the ice ramp.
             if (pi === 2) r.vx = Math.abs(r.vx) || 1;
