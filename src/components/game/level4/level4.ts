@@ -901,7 +901,7 @@ function tickPlayer(s: L4State, input: L4Input) {
 
   // Climbing detection across D, E, H1, H2, H3
   let nearSprout: Sprout | null = null;
-  const sproutList = [s.sproutD, s.sproutE, s.sproutH1, s.sproutH2, s.sproutH3];
+  const sproutList = [s.sproutD, s.sproutE, s.sproutH1, s.sproutH2, s.sproutH3, s.sproutH4, s.sproutH5, s.sproutH6];
   for (const sp of sproutList) {
     if (sp.growProgress < 0.6) continue;
     const cx = p.x + p.w / 2;
