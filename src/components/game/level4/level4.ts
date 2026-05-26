@@ -1141,13 +1141,14 @@ function tickPlayer(s: L4State, input: L4Input) {
   p.y += p.vy;
   p.x = Math.max(0, Math.min(CANVAS_W - p.w, p.x));
 
-  // Platform collisions — only same platform when jumping (keeps prior rule).
+  // Platform collisions — while jumping, allow landing on any platform on the same row
+  // as the jump-start platform (so the caveman can hop onto adjacent moving platforms).
   const wasOnGround = p.onGround;
   p.onGround = false;
-  const limitIdx = p.jumping ? p.jumpStartPlatIdx : -1;
+  const jumpStartY = (p.jumping && p.jumpStartPlatIdx >= 0) ? L4_PLATFORMS[p.jumpStartPlatIdx].y : -1;
   for (let i = 0; i < L4_PLATFORMS.length; i++) {
-    if (limitIdx >= 0 && i !== limitIdx) continue;
     const plat = L4_PLATFORMS[i];
+    if (p.jumping && jumpStartY >= 0 && plat.y !== jumpStartY) continue;
     if (p.x + p.w < plat.x1 || p.x > plat.x2) continue;
     const py = platY(plat, p.x + p.w / 2);
     const wasAbove = (p.y + p.h - p.vy) <= py + 1;
@@ -1162,6 +1163,13 @@ function tickPlayer(s: L4State, input: L4Input) {
   }
   if (wasOnGround && !p.onGround && !p.jumping) {
     // free-fall
+  }
+
+  // Safety net: if caveman falls off the bottom of the screen, trigger death.
+  if (p.y > CANVAS_H + 20 && !s.dying) {
+    s.dying = true;
+    s.deathReported = false;
+    s.deathTimer = 0;
   }
 
   // Anim
