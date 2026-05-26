@@ -726,7 +726,7 @@ function tickDragon(s: L4State) {
     dd.flapAudio = (dd.flapAudio ?? 0) + 1;
     if (dd.flapAudio >= 14) {
       dd.flapAudio = 0;
-      playWingFlapSound();
+
     }
   } else {
     dd.flapAudio = 0;
@@ -774,7 +774,7 @@ function tickDragon(s: L4State) {
       if (d.frameTimer >= 8) {
         d.frameTimer = 0;
         d.frame = (d.frame + 1) % DRAGON_FRAMES;
-        if (d.frame % 2 === 0) playWingFlapSound();
+
       }
     } else {
       d.x = tgtX;
@@ -817,7 +817,7 @@ function tickDragon(s: L4State) {
       if (d.frameTimer >= 8) {
         d.frameTimer = 0;
         d.frame = (d.frame + 1) % DRAGON_FRAMES;
-        if (d.frame % 2 === 0) playWingFlapSound();
+
       }
     }
     return;
@@ -853,7 +853,7 @@ function tickDragon(s: L4State) {
       d.airborne = true;
       d.vx = 0; d.vy = 0;
       (d as Dragon & { flyColX?: number }).flyColX = pick.colX;
-      playWingFlapSound();
+
     } else {
       d.jumpCooldown = 60;
     }
