@@ -774,13 +774,43 @@ function tickSprouts(s: L4State) {
 }
 
 // ── Monkeys ─────────────────────────────────────────────────
+// Neighboring same-row platforms (includes movers). Monkeys can step across
+// when the gap closes (so they roam between static + moving platforms).
+const MONKEY_ROW_NEIGHBORS: number[][] = [
+  [5, 6, 7, 8, 9],     // P4 row
+  [12, 13, 14],        // P3 row
+  [15, 16, 17, 18],    // P2 row
+  [19, 20, 21],        // P1 row
+];
+function getMonkeyRowNeighbors(platIdx: number): number[] {
+  for (const row of MONKEY_ROW_NEIGHBORS) if (row.includes(platIdx)) return row.filter(i => i !== platIdx);
+  return [];
+}
 function tickMonkeys(s: L4State) {
   for (const m of s.monkeys) {
     if (!m.alive) continue;
-    const plat = L4_PLATFORMS[m.platIdx];
+    let plat = L4_PLATFORMS[m.platIdx];
     m.x += m.vx;
-    if (m.x < plat.x1 + 4) { m.x = plat.x1 + 4; m.vx = Math.abs(m.vx); }
-    if (m.x > plat.x2 - 18) { m.x = plat.x2 - 18; m.vx = -Math.abs(m.vx); }
+    // Try stepping onto a neighboring same-row platform whose near edge is close.
+    const tryTransfer = () => {
+      const neighbors = getMonkeyRowNeighbors(m.platIdx);
+      for (const ni of neighbors) {
+        const np = L4_PLATFORMS[ni];
+        if (np.y !== plat.y) continue;
+        if (m.vx > 0 && Math.abs(np.x1 - plat.x2) <= 10) {
+          m.platIdx = ni; plat = np; m.x = np.x1 + 4; return true;
+        }
+        if (m.vx < 0 && Math.abs(plat.x1 - np.x2) <= 10) {
+          m.platIdx = ni; plat = np; m.x = np.x2 - 18; return true;
+        }
+      }
+      return false;
+    };
+    if (m.x > plat.x2 - 18) {
+      if (!tryTransfer()) { m.x = plat.x2 - 18; m.vx = -Math.abs(m.vx); }
+    } else if (m.x < plat.x1 + 4) {
+      if (!tryTransfer()) { m.x = plat.x1 + 4; m.vx = Math.abs(m.vx); }
+    }
     m.facing = m.vx >= 0 ? 1 : -1;
     m.y = platY(plat, m.x) - 16;
     m.walkTimer++;
@@ -963,8 +993,25 @@ function tickDragon(s: L4State) {
   }
   const speed = 0.9 * s.diff.dragonSpeedMul;
   d.x += d.facing * speed;
-  if (d.x < leftLim) { d.x = leftLim; d.facing = 1; }
-  if (d.x > rightLim) { d.x = rightLim; d.facing = -1; }
+  // From iter 2+, dragon can wrap around screen edges if a same-row platform
+  // exists on the opposite side.
+  const WRAP_PAIRS: Record<number, number> = { 5: 9, 9: 5, 12: 14, 14: 12, 15: 18, 18: 15, 19: 21, 21: 19 };
+  const wrapPartner = (s.iter >= 2) ? WRAP_PAIRS[d.platIdx] : undefined;
+  if (wrapPartner !== undefined) {
+    if (d.x + DRAGON_W < 0) {
+      const np = L4_PLATFORMS[wrapPartner];
+      d.platIdx = wrapPartner; d.x = CANVAS_W - 2; d.y = np.y - DRAGON_H;
+    } else if (d.x > CANVAS_W) {
+      const np = L4_PLATFORMS[wrapPartner];
+      d.platIdx = wrapPartner; d.x = 2 - DRAGON_W; d.y = np.y - DRAGON_H;
+    } else {
+      if (d.x < -DRAGON_W) d.x = -DRAGON_W;
+      if (d.x > CANVAS_W) d.x = CANVAS_W;
+    }
+  } else {
+    if (d.x < leftLim) { d.x = leftLim; d.facing = 1; }
+    if (d.x > rightLim) { d.x = rightLim; d.facing = -1; }
+  }
   d.y = plat.y - DRAGON_H;
 
   d.jumpCooldown--;
