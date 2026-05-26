@@ -487,6 +487,7 @@ export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: 
   tickSprouts(s);
   tickMonkeys(s);
   tickMonkeyFireballs(s);
+  tickVolcanoFireballs(s);
   tickDragon(s);
   tickPlayer(s, input);
   tickCans(s);
