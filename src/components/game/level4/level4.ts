@@ -867,19 +867,30 @@ function tickDragon(s: L4State) {
       [15, 16], [16, 17], [17, 18],       // P2
       [21, 22], [22, 23],                 // P1
     ];
+    // Vertical "open-air" hops between adjacent rows (one row up/down, non-sprout columns).
+    // Dragon flies straight to the target platform's current center.
+    const VERT_PAIRS: [number, number][] = [
+      [7, 13],                            // tent_top ↔ P3 mover
+      [6, 13], [8, 13],                   // P4 movers ↔ P3 mover
+      [13, 16], [13, 17],                 // P3 mover ↔ P2 movers
+      [16, 21], [16, 22], [17, 22], [17, 23], // P2 ↔ P1
+    ];
     const options: { tgt: number; colX: number }[] = [];
     for (const sp of SPROUT_PAIRS) {
       if (sp.a === d.platIdx) options.push({ tgt: sp.b, colX: sp.col });
       else if (sp.b === d.platIdx) options.push({ tgt: sp.a, colX: sp.col });
     }
+    const pushNeighbor = (other: number) => {
+      const tp = L4_PLATFORMS[other];
+      options.push({ tgt: other, colX: (tp.x1 + tp.x2) / 2 });
+    };
     for (const [a, b] of HORIZ_PAIRS) {
-      if (a === d.platIdx) {
-        const tp = L4_PLATFORMS[b];
-        options.push({ tgt: b, colX: (tp.x1 + tp.x2) / 2 });
-      } else if (b === d.platIdx) {
-        const tp = L4_PLATFORMS[a];
-        options.push({ tgt: a, colX: (tp.x1 + tp.x2) / 2 });
-      }
+      if (a === d.platIdx) pushNeighbor(b);
+      else if (b === d.platIdx) pushNeighbor(a);
+    }
+    for (const [a, b] of VERT_PAIRS) {
+      if (a === d.platIdx) pushNeighbor(b);
+      else if (b === d.platIdx) pushNeighbor(a);
     }
     if (options.length > 0) {
       // Bias: chase caveman with P = 0.5 + 0.1*(iter-1), capped at 1.0.
