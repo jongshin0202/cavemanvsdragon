@@ -951,7 +951,14 @@ function tickDragon(s: L4State) {
     return;
   }
 
-  if (Math.random() < 0.02) d.facing = p.x < d.x ? -1 : 1;
+  // Re-pick facing toward the caveman, but only when he is clearly to one side
+  // (hysteresis deadband) to prevent left/right shaking when ~aligned vertically.
+  if (Math.random() < 0.02) {
+    const dx = (p.x + p.w / 2) - (d.x + DRAGON_W / 2);
+    if (dx < -24) d.facing = -1;
+    else if (dx > 24) d.facing = 1;
+    // else: keep current facing — avoid jitter when nearly aligned.
+  }
   const speed = 0.9 * s.diff.dragonSpeedMul;
   d.x += d.facing * speed;
   if (d.x < leftLim) { d.x = leftLim; d.facing = 1; }
