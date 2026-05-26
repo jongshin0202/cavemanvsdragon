@@ -575,15 +575,9 @@ function tickRocks(s: L4State) {
       case 'rollingTop': {
         r.x += r.vx;
         const top = L4_PLATFORMS[0];
-        const aOccupied = s.rockAtAIdx >= 0 && s.rockAtAIdx !== i;
-        // Drop straight down via L gap at point C when rolling rightward.
-        if (!aOccupied && r.vx > 0 && r.x >= C_X) {
-          r.x = C_X;
-          r.state = 'falling';
-          r.vy = 0; r.vx = 0;
-          break;
-        }
         // Off either edge → cascade down platforms.
+        // Right edge → falls onto ICE_TR and slides down.
+        // Left edge → cascades P55 → ice → P5_E_FLAT (rest at A).
         if (r.x > top.x2 + 2) {
           r.state = 'rollingDown';
           r.vx = 1.0; r.vy = 0;
