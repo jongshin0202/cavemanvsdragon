@@ -523,10 +523,11 @@ function tickRocks(s: L4State) {
     const round = 1 + (s.iter - 1) * 4;
     const d = getRoundDifficulty(round);
     s.spawnRockTimer = Math.round(d.barrelSpawnMin + Math.random() * d.barrelSpawnRange);
-    // Launch from K, arc up and LEFT toward point 3 (landing zone on princess top-left).
+    // Launch from K, arc up either LEFT or RIGHT across the princess-top platform.
+    const dir = Math.random() < 0.5 ? -1 : 1;
     s.rocks.push({
       x: VOLCANO_X, y: L4_PLATFORMS[0].y - 36,
-      vx: -2.2, vy: -3.4, r: 8,
+      vx: 2.2 * dir, vy: -3.4, r: 8,
       state: 'flying', platIdx: -1, age: 0,
     });
   }
@@ -544,7 +545,8 @@ function tickRocks(s: L4State) {
         if (r.vy > 0 && r.y + r.r >= top.y && r.x >= top.x1 && r.x <= top.x2) {
           r.y = top.y - r.r;
           r.vy = 0;
-          r.vx = 1.4; // roll RIGHT toward C
+          // Continue in the direction it was thrown — left or right.
+          r.vx = r.vx >= 0 ? 1.4 : -1.4;
           r.state = 'rollingTop';
           r.platIdx = 0;
         } else if (r.y > CANVAS_H + 30 || r.x < -30 || r.x > CANVAS_W + 30) {
@@ -556,21 +558,26 @@ function tickRocks(s: L4State) {
         r.x += r.vx;
         const top = L4_PLATFORMS[0];
         const aOccupied = s.rockAtAIdx >= 0 && s.rockAtAIdx !== i;
+        // Drop straight down via L gap at point C when rolling rightward.
         if (!aOccupied && r.vx > 0 && r.x >= C_X) {
-          // Drop straight down via L gap.
           r.x = C_X;
           r.state = 'falling';
           r.vy = 0; r.vx = 0;
           break;
         }
-        // Off right edge → cascade
+        // Off either edge → cascade down platforms.
         if (r.x > top.x2 + 2) {
           r.state = 'rollingDown';
           r.vx = 1.0; r.vy = 0;
           r.platIdx = -1;
           break;
         }
-        if (r.x < top.x1 - 2) { r.state = 'dead'; }
+        if (r.x < top.x1 - 2) {
+          r.state = 'rollingDown';
+          r.vx = -1.0; r.vy = 0;
+          r.platIdx = -1;
+          break;
+        }
         break;
       }
       case 'falling': {
