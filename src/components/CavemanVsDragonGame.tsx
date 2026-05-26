@@ -247,6 +247,7 @@ const CavemanVsDragonGame = () => {
   // Level intro overlay: 'level' shows "Level N" for 3s, then 'black' for 0.5s, then null.
   const [levelIntro, setLevelIntro] = useState<null | 'level' | 'black'>(null);
   const [levelIntroNumber, setLevelIntroNumber] = useState(1);
+  const [jumpLabel, setJumpLabel] = useState<'JUMP' | 'KICK'>('JUMP');
   const levelIntroTimersRef = useRef<number[]>([]);
   // Mirrors `levelIntro` so the rAF game loop (which doesn't see React state
   // directly) can pause physics/spawns/sounds while the "Level N" overlay is
