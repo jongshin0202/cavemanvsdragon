@@ -1251,7 +1251,10 @@ function tickPlayer(s: L4State, input: L4Input) {
     }
   }
 
-  if (nearSprout && (input.up || input.down) && !p.climbing) {
+  // Only latch onto a sprout when the player is grounded (not mid-jump).
+  // Jumping through a sprout column (e.g. to kill a monkey on the other side)
+  // must complete the jump instead of snapping onto the ladder.
+  if (nearSprout && (input.up || input.down) && !p.climbing && p.onGround && !p.jumping) {
     const topReach = nearSprout.yBot - (nearSprout.yBot - nearSprout.yTop) * nearSprout.growProgress;
     const atTop = Math.abs((p.y + p.h) - topReach) < 4;
     const atBot = Math.abs((p.y + p.h) - nearSprout.yBot) < 4;
@@ -1261,6 +1264,7 @@ function tickPlayer(s: L4State, input: L4Input) {
       p.vy = 0;
     }
   }
+
 
   if (p.climbing) {
     if (!nearSprout) p.climbing = false;
@@ -1391,12 +1395,15 @@ function tickPlayer(s: L4State, input: L4Input) {
   p.vy += GRAVITY;
   p.x += p.vx + carriedVx;
   p.y += p.vy;
-  // Screen wrap: left edge <-> right edge at same platform level
-  if (p.x < 0) {
-    p.x = CANVAS_W - p.w;
-  } else if (p.x > CANVAS_W - p.w) {
-    p.x = 1;
+  // Screen wrap: leaving the left edge re-enters from the right at the same
+  // height + velocity, and vice versa. Works mid-jump too, so the caveman can
+  // complete the arc and stomp monkeys on the opposite side of the screen.
+  if (p.x + p.w < 0) {
+    p.x += CANVAS_W + p.w;
+  } else if (p.x > CANVAS_W) {
+    p.x -= CANVAS_W + p.w;
   }
+
 
   // Platform collisions — while jumping, allow landing on any platform on the same row
   // as the jump-start platform (so the caveman can hop onto adjacent moving platforms).
