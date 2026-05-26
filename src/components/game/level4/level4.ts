@@ -726,7 +726,7 @@ function tickDragon(s: L4State) {
     dd.flapAudio = (dd.flapAudio ?? 0) + 1;
     if (dd.flapAudio >= 14) {
       dd.flapAudio = 0;
-
+      playWingFlapSound();
     }
   } else {
     dd.flapAudio = 0;
