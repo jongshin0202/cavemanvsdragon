@@ -836,16 +836,19 @@ function tickDragon(s: L4State) {
 
   d.jumpCooldown--;
   if (d.jumpCooldown <= 0) {
-    // Pick a sprout column whose x lies within current plat, then pick a target
-    // platform on that column (different from current).
-    const colsHere = SPROUT_COLS.filter(cx => cx >= plat.x1 && cx <= plat.x2);
+    // Sprout pairs only: each sprout connects exactly two adjacent platforms.
+    // Dragon may fly along a sprout if his current platform is one endpoint.
+    const SPROUT_PAIRS: { col: number; a: number; b: number }[] = [
+      { col: D_X,  a: D_TOP_PLAT_IDX,  b: D_BASE_PLAT_IDX  }, // 2 ↔ 5
+      { col: E_X,  a: E_TOP_PLAT_IDX,  b: E_BASE_PLAT_IDX  }, // 0 ↔ 4
+      { col: H1_X, a: H1_TOP_IDX,      b: H1_BOT_IDX        }, // 18 ↔ 23
+      { col: H2_X, a: H2_TOP_IDX,      b: H2_BOT_IDX        }, // 12 ↔ 15
+      { col: H3_X, a: H3_TOP_IDX,      b: H3_BOT_IDX        }, // 9 ↔ 14
+    ];
     const options: { tgt: number; colX: number }[] = [];
-    for (const cx of colsHere) {
-      for (const i of reachable) {
-        if (i === d.platIdx) continue;
-        const op = L4_PLATFORMS[i];
-        if (cx >= op.x1 && cx <= op.x2) options.push({ tgt: i, colX: cx });
-      }
+    for (const sp of SPROUT_PAIRS) {
+      if (sp.a === d.platIdx) options.push({ tgt: sp.b, colX: sp.col });
+      else if (sp.b === d.platIdx) options.push({ tgt: sp.a, colX: sp.col });
     }
     if (options.length > 0) {
       const pick = options[Math.floor(Math.random() * options.length)];
