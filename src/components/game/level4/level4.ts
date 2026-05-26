@@ -1758,6 +1758,20 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     ctx.restore();
   }
 
+  // Volcano fireballs — red-hot lava rocks
+  for (const fb of s.volcanoFireballs) {
+    if (fb.landed) continue;
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,80,20,0.35)';
+    ctx.beginPath(); ctx.arc(fb.x, fb.y, fb.radius + 4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#d63a0f';
+    ctx.beginPath(); ctx.arc(fb.x, fb.y, fb.radius, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffae3a';
+    ctx.beginPath(); ctx.arc(fb.x - 1, fb.y - 1, fb.radius * 0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+
   // Player
   const p = s.player;
   const blink = s.dying ? Math.floor(s.deathTimer / 18) % 2 !== 0 : (s.invuln > 0 && (s.invuln % 8 < 4));
