@@ -1034,13 +1034,24 @@ function tickPlayer(s: L4State, input: L4Input) {
   if (matches.length > 0) {
     nearSprout = matches[matches.length - 1];
     if (matches.length > 1) {
-      if (input.up) {
-        const pref = matches.find(sp => Math.abs((p.y + p.h) - sp.yBot) < 6);
+      const foot = p.y + p.h;
+      // Strict containment first: prefer a sprout whose vertical range
+      // actually contains the player's foot (mid-climb case).
+      const contains = matches.find(sp => {
+        const tr = sp.yBot - (sp.yBot - sp.yTop) * sp.growProgress;
+        return foot > tr + 2 && foot < sp.yBot - 2;
+      });
+      if (contains) {
+        nearSprout = contains;
+      } else if (input.up) {
+        // At a junction pressing up → pick the sprout whose BOTTOM is here.
+        const pref = matches.find(sp => Math.abs(foot - sp.yBot) < 6);
         if (pref) nearSprout = pref;
       } else if (input.down) {
+        // At a junction pressing down → pick the sprout whose TOP is here.
         const pref = matches.find(sp => {
           const tr = sp.yBot - (sp.yBot - sp.yTop) * sp.growProgress;
-          return Math.abs((p.y + p.h) - tr) < 6;
+          return Math.abs(foot - tr) < 6;
         });
         if (pref) nearSprout = pref;
       }
