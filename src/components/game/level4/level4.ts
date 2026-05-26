@@ -1228,6 +1228,20 @@ function tickCollisions(s: L4State) {
   }
 }
 
+function dragonHopUpAfterKill(s: L4State) {
+  const d = s.dragon;
+  if (d.state !== 'roam' || d.airborne) return;
+  // Only when dragon is on the bottom-left platform (P1_LEFT = 21).
+  if (d.platIdx !== 21) return;
+  // Fly up the H5 sprout column to P2_LEFT (15).
+  d.targetPlatIdx = 15;
+  (d as Dragon & { flyColX?: number }).flyColX = H5_X;
+  d.airborne = true;
+  d.vx = 0; d.vy = 0;
+  d.fireTimer = 0;
+  d.jumpCooldown = 60;
+}
+
 function loseLife(s: L4State) {
   if (s.dying) return;
   s.dying = true;
