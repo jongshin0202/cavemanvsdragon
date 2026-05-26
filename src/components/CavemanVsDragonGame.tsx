@@ -1092,9 +1092,11 @@ const CavemanVsDragonGame = () => {
         const pl = s4.player;
         const rIdx = s4.rockAtAIdx;
         const nextLabel: 'JUMP' | 'KICK' = (
-          rIdx >= 0 && pl.onGround && pl.groundPlatIdx === 4 &&
-          s4.rocks[rIdx] && Math.abs((pl.x + pl.w / 2) - s4.rocks[rIdx].x) < 22
+          (pl.kickTimer && pl.kickTimer > 0) ||
+          (rIdx >= 0 && pl.onGround && pl.groundPlatIdx === 4 &&
+           s4.rocks[rIdx] && Math.abs((pl.x + pl.w / 2) - s4.rocks[rIdx].x) < 22)
         ) ? 'KICK' : 'JUMP';
+
         setJumpLabel(prev => prev === nextLabel ? prev : nextLabel);
         return;
       }
