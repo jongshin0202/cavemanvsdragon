@@ -758,7 +758,7 @@ function tickDragon(s: L4State) {
       d.y += (dy / dist) * speed;
       d.facing = dx >= 0 ? 1 : -1;
       // Speed up wing flapping during flight
-      if (d.frameTimer >= 4) {
+      if (d.frameTimer >= 8) {
         d.frameTimer = 0;
         d.frame = (d.frame + 1) % DRAGON_FRAMES;
         if (d.frame === 0) playWingFlapSound();
@@ -801,7 +801,7 @@ function tickDragon(s: L4State) {
       d.y += (dy / dist) * flySpeed;
       d.facing = dx >= 0 ? 1 : -1;
       // Faster wing flap + flap sound on each cycle while flying.
-      if (d.frameTimer >= 4) {
+      if (d.frameTimer >= 8) {
         d.frameTimer = 0;
         d.frame = (d.frame + 1) % DRAGON_FRAMES;
         if (d.frame === 0) playWingFlapSound();
