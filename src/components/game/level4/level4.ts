@@ -523,10 +523,11 @@ function tickRocks(s: L4State) {
     const round = 1 + (s.iter - 1) * 4;
     const d = getRoundDifficulty(round);
     s.spawnRockTimer = Math.round(d.barrelSpawnMin + Math.random() * d.barrelSpawnRange);
-    // Launch from K, arc up and LEFT toward point 3 (landing zone on princess top-left).
+    // Launch from K, arc up either LEFT or RIGHT across the princess-top platform.
+    const dir = Math.random() < 0.5 ? -1 : 1;
     s.rocks.push({
       x: VOLCANO_X, y: L4_PLATFORMS[0].y - 36,
-      vx: -2.2, vy: -3.4, r: 8,
+      vx: 2.2 * dir, vy: -3.4, r: 8,
       state: 'flying', platIdx: -1, age: 0,
     });
   }
