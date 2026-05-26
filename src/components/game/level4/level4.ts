@@ -738,6 +738,12 @@ function respawnMonkeyWave(s: L4State) {
 }
 
 // ── Dragon ──────────────────────────────────────────────────
+function getFireRect(d: Dragon) {
+  const mouthY = d.y + DRAGON_H * 0.45;
+  const x = d.facing >= 0 ? d.x + DRAGON_W - 4 : d.x + 4 - FIRE_LEN;
+  return { x, y: mouthY - FIRE_H / 2, w: FIRE_LEN, h: FIRE_H };
+}
+
 function tickDragon(s: L4State) {
   const d = s.dragon;
   d.frameTimer++;
