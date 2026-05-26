@@ -634,8 +634,8 @@ function tickRocks(s: L4State) {
             r.y = py - r.r;
             r.vy = 0;
             r.platIdx = pi;
-            // Rest at point A when landing on P5_E_FLAT and A is free.
-            if (pi === A_PLAT_IDX && s.rockAtAIdx < 0) {
+            // Rest at point A when landing on P5_E_FLAT and A is free (but kicked rocks skip A).
+            if (pi === A_PLAT_IDX && s.rockAtAIdx < 0 && !r.kicked) {
               r.x = A_X;
               r.vx = 0;
               r.state = 'restingAtA';
@@ -1124,13 +1124,14 @@ function tickPlayer(s: L4State, input: L4Input) {
       const rock = s.rocks[s.rockAtAIdx];
       const cx = p.x + p.w / 2;
       if (Math.abs(cx - rock.x) < 22) {
-        rock.state = 'falling';
-        rock.vy = 0.5;
+        rock.state = 'rollingDown';
+        rock.vy = 0;
         rock.vx = (p.facing || 1) * 1.6;
         rock.hitConsumed = false;
         rock.kicked = true;
         s.rockAtAIdx = -1;
         p.kickTimer = 18;
+        s.invuln = Math.max(s.invuln, 20);
       } else {
         playJumpSound();
         p.vy = JUMP_FORCE;
