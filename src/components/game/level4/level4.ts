@@ -1251,7 +1251,10 @@ function tickPlayer(s: L4State, input: L4Input) {
     }
   }
 
-  if (nearSprout && (input.up || input.down) && !p.climbing) {
+  // Only latch onto a sprout when the player is grounded (not mid-jump).
+  // Jumping through a sprout column (e.g. to kill a monkey on the other side)
+  // must complete the jump instead of snapping onto the ladder.
+  if (nearSprout && (input.up || input.down) && !p.climbing && p.onGround && !p.jumping) {
     const topReach = nearSprout.yBot - (nearSprout.yBot - nearSprout.yTop) * nearSprout.growProgress;
     const atTop = Math.abs((p.y + p.h) - topReach) < 4;
     const atBot = Math.abs((p.y + p.h) - nearSprout.yBot) < 4;
@@ -1261,6 +1264,7 @@ function tickPlayer(s: L4State, input: L4Input) {
       p.vy = 0;
     }
   }
+
 
   if (p.climbing) {
     if (!nearSprout) p.climbing = false;
