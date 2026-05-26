@@ -790,7 +790,7 @@ function tickDragon(s: L4State) {
 
   // Dragon FLIES only along sprout columns (D, E, H1, H2, H3) — even when sprouts
   // are not grown. Within the same platform he walks horizontally.
-  const flySpeed_unused = 0; void flySpeed_unused;
+  
   const flySpeed = 1.4 * s.diff.dragonSpeedMul;
 
   if (d.airborne) {
