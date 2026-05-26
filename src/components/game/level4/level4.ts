@@ -740,10 +740,10 @@ function tickSprouts(s: L4State) {
   autoRegrow(s.sproutH1);
   autoRegrow(s.sproutH2);
   autoRegrow(s.sproutH3);
-  // H4 does NOT auto-regrow — it requires watering with the green can (like D).
+  autoRegrow(s.sproutH4);
   autoRegrow(s.sproutH5);
   autoRegrow(s.sproutH6);
-  autoRegrow(s.sproutH7);
+  // H7 does NOT auto-regrow — shares column with D (green-can sprout).
   tickOneSprout(s.sproutH1);
   tickOneSprout(s.sproutH2);
   tickOneSprout(s.sproutH3);
