@@ -424,6 +424,7 @@ export function initLevel4(iter: number): L4State {
     sproutH4: mkSprout(H4_X, H4_TOP_IDX, H4_BOT_IDX),
     sproutH5: mkSprout(H5_X, H5_TOP_IDX, H5_BOT_IDX),
     sproutH6: mkSprout(H6_X, H6_TOP_IDX, H6_BOT_IDX),
+    sproutH7: mkSprout(H7_X, H7_TOP_IDX, H7_BOT_IDX),
     greenCan: null,
     purpleCan: null,
     carrying: null,
