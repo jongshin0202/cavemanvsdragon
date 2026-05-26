@@ -1017,7 +1017,7 @@ function tickPlayer(s: L4State, input: L4Input) {
   // the player's intent: input.up → sprout whose BOTTOM is here; input.down →
   // sprout whose TOP is here.
   let nearSprout: Sprout | null = null;
-  const sproutList = [s.sproutD, s.sproutE, s.sproutH1, s.sproutH2, s.sproutH3, s.sproutH4, s.sproutH5, s.sproutH6];
+  const sproutList = [s.sproutD, s.sproutE, s.sproutH1, s.sproutH2, s.sproutH3, s.sproutH4, s.sproutH5, s.sproutH6, s.sproutH7];
   const matches: Sprout[] = [];
   for (const sp of sproutList) {
     if (sp.growProgress < 0.6) continue;
