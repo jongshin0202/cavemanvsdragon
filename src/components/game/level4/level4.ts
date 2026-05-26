@@ -1144,17 +1144,24 @@ function tickDragon(s: L4State) {
       else if (b === d.platIdx) pushNeighbor(a);
     }
     if (options.length > 0) {
+      // Bias: stay on P4 row (dragon's home band where caveman stomps) with
+      // P = 0.9 at iter 1, decreasing 0.05/iter, floor 0.5.
+      const P4_ROW = new Set([5, 6, 7, 8, 9]);
+      const stayProb = Math.max(0.5, 0.9 - 0.05 * Math.max(0, s.iter - 1));
+      const p4Options = options.filter(o => P4_ROW.has(o.tgt));
+      let pool = options;
+      if (p4Options.length > 0 && Math.random() < stayProb) pool = p4Options;
       // Bias: chase caveman with P = 0.5 + 0.1*(iter-1), capped at 1.0.
       const chaseProb = Math.min(1, 0.5 + 0.1 * Math.max(0, s.iter - 1));
       const pc = s.player;
       const dragonCx = d.x + DRAGON_W / 2;
       const dragonCy = d.y + DRAGON_H / 2;
       const curDist = Math.hypot((pc.x + pc.w / 2) - dragonCx, (pc.y + pc.h / 2) - dragonCy);
-      let pick = options[Math.floor(Math.random() * options.length)];
+      let pick = pool[Math.floor(Math.random() * pool.length)];
       if (Math.random() < chaseProb) {
         // Pick the option whose target platform brings dragon closest to caveman.
         let best = pick; let bestDist = Infinity;
-        for (const o of options) {
+        for (const o of pool) {
           const tp = L4_PLATFORMS[o.tgt];
           const tx = Math.max(tp.x1, Math.min(tp.x2 - DRAGON_W, o.colX - DRAGON_W / 2)) + DRAGON_W / 2;
           const ty = tp.y - DRAGON_H / 2;
