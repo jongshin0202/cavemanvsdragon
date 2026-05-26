@@ -1493,6 +1493,18 @@ function tickCans(s: L4State) {
       s.carrying = null;
     }
   }
+  // Auto-water E when caveman stands on E base carrying purple can.
+  if (s.carrying === 'purple' && p.onGround && p.groundPlatIdx === E_BASE_PLAT_IDX) {
+    const cx = p.x + p.w / 2;
+    if (Math.abs(cx - E_X) < 22) {
+      if (s.sproutE.phase === 'seed') { s.sproutE.phase = 'growing'; s.sproutE.growProgress = 0; }
+      s.sproutE.growProgress = Math.min(1, s.sproutE.growProgress + s.eGrowChunk);
+      if (s.sproutE.growProgress >= 1) s.sproutE.phase = 'alive';
+      s.carrying = null;
+      s.sproutD.phase = 'withering';
+      if (s.dragon.hits < s.diff.hitsToKill) respawnMonkeyWave(s);
+    }
+  }
 }
 
 // ── Collisions ──────────────────────────────────────────────
