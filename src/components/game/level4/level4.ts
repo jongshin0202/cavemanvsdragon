@@ -769,24 +769,31 @@ function tickDragon(s: L4State) {
     return;
   }
 
-  // Dragon roams P4 statics: TENT_TOP, P4_RIGHT.
-  const reachable = [7, 9];
+  // Dragon FLIES freely across all P3/P4 statics — passes through platforms,
+  // crosses gaps, and can descend via sprout columns (D, E, H1-H3).
+  const reachable = [5, 7, 9, 12, 14]; // P4_LEFT_D, P4_TENT_TOP, P4_RIGHT, P3_LEFT, P3_RIGHT
+  const flySpeed = 1.4 * s.diff.dragonSpeedMul;
+
   if (d.airborne) {
-    d.vy += GRAVITY;
-    d.x += d.vx;
-    d.y += d.vy;
-    d.x = Math.max(4, Math.min(CANVAS_W - DRAGON_W - 4, d.x));
+    // Glide toward target platform center (no gravity — through-platform flight).
     const tp = L4_PLATFORMS[d.targetPlatIdx];
-    if (d.vy >= 0 && d.y + DRAGON_H >= tp.y && d.x + DRAGON_W > tp.x1 && d.x < tp.x2) {
-      d.y = tp.y - DRAGON_H;
-      d.vy = 0; d.vx = 0;
+    const tgtX = (tp.x1 + tp.x2) / 2 - DRAGON_W / 2;
+    const tgtY = tp.y - DRAGON_H;
+    const dx = tgtX - d.x;
+    const dy = tgtY - d.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < flySpeed) {
+      d.x = tgtX; d.y = tgtY;
+      d.vx = 0; d.vy = 0;
       d.airborne = false;
       d.platIdx = d.targetPlatIdx;
-      d.jumpCooldown = 60 + Math.floor(Math.random() * 90);
-    } else if (d.y > CANVAS_H + 40) {
-      d.y = L4_PLATFORMS[7].y - DRAGON_H;
-      d.x = (L4_PLATFORMS[7].x1 + L4_PLATFORMS[7].x2) / 2 - DRAGON_W / 2;
-      d.platIdx = 7; d.airborne = false; d.vy = 0;
+      d.jumpCooldown = 50 + Math.floor(Math.random() * 70);
+    } else {
+      d.x += (dx / dist) * flySpeed;
+      d.y += (dy / dist) * flySpeed;
+      d.facing = dx >= 0 ? 1 : -1;
+      // Faster wing flap while flying
+      if (d.frameTimer >= 4) { d.frameTimer = 0; d.frame = (d.frame + 1) % DRAGON_FRAMES; }
     }
     return;
   }
@@ -806,14 +813,9 @@ function tickDragon(s: L4State) {
   if (d.jumpCooldown <= 0) {
     const choices = reachable.filter(i => i !== d.platIdx);
     const tgt = choices[Math.floor(Math.random() * choices.length)];
-    const tp = L4_PLATFORMS[tgt];
-    const tcx = (tp.x1 + tp.x2) / 2;
-    const dx = tcx - (d.x + DRAGON_W / 2);
-    const dy = tp.y - (d.y + DRAGON_H);
     d.targetPlatIdx = tgt;
     d.airborne = true;
-    d.vy = dy < 0 ? -7.5 : -4.5;
-    d.vx = Math.max(-3, Math.min(3, dx / 40));
+    d.vx = 0; d.vy = 0;
   }
 }
 
@@ -1371,7 +1373,7 @@ function drawDragon(ctx: CanvasRenderingContext2D, sprites: L4Sprites, d: Dragon
   if (d.state === 'dying') ctx.globalAlpha = 0.5;
 
   // Flapping wings overlay during intro flight
-  if (d.state === 'intro') {
+  if (d.state === 'intro' || (d.state === 'roam' && d.airborne)) {
     const cx = d.x + DRAGON_W / 2;
     const cy = d.y + DRAGON_H * 0.45;
     // Wing angle oscillates with frame for flap effect
