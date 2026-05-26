@@ -835,8 +835,7 @@ function tickDragon(s: L4State) {
 
   d.jumpCooldown--;
   if (d.jumpCooldown <= 0) {
-    // Sprout pairs only: each sprout connects exactly two adjacent platforms.
-    // Dragon may fly along a sprout if his current platform is one endpoint.
+    // Sprout pairs: dragon flies along sprout column between the two endpoints.
     const SPROUT_PAIRS: { col: number; a: number; b: number }[] = [
       { col: D_X,  a: D_TOP_PLAT_IDX,  b: D_BASE_PLAT_IDX  }, // 2 ↔ 5
       { col: E_X,  a: E_TOP_PLAT_IDX,  b: E_BASE_PLAT_IDX  }, // 0 ↔ 4
@@ -844,10 +843,26 @@ function tickDragon(s: L4State) {
       { col: H2_X, a: H2_TOP_IDX,      b: H2_BOT_IDX        }, // 12 ↔ 15
       { col: H3_X, a: H3_TOP_IDX,      b: H3_BOT_IDX        }, // 9 ↔ 14
     ];
+    // Horizontal neighbors on the same row — one platform at a time (static or moving).
+    const HORIZ_PAIRS: [number, number][] = [
+      [5, 6], [6, 7], [7, 8], [8, 9],     // P4
+      [12, 13], [13, 14],                 // P3
+      [15, 16], [16, 17], [17, 18],       // P2
+      [21, 22], [22, 23],                 // P1
+    ];
     const options: { tgt: number; colX: number }[] = [];
     for (const sp of SPROUT_PAIRS) {
       if (sp.a === d.platIdx) options.push({ tgt: sp.b, colX: sp.col });
       else if (sp.b === d.platIdx) options.push({ tgt: sp.a, colX: sp.col });
+    }
+    for (const [a, b] of HORIZ_PAIRS) {
+      if (a === d.platIdx) {
+        const tp = L4_PLATFORMS[b];
+        options.push({ tgt: b, colX: (tp.x1 + tp.x2) / 2 });
+      } else if (b === d.platIdx) {
+        const tp = L4_PLATFORMS[a];
+        options.push({ tgt: a, colX: (tp.x1 + tp.x2) / 2 });
+      }
     }
     if (options.length > 0) {
       const pick = options[Math.floor(Math.random() * options.length)];
