@@ -1452,6 +1452,7 @@ function tickCans(s: L4State) {
       c.vy = (c.vy ?? 0) + GRAVITY;
       c.x += (c.vx ?? 0);
       c.y += (c.vy ?? 0);
+      c.spin = (c.spin ?? 0) + 0.35;
       const ti = c.riderPlatIdx ?? -1;
       if (ti >= 0) {
         const pl = L4_PLATFORMS[ti];
@@ -1459,7 +1460,7 @@ function tickCans(s: L4State) {
         if (c.vy >= 0 && c.y >= landY) {
           c.y = landY;
           c.flying = false;
-          c.vx = 0; c.vy = 0;
+          c.vx = 0; c.vy = 0; c.spin = 0;
         }
       }
     } else if ((c.riderPlatIdx ?? -1) >= 0) {
