@@ -741,6 +741,7 @@ function tickSprouts(s: L4State) {
   tickOneSprout(s.sproutH4);
   tickOneSprout(s.sproutH5);
   tickOneSprout(s.sproutH6);
+  tickOneSprout(s.sproutH7);
 }
 
 // ── Monkeys ─────────────────────────────────────────────────
