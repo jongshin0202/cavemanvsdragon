@@ -314,17 +314,25 @@ function mkSprout(x: number, topIdx: number, botIdx: number, opts: { purple?: bo
   };
 }
 
-function buildMonkeyDistribution(iter: number): number[] {
+function buildMonkeyDistribution(iter: number, excludeSpawn: boolean = false): number[] {
   // L1-style: round-robin onto platform with current min count, cap per-plat=5, total cap=20.
   const counts = new Array<number>(MONKEY_PLAT_ANCHORS.length).fill(0);
+  // Caveman spawn platform (P1_LEFT = 21) — never seed monkeys here at level start.
+  const blocked = new Set<number>();
+  if (excludeSpawn) {
+    const i21 = MONKEY_PLAT_ANCHORS.indexOf(21);
+    if (i21 >= 0) blocked.add(i21);
+  }
   const total = Math.min(MONKEY_TOTAL_CAP, LEVEL4_PARAMS.MONKEYS_BASE + Math.max(0, iter - 1));
   for (let i = 0; i < total; i++) {
     let min = Infinity;
     for (let j = 0; j < counts.length; j++) {
+      if (blocked.has(j)) continue;
       if (counts[j] < MONKEY_PER_PLAT_CAP && counts[j] < min) min = counts[j];
     }
     const cand: number[] = [];
     for (let j = 0; j < counts.length; j++) {
+      if (blocked.has(j)) continue;
       if (counts[j] === min && counts[j] < MONKEY_PER_PLAT_CAP) cand.push(j);
     }
     if (!cand.length) break;
@@ -390,7 +398,7 @@ export function initLevel4(iter: number): L4State {
   };
 
   // Monkeys via L1-style distribution.
-  const dist = buildMonkeyDistribution(iter);
+  const dist = buildMonkeyDistribution(iter, true);
   const monkeys: Monkey[] = [];
   for (let i = 0; i < dist.length; i++) {
     for (let k = 0; k < dist[i]; k++) monkeys.push(makeMonkey(MONKEY_PLAT_ANCHORS[i]));
