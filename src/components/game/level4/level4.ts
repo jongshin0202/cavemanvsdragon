@@ -1443,8 +1443,36 @@ function tickPlayer(s: L4State, input: L4Input) {
 // ── Cans ────────────────────────────────────────────────────
 function tickCans(s: L4State) {
   const p = s.player;
+  // Update flying/landed state for each can.
+  const updateCan = (c: Can | null) => {
+    if (!c || c.picked) return;
+    if (c.flying) {
+      c.vy = (c.vy ?? 0) + GRAVITY;
+      c.x += (c.vx ?? 0);
+      c.y += (c.vy ?? 0);
+      const ti = c.riderPlatIdx ?? -1;
+      if (ti >= 0) {
+        const pl = L4_PLATFORMS[ti];
+        const landY = platY(pl, pl.x1 + (c.riderOffset ?? 0)) - 14;
+        if (c.vy >= 0 && c.y >= landY) {
+          c.y = landY;
+          c.flying = false;
+          c.vx = 0; c.vy = 0;
+        }
+      }
+    } else if ((c.riderPlatIdx ?? -1) >= 0) {
+      // Ride moving platforms.
+      const pl = L4_PLATFORMS[c.riderPlatIdx!];
+      const baseX = pl.x1 + (c.riderOffset ?? 0);
+      c.x = baseX;
+      c.y = platY(pl, baseX) - 14;
+    }
+  };
+  updateCan(s.greenCan);
+  updateCan(s.purpleCan);
+
   const pickup = (c: Can | null): boolean => {
-    if (!c || c.picked || s.carrying) return false;
+    if (!c || c.picked || s.carrying || c.flying) return false;
     if (Math.abs((p.x + p.w / 2) - (c.x + 7)) < 16 && Math.abs((p.y + p.h) - (c.y + 14)) < 22) {
       c.picked = true;
       s.carrying = c.color;
