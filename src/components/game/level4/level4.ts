@@ -641,12 +641,17 @@ function tickRocks(s: L4State) {
             r.vy = 0;
             const prevPlat = r.platIdx;
             r.platIdx = pi;
-            // Rest at point A when landing on P5_E_FLAT and A is free (but kicked rocks skip A).
+            // On P5_E_FLAT, keep rolling to the RIGHT edge, then rest there
+            // (waiting for caveman kick). Avoids the mid-platform snap jitter.
             if (pi === A_PLAT_IDX && s.rockAtAIdx < 0 && !r.kicked) {
-              r.x = A_X;
-              r.vx = 0;
-              r.state = 'restingAtA';
-              s.rockAtAIdx = i;
+              const restX = pl.x2 - r.r;
+              if (r.vx <= 0) r.vx = 1.4;
+              if (r.x >= restX) {
+                r.x = restX;
+                r.vx = 0;
+                r.state = 'restingAtA';
+                s.rockAtAIdx = i;
+              }
               break;
             }
             if (r.vx === 0) r.vx = Math.random() < 0.5 ? -1 : 1;
