@@ -127,7 +127,7 @@ L4_PLATFORMS[17].moving = { min: 240, max: 348, speed: -rmag(0.6, 1.2), pairIdx:
 L4_PLATFORMS[22].moving = { min: 188, max: 318, speed: rsp(0.5, 1.0) };
 
 // Named anchors
-const PRINCESS_X = 380;
+const PRINCESS_X = 220;
 const PRINCESS_Y = L4_PLATFORMS[0].y - 48;
 const VOLCANO_X  = 340;
 const C_X = 270;   // rock decision point on P6 (above E)
