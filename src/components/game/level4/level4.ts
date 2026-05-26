@@ -929,6 +929,7 @@ function tickPlayer(s: L4State, input: L4Input) {
         rock.vy = 0.5;
         rock.vx = 0;
         rock.hitConsumed = false;
+        rock.kicked = true;
         s.rockAtAIdx = -1;
         p.kickTimer = 18;
       } else {
