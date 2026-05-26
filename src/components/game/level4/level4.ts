@@ -104,9 +104,9 @@ export const L4_PLATFORMS: L4Platform[] = [
 
 
   // ── P1 (y=445) ── left | mover | right (H1 ladder right)
-  /* 21 P1_LEFT          */ { y: 445, x1: 0,   x2: 175 },
-  /* 22 P1_MOVER         */ { y: 445, x1: 220, x2: 280 },
-  /* 23 P1_RIGHT         */ { y: 445, x1: 370, x2: 512 },
+  /* 19 P1_LEFT          */ { y: 445, x1: 0,   x2: 175 },
+  /* 20 P1_MOVER         */ { y: 445, x1: 220, x2: 280 },
+  /* 21 P1_RIGHT         */ { y: 445, x1: 370, x2: 512 },
 ];
 
 function rsp(lo: number, hi: number): number {
