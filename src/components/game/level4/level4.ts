@@ -224,7 +224,15 @@ interface Dragon {
   dyingTimer: number;
   hits: number;
   frame: number; frameTimer: number;
+  fireTimer: number;     // frames remaining of active fire
+  fireCooldown: number;  // frames until can breathe fire again (only ticks on ground)
 }
+
+// Fire breath constants
+const FIRE_DURATION = 30;   // 0.5s @ 60fps
+const FIRE_COOLDOWN = 180;  // 3s @ 60fps
+const FIRE_LEN = CANVAS_W * 0.25;
+const FIRE_H = 18;
 
 interface Monkey {
   alive: boolean;
