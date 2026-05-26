@@ -720,6 +720,19 @@ function tickDragon(s: L4State) {
   d.frameTimer++;
   if (d.frameTimer >= 8) { d.frameTimer = 0; d.frame = (d.frame + 1) % DRAGON_FRAMES; }
 
+  // Wing-flap audio cadence — flap flap flap while airborne (every ~14 frames ≈ 0.23s).
+  const dd = d as Dragon & { flapAudio?: number };
+  if ((d.state === 'intro' || (d.state === 'roam' && d.airborne))) {
+    dd.flapAudio = (dd.flapAudio ?? 0) + 1;
+    if (dd.flapAudio >= 14) {
+      dd.flapAudio = 0;
+      playWingFlapSound();
+    }
+  } else {
+    dd.flapAudio = 0;
+  }
+
+
   if (d.state === 'dead') return;
   if (d.state === 'dying') {
     d.dyingTimer--;
