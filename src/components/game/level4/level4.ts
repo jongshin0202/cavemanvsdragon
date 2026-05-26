@@ -882,6 +882,13 @@ function tickDragon(s: L4State) {
   const leftLim = plat.x1 + 2;
   const rightLim = plat.x2 - DRAGON_W - 2;
   const p = s.player;
+
+  // While breathing fire, dragon stops moving and does not take off.
+  if (d.fireTimer > 0) {
+    d.y = plat.y - DRAGON_H;
+    return;
+  }
+
   if (Math.random() < 0.02) d.facing = p.x < d.x ? -1 : 1;
   const speed = 0.9 * s.diff.dragonSpeedMul;
   d.x += d.facing * speed;
@@ -1608,28 +1615,63 @@ function drawDragon(ctx: CanvasRenderingContext2D, sprites: L4Sprites, d: Dragon
   }
   ctx.restore();
 
-  // Fire breath — originates at dragon's mouth, sweeps down to ground level.
+  // Fire breath — flickering layered flame from mouth, fanning down to ground.
   if (d.fireTimer > 0 && d.state === 'roam' && !d.airborne) {
     const fr = getFireRect(d);
-    const mouthY = d.y + DRAGON_H * 0.35;
-    const mouthX = d.facing >= 0 ? d.x + DRAGON_W - 8 : d.x + 8;
+    const mouthY = d.y + DRAGON_H * 0.38;
+    const mouthX = d.facing >= 0 ? d.x + DRAGON_W - 10 : d.x + 10;
     const tipX = d.facing >= 0 ? fr.x + fr.w : fr.x;
     const groundY = fr.y + fr.h;
+    const dir = d.facing >= 0 ? 1 : -1;
+    const span = Math.abs(tipX - mouthX);
+    const t = d.fireTimer / FIRE_DURATION; // 1 → 0
+    const reach = 0.35 + 0.65 * (1 - Math.abs(t - 0.5) * 2); // ramp up then down
+
     ctx.save();
-    const grad = ctx.createLinearGradient(mouthX, mouthY, tipX, groundY);
-    grad.addColorStop(0, 'rgba(255,240,120,0.95)');
-    grad.addColorStop(0.5, 'rgba(255,140,30,0.85)');
-    grad.addColorStop(1, 'rgba(220,40,20,0)');
-    ctx.fillStyle = grad;
-    const wob = Math.sin(d.frame * 0.8) * 3;
-    // Flame teardrop from mouth (narrow) to ground tip (wide).
-    ctx.beginPath();
-    ctx.moveTo(mouthX, mouthY - 4);
-    ctx.quadraticCurveTo((mouthX + tipX) / 2, mouthY + wob - 6, tipX, groundY - 6);
-    ctx.lineTo(tipX, groundY);
-    ctx.quadraticCurveTo((mouthX + tipX) / 2, groundY + 2 - wob, mouthX, mouthY + 4);
-    ctx.closePath();
-    ctx.fill();
+    ctx.globalCompositeOperation = 'lighter';
+
+    // Layered overlapping puffs along the flame path.
+    const PUFFS = 14;
+    for (let i = 0; i < PUFFS; i++) {
+      const u = (i + 1) / PUFFS;
+      if (u > reach) break;
+      // Position interpolates from mouth toward tip horizontally, curving down to ground.
+      const px = mouthX + dir * span * u;
+      const curve = Math.pow(u, 1.6);
+      const py = mouthY + (groundY - mouthY) * curve;
+      // Flicker
+      const flick = Math.sin(d.frame * 0.9 + i * 1.7) * 2 + Math.sin(d.frame * 0.4 + i) * 1.5;
+      const rad = 4 + u * 14 + Math.abs(Math.sin(d.frame * 0.5 + i * 0.8)) * 3;
+
+      // Outer red/orange glow
+      const g1 = ctx.createRadialGradient(px, py + flick, 0, px, py + flick, rad * 1.6);
+      g1.addColorStop(0, 'rgba(255,160,40,0.55)');
+      g1.addColorStop(0.6, 'rgba(220,60,20,0.35)');
+      g1.addColorStop(1, 'rgba(120,10,0,0)');
+      ctx.fillStyle = g1;
+      ctx.beginPath(); ctx.arc(px, py + flick, rad * 1.6, 0, Math.PI * 2); ctx.fill();
+
+      // Inner yellow/white-hot core
+      const coreR = rad * (0.55 - u * 0.25);
+      if (coreR > 1) {
+        const g2 = ctx.createRadialGradient(px, py + flick * 0.5, 0, px, py + flick * 0.5, coreR);
+        g2.addColorStop(0, 'rgba(255,255,220,0.95)');
+        g2.addColorStop(0.5, 'rgba(255,210,80,0.7)');
+        g2.addColorStop(1, 'rgba(255,120,30,0)');
+        ctx.fillStyle = g2;
+        ctx.beginPath(); ctx.arc(px, py + flick * 0.5, coreR, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+
+    // A few extra spark dots near the tip for liveliness
+    for (let k = 0; k < 6; k++) {
+      const u = 0.6 + Math.random() * 0.4 * reach;
+      const px = mouthX + dir * span * u + (Math.random() - 0.5) * 6;
+      const py = mouthY + (groundY - mouthY) * Math.pow(u, 1.6) + (Math.random() - 0.5) * 8;
+      ctx.fillStyle = 'rgba(255,230,120,0.9)';
+      ctx.beginPath(); ctx.arc(px, py, 1.5 + Math.random() * 1.5, 0, Math.PI * 2); ctx.fill();
+    }
+
     ctx.restore();
   }
 
