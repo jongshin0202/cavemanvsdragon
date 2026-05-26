@@ -1110,7 +1110,7 @@ function tickPlayer(s: L4State, input: L4Input) {
       if (Math.abs(cx - rock.x) < 22) {
         rock.state = 'falling';
         rock.vy = 0.5;
-        rock.vx = 0;
+        rock.vx = (p.facing || 1) * 1.6;
         rock.hitConsumed = false;
         rock.kicked = true;
         s.rockAtAIdx = -1;
