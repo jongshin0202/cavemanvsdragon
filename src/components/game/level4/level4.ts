@@ -398,7 +398,7 @@ export function initLevel4(iter: number): L4State {
   };
 
   // Monkeys via L1-style distribution.
-  const dist = buildMonkeyDistribution(iter);
+  const dist = buildMonkeyDistribution(iter, true);
   const monkeys: Monkey[] = [];
   for (let i = 0; i < dist.length; i++) {
     for (let k = 0; k < dist[i]; k++) monkeys.push(makeMonkey(MONKEY_PLAT_ANCHORS[i]));
