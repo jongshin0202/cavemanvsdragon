@@ -602,7 +602,11 @@ function tickRocks(s: L4State) {
         if (r.x >= ev.x1 && r.x <= ev.x2 && r.y + r.r >= ev.y) {
           r.y = ev.y - r.r;
           r.vy = 0;
-          if (s.rockAtAIdx < 0) {
+          if (r.kicked) {
+            // Kicked rocks skip A-rest and cascade down toward the dragon.
+            r.state = 'rollingDown';
+            if (r.vx === 0) r.vx = Math.random() < 0.5 ? -1.4 : 1.4;
+          } else if (s.rockAtAIdx < 0) {
             r.x = A_X;
             r.state = 'restingAtA';
             r.platIdx = E_BASE_PLAT_IDX;
@@ -1106,7 +1110,7 @@ function tickPlayer(s: L4State, input: L4Input) {
       if (Math.abs(cx - rock.x) < 22) {
         rock.state = 'falling';
         rock.vy = 0.5;
-        rock.vx = 0;
+        rock.vx = (p.facing || 1) * 1.6;
         rock.hitConsumed = false;
         rock.kicked = true;
         s.rockAtAIdx = -1;
@@ -1250,11 +1254,10 @@ function tickCollisions(s: L4State) {
   const p = s.player;
   const d = s.dragon;
 
-  // Rock vs Dragon (falling rocks only)
+  // Rock vs Dragon — any caveman-kicked rock can hit the dragon while airborne.
   for (const r of s.rocks) {
-    if (r.state !== 'falling') continue;
-    if (r.state !== 'falling') continue;
-    if (!r.kicked) continue; // Only caveman-kicked rocks can damage the dragon.
+    if (r.state === 'dead' || r.state === 'restingAtA') continue;
+    if (!r.kicked) continue;
     if (r.hitConsumed) continue;
     if (d.state === 'roam' || d.state === 'downed') {
       const dw = DRAGON_W, dh = DRAGON_H;

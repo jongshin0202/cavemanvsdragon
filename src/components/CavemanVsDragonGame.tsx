@@ -247,6 +247,7 @@ const CavemanVsDragonGame = () => {
   // Level intro overlay: 'level' shows "Level N" for 3s, then 'black' for 0.5s, then null.
   const [levelIntro, setLevelIntro] = useState<null | 'level' | 'black'>(null);
   const [levelIntroNumber, setLevelIntroNumber] = useState(1);
+  const [jumpLabel, setJumpLabel] = useState<'JUMP' | 'KICK'>('JUMP');
   const levelIntroTimersRef = useRef<number[]>([]);
   // Mirrors `levelIntro` so the rAF game loop (which doesn't see React state
   // directly) can pause physics/spawns/sounds while the "Level N" overlay is
@@ -1087,6 +1088,14 @@ const CavemanVsDragonGame = () => {
         // Render L4 onto canvas and skip the rest of the loop
         const sprites = l4SpritesRef.current;
         if (sprites) renderLevel4(ctx, s4, sprites);
+        // Update JUMP/KICK button label based on caveman's proximity to rock at A.
+        const pl = s4.player;
+        const rIdx = s4.rockAtAIdx;
+        const nextLabel: 'JUMP' | 'KICK' = (
+          rIdx >= 0 && pl.onGround && pl.groundPlatIdx === 4 &&
+          s4.rocks[rIdx] && Math.abs((pl.x + pl.w / 2) - s4.rocks[rIdx].x) < 22
+        ) ? 'KICK' : 'JUMP';
+        setJumpLabel(prev => prev === nextLabel ? prev : nextLabel);
         return;
       }
 
@@ -3729,7 +3738,7 @@ const CavemanVsDragonGame = () => {
           <button
             className="h-full w-full min-w-0 rounded-full bg-primary text-primary-foreground text-2xl font-bold active:scale-95"
             {...tapHandlers(' ', 45)}
-          >JUMP</button>
+          >{jumpLabel}</button>
         </div>
       </div>
       )}
