@@ -667,6 +667,12 @@ function tickRocks(s: L4State) {
             break;
           }
         }
+        // Screen-edge bounce: if rock is sitting on any platform and reaches
+        // the canvas left/right side, reverse direction instead of rolling off.
+        if (r.vy === 0 && r.platIdx >= 0) {
+          if (r.x - r.r < 0) { r.x = r.r; r.vx = Math.abs(r.vx) || 1.4; }
+          else if (r.x + r.r > CANVAS_W) { r.x = CANVAS_W - r.r; r.vx = -(Math.abs(r.vx) || 1.4); }
+        }
         if (r.y > CANVAS_H + 30 || r.x < -30 || r.x > CANVAS_W + 30) r.state = 'dead';
         break;
       }
