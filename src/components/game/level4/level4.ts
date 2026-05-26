@@ -27,7 +27,7 @@
 
 import { CANVAS_W, CANVAS_H, getRoundDifficulty } from '../constants';
 import { LEVEL4_PARAMS, getLevel4Difficulty, type Level4Difficulty } from './params';
-import { playWingFlapSound, playJumpSound, playRobotKillSound, playHitSound, playBarrelRollSound, playFireBreathSound, playPrincessHelpSound } from '../sounds';
+import { playWingFlapSound, playJumpSound, playRobotKillSound, playHitSound, playBarrelRollSound, playFireBreathSound } from '../sounds';
 
 const GRAVITY = 0.38;
 const MOVE_SPEED = 1.9;
@@ -491,7 +491,7 @@ export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: 
   if (s.helpTimer > 120) {
     s.helpTimer = 0;
     s.showHelp = !s.showHelp;
-    if (s.showHelp) playPrincessHelpSound();
+    // Help text toggles but sound is muted
   }
 
   tickMovingPlatforms(s);
