@@ -734,6 +734,7 @@ function tickSprouts(s: L4State) {
   autoRegrow(s.sproutH4);
   autoRegrow(s.sproutH5);
   autoRegrow(s.sproutH6);
+  autoRegrow(s.sproutH7);
   tickOneSprout(s.sproutH1);
   tickOneSprout(s.sproutH2);
   tickOneSprout(s.sproutH3);
