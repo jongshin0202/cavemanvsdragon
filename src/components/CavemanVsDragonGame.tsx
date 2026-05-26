@@ -584,6 +584,28 @@ const CavemanVsDragonGame = () => {
     recordLaunchAndMaybeFlush().catch(() => { /* logged in module */ });
     playLevelIntro(4, () => resetLevel());
   }, [resetLevel, playLevelIntro]);
+  // DEV/TEST: jump straight into Level 4 iteration 2 (round 8 under 4-level cycle).
+  const startInLevel4Iter2Test = useCallback(() => {
+    if (!LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2) return;
+    const g = gameRef.current;
+    g.score = 0; g.lives = 3; g.round = 8;
+    setScore(0); setLives(3);
+    setGameState('playing');
+    recordRound();
+    recordLaunchAndMaybeFlush().catch(() => { /* logged in module */ });
+    playLevelIntro(4, () => resetLevel());
+  }, [resetLevel, playLevelIntro]);
+  // DEV/TEST: jump straight into Level 4 iteration 3 (round 12 under 4-level cycle).
+  const startInLevel4Iter3Test = useCallback(() => {
+    if (!LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2) return;
+    const g = gameRef.current;
+    g.score = 0; g.lives = 3; g.round = 12;
+    setScore(0); setLives(3);
+    setGameState('playing');
+    recordRound();
+    recordLaunchAndMaybeFlush().catch(() => { /* logged in module */ });
+    playLevelIntro(4, () => resetLevel());
+  }, [resetLevel, playLevelIntro]);
   // with increased difficulty (next round) while preserving score and lives.
   const startNextLevel = useCallback(() => {
     const g = gameRef.current;
