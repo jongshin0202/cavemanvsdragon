@@ -12,47 +12,71 @@ export function unlockAudio() {
   if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 }
 
-// Dragon wing flap — big, airy whoosh of huge leathery wings.
+// Dragon wing flap — cinematic "movie dragon" wingbeat.
+// Layers: massive sub-rumble + leathery membrane snap + broad airy whoosh.
 export function playWingFlapSound() {
   const ctx = getCtx();
   const now = ctx.currentTime;
-  const dur = 0.55;
+  const dur = 0.7;
 
-  // Long noise burst with two-stage envelope = inhale + push of air
+  // ── 1) Big airy whoosh (filtered noise, fast attack, long tail) ──
   const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
   const data = buf.getChannelData(0);
   for (let i = 0; i < data.length; i++) {
     const t = i / data.length;
-    // Slow swell then long airy tail
-    const attack = Math.min(1, t / 0.18);
-    const release = Math.pow(1 - t, 1.4);
+    const attack = Math.min(1, t / 0.06);                  // sharp punch
+    const release = Math.pow(1 - t, 1.2);                  // long airy fall
     data[i] = (Math.random() * 2 - 1) * attack * release;
   }
   const noise = ctx.createBufferSource();
   noise.buffer = buf;
-
-  // Lowpass sweep from bright air to deep bass whoosh
   const lp = ctx.createBiquadFilter();
   lp.type = 'lowpass';
-  lp.frequency.setValueAtTime(2400, now);
-  lp.frequency.exponentialRampToValueAtTime(180, now + dur);
-  lp.Q.value = 0.5;
-
-  // Highpass keeps it from being too muddy
+  lp.frequency.setValueAtTime(3500, now);
+  lp.frequency.exponentialRampToValueAtTime(220, now + dur);
+  lp.Q.value = 0.7;
   const hp = ctx.createBiquadFilter();
   hp.type = 'highpass';
-  hp.frequency.setValueAtTime(80, now);
-  hp.Q.value = 0.3;
+  hp.frequency.value = 60;
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.setValueAtTime(0, now);
+  noiseGain.gain.linearRampToValueAtTime(0.95, now + 0.05);
+  noiseGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+  noise.connect(hp); hp.connect(lp); lp.connect(noiseGain); noiseGain.connect(ctx.destination);
+  noise.start(now); noise.stop(now + dur);
 
-  const gain = ctx.createGain();
-  gain.gain.setValueAtTime(0, now);
-  gain.gain.linearRampToValueAtTime(0.7, now + 0.18);
-  gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+  // ── 2) Deep sub-rumble = mass of air being moved ──
+  const sub = ctx.createOscillator();
+  sub.type = 'sine';
+  sub.frequency.setValueAtTime(90, now);
+  sub.frequency.exponentialRampToValueAtTime(30, now + 0.4);
+  const subGain = ctx.createGain();
+  subGain.gain.setValueAtTime(0, now);
+  subGain.gain.linearRampToValueAtTime(0.85, now + 0.04);
+  subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+  sub.connect(subGain); subGain.connect(ctx.destination);
+  sub.start(now); sub.stop(now + 0.52);
 
-  noise.connect(hp); hp.connect(lp); lp.connect(gain); gain.connect(ctx.destination);
-  noise.start(now);
-  noise.stop(now + dur);
+  // ── 3) Leathery membrane snap (short bandpassed noise crack) ──
+  const snapBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.12), ctx.sampleRate);
+  const sd = snapBuf.getChannelData(0);
+  for (let i = 0; i < sd.length; i++) {
+    const t = i / sd.length;
+    sd[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 3);
+  }
+  const snap = ctx.createBufferSource();
+  snap.buffer = snapBuf;
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = 600;
+  bp.Q.value = 2.5;
+  const snapGain = ctx.createGain();
+  snapGain.gain.setValueAtTime(0.55, now + 0.02);
+  snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+  snap.connect(bp); bp.connect(snapGain); snapGain.connect(ctx.destination);
+  snap.start(now + 0.02); snap.stop(now + 0.16);
 }
+
 
 
 
