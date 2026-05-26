@@ -1279,28 +1279,10 @@ function tickPlayer(s: L4State, input: L4Input) {
   else if (input.right) { p.vx = MOVE_SPEED; p.facing = 1; }
   else p.vx = 0;
 
-  // Jump / KICK at A / WATER actions
-  if (input.jump && p.onGround && p.kickTimer === 0) {
-    // KICK at A
-    if (p.groundPlatIdx === A_PLAT_IDX && s.rockAtAIdx >= 0) {
-      const rock = s.rocks[s.rockAtAIdx];
-      const cx = p.x + p.w / 2;
-      if (Math.abs(cx - rock.x) < 22) {
-        rock.state = 'rollingDown';
-        rock.vy = 0;
-        rock.vx = (p.facing || 1) * 1.6;
-        rock.hitConsumed = false;
-        rock.kicked = true;
-        s.rockAtAIdx = -1;
-        p.kickTimer = 18;
-        s.invuln = Math.max(s.invuln, 20);
-      } else {
-        playJumpSound();
-        p.vy = JUMP_FORCE;
-        p.onGround = false; p.jumping = true;
-        p.jumpStartPlatIdx = p.groundPlatIdx;
-      }
-    }
+  // Jump / WATER actions
+  if (input.jump && p.onGround) {
+    // WATER actions handled below; default jump otherwise
+    if (false) {
     // WATER E
     else if (p.groundPlatIdx === E_BASE_PLAT_IDX && s.carrying === 'purple') {
       const cx = p.x + p.w / 2;
