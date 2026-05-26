@@ -534,6 +534,7 @@ function tickRocks(s: L4State) {
   for (let i = 0; i < s.rocks.length; i++) {
     const r = s.rocks[i];
     r.age++;
+    r.rollPhase = (r.rollPhase ?? 0) + Math.abs(r.vx) + (r.state === 'falling' ? Math.abs(r.vy) * 0.5 : 0);
     switch (r.state) {
       case 'flying': {
         r.vy += 0.18;
