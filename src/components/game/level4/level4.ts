@@ -1046,6 +1046,8 @@ function tickCollisions(s: L4State) {
   // Rock vs Dragon (falling rocks only)
   for (const r of s.rocks) {
     if (r.state !== 'falling') continue;
+    if (r.state !== 'falling') continue;
+    if (!r.kicked) continue; // Only caveman-kicked rocks can damage the dragon.
     if (r.hitConsumed) continue;
     if (d.state === 'roam' || d.state === 'downed') {
       const dw = DRAGON_W, dh = DRAGON_H;
