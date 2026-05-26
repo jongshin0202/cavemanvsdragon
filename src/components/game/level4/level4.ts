@@ -1281,10 +1281,8 @@ function tickPlayer(s: L4State, input: L4Input) {
 
   // Jump / WATER actions
   if (input.jump && p.onGround) {
-    // WATER actions handled below; default jump otherwise
-    if (false) {
     // WATER E
-    else if (p.groundPlatIdx === E_BASE_PLAT_IDX && s.carrying === 'purple') {
+    if (p.groundPlatIdx === E_BASE_PLAT_IDX && s.carrying === 'purple') {
       const cx = p.x + p.w / 2;
       if (Math.abs(cx - E_X) < 22) {
         if (s.sproutE.phase === 'seed') { s.sproutE.phase = 'growing'; s.sproutE.growProgress = 0; }
