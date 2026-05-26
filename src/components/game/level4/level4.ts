@@ -129,8 +129,8 @@ const PRINCESS_X = 220;
 const PRINCESS_Y = L4_PLATFORMS[0].y - 48;
 const VOLCANO_X  = 340;
 const C_X = 270;   // rock decision point on P6 (above E)
-const E_X = 270;   // E (purple) on P5_E_FLAT
-const A_X = 270;   // rock-rest A on P5_E_FLAT (under C)
+const E_X = 226;   // E (purple) — middle of P5_E_FLAT (196..256)
+const A_X = 226;   // rock-rest A on P5_E_FLAT (under C)
 const D_X = 30;    // D (green) on P4_LEFT_D
 
 const PRINCESS_PLAT_IDX = 0;
@@ -1122,9 +1122,9 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     const plat = L4_PLATFORMS[i];
     const y1 = platY(plat, plat.x1);
     const y2 = platY(plat, plat.x2);
-    // dirt underside (skip for ice ramps and movers — they float)
-    if (!plat.ice && !plat.moving) {
-      ctx.fillStyle = '#6B4226';
+    // underside slab — brown dirt for static, icy-blue for ice ramps; movers stay floating
+    if (!plat.moving) {
+      ctx.fillStyle = plat.ice ? '#3A7FA8' : '#6B4226';
       ctx.beginPath();
       ctx.moveTo(plat.x1, y1 + 2);
       ctx.lineTo(plat.x2, y2 + 2);
@@ -1134,7 +1134,7 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
       ctx.fill();
     }
     // top surface — blue for ice, green-light for movers, green for static
-    ctx.fillStyle = plat.ice ? '#7FD4F5' : (plat.moving ? '#FF5252' : '#3CB043');
+    ctx.fillStyle = plat.ice ? '#BDE8F7' : (plat.moving ? '#FF5252' : '#3CB043');
     ctx.beginPath();
     ctx.moveTo(plat.x1, y1);
     ctx.lineTo(plat.x2, y2);
