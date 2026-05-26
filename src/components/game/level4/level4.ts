@@ -629,6 +629,8 @@ function tickRocks(s: L4State) {
             r.vy = 0;
             r.platIdx = pi;
             if (r.vx === 0) r.vx = Math.random() < 0.5 ? -1 : 1;
+            // On P5.5 left stub, always roll right toward the ice ramp.
+            if (pi === 2) r.vx = Math.abs(r.vx) || 1;
             break;
           }
         }
