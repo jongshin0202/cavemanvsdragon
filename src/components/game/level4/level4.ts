@@ -27,7 +27,7 @@
 
 import { CANVAS_W, CANVAS_H, getRoundDifficulty } from '../constants';
 import { LEVEL4_PARAMS, getLevel4Difficulty, type Level4Difficulty } from './params';
-import { playWingFlapSound, playJumpSound, playRobotKillSound, playHitSound, playBarrelRollSound, playFireBreathSound } from '../sounds';
+import { playWingFlapSound, playJumpSound, playRobotKillSound, playHitSound, playBarrelRollSound, playFireBreathSound, playPrincessHelpSound } from '../sounds';
 
 const GRAVITY = 0.38;
 const MOVE_SPEED = 1.9;
@@ -296,6 +296,8 @@ export interface L4State {
   invuln: number;
   princessX: number;
   princessY: number;
+  helpTimer: number;
+  showHelp: boolean;
 }
 
 export interface L4Sprites {
@@ -458,6 +460,8 @@ export function initLevel4(iter: number): L4State {
     invuln: 60,
     princessX: PRINCESS_X,
     princessY: PRINCESS_Y,
+    helpTimer: 0,
+    showHelp: false,
   };
 }
 
@@ -481,6 +485,14 @@ export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: 
     return { died: reportDied, won: false };
   }
   if (s.invuln > 0) s.invuln--;
+
+  // Princess "Help!" animation timer (same cadence as L1)
+  s.helpTimer++;
+  if (s.helpTimer > 120) {
+    s.helpTimer = 0;
+    s.showHelp = !s.showHelp;
+    if (s.showHelp) playPrincessHelpSound();
+  }
 
   tickMovingPlatforms(s);
   tickRocks(s);
@@ -1666,11 +1678,17 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
   drawVolcano(ctx, VOLCANO_X, L4_PLATFORMS[0].y);
 
   // Princess
+  const pFrameW = sprites.princess.width / 5;
+  const pFrameIdx = s.showHelp ? 2 : 0;
   if (sprites.princess.complete) {
-    ctx.drawImage(sprites.princess, 0, 0, sprites.princess.width / 5, sprites.princess.height,
+    ctx.drawImage(sprites.princess, pFrameIdx * pFrameW, 0, pFrameW, sprites.princess.height,
       s.princessX, s.princessY, PRINCESS_W, PRINCESS_H);
   } else {
     ctx.fillStyle = '#ff80c0'; ctx.fillRect(s.princessX, s.princessY, PRINCESS_W, PRINCESS_H);
+  }
+  if (s.showHelp) {
+    ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 14px "Press Start 2P", monospace';
+    ctx.fillText('HELP!', s.princessX - 4, s.princessY - 8);
   }
 
   // Sprouts
