@@ -519,8 +519,16 @@ function tickMovingPlatforms(s: L4State) {
 // ── Rocks ───────────────────────────────────────────────────
 function tickRocks(s: L4State) {
   s.spawnRockTimer--;
-  // Only one rock active at a time (L1-style). A rock resting at A still counts.
-  const liveRocks = s.rocks.filter(r => r.state !== 'dead').length;
+  // Hard cap: at most ONE active rock (L1-style). Kill extras left over from
+  // earlier code paths / hot-reloads.
+  let kept = 0;
+  for (const r of s.rocks) {
+    if (r.state === 'dead') continue;
+    if (kept === 0) { kept = 1; continue; }
+    r.state = 'dead';
+    if (s.rockAtAIdx >= 0 && s.rocks[s.rockAtAIdx] === r) s.rockAtAIdx = -1;
+  }
+  const liveRocks = kept;
   if (s.spawnRockTimer <= 0 && liveRocks === 0) {
     const round = 1 + (s.iter - 1) * 4;
     const d = getRoundDifficulty(round);
