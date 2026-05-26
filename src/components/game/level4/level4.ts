@@ -296,6 +296,8 @@ export interface L4State {
   invuln: number;
   princessX: number;
   princessY: number;
+  helpTimer: number;
+  showHelp: boolean;
 }
 
 export interface L4Sprites {
