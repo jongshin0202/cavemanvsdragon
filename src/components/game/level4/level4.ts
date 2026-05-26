@@ -232,7 +232,7 @@ interface Dragon {
 const FIRE_DURATION = 30;   // 0.5s @ 60fps
 const FIRE_COOLDOWN = 180;  // 3s @ 60fps
 const FIRE_LEN = CANVAS_W * 0.25;
-const FIRE_H = 18;
+const FIRE_H = 28;
 
 interface Monkey {
   alive: boolean;
@@ -747,9 +747,10 @@ function respawnMonkeyWave(s: L4State) {
 
 // ── Dragon ──────────────────────────────────────────────────
 function getFireRect(d: Dragon) {
-  const mouthY = d.y + DRAGON_H * 0.45;
+  // Fire reaches down to the platform top so it hits the (shorter) caveman.
+  const yBot = d.y + DRAGON_H - 2;
   const x = d.facing >= 0 ? d.x + DRAGON_W - 4 : d.x + 4 - FIRE_LEN;
-  return { x, y: mouthY - FIRE_H / 2, w: FIRE_LEN, h: FIRE_H };
+  return { x, y: yBot - FIRE_H, w: FIRE_LEN, h: FIRE_H };
 }
 
 function tickDragon(s: L4State) {
