@@ -991,20 +991,17 @@ function tickDragon(s: L4State) {
 
   if (d.state === 'dead') return;
   if (d.state === 'dying') {
+    d.dyingVy = (d.dyingVy ?? 0) + 0.45;
+    d.y += d.dyingVy;
+    d.dyingSpin = (d.dyingSpin ?? 0) + 0.35;
     d.dyingTimer--;
-    d.y += 1.4;
-    if (d.dyingTimer <= 0) d.state = 'dead';
+    if (d.y > CANVAS_H + 40) d.state = 'dead';
     return;
   }
   if (d.state === 'downed') {
     d.downedTimer--;
     if (d.downedTimer <= 0) {
-      if (d.hits >= s.diff.hitsToKill) {
-        d.state = 'dying';
-        d.dyingTimer = 90;
-      } else {
-        d.state = 'roam';
-      }
+      d.state = 'roam';
     }
     return;
   }
