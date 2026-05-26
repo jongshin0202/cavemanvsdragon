@@ -12,6 +12,30 @@ export function unlockAudio() {
   if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 }
 
+// Quick airy "whoosh" — used for dragon wing flaps.
+export function playWingFlapSound() {
+  const ctx = getCtx();
+  // Noise buffer
+  const buf = ctx.createBuffer(1, ctx.sampleRate * 0.18, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) {
+    const t = i / data.length;
+    data[i] = (Math.random() * 2 - 1) * (1 - t);
+  }
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.setValueAtTime(900, ctx.currentTime);
+  bp.frequency.exponentialRampToValueAtTime(350, ctx.currentTime + 0.18);
+  bp.Q.value = 1.2;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.18, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+  src.connect(bp); bp.connect(gain); gain.connect(ctx.destination);
+  src.start(ctx.currentTime);
+  src.stop(ctx.currentTime + 0.2);
+
 export function playJumpSound() {
   const ctx = getCtx();
   const osc = ctx.createOscillator();
