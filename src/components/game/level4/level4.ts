@@ -62,18 +62,17 @@ export const L4_PLATFORMS: L4Platform[] = [
   // ── P6 (y=70) top: princess + volcano. ENDS at 410 leaving gap to ice top at 430. ──
   /*  0 P6_MAIN          */ { y: 70,  x1: 60,  x2: 410 },
 
-  // ICE diagonal: TOP at rightmost (x=512, y=70), bottom-left at (x=430, y=145) on P5.
-  // Rocks rolling RIGHT off P6 fall through gap (410..430) onto the ice top, slide down-left.
-  /*  1 ICE_TR           */ { y: 145, x1: 430, x2: 512, slope: (70 - 145) / (512 - 430), ice: true },
+  // ICE_TR: less steep — top at (512,70), bottom at (297,145) aligning to P4_TENT_TOP right edge.
+  /*  1 ICE_TR           */ { y: 145, x1: 297, x2: 512, slope: (70 - 145) / (512 - 297), ice: true },
 
-  // ── P5.5 (y=107.5) small left stub — exactly half-way between P5 and P6 ──
-  /*  2 P55_LEFT         */ { y: 107.5, x1: 20,  x2: 130 },
+  // ── P5.5 (y=107.5) small left stub — extends to far-left edge of screen ──
+  /*  2 P55_LEFT         */ { y: 107.5, x1: 0,   x2: 126 },
 
-  // ICE ramp from P5.5 right edge down to P5 left
-  /*  3 ICE_55           */ { y: 107.5, x1: 160, x2: 230, slope: (145 - 107.5) / (230 - 160), ice: true },
+  // ICE ramp from P5.5 right edge (126,107.5) down to P5 left (196,145)
+  /*  3 ICE_55           */ { y: 107.5, x1: 126, x2: 196, slope: (145 - 107.5) / (196 - 126), ice: true },
 
-  // ── P5 (y=145) E flat (purple sprout). HOLE: >290 ──
-  /*  4 P5_E_FLAT        */ { y: 145, x1: 230, x2: 290 },
+  // ── P5 (y=145) E flat (purple sprout). Right edge aligns to middle of screen (256). ──
+  /*  4 P5_E_FLAT        */ { y: 145, x1: 196, x2: 256 },
 
   // ── P4 (y=220) ── D-flat (HOLE >70) | mover_L | tent_top | mover_R | right
   /*  5 P4_LEFT_D        */ { y: 220, x1: 0,   x2: 70  },
@@ -82,13 +81,11 @@ export const L4_PLATFORMS: L4Platform[] = [
   /*  8 P4_MOVER_R       */ { y: 220, x1: 312, x2: 352 },
   /*  9 P4_RIGHT         */ { y: 220, x1: 380, x2: 512 },
 
-  // ICE_NEW shifted RIGHT: top connects to P4_TENT_TOP left edge (215,220);
-  // bottom (130,295) leaves a GAP above P3_LEFT (which ends at x=70).
+  // ICE_NEW: top connects to P4_TENT_TOP left edge (215,220); bottom (130,295).
   /* 10 ICE_NEW          */ { y: 295, x1: 130, x2: 215, slope: (220 - 295) / (215 - 130), ice: true },
 
-  // ICE_TENT_R: top connects to P4_TENT_TOP right edge (297,220);
-  // bottom (415,295) leaves a GAP above P3_RIGHT (which starts at x=450).
-  /* 11 ICE_TENT_R       */ { y: 220, x1: 297, x2: 415, slope: (295 - 220) / (415 - 297), ice: true },
+  // ICE_TENT_R: steeper, same slope as ICE_NEW — top at (297,220), bottom at (382,295).
+  /* 11 ICE_TENT_R       */ { y: 220, x1: 297, x2: 382, slope: (295 - 220) / (382 - 297), ice: true },
 
 
   // ── P3 (y=295) ── left (HOLE >70) | mover | right (gap on left: starts at 450 → hole 415..450)
