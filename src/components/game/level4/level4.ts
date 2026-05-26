@@ -224,7 +224,15 @@ interface Dragon {
   dyingTimer: number;
   hits: number;
   frame: number; frameTimer: number;
+  fireTimer: number;     // frames remaining of active fire
+  fireCooldown: number;  // frames until can breathe fire again (only ticks on ground)
 }
+
+// Fire breath constants
+const FIRE_DURATION = 30;   // 0.5s @ 60fps
+const FIRE_COOLDOWN = 180;  // 3s @ 60fps
+const FIRE_LEN = CANVAS_W * 0.25;
+const FIRE_H = 18;
 
 interface Monkey {
   alive: boolean;
@@ -378,6 +386,7 @@ export function initLevel4(iter: number): L4State {
     facing: -1, jumpCooldown: 60,
     state: 'intro', downedTimer: 0, dyingTimer: 0, hits: 0,
     frame: 0, frameTimer: 0,
+    fireTimer: 0, fireCooldown: FIRE_COOLDOWN,
   };
 
   // Monkeys via L1-style distribution.
@@ -729,6 +738,12 @@ function respawnMonkeyWave(s: L4State) {
 }
 
 // ── Dragon ──────────────────────────────────────────────────
+function getFireRect(d: Dragon) {
+  const mouthY = d.y + DRAGON_H * 0.45;
+  const x = d.facing >= 0 ? d.x + DRAGON_W - 4 : d.x + 4 - FIRE_LEN;
+  return { x, y: mouthY - FIRE_H / 2, w: FIRE_LEN, h: FIRE_H };
+}
+
 function tickDragon(s: L4State) {
   const d = s.dragon;
   d.frameTimer++;
@@ -806,6 +821,22 @@ function tickDragon(s: L4State) {
   // are not grown. Within the same platform he walks horizontally.
   
   const flySpeed = 1.4 * s.diff.dragonSpeedMul;
+
+  // Fire breath: only on ground. Cancel any active fire if airborne.
+  if (d.airborne) {
+    d.fireTimer = 0;
+  } else {
+    if (d.fireTimer > 0) {
+      d.fireTimer--;
+    } else if (d.fireCooldown > 0) {
+      d.fireCooldown--;
+    } else {
+      // Ready to breathe: face the player and start.
+      d.facing = s.player.x < d.x ? -1 : 1;
+      d.fireTimer = FIRE_DURATION;
+      d.fireCooldown = FIRE_COOLDOWN;
+    }
+  }
 
   if (d.airborne) {
     const tp = L4_PLATFORMS[d.targetPlatIdx];
@@ -1157,6 +1188,14 @@ function tickCollisions(s: L4State) {
   // Dragon touch
   if (s.invuln <= 0 && d.state === 'roam') {
     if (p.x < d.x + DRAGON_W && p.x + p.w > d.x && p.y < d.y + DRAGON_H && p.y + p.h > d.y) {
+      loseLife(s);
+    }
+  }
+
+  // Dragon fire breath
+  if (s.invuln <= 0 && d.state === 'roam' && d.fireTimer > 0 && !d.airborne) {
+    const fr = getFireRect(d);
+    if (p.x < fr.x + fr.w && p.x + p.w > fr.x && p.y < fr.y + fr.h && p.y + p.h > fr.y) {
       loseLife(s);
     }
   }
@@ -1530,6 +1569,32 @@ function drawDragon(ctx: CanvasRenderingContext2D, sprites: L4Sprites, d: Dragon
     ctx.fillStyle = '#c0392b'; ctx.fillRect(d.x, d.y, DRAGON_W, DRAGON_H);
   }
   ctx.restore();
+
+  // Fire breath
+  if (d.fireTimer > 0 && d.state === 'roam' && !d.airborne) {
+    const fr = getFireRect(d);
+    const t = 1 - d.fireTimer / FIRE_DURATION; // 0..1
+    ctx.save();
+    const grad = ctx.createLinearGradient(
+      d.facing >= 0 ? fr.x : fr.x + fr.w, 0,
+      d.facing >= 0 ? fr.x + fr.w : fr.x, 0,
+    );
+    grad.addColorStop(0, 'rgba(255,240,120,0.95)');
+    grad.addColorStop(0.5, 'rgba(255,140,30,0.85)');
+    grad.addColorStop(1, 'rgba(220,40,20,0)');
+    ctx.fillStyle = grad;
+    const wob = Math.sin(d.frame * 0.8) * 2;
+    ctx.beginPath();
+    const x0 = d.facing >= 0 ? fr.x : fr.x + fr.w;
+    const x1 = d.facing >= 0 ? fr.x + fr.w : fr.x;
+    ctx.moveTo(x0, fr.y + fr.h / 2 - 4);
+    ctx.quadraticCurveTo((x0 + x1) / 2, fr.y - 4 + wob, x1, fr.y + fr.h / 2);
+    ctx.quadraticCurveTo((x0 + x1) / 2, fr.y + fr.h + 4 - wob, x0, fr.y + fr.h / 2 + 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
   if (d.state === 'downed') {
     ctx.save();
     ctx.translate(d.x + DRAGON_W / 2, d.y - 8);
