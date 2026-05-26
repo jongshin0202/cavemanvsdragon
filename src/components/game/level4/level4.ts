@@ -232,7 +232,7 @@ interface Dragon {
 const FIRE_DURATION = 30;   // 0.5s @ 60fps
 const FIRE_COOLDOWN = 180;  // 3s @ 60fps
 const FIRE_LEN = CANVAS_W * 0.25;
-const FIRE_H = 18;
+const FIRE_H = 28;
 
 interface Monkey {
   alive: boolean;
