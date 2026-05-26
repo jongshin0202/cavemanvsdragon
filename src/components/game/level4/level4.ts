@@ -270,6 +270,8 @@ export interface L4State {
   spawnRockTimer: number;
   monkeyFireballs: MonkeyFireball[];
   monkeyFireballTimer: number;
+  volcanoFireballs: VolcanoFireball[];
+  volcanoFireballTimer: number;
   sproutD: Sprout;
   sproutE: Sprout;
   sproutH1: Sprout;
