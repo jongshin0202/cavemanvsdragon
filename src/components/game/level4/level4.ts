@@ -882,6 +882,13 @@ function tickDragon(s: L4State) {
   const leftLim = plat.x1 + 2;
   const rightLim = plat.x2 - DRAGON_W - 2;
   const p = s.player;
+
+  // While breathing fire, dragon stops moving and does not take off.
+  if (d.fireTimer > 0) {
+    d.y = plat.y - DRAGON_H;
+    return;
+  }
+
   if (Math.random() < 0.02) d.facing = p.x < d.x ? -1 : 1;
   const speed = 0.9 * s.diff.dragonSpeedMul;
   d.x += d.facing * speed;
