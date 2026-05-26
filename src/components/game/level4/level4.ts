@@ -770,15 +770,17 @@ function tickDragon(s: L4State) {
     return;
   }
 
-  // Dragon FLIES freely; lands on statics and movers across all boss bands.
-  // RULE: can only move to a platform whose x-range overlaps current platform's
-  // x-range (vertical column flight — no cross-gap horizontal jumps).
-  const reachable = [5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 21, 22, 23];
+  // Dragon FLIES only along sprout columns (D, E, H1, H2, H3) — even when sprouts
+  // are not grown. Within the same platform he walks horizontally.
+  const SPROUT_COLS = [D_X, E_X, H1_X, H2_X, H3_X];
+  const reachable = [5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 21, 22, 23, 2, 4];
   const flySpeed = 1.4 * s.diff.dragonSpeedMul;
 
   if (d.airborne) {
     const tp = L4_PLATFORMS[d.targetPlatIdx];
-    const tgtX = (tp.x1 + tp.x2) / 2 - DRAGON_W / 2;
+    // Target X is the sprout column we're flying down/up (locked at takeoff).
+    const colX = (d as Dragon & { flyColX?: number }).flyColX ?? ((tp.x1 + tp.x2) / 2);
+    const tgtX = Math.max(tp.x1 + 2, Math.min(tp.x2 - DRAGON_W - 2, colX - DRAGON_W / 2));
     const tgtY = tp.y - DRAGON_H;
     const dx = tgtX - d.x;
     const dy = tgtY - d.y;
@@ -793,7 +795,12 @@ function tickDragon(s: L4State) {
       d.x += (dx / dist) * flySpeed;
       d.y += (dy / dist) * flySpeed;
       d.facing = dx >= 0 ? 1 : -1;
-      if (d.frameTimer >= 4) { d.frameTimer = 0; d.frame = (d.frame + 1) % DRAGON_FRAMES; }
+      // Faster wing flap + flap sound on each cycle while flying.
+      if (d.frameTimer >= 4) {
+        d.frameTimer = 0;
+        d.frame = (d.frame + 1) % DRAGON_FRAMES;
+        if (d.frame === 0) playWingFlapSound();
+      }
     }
     return;
   }
@@ -811,17 +818,24 @@ function tickDragon(s: L4State) {
 
   d.jumpCooldown--;
   if (d.jumpCooldown <= 0) {
-    // Only platforms whose x-range overlaps the current platform's x-range.
-    const choices = reachable.filter(i => {
-      if (i === d.platIdx) return false;
-      const op = L4_PLATFORMS[i];
-      return op.x1 < plat.x2 && op.x2 > plat.x1;
-    });
-    if (choices.length > 0) {
-      const tgt = choices[Math.floor(Math.random() * choices.length)];
-      d.targetPlatIdx = tgt;
+    // Pick a sprout column whose x lies within current plat, then pick a target
+    // platform on that column (different from current).
+    const colsHere = SPROUT_COLS.filter(cx => cx >= plat.x1 && cx <= plat.x2);
+    const options: { tgt: number; colX: number }[] = [];
+    for (const cx of colsHere) {
+      for (const i of reachable) {
+        if (i === d.platIdx) continue;
+        const op = L4_PLATFORMS[i];
+        if (cx >= op.x1 && cx <= op.x2) options.push({ tgt: i, colX: cx });
+      }
+    }
+    if (options.length > 0) {
+      const pick = options[Math.floor(Math.random() * options.length)];
+      d.targetPlatIdx = pick.tgt;
       d.airborne = true;
       d.vx = 0; d.vy = 0;
+      (d as Dragon & { flyColX?: number }).flyColX = pick.colX;
+      playWingFlapSound();
     } else {
       d.jumpCooldown = 60;
     }
