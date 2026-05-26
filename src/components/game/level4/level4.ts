@@ -519,7 +519,9 @@ function tickMovingPlatforms(s: L4State) {
 // ── Rocks ───────────────────────────────────────────────────
 function tickRocks(s: L4State) {
   s.spawnRockTimer--;
-  if (s.spawnRockTimer <= 0) {
+  // Only one rock active at a time (L1-style). A rock resting at A still counts.
+  const liveRocks = s.rocks.filter(r => r.state !== 'dead').length;
+  if (s.spawnRockTimer <= 0 && liveRocks === 0) {
     const round = 1 + (s.iter - 1) * 4;
     const d = getRoundDifficulty(round);
     s.spawnRockTimer = Math.round(d.barrelSpawnMin + Math.random() * d.barrelSpawnRange);
@@ -530,6 +532,9 @@ function tickRocks(s: L4State) {
       vx: 2.2 * dir, vy: -3.4, r: 8,
       state: 'flying', platIdx: -1, age: 0,
     });
+  } else if (s.spawnRockTimer <= 0) {
+    // Wait a bit and re-check next frame.
+    s.spawnRockTimer = 15;
   }
 
   for (let i = 0; i < s.rocks.length; i++) {
