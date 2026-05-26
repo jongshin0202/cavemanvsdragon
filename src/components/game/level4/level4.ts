@@ -940,12 +940,12 @@ function spawnCanFromDragon(s: L4State, color: 'green' | 'purple') {
   const tx = pl.x1 + 14 + Math.random() * Math.max(8, pl.x2 - pl.x1 - 32);
   const ty = platY(pl, tx) - 14;
   // Solve ballistic arc: pick a flight time, derive vx/vy from gravity.
-  const flightFrames = 36;
+  const flightFrames = 90;
   const vx = (tx - originX) / flightFrames;
   const vy = (ty - originY - 0.5 * GRAVITY * flightFrames * flightFrames) / flightFrames;
   const can: Can = {
     x: originX, y: originY, color, picked: false,
-    flying: true, vx, vy,
+    flying: true, vx, vy, spin: 0,
     riderPlatIdx: ti,
     riderOffset: tx - pl.x1,
   };
