@@ -244,6 +244,8 @@ interface Monkey {
   walkFrame: number; walkTimer: number;
 }
 
+interface MonkeyFireball { x: number; y: number; vx: number; vy: number; r: number; age: number }
+
 interface Can { x: number; y: number; color: 'green' | 'purple'; picked: boolean }
 
 interface Ending { active: boolean; phase: 'hug' | 'pause' | 'kidnap' | 'follow' | 'done'; timer: number; newDragonX: number }
