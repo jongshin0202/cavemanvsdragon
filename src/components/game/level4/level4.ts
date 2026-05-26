@@ -816,6 +816,22 @@ function tickDragon(s: L4State) {
   
   const flySpeed = 1.4 * s.diff.dragonSpeedMul;
 
+  // Fire breath: only on ground. Cancel any active fire if airborne.
+  if (d.airborne) {
+    d.fireTimer = 0;
+  } else {
+    if (d.fireTimer > 0) {
+      d.fireTimer--;
+    } else if (d.fireCooldown > 0) {
+      d.fireCooldown--;
+    } else {
+      // Ready to breathe: face the player and start.
+      d.facing = s.player.x < d.x ? -1 : 1;
+      d.fireTimer = FIRE_DURATION;
+      d.fireCooldown = FIRE_COOLDOWN;
+    }
+  }
+
   if (d.airborne) {
     const tp = L4_PLATFORMS[d.targetPlatIdx];
     // Target X is the sprout column we're flying down/up (locked at takeoff).
