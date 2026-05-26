@@ -890,6 +890,52 @@ function tickMonkeyFireballs(s: L4State) {
   s.monkeyFireballTimer = Math.round(intervalSec * 60 * (0.5 + Math.random()));
 }
 
+// ── Volcano fireballs (volcano rocks) ───────────────────────
+// From L4 iter 2+, the volcano launches arcing fire rocks aimed at the
+// caveman. Scaling follows L2 fireball ramp (steps = L4iter - 2):
+//   - max simultaneous = 1 + floor(steps/3)
+//   - interval (sec)   = 5.95 * 0.9^steps  (jittered 0.5..1.5x)
+//   - flight (sec)     = 12.8 * 0.9^steps  (faster = shorter flight)
+// Volcano mouth sits near (VOLCANO_X, P6.y - 48).
+function tickVolcanoFireballs(s: L4State) {
+  // Advance existing arcs.
+  for (const fb of s.volcanoFireballs) {
+    if (fb.landed) continue;
+    fb.t = Math.min(1, fb.t + 1 / Math.max(1, fb.duration));
+    const t = fb.t, omt = 1 - t;
+    fb.x = omt * omt * fb.startX + 2 * omt * t * fb.apexX + t * t * fb.endX;
+    fb.y = omt * omt * fb.startY + 2 * omt * t * fb.apexY + t * t * fb.endY;
+    fb.radius = 4 + 6 * t;
+    if (fb.t >= 1 || fb.y > CANVAS_H + 12 || fb.x < -20 || fb.x > CANVAS_W + 20) {
+      fb.landed = true;
+    }
+  }
+  s.volcanoFireballs = s.volcanoFireballs.filter(fb => !fb.landed);
+  if (s.iter < 2) return;
+  const steps = s.iter - 2;
+  const maxFB = 1 + Math.floor(steps / 3);
+  if (s.volcanoFireballs.length >= maxFB) return;
+  if (s.volcanoFireballTimer > 0) { s.volcanoFireballTimer--; return; }
+  const mouthX = VOLCANO_X;
+  const mouthY = L4_PLATFORMS[0].y - 48;
+  const p = s.player;
+  const targetX = Math.max(8, Math.min(CANVAS_W - 8, p.x + p.w / 2 + (Math.random() - 0.5) * 40));
+  const targetY = p.y + p.h / 2;
+  const apexX = mouthX + (targetX - mouthX) * (0.4 + Math.random() * 0.2);
+  const apexY = Math.min(mouthY, targetY) - (60 + Math.random() * 30);
+  const flightSec = 12.8 * Math.pow(0.9, steps);
+  s.volcanoFireballs.push({
+    startX: mouthX, startY: mouthY,
+    endX: targetX, endY: targetY,
+    apexX, apexY,
+    t: 0, duration: Math.round(flightSec * 60),
+    x: mouthX, y: mouthY, radius: 4, landed: false,
+  });
+  const intervalSec = 5.95 * Math.pow(0.9, steps);
+  s.volcanoFireballTimer = Math.round(intervalSec * 60 * (0.5 + Math.random()));
+}
+
+
 function spawnCan(s: L4State, color: 'green' | 'purple') {
   const candidates = MONKEY_PLAT_ANCHORS;
   const pi = candidates[Math.floor(Math.random() * candidates.length)];
