@@ -607,10 +607,11 @@ function tickRocks(s: L4State) {
             r.state = 'rollingDown';
             if (r.vx === 0) r.vx = Math.random() < 0.5 ? -1.4 : 1.4;
           } else if (s.rockAtAIdx < 0) {
-            r.x = A_X;
-            r.state = 'restingAtA';
+            // Hand off to rollingDown so the rock rolls smoothly to the right
+            // edge of P5_E_FLAT before resting (handled in rollingDown case).
+            r.state = 'rollingDown';
+            r.vx = 1.4;
             r.platIdx = E_BASE_PLAT_IDX;
-            s.rockAtAIdx = i;
           } else {
             r.state = 'rollingDown';
             r.vx = -1.2;
