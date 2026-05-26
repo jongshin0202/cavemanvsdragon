@@ -17,7 +17,7 @@ export function unlockAudio() {
 export function playWingFlapSound() {
   const ctx = getCtx();
   const now = ctx.currentTime;
-  const dur = 0.7;
+  const dur = 0.3;
 
   // ── 1) Big airy whoosh (filtered noise, fast attack, long tail) ──
   const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
