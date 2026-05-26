@@ -223,6 +223,8 @@ interface Dragon {
   state: DragonState;
   downedTimer: number;
   dyingTimer: number;
+  dyingVy?: number;
+  dyingSpin?: number;
   hits: number;
   frame: number; frameTimer: number;
   fireTimer: number;     // frames remaining of active fire
@@ -989,20 +991,17 @@ function tickDragon(s: L4State) {
 
   if (d.state === 'dead') return;
   if (d.state === 'dying') {
+    d.dyingVy = (d.dyingVy ?? 0) + 0.45;
+    d.y += d.dyingVy;
+    d.dyingSpin = (d.dyingSpin ?? 0) + 0.35;
     d.dyingTimer--;
-    d.y += 1.4;
-    if (d.dyingTimer <= 0) d.state = 'dead';
+    if (d.y > CANVAS_H + 40) d.state = 'dead';
     return;
   }
   if (d.state === 'downed') {
     d.downedTimer--;
     if (d.downedTimer <= 0) {
-      if (d.hits >= s.diff.hitsToKill) {
-        d.state = 'dying';
-        d.dyingTimer = 90;
-      } else {
-        d.state = 'roam';
-      }
+      d.state = 'roam';
     }
     return;
   }
@@ -1522,9 +1521,19 @@ function tickCollisions(s: L4State) {
     const overlapY = p.y < d.y + dh && p.y + p.h > d.y;
     if (overlapX && overlapY && p.vy > 0 && (p.y + p.h) < d.y + 14) {
       d.hits++;
-      d.state = 'downed';
-      d.downedTimer = Math.round(5 * 60);
-      if (!s.purpleCan) spawnCanFromDragon(s, 'purple');
+      const isKill = d.hits >= s.diff.hitsToKill;
+      if (isKill) {
+        // Final blow: spit last purple can, spin, fall to death.
+        spawnCanFromDragon(s, 'purple');
+        d.state = 'dying';
+        d.dyingTimer = 240;
+        d.dyingVy = -2;
+        d.dyingSpin = 0;
+      } else {
+        d.state = 'downed';
+        d.downedTimer = Math.round(5 * 60);
+        if (!s.purpleCan) spawnCanFromDragon(s, 'purple');
+      }
       // bounce caveman off dragon's head
       p.vy = JUMP_FORCE * 0.8;
       p.jumping = true;
@@ -1974,7 +1983,14 @@ function drawDragon(ctx: CanvasRenderingContext2D, sprites: L4Sprites, d: Dragon
     ? sprites.dragonAngry : sprites.dragonFire;
   ctx.save();
   if (d.state === 'downed') ctx.globalAlpha = 0.7;
-  if (d.state === 'dying') ctx.globalAlpha = 0.5;
+  if (d.state === 'dying') {
+    ctx.globalAlpha = 0.85;
+    const cx = d.x + DRAGON_W / 2;
+    const cy = d.y + DRAGON_H / 2;
+    ctx.translate(cx, cy);
+    ctx.rotate(d.dyingSpin ?? 0);
+    ctx.translate(-cx, -cy);
+  }
 
   // Flapping wings overlay during intro flight
   if (d.state === 'intro' || (d.state === 'roam' && d.airborne)) {
