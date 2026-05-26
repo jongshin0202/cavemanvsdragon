@@ -806,7 +806,17 @@ function tickMonkeys(s: L4State) {
       }
       return false;
     };
-    if (m.x > plat.x2 - 18) {
+    // From iter 3+, monkeys on the edge platform of a row can wrap around the
+    // screen by walking off the canvas edge (mirrors dragon wrap behavior).
+    const WRAP_PAIRS: Record<number, number> = { 5: 9, 9: 5, 12: 14, 14: 12, 15: 18, 18: 15, 19: 21, 21: 19 };
+    const wrapPartner = (s.iter >= 3) ? WRAP_PAIRS[m.platIdx] : undefined;
+    if (m.vx > 0 && m.x > CANVAS_W - 18 && wrapPartner !== undefined) {
+      const np = L4_PLATFORMS[wrapPartner];
+      m.platIdx = wrapPartner; plat = np; m.x = np.x1 + 4;
+    } else if (m.vx < 0 && m.x < 4 && wrapPartner !== undefined) {
+      const np = L4_PLATFORMS[wrapPartner];
+      m.platIdx = wrapPartner; plat = np; m.x = np.x2 - 18;
+    } else if (m.x > plat.x2 - 18) {
       if (!tryTransfer()) { m.x = plat.x2 - 18; m.vx = -Math.abs(m.vx); }
     } else if (m.x < plat.x1 + 4) {
       if (!tryTransfer()) { m.x = plat.x1 + 4; m.vx = Math.abs(m.vx); }
