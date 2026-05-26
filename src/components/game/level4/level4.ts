@@ -1521,9 +1521,19 @@ function tickCollisions(s: L4State) {
     const overlapY = p.y < d.y + dh && p.y + p.h > d.y;
     if (overlapX && overlapY && p.vy > 0 && (p.y + p.h) < d.y + 14) {
       d.hits++;
-      d.state = 'downed';
-      d.downedTimer = Math.round(5 * 60);
-      if (!s.purpleCan) spawnCanFromDragon(s, 'purple');
+      const isKill = d.hits >= s.diff.hitsToKill;
+      if (isKill) {
+        // Final blow: spit last purple can, spin, fall to death.
+        spawnCanFromDragon(s, 'purple');
+        d.state = 'dying';
+        d.dyingTimer = 240;
+        d.dyingVy = -2;
+        d.dyingSpin = 0;
+      } else {
+        d.state = 'downed';
+        d.downedTimer = Math.round(5 * 60);
+        if (!s.purpleCan) spawnCanFromDragon(s, 'purple');
+      }
       // bounce caveman off dragon's head
       p.vy = JUMP_FORCE * 0.8;
       p.jumping = true;
