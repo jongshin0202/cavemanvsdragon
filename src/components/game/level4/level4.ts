@@ -647,7 +647,7 @@ function tickRocks(s: L4State) {
             if (pi === 2) r.vx = Math.abs(r.vx) || 1;
             // On ice ramps, force the rock to roll DOWN the slope.
             if (pl.ice && pl.slope) {
-              const downSign = pl.slope > 0 ? -1 : 1; // higher y is downhill
+              const downSign = pl.slope > 0 ? 1 : -1; // downhill direction (higher y)
               r.vx = downSign * Math.max(1.2, Math.abs(r.vx));
             }
             break;
