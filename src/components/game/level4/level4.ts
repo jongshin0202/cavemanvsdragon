@@ -1186,6 +1186,14 @@ function tickCollisions(s: L4State) {
     }
   }
 
+  // Dragon fire breath
+  if (s.invuln <= 0 && d.state === 'roam' && d.fireTimer > 0 && !d.airborne) {
+    const fr = getFireRect(d);
+    if (p.x < fr.x + fr.w && p.x + p.w > fr.x && p.y < fr.y + fr.h && p.y + p.h > fr.y) {
+      loseLife(s);
+    }
+  }
+
   // Monkeys
   for (const m of s.monkeys) {
     if (!m.alive) continue;
