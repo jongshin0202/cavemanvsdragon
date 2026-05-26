@@ -634,8 +634,8 @@ function tickRocks(s: L4State) {
             r.y = py - r.r;
             r.vy = 0;
             r.platIdx = pi;
-            // Rest at point A when landing on P5_E_FLAT and A is free.
-            if (pi === A_PLAT_IDX && s.rockAtAIdx < 0) {
+            // Rest at point A when landing on P5_E_FLAT and A is free (but kicked rocks skip A).
+            if (pi === A_PLAT_IDX && s.rockAtAIdx < 0 && !r.kicked) {
               r.x = A_X;
               r.vx = 0;
               r.state = 'restingAtA';
