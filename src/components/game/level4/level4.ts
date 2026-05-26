@@ -761,7 +761,7 @@ function tickDragon(s: L4State) {
       if (d.frameTimer >= 8) {
         d.frameTimer = 0;
         d.frame = (d.frame + 1) % DRAGON_FRAMES;
-        if (d.frame === 0) playWingFlapSound();
+        if (d.frame % 2 === 0) playWingFlapSound();
       }
     } else {
       d.x = tgtX;
@@ -804,7 +804,7 @@ function tickDragon(s: L4State) {
       if (d.frameTimer >= 8) {
         d.frameTimer = 0;
         d.frame = (d.frame + 1) % DRAGON_FRAMES;
-        if (d.frame === 0) playWingFlapSound();
+        if (d.frame % 2 === 0) playWingFlapSound();
       }
     }
     return;
