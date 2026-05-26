@@ -122,7 +122,7 @@ L4_PLATFORMS[8].moving  = { min: 300, max: 340, speed: rsp(0.5, 1.0) }; // bounc
 L4_PLATFORMS[13].moving = { min: 188, max: 326, speed: rsp(0.6, 1.2) };
 L4_PLATFORMS[16].moving = { min: 132, max: 230, speed:  rmag(0.6, 1.2), pairIdx: 17 };
 L4_PLATFORMS[17].moving = { min: 240, max: 348, speed: -rmag(0.6, 1.2), pairIdx: 16 };
-L4_PLATFORMS[22].moving = { min: 188, max: 310, speed: rsp(0.5, 1.0) }; // bounces before P1_RIGHT (x=370, w=60)
+L4_PLATFORMS[20].moving = { min: 188, max: 310, speed: rsp(0.5, 1.0) }; // bounces before P1_RIGHT (x=370, w=60)
 
 // Named anchors
 const PRINCESS_X = 220;
