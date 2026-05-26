@@ -856,6 +856,9 @@ function tickDragon(s: L4State) {
       { col: H1_X, a: H1_TOP_IDX,      b: H1_BOT_IDX        }, // 18 ↔ 23
       { col: H2_X, a: H2_TOP_IDX,      b: H2_BOT_IDX        }, // 12 ↔ 15
       { col: H3_X, a: H3_TOP_IDX,      b: H3_BOT_IDX        }, // 9 ↔ 14
+      { col: H4_X, a: H4_TOP_IDX,      b: H4_BOT_IDX        }, // 5 ↔ 12
+      { col: H5_X, a: H5_TOP_IDX,      b: H5_BOT_IDX        }, // 15 ↔ 21
+      { col: H6_X, a: H6_TOP_IDX,      b: H6_BOT_IDX        }, // 14 ↔ 18
     ];
     // Horizontal neighbors on the same row — one platform at a time (static or moving).
     const HORIZ_PAIRS: [number, number][] = [
