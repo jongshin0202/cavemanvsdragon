@@ -554,23 +554,17 @@ function tickMovingPlatforms(s: L4State) {
 // ── Rocks ───────────────────────────────────────────────────
 function tickRocks(s: L4State) {
   s.spawnRockTimer--;
-  // Count ROLLING rocks (exclude dead + the one resting at A waiting to be kicked).
   let rollingCount = 0;
-  let restingExists = false;
   for (const r of s.rocks) {
     if (r.state === 'dead') continue;
-    if (r.state === 'restingAtA') { restingExists = true; continue; }
     rollingCount++;
   }
-  // At iteration N there should always be N rocks rolling (in addition to any
-  // rock that is waiting at A to be kicked).
   const maxRolling = Math.max(1, s.iter);
   if (s.spawnRockTimer <= 0 && rollingCount < maxRolling) {
     const round = 1 + (s.iter - 1) * 4;
     const d = getRoundDifficulty(round);
     s.spawnRockTimer = Math.round(d.barrelSpawnMin + Math.random() * d.barrelSpawnRange);
-    // While a rock waits at A, always launch new rocks rolling RIGHT (away from A).
-    const dir = restingExists ? 1 : (Math.random() < 0.5 ? -1 : 1);
+    const dir = Math.random() < 0.5 ? -1 : 1;
     const top0 = L4_PLATFORMS[0];
     s.rocks.push({
       x: VOLCANO_X, y: top0.y - 8,
@@ -579,7 +573,6 @@ function tickRocks(s: L4State) {
     });
     playBarrelRollSound();
   } else if (s.spawnRockTimer <= 0) {
-    // Wait a bit and re-check next frame.
     s.spawnRockTimer = 15;
   }
 
@@ -600,8 +593,7 @@ function tickRocks(s: L4State) {
           r.y = top.y - r.r;
           r.vy = 0;
           // Continue in the direction it was thrown — left or right.
-          // If a rock is already resting at A, force subsequent rocks to roll right.
-          r.vx = (s.rockAtAIdx >= 0) ? 1.4 : (r.vx >= 0 ? 1.4 : -1.4);
+          r.vx = (r.vx >= 0 ? 1.4 : -1.4);
           r.state = 'rollingTop';
           r.platIdx = 0;
         } else if (r.y > CANVAS_H + 30 || r.x < -30 || r.x > CANVAS_W + 30) {
@@ -637,27 +629,14 @@ function tickRocks(s: L4State) {
         if (r.x >= ev.x1 && r.x <= ev.x2 && r.y + r.r >= ev.y) {
           r.y = ev.y - r.r;
           r.vy = 0;
-          if (r.kicked) {
-            // Kicked rocks skip A-rest and cascade down toward the dragon.
-            r.state = 'rollingDown';
-            if (r.vx === 0) r.vx = Math.random() < 0.5 ? -1.4 : 1.4;
-          } else if (s.rockAtAIdx < 0) {
-            // Hand off to rollingDown so the rock rolls smoothly to the right
-            // edge of P5_E_FLAT before resting (handled in rollingDown case).
-            r.state = 'rollingDown';
-            r.vx = 1.4;
-            r.platIdx = E_BASE_PLAT_IDX;
-          } else {
-            r.state = 'rollingDown';
-            r.vx = -1.2;
-          }
+          r.state = 'rollingDown';
+          r.vx = 1.4;
+          r.platIdx = E_BASE_PLAT_IDX;
           break;
         }
         if (r.y > CANVAS_H + 20) r.state = 'dead';
         break;
       }
-      case 'restingAtA':
-        break;
       case 'rollingDown': {
         r.vy += GRAVITY * 0.5;
         r.x += r.vx;
@@ -671,19 +650,6 @@ function tickRocks(s: L4State) {
             r.vy = 0;
             const prevPlat = r.platIdx;
             r.platIdx = pi;
-            // On P5_E_FLAT, keep rolling to the RIGHT edge, then rest there
-            // (waiting for caveman kick). Avoids the mid-platform snap jitter.
-            if (pi === A_PLAT_IDX && s.rockAtAIdx < 0 && !r.kicked) {
-              const restX = pl.x2 - r.r;
-              if (r.vx <= 0) r.vx = 1.4;
-              if (r.x >= restX) {
-                r.x = restX;
-                r.vx = 0;
-                r.state = 'restingAtA';
-                s.rockAtAIdx = i;
-              }
-              break;
-            }
             if (r.vx === 0) r.vx = Math.random() < 0.5 ? -1 : 1;
             // On P5.5 left stub, always roll right toward the ice ramp.
             if (pi === 2) r.vx = Math.abs(r.vx) || 1;
@@ -714,16 +680,8 @@ function tickRocks(s: L4State) {
     }
   }
   if (s.rocks.some(r => r.state === 'dead')) {
-    const oldAtA = s.rockAtAIdx;
-    const survivors: Rock[] = [];
-    let newAtA = -1;
-    for (let i = 0; i < s.rocks.length; i++) {
-      if (s.rocks[i].state === 'dead') continue;
-      if (i === oldAtA) newAtA = survivors.length;
-      survivors.push(s.rocks[i]);
-    }
-    s.rocks = survivors;
-    s.rockAtAIdx = newAtA;
+    s.rocks = s.rocks.filter(r => r.state !== 'dead');
+    s.rockAtAIdx = -1;
   }
 }
 
@@ -1321,30 +1279,10 @@ function tickPlayer(s: L4State, input: L4Input) {
   else if (input.right) { p.vx = MOVE_SPEED; p.facing = 1; }
   else p.vx = 0;
 
-  // Jump / KICK at A / WATER actions
-  if (input.jump && p.onGround && p.kickTimer === 0) {
-    // KICK at A
-    if (p.groundPlatIdx === A_PLAT_IDX && s.rockAtAIdx >= 0) {
-      const rock = s.rocks[s.rockAtAIdx];
-      const cx = p.x + p.w / 2;
-      if (Math.abs(cx - rock.x) < 22) {
-        rock.state = 'rollingDown';
-        rock.vy = 0;
-        rock.vx = (p.facing || 1) * 1.6;
-        rock.hitConsumed = false;
-        rock.kicked = true;
-        s.rockAtAIdx = -1;
-        p.kickTimer = 18;
-        s.invuln = Math.max(s.invuln, 20);
-      } else {
-        playJumpSound();
-        p.vy = JUMP_FORCE;
-        p.onGround = false; p.jumping = true;
-        p.jumpStartPlatIdx = p.groundPlatIdx;
-      }
-    }
+  // Jump / WATER actions
+  if (input.jump && p.onGround) {
     // WATER E
-    else if (p.groundPlatIdx === E_BASE_PLAT_IDX && s.carrying === 'purple') {
+    if (p.groundPlatIdx === E_BASE_PLAT_IDX && s.carrying === 'purple') {
       const cx = p.x + p.w / 2;
       if (Math.abs(cx - E_X) < 22) {
         if (s.sproutE.phase === 'seed') { s.sproutE.phase = 'growing'; s.sproutE.growProgress = 0; }
@@ -1491,28 +1429,28 @@ function tickCollisions(s: L4State) {
   const p = s.player;
   const d = s.dragon;
 
-  // Rock vs Dragon — any caveman-kicked rock can hit the dragon while airborne.
-  for (const r of s.rocks) {
-    if (r.state === 'dead' || r.state === 'restingAtA') continue;
-    if (!r.kicked) continue;
-    if (r.hitConsumed) continue;
-    if (d.state === 'roam' || d.state === 'downed') {
-      const dw = DRAGON_W, dh = DRAGON_H;
-      if (r.x > d.x && r.x < d.x + dw && r.y + r.r > d.y && r.y - r.r < d.y + dh) {
-        r.hitConsumed = true;
-        r.state = 'dead';
-        d.hits++;
-        d.state = 'downed';
-        d.downedTimer = Math.round(5 * 60);
-        if (!s.purpleCan) spawnCan(s, 'purple');
-      }
+  // Caveman stomp on dragon's head — falling onto dragon hits it
+  if (d.state === 'roam' || d.state === 'downed') {
+    const dw = DRAGON_W, dh = DRAGON_H;
+    const overlapX = p.x < d.x + dw && p.x + p.w > d.x;
+    const overlapY = p.y < d.y + dh && p.y + p.h > d.y;
+    if (overlapX && overlapY && p.vy > 0 && (p.y + p.h) < d.y + 14) {
+      d.hits++;
+      d.state = 'downed';
+      d.downedTimer = Math.round(5 * 60);
+      if (!s.purpleCan) spawnCan(s, 'purple');
+      // bounce caveman off dragon's head
+      p.vy = JUMP_FORCE * 0.8;
+      p.jumping = true;
+      p.onGround = false;
+      s.invuln = Math.max(s.invuln, 20);
     }
   }
 
   // Rocks vs player
   if (s.invuln <= 0) {
     for (const r of s.rocks) {
-      if (r.state === 'restingAtA' || r.state === 'dead') continue;
+      if (r.state === 'dead') continue;
       const dx = (p.x + p.w / 2) - r.x;
       const dy = (p.y + p.h / 2) - r.y;
       if (dx * dx + dy * dy < (r.r + 8) * (r.r + 8)) {
