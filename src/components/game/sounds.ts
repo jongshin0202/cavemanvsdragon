@@ -636,7 +636,7 @@ export function playFireBreathSound() {
   const lp = ctx.createBiquadFilter();
   lp.type = 'lowpass';
   lp.frequency.setValueAtTime(800, t0);
-  lp.frequency.exponentialRampToValueAtTime(220, t2 + dur);
+  lp.frequency.exponentialRampToValueAtTime(220, t0 + dur);
   lp.Q.value = 0.8;
 
   const hp = ctx.createBiquadFilter();
@@ -645,7 +645,7 @@ export function playFireBreathSound() {
 
   const noiseGain = ctx.createGain();
   noiseGain.gain.setValueAtTime(1.2, t0);
-  noiseGain.gain.exponentialRampToValueAtTime(0.01, t2 + dur);
+  noiseGain.gain.exponentialRampToValueAtTime(0.01, t0 + dur);
 
   noise.connect(hp); hp.connect(lp); lp.connect(noiseGain); noiseGain.connect(ctx.destination);
   noise.start(t0); noise.stop(t0 + dur);
@@ -654,10 +654,10 @@ export function playFireBreathSound() {
   const osc = ctx.createOscillator();
   osc.type = 'sawtooth';
   osc.frequency.setValueAtTime(120, t0);
-  osc.frequency.exponentialRampToValueAtTime(60, t2 + dur);
+  osc.frequency.exponentialRampToValueAtTime(60, t0 + dur);
   const oscGain = ctx.createGain();
   oscGain.gain.setValueAtTime(0.55, t0);
-  oscGain.gain.exponentialRampToValueAtTime(0.01, t2 + dur);
+  oscGain.gain.exponentialRampToValueAtTime(0.01, t0 + dur);
   osc.connect(oscGain); oscGain.connect(ctx.destination);
   osc.start(t0); osc.stop(t0 + dur);
 
@@ -665,10 +665,10 @@ export function playFireBreathSound() {
   const sub = ctx.createOscillator();
   sub.type = 'sine';
   sub.frequency.setValueAtTime(50, t0);
-  sub.frequency.exponentialRampToValueAtTime(30, t2 + dur);
+  sub.frequency.exponentialRampToValueAtTime(30, t0 + dur);
   const subGain = ctx.createGain();
   subGain.gain.setValueAtTime(0.45, t0);
-  subGain.gain.exponentialRampToValueAtTime(1.0, t2 + dur);
+  subGain.gain.exponentialRampToValueAtTime(0.01, t0 + dur);
   sub.connect(subGain); subGain.connect(ctx.destination);
   sub.start(t0); sub.stop(t0 + dur);
 }
