@@ -546,9 +546,8 @@ function tickRocks(s: L4State) {
     s.spawnRockTimer = 15;
   }
 
-  // Continuously retrigger the L1 barrel-roll sound while any rock is actually rolling.
-  const anyRolling = s.rocks.some(r => r.state === 'rollingTop' || r.state === 'rollingDown' || r.state === 'falling');
-  if (anyRolling && (s.tick % 18 === 0)) playBarrelRollSound();
+
+
 
   for (let i = 0; i < s.rocks.length; i++) {
     const r = s.rocks[i];
