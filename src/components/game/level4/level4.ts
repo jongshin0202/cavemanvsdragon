@@ -769,13 +769,13 @@ function tickDragon(s: L4State) {
     return;
   }
 
-  // Dragon FLIES freely across all P3/P4 statics — passes through platforms,
-  // crosses gaps, and can descend via sprout columns (D, E, H1-H3).
-  const reachable = [5, 7, 9, 12, 14]; // P4_LEFT_D, P4_TENT_TOP, P4_RIGHT, P3_LEFT, P3_RIGHT
+  // Dragon FLIES freely; lands on statics and movers across all boss bands.
+  // RULE: can only move to a platform whose x-range overlaps current platform's
+  // x-range (vertical column flight — no cross-gap horizontal jumps).
+  const reachable = [5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 21, 22, 23];
   const flySpeed = 1.4 * s.diff.dragonSpeedMul;
 
   if (d.airborne) {
-    // Glide toward target platform center (no gravity — through-platform flight).
     const tp = L4_PLATFORMS[d.targetPlatIdx];
     const tgtX = (tp.x1 + tp.x2) / 2 - DRAGON_W / 2;
     const tgtY = tp.y - DRAGON_H;
@@ -792,7 +792,6 @@ function tickDragon(s: L4State) {
       d.x += (dx / dist) * flySpeed;
       d.y += (dy / dist) * flySpeed;
       d.facing = dx >= 0 ? 1 : -1;
-      // Faster wing flap while flying
       if (d.frameTimer >= 4) { d.frameTimer = 0; d.frame = (d.frame + 1) % DRAGON_FRAMES; }
     }
     return;
@@ -811,11 +810,20 @@ function tickDragon(s: L4State) {
 
   d.jumpCooldown--;
   if (d.jumpCooldown <= 0) {
-    const choices = reachable.filter(i => i !== d.platIdx);
-    const tgt = choices[Math.floor(Math.random() * choices.length)];
-    d.targetPlatIdx = tgt;
-    d.airborne = true;
-    d.vx = 0; d.vy = 0;
+    // Only platforms whose x-range overlaps the current platform's x-range.
+    const choices = reachable.filter(i => {
+      if (i === d.platIdx) return false;
+      const op = L4_PLATFORMS[i];
+      return op.x1 < plat.x2 && op.x2 > plat.x1;
+    });
+    if (choices.length > 0) {
+      const tgt = choices[Math.floor(Math.random() * choices.length)];
+      d.targetPlatIdx = tgt;
+      d.airborne = true;
+      d.vx = 0; d.vy = 0;
+    } else {
+      d.jumpCooldown = 60;
+    }
   }
 }
 
