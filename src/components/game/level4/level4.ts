@@ -839,6 +839,43 @@ function tickMonkeys(s: L4State) {
   }
 }
 
+// ── Monkey fireballs ────────────────────────────────────────
+// From L4 iter 2+, monkeys throw fireballs at the caveman.
+// Scaling follows L2 fireball ramp (steps = L4iter - 2):
+//   - max simultaneous = 1 + floor(steps/3)
+//   - interval (sec)   = 5.95 * 0.9^steps  (jittered 0.5..1.5x)
+//   - speed (px/frame) = baseline 2.2 * 1.1^steps
+function tickMonkeyFireballs(s: L4State) {
+  // Move existing
+  for (const fb of s.monkeyFireballs) {
+    fb.x += fb.vx;
+    fb.y += fb.vy;
+    fb.age++;
+  }
+  s.monkeyFireballs = s.monkeyFireballs.filter(
+    fb => fb.age < 600 && fb.x > -30 && fb.x < CANVAS_W + 30 && fb.y > -30 && fb.y < CANVAS_H + 30,
+  );
+  if (s.iter < 2) return;
+  const steps = s.iter - 2;
+  const maxFireballs = 1 + Math.floor(steps / 3);
+  if (s.monkeyFireballs.length >= maxFireballs) return;
+  if (s.monkeyFireballTimer > 0) { s.monkeyFireballTimer--; return; }
+  const alive = s.monkeys.filter(m => m.alive);
+  if (!alive.length) { s.monkeyFireballTimer = 60; return; }
+  const m = alive[Math.floor(Math.random() * alive.length)];
+  const p = s.player;
+  const tx = p.x + p.w / 2;
+  const ty = p.y + p.h / 2;
+  const sx = m.x + 7;
+  const sy = m.y + 4;
+  const dx = tx - sx, dy = ty - sy;
+  const L = Math.hypot(dx, dy) || 1;
+  const speed = 2.2 * Math.pow(1.1, steps);
+  s.monkeyFireballs.push({ x: sx, y: sy, vx: (dx / L) * speed, vy: (dy / L) * speed, r: 5, age: 0 });
+  const intervalSec = 5.95 * Math.pow(0.9, steps);
+  s.monkeyFireballTimer = Math.round(intervalSec * 60 * (0.5 + Math.random()));
+}
+
 function spawnCan(s: L4State, color: 'green' | 'purple') {
   const candidates = MONKEY_PLAT_ANCHORS;
   const pi = candidates[Math.floor(Math.random() * candidates.length)];
