@@ -754,7 +754,7 @@ function tickDragon(s: L4State) {
   }
   if (d.state === 'intro') {
     // Fly (no gravity) from princess platform down to TENT_TOP with flapping wings.
-    const tgt = 7;
+    const tgt = 9; // Land on P4_RIGHT (endpoint of sprout H3) so dragon has a flight column.
     const tp = L4_PLATFORMS[tgt];
     const tcx = (tp.x1 + tp.x2) / 2;
     const tgtY = tp.y - DRAGON_H;
