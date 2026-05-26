@@ -1189,6 +1189,7 @@ function tickCollisions(s: L4State) {
   if (s.invuln <= 0 && d.state === 'roam') {
     if (p.x < d.x + DRAGON_W && p.x + p.w > d.x && p.y < d.y + DRAGON_H && p.y + p.h > d.y) {
       loseLife(s);
+      dragonHopUpAfterKill(s);
     }
   }
 
@@ -1197,6 +1198,7 @@ function tickCollisions(s: L4State) {
     const fr = getFireRect(d);
     if (p.x < fr.x + fr.w && p.x + p.w > fr.x && p.y < fr.y + fr.h && p.y + p.h > fr.y) {
       loseLife(s);
+      dragonHopUpAfterKill(s);
     }
   }
 
