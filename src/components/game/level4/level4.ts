@@ -1637,16 +1637,7 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     }
   }
 
-  // HUD: dragon hits remaining
-  const total = s.diff.hitsToKill;
-  const remaining = Math.max(0, total - s.dragon.hits);
-  const slotW = 18, slotH = 14, slotY = CANVAS_H - 22, slotX0 = 8;
-  for (let i = 0; i < total; i++) {
-    ctx.fillStyle = i < remaining ? '#9b59b6' : '#2c2c2c';
-    ctx.fillRect(slotX0 + i * (slotW + 4), slotY, slotW, slotH);
-    ctx.strokeStyle = '#fff';
-    ctx.strokeRect(slotX0 + i * (slotW + 4), slotY, slotW, slotH);
-  }
+  // (dragon-hits HUD removed)
 
   // Ending overlay
   if (s.ending.active) {
