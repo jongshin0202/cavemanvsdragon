@@ -859,7 +859,8 @@ const CavemanVsDragonGame = () => {
           return true;
         }
         // DEV/TEST: mobile tap-count shortcut on intro/attract:
-        //   2 taps within ~400ms → Level 2; 3 taps → Level 3.
+        //   2 taps → Level 2; 3 taps → Level 3; 4 taps → L4 iter 1;
+        //   5 taps → L4 iter 2; 6 taps → L4 iter 3.
         if (
           _source === 'pad' &&
           (gs === 'intro' ||
@@ -883,7 +884,8 @@ const CavemanVsDragonGame = () => {
               gameStateRef.current === 'attractGlobalLeaderboard' ||
               gameStateRef.current === 'attractControls';
             if (!stillIntro) return;
-            if (taps >= 5) startInLevel3Iter4Test();
+            if (taps >= 6) startInLevel4Iter3Test();
+            else if (taps === 5) startInLevel4Iter2Test();
             else if (taps === 4) startInLevel4Test();
             else if (taps === 3) startInLevel3Test();
             else if (taps === 2) startInLevel2Test();
