@@ -629,12 +629,6 @@ function tickRocks(s: L4State) {
         r.vy += GRAVITY * 0.5;
         r.x += r.vx;
         r.y += r.vy;
-        // Screen-edge bounce: any rolling rock that hits the left/right side
-        // of the screen reverses direction and keeps rolling.
-        if (r.vy === 0 && r.platIdx >= 0) {
-          if (r.x - r.r < 0) { r.x = r.r; r.vx = Math.abs(r.vx) || 1.4; }
-          else if (r.x + r.r > CANVAS_W) { r.x = CANVAS_W - r.r; r.vx = -(Math.abs(r.vx) || 1.4); }
-        }
         for (let pi = 0; pi < L4_PLATFORMS.length; pi++) {
           const pl = L4_PLATFORMS[pi];
           if (r.x < pl.x1 || r.x > pl.x2) continue;
@@ -672,6 +666,12 @@ function tickRocks(s: L4State) {
             }
             break;
           }
+        }
+        // Screen-edge bounce: if rock is sitting on any platform and reaches
+        // the canvas left/right side, reverse direction instead of rolling off.
+        if (r.vy === 0 && r.platIdx >= 0) {
+          if (r.x - r.r < 0) { r.x = r.r; r.vx = Math.abs(r.vx) || 1.4; }
+          else if (r.x + r.r > CANVAS_W) { r.x = CANVAS_W - r.r; r.vx = -(Math.abs(r.vx) || 1.4); }
         }
         if (r.y > CANVAS_H + 30 || r.x < -30 || r.x > CANVAS_W + 30) r.state = 'dead';
         break;
