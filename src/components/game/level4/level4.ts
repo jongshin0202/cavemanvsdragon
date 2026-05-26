@@ -1241,6 +1241,9 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
   drawSprout(ctx, s.sproutH1);
   drawSprout(ctx, s.sproutH2);
   drawSprout(ctx, s.sproutH3);
+  drawSprout(ctx, s.sproutH4);
+  drawSprout(ctx, s.sproutH5);
+  drawSprout(ctx, s.sproutH6);
 
   // Cans
   if (s.greenCan) drawCan(ctx, sprites, s.greenCan);
