@@ -632,6 +632,14 @@ function tickRocks(s: L4State) {
             r.y = py - r.r;
             r.vy = 0;
             r.platIdx = pi;
+            // Rest at point A when landing on P5_E_FLAT and A is free.
+            if (pi === A_PLAT_IDX && s.rockAtAIdx < 0) {
+              r.x = A_X;
+              r.vx = 0;
+              r.state = 'restingAtA';
+              s.rockAtAIdx = i;
+              break;
+            }
             if (r.vx === 0) r.vx = Math.random() < 0.5 ? -1 : 1;
             // On P5.5 left stub, always roll right toward the ice ramp.
             if (pi === 2) r.vx = Math.abs(r.vx) || 1;
