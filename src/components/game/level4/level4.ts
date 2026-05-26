@@ -645,6 +645,11 @@ function tickRocks(s: L4State) {
             if (r.vx === 0) r.vx = Math.random() < 0.5 ? -1 : 1;
             // On P5.5 left stub, always roll right toward the ice ramp.
             if (pi === 2) r.vx = Math.abs(r.vx) || 1;
+            // On ice ramps, force the rock to roll DOWN the slope.
+            if (pl.ice && pl.slope) {
+              const downSign = pl.slope > 0 ? 1 : -1; // downhill direction (higher y)
+              r.vx = downSign * Math.max(1.2, Math.abs(r.vx));
+            }
             break;
           }
         }
