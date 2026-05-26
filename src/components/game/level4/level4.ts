@@ -145,6 +145,9 @@ const A_PLAT_IDX        = 4;   // P5_E_FLAT
 const H1_X = 480, H1_TOP_IDX = 18, H1_BOT_IDX = 23;  // P2_FARRIGHT → P1_RIGHT
 const H2_X = 30,  H2_TOP_IDX = 12, H2_BOT_IDX = 15;  // P3_LEFT     → P2_LEFT
 const H3_X = 480, H3_TOP_IDX = 9,  H3_BOT_IDX = 14;  // P4_RIGHT    → P3_RIGHT
+const H4_X = 30,  H4_TOP_IDX = 5,  H4_BOT_IDX = 12;  // P4_LEFT_D   → P3_LEFT
+const H5_X = 30,  H5_TOP_IDX = 15, H5_BOT_IDX = 21;  // P2_LEFT     → P1_LEFT
+const H6_X = 480, H6_TOP_IDX = 14, H6_BOT_IDX = 18;  // P3_RIGHT    → P2_FARRIGHT
 
 const MONKEY_PLAT_ANCHORS: number[] = [
   5, 9, 12, 13, 14, 15, 18, 21, 22, 23,
@@ -250,6 +253,9 @@ export interface L4State {
   sproutH1: Sprout;
   sproutH2: Sprout;
   sproutH3: Sprout;
+  sproutH4: Sprout;
+  sproutH5: Sprout;
+  sproutH6: Sprout;
   greenCan: Can | null;
   purpleCan: Can | null;
   carrying: null | 'green' | 'purple';
@@ -395,6 +401,9 @@ export function initLevel4(iter: number): L4State {
     sproutH1: mkSprout(H1_X, H1_TOP_IDX, H1_BOT_IDX),
     sproutH2: mkSprout(H2_X, H2_TOP_IDX, H2_BOT_IDX),
     sproutH3: mkSprout(H3_X, H3_TOP_IDX, H3_BOT_IDX),
+    sproutH4: mkSprout(H4_X, H4_TOP_IDX, H4_BOT_IDX),
+    sproutH5: mkSprout(H5_X, H5_TOP_IDX, H5_BOT_IDX),
+    sproutH6: mkSprout(H6_X, H6_TOP_IDX, H6_BOT_IDX),
     greenCan: null,
     purpleCan: null,
     carrying: null,
@@ -662,19 +671,24 @@ function tickSprouts(s: L4State) {
   // E: only grows on watering. We still tick to keep growProgress correct.
   tickOneSprout(s.sproutE);
 
-  // H1/H2/H3 auto-regrow.
-  if (s.sproutH1.phase === 'seed' && s.sproutH1.regrowTimer <= 0 && s.sproutH1.growProgress === 0) {
-    s.sproutH1.phase = 'growing';
-  }
-  if (s.sproutH2.phase === 'seed' && s.sproutH2.regrowTimer <= 0 && s.sproutH2.growProgress === 0) {
-    s.sproutH2.phase = 'growing';
-  }
-  if (s.sproutH3.phase === 'seed' && s.sproutH3.regrowTimer <= 0 && s.sproutH3.growProgress === 0) {
-    s.sproutH3.phase = 'growing';
-  }
+  // H1..H6 auto-regrow.
+  const autoRegrow = (sp: Sprout) => {
+    if (sp.phase === 'seed' && sp.regrowTimer <= 0 && sp.growProgress === 0) {
+      sp.phase = 'growing';
+    }
+  };
+  autoRegrow(s.sproutH1);
+  autoRegrow(s.sproutH2);
+  autoRegrow(s.sproutH3);
+  autoRegrow(s.sproutH4);
+  autoRegrow(s.sproutH5);
+  autoRegrow(s.sproutH6);
   tickOneSprout(s.sproutH1);
   tickOneSprout(s.sproutH2);
   tickOneSprout(s.sproutH3);
+  tickOneSprout(s.sproutH4);
+  tickOneSprout(s.sproutH5);
+  tickOneSprout(s.sproutH6);
 }
 
 // ── Monkeys ─────────────────────────────────────────────────
@@ -842,6 +856,9 @@ function tickDragon(s: L4State) {
       { col: H1_X, a: H1_TOP_IDX,      b: H1_BOT_IDX        }, // 18 ↔ 23
       { col: H2_X, a: H2_TOP_IDX,      b: H2_BOT_IDX        }, // 12 ↔ 15
       { col: H3_X, a: H3_TOP_IDX,      b: H3_BOT_IDX        }, // 9 ↔ 14
+      { col: H4_X, a: H4_TOP_IDX,      b: H4_BOT_IDX        }, // 5 ↔ 12
+      { col: H5_X, a: H5_TOP_IDX,      b: H5_BOT_IDX        }, // 15 ↔ 21
+      { col: H6_X, a: H6_TOP_IDX,      b: H6_BOT_IDX        }, // 14 ↔ 18
     ];
     // Horizontal neighbors on the same row — one platform at a time (static or moving).
     const HORIZ_PAIRS: [number, number][] = [
@@ -884,7 +901,7 @@ function tickPlayer(s: L4State, input: L4Input) {
 
   // Climbing detection across D, E, H1, H2, H3
   let nearSprout: Sprout | null = null;
-  const sproutList = [s.sproutD, s.sproutE, s.sproutH1, s.sproutH2, s.sproutH3];
+  const sproutList = [s.sproutD, s.sproutE, s.sproutH1, s.sproutH2, s.sproutH3, s.sproutH4, s.sproutH5, s.sproutH6];
   for (const sp of sproutList) {
     if (sp.growProgress < 0.6) continue;
     const cx = p.x + p.w / 2;
@@ -1224,6 +1241,9 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
   drawSprout(ctx, s.sproutH1);
   drawSprout(ctx, s.sproutH2);
   drawSprout(ctx, s.sproutH3);
+  drawSprout(ctx, s.sproutH4);
+  drawSprout(ctx, s.sproutH5);
+  drawSprout(ctx, s.sproutH6);
 
   // Cans
   if (s.greenCan) drawCan(ctx, sprites, s.greenCan);
