@@ -27,7 +27,7 @@
 
 import { CANVAS_W, CANVAS_H, getRoundDifficulty } from '../constants';
 import { LEVEL4_PARAMS, getLevel4Difficulty, type Level4Difficulty } from './params';
-import { playWingFlapSound, playJumpSound, playRobotKillSound, playHitSound } from '../sounds';
+import { playWingFlapSound, playJumpSound, playRobotKillSound, playHitSound, playBarrelRollSound } from '../sounds';
 
 const GRAVITY = 0.38;
 const MOVE_SPEED = 1.9;
@@ -540,6 +540,7 @@ function tickRocks(s: L4State) {
       vx: 2.2 * dir, vy: -3.4, r: 8,
       state: 'flying', platIdx: -1, age: 0,
     });
+    playBarrelRollSound();
   } else if (s.spawnRockTimer <= 0) {
     // Wait a bit and re-check next frame.
     s.spawnRockTimer = 15;
