@@ -208,6 +208,7 @@ interface Rock {
   age: number;
   hitConsumed?: boolean;
   kicked?: boolean;
+  rollPhase?: number;
 }
 
 type DragonState = 'intro' | 'roam' | 'downed' | 'dying' | 'dead';
