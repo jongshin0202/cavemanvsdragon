@@ -460,6 +460,8 @@ export function initLevel4(iter: number): L4State {
     invuln: 60,
     princessX: PRINCESS_X,
     princessY: PRINCESS_Y,
+    helpTimer: 0,
+    showHelp: false,
   };
 }
 
