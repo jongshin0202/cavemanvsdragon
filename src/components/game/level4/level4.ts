@@ -1009,6 +1009,7 @@ function tickPlayer(s: L4State, input: L4Input) {
         s.rockAtAIdx = -1;
         p.kickTimer = 18;
       } else {
+        playJumpSound();
         p.vy = JUMP_FORCE;
         p.onGround = false; p.jumping = true;
         p.jumpStartPlatIdx = p.groundPlatIdx;
@@ -1026,6 +1027,7 @@ function tickPlayer(s: L4State, input: L4Input) {
         s.sproutD.phase = 'withering';
         if (s.dragon.hits < s.diff.hitsToKill) respawnMonkeyWave(s);
       } else {
+        playJumpSound();
         p.vy = JUMP_FORCE; p.onGround = false; p.jumping = true; p.jumpStartPlatIdx = p.groundPlatIdx;
       }
     }
@@ -1038,10 +1040,12 @@ function tickPlayer(s: L4State, input: L4Input) {
         }
         s.carrying = null;
       } else {
+        playJumpSound();
         p.vy = JUMP_FORCE; p.onGround = false; p.jumping = true; p.jumpStartPlatIdx = p.groundPlatIdx;
       }
     }
     else {
+      playJumpSound();
       p.vy = JUMP_FORCE;
       p.onGround = false; p.jumping = true;
       p.jumpStartPlatIdx = p.groundPlatIdx;
@@ -1163,6 +1167,7 @@ function tickCollisions(s: L4State) {
     if (p.x < m.x + 14 && p.x + p.w > m.x && p.y < m.y + 16 && p.y + p.h > m.y) {
       if (p.vy > 0 && (p.y + p.h) < m.y + 12) {
         m.alive = false;
+        playRobotKillSound();
         p.vy = JUMP_FORCE * 0.8;
       } else if (s.invuln <= 0) {
         loseLife(s);
