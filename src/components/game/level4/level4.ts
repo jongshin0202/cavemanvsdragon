@@ -1569,6 +1569,32 @@ function drawDragon(ctx: CanvasRenderingContext2D, sprites: L4Sprites, d: Dragon
     ctx.fillStyle = '#c0392b'; ctx.fillRect(d.x, d.y, DRAGON_W, DRAGON_H);
   }
   ctx.restore();
+
+  // Fire breath
+  if (d.fireTimer > 0 && d.state === 'roam' && !d.airborne) {
+    const fr = getFireRect(d);
+    const t = 1 - d.fireTimer / FIRE_DURATION; // 0..1
+    ctx.save();
+    const grad = ctx.createLinearGradient(
+      d.facing >= 0 ? fr.x : fr.x + fr.w, 0,
+      d.facing >= 0 ? fr.x + fr.w : fr.x, 0,
+    );
+    grad.addColorStop(0, 'rgba(255,240,120,0.95)');
+    grad.addColorStop(0.5, 'rgba(255,140,30,0.85)');
+    grad.addColorStop(1, 'rgba(220,40,20,0)');
+    ctx.fillStyle = grad;
+    const wob = Math.sin(d.frame * 0.8) * 2;
+    ctx.beginPath();
+    const x0 = d.facing >= 0 ? fr.x : fr.x + fr.w;
+    const x1 = d.facing >= 0 ? fr.x + fr.w : fr.x;
+    ctx.moveTo(x0, fr.y + fr.h / 2 - 4);
+    ctx.quadraticCurveTo((x0 + x1) / 2, fr.y - 4 + wob, x1, fr.y + fr.h / 2);
+    ctx.quadraticCurveTo((x0 + x1) / 2, fr.y + fr.h + 4 - wob, x0, fr.y + fr.h / 2 + 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
   if (d.state === 'downed') {
     ctx.save();
     ctx.translate(d.x + DRAGON_W / 2, d.y - 8);
