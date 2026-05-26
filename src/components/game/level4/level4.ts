@@ -1429,28 +1429,28 @@ function tickCollisions(s: L4State) {
   const p = s.player;
   const d = s.dragon;
 
-  // Rock vs Dragon — any caveman-kicked rock can hit the dragon while airborne.
-  for (const r of s.rocks) {
-    if (r.state === 'dead' || r.state === 'restingAtA') continue;
-    if (!r.kicked) continue;
-    if (r.hitConsumed) continue;
-    if (d.state === 'roam' || d.state === 'downed') {
-      const dw = DRAGON_W, dh = DRAGON_H;
-      if (r.x > d.x && r.x < d.x + dw && r.y + r.r > d.y && r.y - r.r < d.y + dh) {
-        r.hitConsumed = true;
-        r.state = 'dead';
-        d.hits++;
-        d.state = 'downed';
-        d.downedTimer = Math.round(5 * 60);
-        if (!s.purpleCan) spawnCan(s, 'purple');
-      }
+  // Caveman stomp on dragon's head — falling onto dragon hits it
+  if (d.state === 'roam' || d.state === 'downed') {
+    const dw = DRAGON_W, dh = DRAGON_H;
+    const overlapX = p.x < d.x + dw && p.x + p.w > d.x;
+    const overlapY = p.y < d.y + dh && p.y + p.h > d.y;
+    if (overlapX && overlapY && p.vy > 0 && (p.y + p.h) < d.y + 14) {
+      d.hits++;
+      d.state = 'downed';
+      d.downedTimer = Math.round(5 * 60);
+      if (!s.purpleCan) spawnCan(s, 'purple');
+      // bounce caveman off dragon's head
+      p.vy = JUMP_FORCE * 0.8;
+      p.jumping = true;
+      p.onGround = false;
+      s.invuln = Math.max(s.invuln, 20);
     }
   }
 
   // Rocks vs player
   if (s.invuln <= 0) {
     for (const r of s.rocks) {
-      if (r.state === 'restingAtA' || r.state === 'dead') continue;
+      if (r.state === 'dead') continue;
       const dx = (p.x + p.w / 2) - r.x;
       const dy = (p.y + p.h / 2) - r.y;
       if (dx * dx + dy * dy < (r.r + 8) * (r.r + 8)) {
