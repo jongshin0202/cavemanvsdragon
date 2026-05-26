@@ -12,30 +12,48 @@ export function unlockAudio() {
   if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 }
 
-// Quick airy "whoosh" — used for dragon wing flaps.
+// Dragon wing flap — deep "whoomp" of leathery wings beating the air.
 export function playWingFlapSound() {
   const ctx = getCtx();
-  // Noise buffer
-  const buf = ctx.createBuffer(1, ctx.sampleRate * 0.18, ctx.sampleRate);
+  const now = ctx.currentTime;
+  const dur = 0.28;
+
+  // 1) Filtered noise = air whoosh
+  const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
   const data = buf.getChannelData(0);
   for (let i = 0; i < data.length; i++) {
     const t = i / data.length;
-    data[i] = (Math.random() * 2 - 1) * (1 - t);
+    // Envelope: fast attack, slow tail
+    const env = Math.pow(1 - t, 1.6) * (t < 0.05 ? t / 0.05 : 1);
+    data[i] = (Math.random() * 2 - 1) * env;
   }
-  const src = ctx.createBufferSource();
-  src.buffer = buf;
-  const bp = ctx.createBiquadFilter();
-  bp.type = 'bandpass';
-  bp.frequency.setValueAtTime(900, ctx.currentTime);
-  bp.frequency.exponentialRampToValueAtTime(350, ctx.currentTime + 0.18);
-  bp.Q.value = 1.2;
-  const gain = ctx.createGain();
-  gain.gain.setValueAtTime(0.18, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
-  src.connect(bp); bp.connect(gain); gain.connect(ctx.destination);
-  src.start(ctx.currentTime);
-  src.stop(ctx.currentTime + 0.2);
+  const noise = ctx.createBufferSource();
+  noise.buffer = buf;
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.setValueAtTime(1800, now);
+  lp.frequency.exponentialRampToValueAtTime(400, now + dur);
+  lp.Q.value = 0.8;
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.setValueAtTime(0.55, now);
+  noiseGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+  noise.connect(lp); lp.connect(noiseGain); noiseGain.connect(ctx.destination);
+  noise.start(now);
+  noise.stop(now + dur);
+
+  // 2) Low sine "thump" = wing impact
+  const thump = ctx.createOscillator();
+  thump.type = 'sine';
+  thump.frequency.setValueAtTime(110, now);
+  thump.frequency.exponentialRampToValueAtTime(45, now + 0.18);
+  const thumpGain = ctx.createGain();
+  thumpGain.gain.setValueAtTime(0.45, now);
+  thumpGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+  thump.connect(thumpGain); thumpGain.connect(ctx.destination);
+  thump.start(now);
+  thump.stop(now + 0.22);
 }
+
 
 
 
