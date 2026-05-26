@@ -579,9 +579,10 @@ function tickRocks(s: L4State) {
       case 'rollingTop': {
         r.x += r.vx;
         const top = L4_PLATFORMS[0];
-        // Off either edge → cascade down platforms.
-        // Right edge → falls onto ICE_TR and slides down.
-        // Left edge → cascades P55 → ice → P5_E_FLAT (rest at A).
+        // Screen-edge bounce while rolling on the top platform.
+        if (r.x - r.r < 0) { r.x = r.r; r.vx = Math.abs(r.vx) || 1.4; }
+        else if (r.x + r.r > CANVAS_W) { r.x = CANVAS_W - r.r; r.vx = -(Math.abs(r.vx) || 1.4); }
+        // Off either platform edge (inside the screen) → cascade down platforms.
         if (r.x > top.x2 + 2) {
           r.state = 'rollingDown';
           r.vx = 1.0; r.vy = 0;
