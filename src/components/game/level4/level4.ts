@@ -540,6 +540,7 @@ function tickRocks(s: L4State) {
       vx: 2.2 * dir, vy: -3.4, r: 8,
       state: 'flying', platIdx: -1, age: 0,
     });
+    playBarrelRollSound();
   } else if (s.spawnRockTimer <= 0) {
     // Wait a bit and re-check next frame.
     s.spawnRockTimer = 15;
