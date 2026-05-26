@@ -259,6 +259,8 @@ export interface L4State {
   monkeys: Monkey[];
   rocks: Rock[];
   spawnRockTimer: number;
+  monkeyFireballs: MonkeyFireball[];
+  monkeyFireballTimer: number;
   sproutD: Sprout;
   sproutE: Sprout;
   sproutH1: Sprout;
