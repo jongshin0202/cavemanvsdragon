@@ -1413,6 +1413,7 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
 
   // Rocks — match Level 1 visual: aspect-correct, circumference-based rotation.
   for (const r of s.rocks) {
+    if (r.state === 'dead') continue;
     const img = sprites.rockWheel;
     const ready = img && img.complete && img.naturalWidth > 0;
     const baseW = 14;
