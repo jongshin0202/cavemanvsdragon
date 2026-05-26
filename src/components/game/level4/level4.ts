@@ -377,12 +377,12 @@ export function initLevel4(iter: number): L4State {
   // P2 pair: opposite directions, different magnitudes.
   randomizeMover(16,  rmag(0.6, 1.2));
   randomizeMover(17, -rmag(0.6, 1.2));
-  randomizeMover(22, rsp(0.5, 1.0));
+  randomizeMover(20, rsp(0.5, 1.0));
 
-  // Caveman on P1_LEFT (idx 21).
+  // Caveman on P1_LEFT (idx 19).
   const player: Player = {
-    x: 20, y: platY(L4_PLATFORMS[21], 20) - 24, w: 16, h: 24,
-    vx: 0, vy: 0, onGround: true, groundPlatIdx: 21, jumpStartPlatIdx: 21,
+    x: 20, y: platY(L4_PLATFORMS[19], 20) - 24, w: 16, h: 24,
+    vx: 0, vy: 0, onGround: true, groundPlatIdx: 19, jumpStartPlatIdx: 19,
     climbing: false, facing: 1, jumping: false,
     walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0,
     climbFrame: 0, climbTimer: 0, kickTimer: 0,
