@@ -1227,6 +1227,17 @@ function tickCans(s: L4State) {
   };
   if (pickup(s.greenCan)) s.greenCan = null;
   if (pickup(s.purpleCan)) s.purpleCan = null;
+
+  // Auto-water D when caveman stands on D base carrying green can.
+  if (s.carrying === 'green' && p.onGround && p.groundPlatIdx === D_BASE_PLAT_IDX) {
+    const cx = p.x + p.w / 2;
+    if (Math.abs(cx - D_X) < 22) {
+      if (s.sproutD.phase === 'seed' || s.sproutD.phase === 'withering') {
+        s.sproutD.phase = 'growing';
+      }
+      s.carrying = null;
+    }
+  }
 }
 
 // ── Collisions ──────────────────────────────────────────────
