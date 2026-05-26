@@ -1983,7 +1983,14 @@ function drawDragon(ctx: CanvasRenderingContext2D, sprites: L4Sprites, d: Dragon
     ? sprites.dragonAngry : sprites.dragonFire;
   ctx.save();
   if (d.state === 'downed') ctx.globalAlpha = 0.7;
-  if (d.state === 'dying') ctx.globalAlpha = 0.5;
+  if (d.state === 'dying') {
+    ctx.globalAlpha = 0.85;
+    const cx = d.x + DRAGON_W / 2;
+    const cy = d.y + DRAGON_H / 2;
+    ctx.translate(cx, cy);
+    ctx.rotate(d.dyingSpin ?? 0);
+    ctx.translate(-cx, -cy);
+  }
 
   // Flapping wings overlay during intro flight
   if (d.state === 'intro' || (d.state === 'roam' && d.airborne)) {
