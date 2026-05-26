@@ -12,47 +12,48 @@ export function unlockAudio() {
   if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 }
 
-// Dragon wing flap — deep "whoomp" of leathery wings beating the air.
+// Dragon wing flap — big, airy whoosh of huge leathery wings.
 export function playWingFlapSound() {
   const ctx = getCtx();
   const now = ctx.currentTime;
-  const dur = 0.28;
+  const dur = 0.55;
 
-  // 1) Filtered noise = air whoosh
+  // Long noise burst with two-stage envelope = inhale + push of air
   const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
   const data = buf.getChannelData(0);
   for (let i = 0; i < data.length; i++) {
     const t = i / data.length;
-    // Envelope: fast attack, slow tail
-    const env = Math.pow(1 - t, 1.6) * (t < 0.05 ? t / 0.05 : 1);
-    data[i] = (Math.random() * 2 - 1) * env;
+    // Slow swell then long airy tail
+    const attack = Math.min(1, t / 0.18);
+    const release = Math.pow(1 - t, 1.4);
+    data[i] = (Math.random() * 2 - 1) * attack * release;
   }
   const noise = ctx.createBufferSource();
   noise.buffer = buf;
+
+  // Lowpass sweep from bright air to deep bass whoosh
   const lp = ctx.createBiquadFilter();
   lp.type = 'lowpass';
-  lp.frequency.setValueAtTime(1800, now);
-  lp.frequency.exponentialRampToValueAtTime(400, now + dur);
-  lp.Q.value = 0.8;
-  const noiseGain = ctx.createGain();
-  noiseGain.gain.setValueAtTime(0.55, now);
-  noiseGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
-  noise.connect(lp); lp.connect(noiseGain); noiseGain.connect(ctx.destination);
+  lp.frequency.setValueAtTime(2400, now);
+  lp.frequency.exponentialRampToValueAtTime(180, now + dur);
+  lp.Q.value = 0.5;
+
+  // Highpass keeps it from being too muddy
+  const hp = ctx.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.setValueAtTime(80, now);
+  hp.Q.value = 0.3;
+
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(0.7, now + 0.18);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+  noise.connect(hp); hp.connect(lp); lp.connect(gain); gain.connect(ctx.destination);
   noise.start(now);
   noise.stop(now + dur);
-
-  // 2) Low sine "thump" = wing impact
-  const thump = ctx.createOscillator();
-  thump.type = 'sine';
-  thump.frequency.setValueAtTime(110, now);
-  thump.frequency.exponentialRampToValueAtTime(45, now + 0.18);
-  const thumpGain = ctx.createGain();
-  thumpGain.gain.setValueAtTime(0.45, now);
-  thumpGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-  thump.connect(thumpGain); thumpGain.connect(ctx.destination);
-  thump.start(now);
-  thump.stop(now + 0.22);
 }
+
 
 
 
