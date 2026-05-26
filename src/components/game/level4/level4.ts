@@ -100,9 +100,8 @@ export const L4_PLATFORMS: L4Platform[] = [
   /* 17 P2_MOVER_B       */ { y: 370, x1: 250, x2: 305 },
   /* 18 P2_FARRIGHT      */ { y: 370, x1: 420, x2: 512 },
 
-  // ICE trapezoid legs (P2 → P1)
-  /* 19 ICE_TRAP_L       */ { y: 370, x1: 130, x2: 175, slope: (445 - 370) / (175 - 130), ice: true },
-  /* 20 ICE_TRAP_R       */ { y: 445, x1: 370, x2: 420, slope: (370 - 445) / (420 - 370), ice: true },
+
+
 
   // ── P1 (y=445) ── left | mover | right (H1 ladder right)
   /* 21 P1_LEFT          */ { y: 445, x1: 0,   x2: 175 },
