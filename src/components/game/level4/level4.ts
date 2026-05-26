@@ -882,12 +882,30 @@ function tickDragon(s: L4State) {
       }
     }
     if (options.length > 0) {
-      const pick = options[Math.floor(Math.random() * options.length)];
+      // Bias: chase caveman with P = 0.5 + 0.1*(iter-1), capped at 1.0.
+      const chaseProb = Math.min(1, 0.5 + 0.1 * Math.max(0, s.iter - 1));
+      const pc = s.player;
+      const dragonCx = d.x + DRAGON_W / 2;
+      const dragonCy = d.y + DRAGON_H / 2;
+      const curDist = Math.hypot((pc.x + pc.w / 2) - dragonCx, (pc.y + pc.h / 2) - dragonCy);
+      let pick = options[Math.floor(Math.random() * options.length)];
+      if (Math.random() < chaseProb) {
+        // Pick the option whose target platform brings dragon closest to caveman.
+        let best = pick; let bestDist = Infinity;
+        for (const o of options) {
+          const tp = L4_PLATFORMS[o.tgt];
+          const tx = Math.max(tp.x1, Math.min(tp.x2 - DRAGON_W, o.colX - DRAGON_W / 2)) + DRAGON_W / 2;
+          const ty = tp.y - DRAGON_H / 2;
+          const dist = Math.hypot((pc.x + pc.w / 2) - tx, (pc.y + pc.h / 2) - ty);
+          if (dist < bestDist) { bestDist = dist; best = o; }
+        }
+        // Only switch if it actually gets closer than the current position.
+        if (bestDist < curDist) pick = best;
+      }
       d.targetPlatIdx = pick.tgt;
       d.airborne = true;
       d.vx = 0; d.vy = 0;
       (d as Dragon & { flyColX?: number }).flyColX = pick.colX;
-
     } else {
       d.jumpCooldown = 60;
     }
