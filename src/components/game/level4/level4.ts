@@ -738,33 +738,33 @@ function tickDragon(s: L4State) {
     return;
   }
   if (d.state === 'intro') {
-    // Jump from princess top down to TENT_TOP (idx 7).
-    if (!d.airborne) {
-      const tgt = 7;
-      const tp = L4_PLATFORMS[tgt];
-      const tcx = (tp.x1 + tp.x2) / 2;
-      d.targetPlatIdx = tgt;
-      d.airborne = true;
-      d.vy = -2.0;
-      d.vx = Math.max(-3, Math.min(3, (tcx - (d.x + DRAGON_W / 2)) / 60));
-    }
-    d.vy += GRAVITY;
-    d.x += d.vx;
-    d.y += d.vy;
-    const tp = L4_PLATFORMS[d.targetPlatIdx];
-    if (d.vy >= 0 && d.y + DRAGON_H >= tp.y && d.x + DRAGON_W > tp.x1 && d.x < tp.x2) {
-      d.y = tp.y - DRAGON_H;
-      d.vy = 0; d.vx = 0;
+    // Fly (no gravity) from princess platform down to TENT_TOP with flapping wings.
+    const tgt = 7;
+    const tp = L4_PLATFORMS[tgt];
+    const tcx = (tp.x1 + tp.x2) / 2;
+    const tgtY = tp.y - DRAGON_H;
+    const tgtX = tcx - DRAGON_W / 2;
+    d.targetPlatIdx = tgt;
+    d.airborne = true;
+    // Smooth glide
+    const dx = tgtX - d.x;
+    const dy = tgtY - d.y;
+    const dist = Math.hypot(dx, dy);
+    const speed = 2.4;
+    if (dist > speed) {
+      d.x += (dx / dist) * speed;
+      d.y += (dy / dist) * speed;
+      d.facing = dx >= 0 ? 1 : -1;
+      // Speed up wing flapping during flight
+      if (d.frameTimer >= 4) { d.frameTimer = 0; d.frame = (d.frame + 1) % DRAGON_FRAMES; }
+    } else {
+      d.x = tgtX;
+      d.y = tgtY;
+      d.vx = 0; d.vy = 0;
       d.airborne = false;
-      d.platIdx = d.targetPlatIdx;
+      d.platIdx = tgt;
       d.state = 'roam';
       d.jumpCooldown = 90;
-    } else if (d.y > CANVAS_H + 40) {
-      d.y = L4_PLATFORMS[7].y - DRAGON_H;
-      d.x = (L4_PLATFORMS[7].x1 + L4_PLATFORMS[7].x2) / 2 - DRAGON_W / 2;
-      d.airborne = false;
-      d.platIdx = 7;
-      d.state = 'roam';
     }
     return;
   }
