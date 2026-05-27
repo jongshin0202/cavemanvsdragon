@@ -1694,10 +1694,12 @@ function tickEnding(s: L4State) {
   e.timer++;
   switch (e.phase) {
     case 'hug':
-      if (e.timer >= 120) { e.phase = 'pause'; e.timer = 0; }
+      // "Thank you, my hero!" for 3 seconds
+      if (e.timer >= 180) { e.phase = 'pause'; e.timer = 0; }
       break;
     case 'pause':
-      if (e.timer >= 120) { e.phase = 'kidnap'; e.timer = 0; e.newDragonX = -DRAGON_W; }
+      // "But the happiness didn't last long..." for 1 second
+      if (e.timer >= 60) { e.phase = 'kidnap'; e.timer = 0; e.newDragonX = -DRAGON_W; }
       break;
     case 'kidnap':
       e.newDragonX += 3;
@@ -1909,12 +1911,18 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
   // Ending overlay
   if (s.ending.active) {
     const e = s.ending;
-    if (e.phase === 'hug' || e.phase === 'pause') {
+    if (e.phase === 'hug') {
       ctx.fillStyle = 'rgba(255,255,255,0.9)';
       ctx.fillRect(140, 60, 180, 36);
       ctx.fillStyle = '#000';
       ctx.font = '14px sans-serif';
       ctx.fillText('Thank you, my hero!', 158, 84);
+    } else if (e.phase === 'pause') {
+      ctx.fillStyle = 'rgba(0,0,0,0.85)';
+      ctx.fillRect(60, 60, 340, 36);
+      ctx.fillStyle = '#fff';
+      ctx.font = '13px sans-serif';
+      ctx.fillText("But the happiness didn't last long...", 78, 84);
     }
     if (e.phase === 'kidnap') {
       const img = sprites.dragonAngry;
