@@ -2819,8 +2819,8 @@ const CavemanVsDragonGame = () => {
         const bob = Math.sin(g.keyBob * 0.12) * 2;
         const cx = kp.x + kp.w / 2;
         const cy = kp.y + kp.h / 2 + bob;
-        // Soft blue glow
-        ctx.fillStyle = 'rgba(79, 195, 247, 0.35)';
+        // Green glow (unified watering-can look across all levels)
+        ctx.fillStyle = 'rgba(116, 224, 127, 0.45)';
         ctx.beginPath(); ctx.arc(cx, cy, 12, 0, Math.PI * 2); ctx.fill();
         const canImg = wateringCanRef.current;
         const drawW = 22, drawH = 18;

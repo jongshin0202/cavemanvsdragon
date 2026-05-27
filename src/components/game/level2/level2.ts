@@ -917,7 +917,7 @@ export function fireballHitsPlayer(
 export function renderLevel2(
   ctx: CanvasRenderingContext2D,
   s: L2State,
-  _sprites: L2Sprites,
+  sprites: L2Sprites,
   hostRobots?: { x: number; y: number; w: number; h: number; direction: number }[],
 ): void {
   // ── Volcano on the FAR RIGHT of the top platform (right of the gap)
@@ -988,25 +988,25 @@ export function renderLevel2(
     ctx.fillRect(TOP_GAP_X1, y - 2, TOP_GAP_X2 - TOP_GAP_X1, 14);
   }
 
-  // ── Watering cans on ground
+  // ── Watering cans on ground — unified look across all levels:
+  // sprite image with a colored circular glow (green or purple).
   const drawCan = (c: { x: number; y: number; w: number; h: number; color: 'green' | 'purple' } | null) => {
     if (!c) return;
     const cx = c.x + c.w / 2;
     const cy = c.y + c.h / 2;
-    const fill = c.color === 'green' ? '#2e9b3a' : '#7a2bd1';
-    const hi = c.color === 'green' ? '#74e07f' : '#c79bff';
-    // glow
-    ctx.fillStyle = c.color === 'green' ? 'rgba(116, 224, 127, 0.35)' : 'rgba(199, 155, 255, 0.35)';
+    ctx.fillStyle = c.color === 'green'
+      ? 'rgba(116, 224, 127, 0.45)'
+      : 'rgba(176, 120, 230, 0.45)';
     ctx.beginPath(); ctx.arc(cx, cy, 12, 0, Math.PI * 2); ctx.fill();
-    // body
-    ctx.fillStyle = fill;
-    ctx.fillRect(cx - 8, cy - 5, 14, 10);
-    ctx.fillRect(cx + 5, cy - 2, 4, 4);
-    ctx.fillStyle = hi;
-    ctx.fillRect(cx - 7, cy - 4, 4, 2);
-    // spout
-    ctx.fillStyle = fill;
-    ctx.fillRect(cx - 12, cy - 3, 4, 3);
+    const canImg = sprites.wateringCan;
+    const drawW = 22, drawH = 18;
+    if (canImg && canImg.complete && canImg.naturalWidth > 0) {
+      ctx.drawImage(canImg, cx - drawW / 2, cy - drawH / 2, drawW, drawH);
+    } else {
+      ctx.fillStyle = c.color === 'green' ? '#2e9b3a' : '#7a2bd1';
+      ctx.fillRect(cx - 8, cy - 5, 14, 10);
+      ctx.fillRect(cx - 12, cy - 3, 4, 3);
+    }
   };
   if (s.greenCan && !s.greenCan.collected) drawCan(s.greenCan);
   if (s.purpleCan && !s.purpleCan.collected) drawCan(s.purpleCan);
