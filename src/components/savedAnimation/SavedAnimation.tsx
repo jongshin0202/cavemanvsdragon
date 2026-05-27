@@ -14,23 +14,24 @@ const DRAGON_FRAMES = 5;
 // 0          : show black bg, princess centered, congrats banner, caveman at left
 // 0..2000    : caveman walks from left edge to right next to princess
 // 2000..4000 : princess: "Thank you for saving me!"
-// 4000..6000 : dragon appears from far left at y=25%, hovering/flapping in place
-// 6000..7500 : dragon flies to princess
-// 7500       : grab — princess "HELP ME!!!", congrats hides, caveman "I will save you!!!"
-// 7500..9500 : dragon carries princess off to right at y=25%; caveman walks right & exits
-// 9500..10500: blank 1s
-// 10500..12500: "...but the happiness did not last long..." center
-// 12500      : onDone()
+// 5000..7000 : dragon appears from far left at y=25%, hovering/flapping in place
+// 7000..8500 : dragon flies to princess
+// 8500       : grab — princess "HELP ME!!!", congrats hides, caveman "I will save you!!!"
+// 8500..10500: dragon carries princess off to right at y=25%; caveman walks right & exits
+// 10500..11500: blank 1s
+// 11500..13500: "...but the happiness did not last long..." center
+// 13500      : onDone()
 const T = {
   CAVEMAN_WALK_END: 2000,
   PRINCESS_THANKS_END: 4000,
-  DRAGON_HOVER_END: 6000,
-  DRAGON_REACH: 7500,
-  CARRY_END: 9500,      // dragon (+ princess) fully off-screen right
-  CAVEMAN_EXIT_END: 11500, // caveman walks right and exits after dragon is gone
-  PAUSE_END: 12500,
-  TEXT_END: 14500,
-  DONE: 14500,
+  DRAGON_APPEAR: 5000,
+  DRAGON_HOVER_END: 7000,
+  DRAGON_REACH: 8500,
+  CARRY_END: 10500,      // dragon (+ princess) fully off-screen right
+  CAVEMAN_EXIT_END: 12500, // caveman walks right and exits after dragon is gone
+  PAUSE_END: 13500,
+  TEXT_END: 15500,
+  DONE: 15500,
 };
 
 interface Props {
@@ -51,7 +52,7 @@ export default function SavedAnimation({ onDone }: Props) {
       setT(elapsed);
 
       // Wing flap sound while dragon is on-screen (hover + flight + carry).
-      if (elapsed >= 4000 && elapsed < T.CARRY_END) {
+      if (elapsed >= T.DRAGON_APPEAR && elapsed < T.CARRY_END) {
         if (now - lastFlapRef.current > 600) {
           lastFlapRef.current = now;
           playWingFlapSound();
@@ -110,12 +111,12 @@ export default function SavedAnimation({ onDone }: Props) {
   let dragonY = dragonHoverY;
   let showDragon = false;
   let princessHeldByDragon = false;
-  if (t >= 4000 && t < T.DRAGON_HOVER_END) {
+  if (t >= T.DRAGON_APPEAR && t < T.DRAGON_HOVER_END) {
     // Hover at far left
     showDragon = true;
     dragonX = 8;
     // gentle bob
-    dragonY = dragonHoverY + Math.sin((t - 4000) / 120) * 3;
+    dragonY = dragonHoverY + Math.sin((t - T.DRAGON_APPEAR) / 120) * 3;
   } else if (t >= T.DRAGON_HOVER_END && t < T.DRAGON_REACH) {
     showDragon = true;
     const p = (t - T.DRAGON_HOVER_END) / (T.DRAGON_REACH - T.DRAGON_HOVER_END);
