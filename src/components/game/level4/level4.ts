@@ -1703,6 +1703,7 @@ function tickCans(s: L4State) {
         s.sproutD.phase = 'growing';
         playWaterSproutSound();
         playVineGrowSound();
+        s.scoreEvents.push('waterGreen');
       }
       s.carrying = null;
     }
@@ -1716,12 +1717,14 @@ function tickCans(s: L4State) {
       if (s.sproutE.growProgress >= 1) s.sproutE.phase = 'alive';
       playWaterSproutSound();
       playVineGrowSound();
+      s.scoreEvents.push('waterPurple');
       s.carrying = null;
       s.sproutD.phase = 'withering';
       if (s.dragon.hits < s.diff.hitsToKill) respawnMonkeyWave(s);
     }
   }
 }
+
 
 // ── Collisions ──────────────────────────────────────────────
 function tickCollisions(s: L4State) {
