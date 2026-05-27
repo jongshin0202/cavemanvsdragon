@@ -893,7 +893,12 @@ const CavemanVsDragonGame = () => {
               gameStateRef.current === 'attractControls';
             if (!stillIntro) return;
             if (taps >= 7) {
-              savedAnimReturnRef.current = 'intro';
+              // Preview the L4-cleared cinematic, then proceed to the next
+              // iteration via the standard "Level N" intro screen.
+              const g = gameRef.current;
+              g.score = 0; g.lives = 3; g.round = 1;
+              setScore(0); setLives(3);
+              savedAnimReturnRef.current = 'next';
               setGameState('savedAnim');
             }
             else if (taps === 6) startInLevel4Iter3Test();
