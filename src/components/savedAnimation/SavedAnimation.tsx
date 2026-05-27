@@ -218,8 +218,6 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
   const walkFrame = cavemanWalking ? Math.floor(t / 120) % WALK_FRAMES : 0;
   const dragonFrame = Math.floor(t / 100) % DRAGON_FRAMES;
 
-  const showCongrats = t < T.CONGRATS_END;
-  const showThanks = t >= T.CAVEMAN_WALK_END && t < T.PRINCESS_THANKS_END;
   const showAnotherDragon = t >= T.ANOTHER_DRAGON_START && t < T.ANOTHER_DRAGON_END;
   const showSadText = t >= T.SAD_TEXT_APPEAR && t < T.CAVEMAN_EXIT_END;
   const showSaveLine = t >= T.BLANK1_END && t < T.SAVE_LINE_END;
