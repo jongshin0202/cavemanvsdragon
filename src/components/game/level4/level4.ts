@@ -42,6 +42,8 @@ export interface L4Mover {
   max: number;
   speed: number;
   pairIdx?: number;
+  /** Per-frame x-delta applied this tick (used by riders to move with the platform). */
+  dx?: number;
 }
 export interface L4Platform {
   y: number;
