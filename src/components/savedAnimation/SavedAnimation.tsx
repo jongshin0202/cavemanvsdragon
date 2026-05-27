@@ -154,11 +154,11 @@ export default function SavedAnimation({ onDone }: Props) {
   const dragonFrame = Math.floor(t / 100) % DRAGON_FRAMES;
 
   // Overlay text states
-  const showCongrats = t < T.DRAGON_REACH;
+  const showCongrats = t < T.CONGRATS_END;
   const showThanks = t >= T.CAVEMAN_WALK_END && t < T.PRINCESS_THANKS_END;
   const showHelp = t >= T.DRAGON_REACH && t < T.CARRY_END;
   const showCavemanLine = t >= T.DRAGON_REACH && t < T.CAVEMAN_EXIT_END;
-  const showSadText = t >= T.PAUSE_END && t < T.TEXT_END;
+  const showSadText = t >= T.SAD_TEXT_APPEAR;
 
   // Scale virtual coords → percentage so this overlay matches the canvas aspect box.
   const pct = (v: number, axis: 'x' | 'y') => `${(v / (axis === 'x' ? CW : CH)) * 100}%`;
