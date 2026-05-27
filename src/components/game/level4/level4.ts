@@ -1011,9 +1011,33 @@ function tickDragon(s: L4State) {
     return;
   }
   if (d.state === 'downed') {
-    d.downedTimer--;
-    if (d.downedTimer <= 0) {
-      d.state = 'roam';
+    // Glide to the right steady platform (P4_RIGHT = idx 9) while dizzy,
+    // then sit there for the remaining timer before waking up.
+    const tgt = 9;
+    const tp = L4_PLATFORMS[tgt];
+    const tcx = (tp.x1 + tp.x2) / 2;
+    const tgtY = tp.y - DRAGON_H;
+    const tgtX = tcx - DRAGON_W / 2;
+    const dx = tgtX - d.x;
+    const dy = tgtY - d.y;
+    const dist = Math.hypot(dx, dy);
+    const glide = 2.4;
+    if (dist > glide) {
+      d.x += (dx / dist) * glide;
+      d.y += (dy / dist) * glide;
+      d.facing = dx >= 0 ? 1 : (dx < 0 ? -1 : d.facing);
+      d.airborne = true;
+    } else {
+      d.x = tgtX;
+      d.y = tgtY;
+      d.vx = 0; d.vy = 0;
+      d.airborne = false;
+      d.platIdx = tgt;
+      d.downedTimer--;
+      if (d.downedTimer <= 0) {
+        d.state = 'roam';
+        d.jumpCooldown = 90;
+      }
     }
     return;
   }
@@ -1544,7 +1568,7 @@ function tickCollisions(s: L4State) {
         playDragonRoarSound();
       } else {
         d.state = 'downed';
-        d.downedTimer = Math.round(5 * 60);
+        d.downedTimer = Math.round(3 * 60);
         if (!s.purpleCan) spawnCanFromDragon(s, 'purple');
       }
       // bounce caveman off dragon's head
