@@ -1439,20 +1439,24 @@ function tickPlayer(s: L4State, input: L4Input) {
   const wasOnGround = p.onGround;
   p.onGround = false;
   const jumpStartY = (p.jumping && p.jumpStartPlatIdx >= 0) ? L4_PLATFORMS[p.jumpStartPlatIdx].y : -1;
-  for (let i = 0; i < L4_PLATFORMS.length; i++) {
-    const plat = L4_PLATFORMS[i];
-    // Allow landing on any platform the player's arc actually reaches —
-    // standard wasAbove + falling check below handles correctness.
-    if (p.x + p.w < plat.x1 || p.x > plat.x2) continue;
-    const py = platY(plat, p.x + p.w / 2);
-    const wasAbove = (p.y + p.h - p.vy) <= py + 1;
-    if (wasAbove && p.y + p.h >= py && p.y + p.h <= py + 14 && p.vy >= 0) {
-      p.y = py - p.h;
-      p.vy = 0;
-      p.onGround = true;
-      p.groundPlatIdx = i;
-      p.jumping = false;
-      break;
+  // Two-pass: prefer non-ice platforms so a moving platform passing under an
+  // ice ramp's bottom edge (same y) doesn't get overridden by the ice slide.
+  for (let pass = 0; pass < 2 && !p.onGround; pass++) {
+    for (let i = 0; i < L4_PLATFORMS.length; i++) {
+      const plat = L4_PLATFORMS[i];
+      if (pass === 0 && plat.ice) continue;
+      if (pass === 1 && !plat.ice) continue;
+      if (p.x + p.w < plat.x1 || p.x > plat.x2) continue;
+      const py = platY(plat, p.x + p.w / 2);
+      const wasAbove = (p.y + p.h - p.vy) <= py + 1;
+      if (wasAbove && p.y + p.h >= py && p.y + p.h <= py + 14 && p.vy >= 0) {
+        p.y = py - p.h;
+        p.vy = 0;
+        p.onGround = true;
+        p.groundPlatIdx = i;
+        p.jumping = false;
+        break;
+      }
     }
   }
   if (wasOnGround && !p.onGround && !p.jumping) {
