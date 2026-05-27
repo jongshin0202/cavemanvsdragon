@@ -1747,11 +1747,15 @@ function tickCollisions(s: L4State) {
         d.dyingVy = -2;
         d.dyingSpin = 0;
         playDragonRoarSound();
+        s.scoreEvents.push('bonkDragon');
+        s.scoreEvents.push('killDragon');
       } else {
         d.state = 'downed';
         d.downedTimer = Math.round(3 * 60);
         // Purple can only spawns on the killing blow — not on intermediate bonks.
+        s.scoreEvents.push('bonkDragon');
       }
+
       // bounce caveman off dragon's head
       p.vy = JUMP_FORCE * 0.8;
       p.jumping = true;
