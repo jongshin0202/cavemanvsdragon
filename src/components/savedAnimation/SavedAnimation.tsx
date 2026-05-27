@@ -26,10 +26,11 @@ const T = {
   PRINCESS_THANKS_END: 4000,
   DRAGON_HOVER_END: 6000,
   DRAGON_REACH: 7500,
-  CARRY_END: 9500,
-  PAUSE_END: 10500,
-  TEXT_END: 12500,
-  DONE: 12500,
+  CARRY_END: 9500,      // dragon (+ princess) fully off-screen right
+  CAVEMAN_EXIT_END: 11500, // caveman walks right and exits after dragon is gone
+  PAUSE_END: 12500,
+  TEXT_END: 14500,
+  DONE: 14500,
 };
 
 interface Props {
@@ -84,17 +85,22 @@ export default function SavedAnimation({ onDone }: Props) {
   // Caveman path
   let cavemanX: number;
   let cavemanWalking = true;
+  let cavemanVisible = true;
   if (t <= T.CAVEMAN_WALK_END) {
     const p = Math.min(1, t / T.CAVEMAN_WALK_END);
     cavemanX = -cavemanW + (princessX - cavemanW - 6 + cavemanW) * p;
-  } else if (t < T.DRAGON_REACH) {
+  } else if (t < T.CARRY_END) {
+    // Stand still next to princess from arrival through dragon grab and carry.
     cavemanX = princessX - cavemanW - 6;
     cavemanWalking = false;
-  } else {
-    // After grab: walk right & exit
-    const p = Math.min(1, (t - T.DRAGON_REACH) / (T.CARRY_END - T.DRAGON_REACH));
+  } else if (t < T.CAVEMAN_EXIT_END) {
+    // After dragon is off-screen: walk right & exit.
+    const p = Math.min(1, (t - T.CARRY_END) / (T.CAVEMAN_EXIT_END - T.CARRY_END));
     cavemanX = (princessX - cavemanW - 6) + (CW + 40 - (princessX - cavemanW - 6)) * p;
     cavemanWalking = true;
+  } else {
+    cavemanX = CW + 40;
+    cavemanVisible = false;
   }
 
   // Dragon — TWICE the size of princess.
@@ -148,7 +154,7 @@ export default function SavedAnimation({ onDone }: Props) {
   const showCongrats = t < T.DRAGON_REACH;
   const showThanks = t >= T.CAVEMAN_WALK_END && t < T.PRINCESS_THANKS_END;
   const showHelp = t >= T.DRAGON_REACH && t < T.CARRY_END;
-  const showCavemanLine = t >= T.DRAGON_REACH && t < T.CARRY_END;
+  const showCavemanLine = t >= T.DRAGON_REACH && t < T.CAVEMAN_EXIT_END;
   const showSadText = t >= T.PAUSE_END && t < T.TEXT_END;
 
   // Scale virtual coords → percentage so this overlay matches the canvas aspect box.
@@ -291,16 +297,18 @@ export default function SavedAnimation({ onDone }: Props) {
         )}
 
         {/* Caveman */}
-        <div
-          style={{
-            position: 'absolute',
-            left: pct(cavemanX, 'x'),
-            top: pct(cavemanY, 'y'),
-            width: sizePct(cavemanW, 'x'),
-            height: sizePct(cavemanH, 'y'),
-            ...cavemanBg,
-          }}
-        />
+        {cavemanVisible && (
+          <div
+            style={{
+              position: 'absolute',
+              left: pct(cavemanX, 'x'),
+              top: pct(cavemanY, 'y'),
+              width: sizePct(cavemanW, 'x'),
+              height: sizePct(cavemanH, 'y'),
+              ...cavemanBg,
+            }}
+          />
+        )}
 
         {/* Dragon */}
         {showDragon && (
