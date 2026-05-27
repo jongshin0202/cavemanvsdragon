@@ -494,9 +494,10 @@ export function initLevel4(iter: number): L4State {
 // ── Update ───────────────────────────────────────────────────
 export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: boolean; scoreEvents: ScoreAction[] } {
   s.tick++;
+  const drain = (): ScoreAction[] => { const e = s.scoreEvents; s.scoreEvents = []; return e; };
   if (s.ending.active) {
     tickEnding(s);
-    return { died: false, won: s.won };
+    return { died: false, won: s.won, scoreEvents: drain() };
   }
   if (s.dying) {
     s.deathTimer++;
@@ -508,7 +509,7 @@ export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: 
       s.deathTimer = 0;
       s.invuln = 120;
     }
-    return { died: reportDied, won: false };
+    return { died: reportDied, won: false, scoreEvents: drain() };
   }
   if (s.invuln > 0) s.invuln--;
 
@@ -531,8 +532,9 @@ export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: 
   tickCans(s);
   tickCollisions(s);
 
-  return { died: false, won: s.won };
+  return { died: false, won: s.won, scoreEvents: drain() };
 }
+
 
 function respawnPlayer(s: L4State) {
   const p = s.player;
