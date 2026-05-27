@@ -407,6 +407,9 @@ const CavemanVsDragonGame = () => {
   // 'next' → start next level (after a real L4 clear).
   // 'intro' → back to the title screen (7-tap preview from intro).
   const savedAnimReturnRef = useRef<'next' | 'intro'>('next');
+  // Bumped each time we enter savedAnim so the overlay remounts and the
+  // animation always plays from t=0.
+  const savedAnimKeyRef = useRef<number>(0);
 
   const resetPlayer = useCallback(() => {
     const g = gameRef.current;
