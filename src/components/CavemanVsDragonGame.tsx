@@ -47,7 +47,7 @@ import introBackgroundUrl from '@/assets/intro-background.jpg';
 import team2goLogoUrl from '@/assets/team2go-logo.png';
 import dedicationMobileUrl from '@/assets/dedication-mobile.png';
 import dedicationPcUrl from '@/assets/dedication-pc.png';
-import SavedAnimation from './game/SavedAnimation';
+import SavedAnimation from './savedAnimation/SavedAnimation';
 
 const ROBOT_WALK_FRAMES = 5;
 
