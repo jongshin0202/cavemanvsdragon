@@ -1106,6 +1106,13 @@ const CavemanVsDragonGame = () => {
         const pendingGO = (s4 as any)._pendingGameOver as number | undefined;
         if (pendingGO === undefined || pendingGO > 0) {
           const result = updateLevel4(s4, input);
+          if (result.scoreEvents && result.scoreEvents.length) {
+            const iter = getLevelIteration(g.round);
+            for (const ev of result.scoreEvents) {
+              g.score += scoreFor(ev, iter);
+            }
+            setScore(g.score);
+          }
           if (result.died) {
             g.lives -= 1;
             setLives(g.lives);
@@ -1120,6 +1127,7 @@ const CavemanVsDragonGame = () => {
             setGameState('continue');
             continueArmedAtRef.current = performance.now() + 1000;
           }
+
           if ((s4 as any)._pendingGameOver !== undefined && (s4 as any)._pendingGameOver > 0) {
             (s4 as any)._pendingGameOver -= 1;
           }
