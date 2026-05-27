@@ -407,6 +407,9 @@ const CavemanVsDragonGame = () => {
   // 'next' → start next level (after a real L4 clear).
   // 'intro' → back to the title screen (7-tap preview from intro).
   const savedAnimReturnRef = useRef<'next' | 'intro'>('next');
+  // Bumped each time we enter savedAnim so the overlay remounts and the
+  // animation always plays from t=0.
+  const savedAnimKeyRef = useRef<number>(0);
 
   const resetPlayer = useCallback(() => {
     const g = gameRef.current;
@@ -893,12 +896,14 @@ const CavemanVsDragonGame = () => {
               gameStateRef.current === 'attractControls';
             if (!stillIntro) return;
             if (taps >= 7) {
-              // Preview the L4-cleared cinematic, then proceed to the next
-              // iteration via the standard "Level N" intro screen.
+              // Preview the L4-cleared cinematic, then advance to the NEXT
+              // Level 1 iteration. round 4 = L4 iter 1; startNextLevel bumps
+              // it to round 5 = L1 iter 2 and shows the "Level" intro.
               const g = gameRef.current;
-              g.score = 0; g.lives = 3; g.round = 1;
+              g.score = 0; g.lives = 3; g.round = 4;
               setScore(0); setLives(3);
               savedAnimReturnRef.current = 'next';
+              savedAnimKeyRef.current += 1;
               setGameState('savedAnim');
             }
             else if (taps === 6) startInLevel4Iter3Test();
@@ -1140,6 +1145,7 @@ const CavemanVsDragonGame = () => {
           } else if (result.won && g.state === 'playing') {
             g.state = 'savedAnim';
             savedAnimReturnRef.current = 'next';
+            savedAnimKeyRef.current += 1;
             setGameState('savedAnim');
           }
 
@@ -3564,6 +3570,7 @@ const CavemanVsDragonGame = () => {
         {/* L4-cleared cinematic: dragon re-kidnaps the princess. */}
         {gameState === 'savedAnim' && (
           <SavedAnimation
+            key={savedAnimKeyRef.current}
             onDone={() => {
               if (savedAnimReturnRef.current === 'intro') {
                 setGameState('intro');
