@@ -1076,9 +1076,10 @@ function tickVolcanoFireballs(s: L4State) {
     }
   }
   s.volcanoFireballs = s.volcanoFireballs.filter(fb => !fb.landed);
-  if (s.iter < 2) return;
-  const steps = s.iter - 2;
-  const maxFB = 1 + Math.floor(steps / 3);
+  if (s.iter < 1) return;
+  const steps = Math.max(0, s.iter - 2);
+  // Max active volcano rocks at any time = iteration number, capped at 5.
+  const maxFB = Math.min(5, Math.max(1, s.iter));
   if (s.volcanoFireballs.length >= maxFB) return;
   if (s.volcanoFireballTimer > 0) { s.volcanoFireballTimer--; return; }
   const mouthX = VOLCANO_X;
