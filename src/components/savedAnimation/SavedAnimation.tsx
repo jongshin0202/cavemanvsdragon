@@ -24,14 +24,16 @@ const DRAGON_FRAMES = 5;
 const T = {
   CAVEMAN_WALK_END: 2000,
   PRINCESS_THANKS_END: 4000,
-  DRAGON_APPEAR: 5000,
-  DRAGON_HOVER_END: 7000,
-  DRAGON_REACH: 8500,
-  CARRY_END: 10500,      // dragon (+ princess) fully off-screen right
-  CAVEMAN_EXIT_END: 12500, // caveman walks right and exits after dragon is gone
-  PAUSE_END: 13500,
-  TEXT_END: 15500,
-  DONE: 15500,
+  CONGRATS_END: 5000,      // 1s after thanks disappears
+  SAD_TEXT_APPEAR: 7000,   // 2s after congrats disappears
+  DRAGON_APPEAR: 8000,     // 1s after sad text appears
+  DRAGON_HOVER_END: 10000,
+  DRAGON_REACH: 11500,
+  CARRY_END: 13500,
+  CAVEMAN_EXIT_END: 15500,
+  PAUSE_END: 16500,
+  TEXT_END: 16500,
+  DONE: 16500,
 };
 
 interface Props {
@@ -152,11 +154,11 @@ export default function SavedAnimation({ onDone }: Props) {
   const dragonFrame = Math.floor(t / 100) % DRAGON_FRAMES;
 
   // Overlay text states
-  const showCongrats = t < T.DRAGON_REACH;
+  const showCongrats = t < T.CONGRATS_END;
   const showThanks = t >= T.CAVEMAN_WALK_END && t < T.PRINCESS_THANKS_END;
   const showHelp = t >= T.DRAGON_REACH && t < T.CARRY_END;
   const showCavemanLine = t >= T.DRAGON_REACH && t < T.CAVEMAN_EXIT_END;
-  const showSadText = t >= T.PAUSE_END && t < T.TEXT_END;
+  const showSadText = t >= T.SAD_TEXT_APPEAR;
 
   // Scale virtual coords → percentage so this overlay matches the canvas aspect box.
   const pct = (v: number, axis: 'x' | 'y') => `${(v / (axis === 'x' ? CW : CH)) * 100}%`;
@@ -309,13 +311,14 @@ export default function SavedAnimation({ onDone }: Props) {
         {/* Sad ending text */}
         {showSadText && (
           <div
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center font-caveman"
+            className="absolute left-1/2 -translate-x-1/2 text-center font-caveman"
             style={{
-              color: '#fff',
-              fontSize: 'min(3vh, 1.5vw)',
-              textShadow: '2px 2px 0 #000',
-              width: '90%',
-              lineHeight: 1.3,
+              top: '5%',
+              width: '94%',
+              color: 'hsl(var(--accent))',
+              fontSize: 'min(3.4vh, 1.7vw)',
+              textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
+              lineHeight: 1.2,
             }}
           >
             ... but the happiness did not last long ...
