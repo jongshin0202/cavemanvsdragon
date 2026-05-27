@@ -492,7 +492,7 @@ export function initLevel4(iter: number): L4State {
 }
 
 // ── Update ───────────────────────────────────────────────────
-export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: boolean } {
+export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: boolean; scoreEvents: ScoreAction[] } {
   s.tick++;
   if (s.ending.active) {
     tickEnding(s);
