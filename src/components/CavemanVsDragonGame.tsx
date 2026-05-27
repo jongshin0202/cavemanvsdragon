@@ -1793,7 +1793,8 @@ const CavemanVsDragonGame = () => {
               const passedLeft  = a.vx < 0 && a.x + a.w < pl.x - 2;
               if (passedRight || passedLeft) {
                 a._scored = true;
-                g.score += 100; setScore(g.score);
+                g.score += scoreFor('jumpApple', getLevelIteration(g.round)); setScore(g.score);
+
               }
             }
             if (g.invulnTimer === 0 && !g.dying) {
