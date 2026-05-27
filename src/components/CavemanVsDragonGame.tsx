@@ -215,6 +215,7 @@ type GameState =
   | 'gameover'
   | 'win'
   | 'continue'
+  | 'savedAnim'          // L4-cleared cinematic: dragon re-kidnaps princess
   | 'highscorePrompt'
   | 'enterName'
   | 'leaderboard'        // post-game LOCAL leaderboard (only-local qualifier)
