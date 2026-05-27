@@ -817,9 +817,21 @@ const MONKEY_LEFT_OVERHANG = 6;
 const MONKEY_RIGHT_OVERHANG = 8;
 const MONKEY_TRANSFER_CHANCE = 1 / 3;
 const MONKEY_TRANSFER_COOLDOWN = 18;
+const MONKEY_PERSONAL_SPACE = 30;
+const MONKEY_SIDE_BY_SIDE_SPACE = 42;
+const MONKEY_UNSTICK_EPS = 0.08;
 
 function monkeyLeftLimit(pl: L4Platform): number { return pl.x1 - MONKEY_LEFT_OVERHANG; }
 function monkeyRightLimit(pl: L4Platform): number { return pl.x2 - MONKEY_RIGHT_OVERHANG; }
+function clampMonkeyX(m: Monkey, pl: L4Platform) {
+  m.x = Math.max(monkeyLeftLimit(pl), Math.min(monkeyRightLimit(pl), m.x));
+}
+
+function steerMonkeyAwayFromEdge(m: Monkey, pl: L4Platform) {
+  const speed = Math.max(MONKEY_MIN_SPEED, Math.abs(m.vx) || MONKEY_MIN_SPEED);
+  if (m.x <= monkeyLeftLimit(pl)) m.vx = speed;
+  else if (m.x >= monkeyRightLimit(pl)) m.vx = -speed;
+}
 
 function shouldAimForTransfer(gap: number, closingSpeed: number, distToEdge: number, walkSpeed: number): boolean {
   if (gap <= MONKEY_TRANSFER_GAP) return true;
@@ -876,6 +888,7 @@ function tickMonkeys(s: L4State) {
   for (const m of s.monkeys) {
     if (!m.alive) continue;
     let plat = L4_PLATFORMS[m.platIdx];
+    const startX = m.x;
     if ((m.transferCooldown ?? 0) > 0) m.transferCooldown = (m.transferCooldown ?? 0) - 1;
     if ((m.collisionCooldown ?? 0) > 0) m.collisionCooldown = (m.collisionCooldown ?? 0) - 1;
     // Ride moving platforms smoothly — inherit the platform's per-frame dx.
@@ -929,38 +942,51 @@ function tickMonkeys(s: L4State) {
         m.x = monkeyLeftLimit(plat) + 0.5;
       }
     }
+    clampMonkeyX(m, plat);
+    steerMonkeyAwayFromEdge(m, plat);
+    if (Math.abs(m.x - startX) < MONKEY_UNSTICK_EPS) {
+      const platformDx = plat.moving?.dx ?? 0;
+      const unstuckDir = m.x <= monkeyLeftLimit(plat) + 1 ? 1 : m.x >= monkeyRightLimit(plat) - 1 ? -1 : platformDx !== 0 ? (platformDx > 0 ? 1 : -1) : (m.vx >= 0 ? 1 : -1);
+      m.vx = unstuckDir * speed;
+      m.x += m.vx;
+      clampMonkeyX(m, plat);
+      steerMonkeyAwayFromEdge(m, plat);
+    }
     m.facing = m.vx >= 0 ? 1 : -1;
     m.y = platY(plat, m.x) - 16;
     m.walkTimer++;
     if (m.walkTimer >= 6) { m.walkTimer = 0; m.walkFrame = (m.walkFrame + 1) % ROBOT_FRAMES; }
   }
-  // Separate overlapping monkeys on same platform — force opposite directions, but only when actually overlapping.
-  const OVERLAP = 14;
+  // Separate monkeys on same platform — never let them overlap or march side-by-side together.
   for (let i = 0; i < s.monkeys.length; i++) {
     const a = s.monkeys[i];
     if (!a.alive) continue;
     for (let j = i + 1; j < s.monkeys.length; j++) {
       const b = s.monkeys[j];
-      if (!b.alive || b.platIdx !== a.platIdx) continue;
+      if (!b.alive || Math.abs(L4_PLATFORMS[b.platIdx].y - L4_PLATFORMS[a.platIdx].y) > 1) continue;
       const dx = b.x - a.x;
       const adx = Math.abs(dx);
-      if (adx < OVERLAP) {
+      const sameDirection = Math.sign(a.vx) === Math.sign(b.vx);
+      const approaching = (dx >= 0 && a.vx > 0 && b.vx < 0) || (dx < 0 && a.vx < 0 && b.vx > 0);
+      if (adx < MONKEY_PERSONAL_SPACE || (sameDirection && adx < MONKEY_SIDE_BY_SIDE_SPACE) || (approaching && adx < MONKEY_SIDE_BY_SIDE_SPACE)) {
         const sp = Math.max(MONKEY_MIN_SPEED, Math.abs(a.vx) || Math.abs(b.vx) || MONKEY_MIN_SPEED);
-        // Only flip directions if they are walking toward each other (or stuck same-direction collision).
-        const approaching = (dx >= 0 && a.vx > 0 && b.vx < 0) ||
-                            (dx < 0 && a.vx < 0 && b.vx > 0) ||
-                            Math.sign(a.vx) === Math.sign(b.vx);
-        if (approaching && (a.collisionCooldown ?? 0) <= 0 && (b.collisionCooldown ?? 0) <= 0) {
-          if (dx >= 0) { a.vx = -sp; b.vx = sp; }
-          else { a.vx = sp; b.vx = -sp; }
-          a.collisionCooldown = 30; b.collisionCooldown = 30;
+        if (dx >= 0) { a.vx = -sp; b.vx = sp; }
+        else { a.vx = sp; b.vx = -sp; }
+        a.collisionCooldown = 10; b.collisionCooldown = 10;
+        if (adx < MONKEY_PERSONAL_SPACE) {
+          const gap = MONKEY_PERSONAL_SPACE - adx;
+          const nudge = Math.min(3, gap / 2 + 0.25);
+          if (dx >= 0) { a.x -= nudge; b.x += nudge; }
+          else { a.x += nudge; b.x -= nudge; }
         }
-        // Gentle separation — small nudge so positions diverge smoothly, no big jump.
-        const nudge = 0.5;
-        if (dx >= 0) { a.x -= nudge; b.x += nudge; }
-        else { a.x += nudge; b.x -= nudge; }
+        clampMonkeyX(a, L4_PLATFORMS[a.platIdx]);
+        clampMonkeyX(b, L4_PLATFORMS[b.platIdx]);
+        steerMonkeyAwayFromEdge(a, L4_PLATFORMS[a.platIdx]);
+        steerMonkeyAwayFromEdge(b, L4_PLATFORMS[b.platIdx]);
         a.facing = a.vx >= 0 ? 1 : -1;
         b.facing = b.vx >= 0 ? 1 : -1;
+        a.y = platY(L4_PLATFORMS[a.platIdx], a.x) - 16;
+        b.y = platY(L4_PLATFORMS[b.platIdx], b.x) - 16;
       }
     }
   }
