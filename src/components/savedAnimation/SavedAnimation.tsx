@@ -261,6 +261,27 @@ export default function SavedAnimation({ onDone }: Props) {
           </div>
         )}
 
+        {/* Caveman "ANOTHER DRAGON??" line */}
+        {showAnotherDragon && (
+          <div
+            className="absolute text-center font-caveman"
+            style={{
+              left: pct(cavemanX, 'x'),
+              top: pct(cavemanY - 22, 'y'),
+              color: 'hsl(var(--accent))',
+              background: 'rgba(0,0,0,0.7)',
+              border: '2px solid hsl(var(--accent))',
+              padding: '3px 8px',
+              borderRadius: 6,
+              fontSize: 'min(2.8vh, 1.5vw)',
+              whiteSpace: 'nowrap',
+              transform: 'translateX(-20%)',
+            }}
+          >
+            ANOTHER DRAGON??
+          </div>
+        )}
+
         {/* Princess "HELP!" is shown via the sprite frame itself (frame 2 contains the word). */}
 
         {/* Caveman line */}
