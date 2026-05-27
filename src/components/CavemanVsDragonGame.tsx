@@ -365,7 +365,7 @@ const CavemanVsDragonGame = () => {
     frameCount: 0,
     playerHasMoved: true, // start spawning barrels and audio immediately
     barrelStartDelay: 0,
-    winAnim: { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 },
+    winAnim: { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, timer: 0 },
     pendingClimb: null as null | 'up' | 'down',
     courseDir: 0 as -1 | 0 | 1,
     // Kill-monkeys → key → grow topmost vine mechanic
