@@ -27,13 +27,15 @@ const T = {
   CONGRATS_END: 5000,      // 1s after thanks disappears
   SAD_TEXT_APPEAR: 7000,   // 2s after congrats disappears
   DRAGON_APPEAR: 8000,     // 1s after sad text appears
-  DRAGON_HOVER_END: 10000,
-  DRAGON_REACH: 11500,
-  CARRY_END: 13500,
-  CAVEMAN_EXIT_END: 15500,
-  BLANK1_END: 16500,           // 1s blank after caveman exits
-  SAVE_LINE_END: 19500,        // show "I will save you princess!!!" 3s
-  DONE: 21500,                 // 2s blank, then next iteration
+  ANOTHER_DRAGON_START: 9000,  // 1s after dragon appears
+  ANOTHER_DRAGON_END: 11000,   // shown for 2s
+  DRAGON_HOVER_END: 12000,     // 1s after caveman line disappears
+  DRAGON_REACH: 13500,
+  CARRY_END: 15500,
+  CAVEMAN_EXIT_END: 17500,
+  BLANK1_END: 18500,           // 1s blank after caveman exits
+  SAVE_LINE_END: 21500,        // show "I will save you princess!!!" 3s
+  DONE: 23500,                 // 2s blank, then next iteration
 };
 
 interface Props {
@@ -158,6 +160,7 @@ export default function SavedAnimation({ onDone }: Props) {
   const showThanks = t >= T.CAVEMAN_WALK_END && t < T.PRINCESS_THANKS_END;
   const showHelp = t >= T.DRAGON_REACH && t < T.CARRY_END;
   const showCavemanLine = false;
+  const showAnotherDragon = t >= T.ANOTHER_DRAGON_START && t < T.ANOTHER_DRAGON_END;
   const showSadText = t >= T.SAD_TEXT_APPEAR && t < T.CAVEMAN_EXIT_END;
   const showSaveLine = t >= T.BLANK1_END && t < T.SAVE_LINE_END;
 
@@ -255,6 +258,27 @@ export default function SavedAnimation({ onDone }: Props) {
             }}
           >
             Thank you for saving me!
+          </div>
+        )}
+
+        {/* Caveman "ANOTHER DRAGON??" line */}
+        {showAnotherDragon && (
+          <div
+            className="absolute text-center font-caveman"
+            style={{
+              left: pct(cavemanX, 'x'),
+              top: pct(cavemanY - 22, 'y'),
+              color: 'hsl(var(--accent))',
+              background: 'rgba(0,0,0,0.7)',
+              border: '2px solid hsl(var(--accent))',
+              padding: '3px 8px',
+              borderRadius: 6,
+              fontSize: 'min(2.8vh, 1.5vw)',
+              whiteSpace: 'nowrap',
+              transform: 'translateX(-20%)',
+            }}
+          >
+            ANOTHER DRAGON??
           </div>
         )}
 
