@@ -1145,6 +1145,7 @@ const CavemanVsDragonGame = () => {
           } else if (result.won && g.state === 'playing') {
             g.state = 'savedAnim';
             savedAnimReturnRef.current = 'next';
+            savedAnimKeyRef.current += 1;
             setGameState('savedAnim');
           }
 
