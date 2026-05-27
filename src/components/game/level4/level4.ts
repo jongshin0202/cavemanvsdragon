@@ -963,12 +963,12 @@ function tickMonkeys(s: L4State) {
     if (!a.alive) continue;
     for (let j = i + 1; j < s.monkeys.length; j++) {
       const b = s.monkeys[j];
-      if (!b.alive || b.platIdx !== a.platIdx) continue;
+      if (!b.alive || Math.abs(L4_PLATFORMS[b.platIdx].y - L4_PLATFORMS[a.platIdx].y) > 1) continue;
       const dx = b.x - a.x;
       const adx = Math.abs(dx);
       const sameDirection = Math.sign(a.vx) === Math.sign(b.vx);
       const approaching = (dx >= 0 && a.vx > 0 && b.vx < 0) || (dx < 0 && a.vx < 0 && b.vx > 0);
-      if (adx < MONKEY_PERSONAL_SPACE || (sameDirection && adx < MONKEY_SIDE_BY_SIDE_SPACE) || approaching) {
+      if (adx < MONKEY_PERSONAL_SPACE || (sameDirection && adx < MONKEY_SIDE_BY_SIDE_SPACE) || (approaching && adx < MONKEY_SIDE_BY_SIDE_SPACE)) {
         const sp = Math.max(MONKEY_MIN_SPEED, Math.abs(a.vx) || Math.abs(b.vx) || MONKEY_MIN_SPEED);
         if (dx >= 0) { a.vx = -sp; b.vx = sp; }
         else { a.vx = sp; b.vx = -sp; }
