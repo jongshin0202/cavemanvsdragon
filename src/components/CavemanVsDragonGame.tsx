@@ -47,6 +47,7 @@ import introBackgroundUrl from '@/assets/intro-background.jpg';
 import team2goLogoUrl from '@/assets/team2go-logo.png';
 import dedicationMobileUrl from '@/assets/dedication-mobile.png';
 import dedicationPcUrl from '@/assets/dedication-pc.png';
+import SavedAnimation from './game/SavedAnimation';
 
 const ROBOT_WALK_FRAMES = 5;
 
@@ -215,6 +216,7 @@ type GameState =
   | 'gameover'
   | 'win'
   | 'continue'
+  | 'savedAnim'          // L4-cleared cinematic: dragon re-kidnaps princess
   | 'highscorePrompt'
   | 'enterName'
   | 'leaderboard'        // post-game LOCAL leaderboard (only-local qualifier)
@@ -401,6 +403,10 @@ const CavemanVsDragonGame = () => {
   // Tap-count buffer for the intro shortcut: 2 taps → L2, 3 taps → L3.
   const introTapCountRef = useRef<number>(0);
   const introTapTimerRef = useRef<number | null>(null);
+  // Where to go after the L4 "saved princess" cinematic finishes.
+  // 'next' → start next level (after a real L4 clear).
+  // 'intro' → back to the title screen (7-tap preview from intro).
+  const savedAnimReturnRef = useRef<'next' | 'intro'>('next');
 
   const resetPlayer = useCallback(() => {
     const g = gameRef.current;
@@ -886,7 +892,11 @@ const CavemanVsDragonGame = () => {
               gameStateRef.current === 'attractGlobalLeaderboard' ||
               gameStateRef.current === 'attractControls';
             if (!stillIntro) return;
-            if (taps >= 6) startInLevel4Iter3Test();
+            if (taps >= 7) {
+              savedAnimReturnRef.current = 'intro';
+              setGameState('savedAnim');
+            }
+            else if (taps === 6) startInLevel4Iter3Test();
             else if (taps === 5) startInLevel4Iter2Test();
             else if (taps === 4) startInLevel4Test();
             else if (taps === 3) startInLevel3Test();
@@ -1123,9 +1133,9 @@ const CavemanVsDragonGame = () => {
             }
             // L4 handles its own death-flash + respawn — do not reinit.
           } else if (result.won && g.state === 'playing') {
-            g.state = 'continue';
-            setGameState('continue');
-            continueArmedAtRef.current = performance.now() + 1000;
+            g.state = 'savedAnim';
+            savedAnimReturnRef.current = 'next';
+            setGameState('savedAnim');
           }
 
           if ((s4 as any)._pendingGameOver !== undefined && (s4 as any)._pendingGameOver > 0) {
@@ -3545,6 +3555,20 @@ const CavemanVsDragonGame = () => {
           }
           style={{ WebkitAppearance: 'none', appearance: 'none' }}
         />
+
+        {/* L4-cleared cinematic: dragon re-kidnaps the princess. */}
+        {gameState === 'savedAnim' && (
+          <SavedAnimation
+            onDone={() => {
+              if (savedAnimReturnRef.current === 'intro') {
+                setGameState('intro');
+                gameRef.current.state = 'intro';
+              } else {
+                startNextLevel();
+              }
+            }}
+          />
+        )}
 
         {/* Arcade-style intro / title screen overlay */}
         {gameState === 'intro' && (
