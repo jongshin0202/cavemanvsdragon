@@ -83,6 +83,12 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
     return () => cancelAnimationFrame(raf);
   }, [onDone, full, DONE]);
 
+  const skip = () => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    onDone();
+  };
+
   const pct = (v: number, axis: 'x' | 'y') => `${(v / (axis === 'x' ? CW : CH)) * 100}%`;
   const sizePct = (v: number, axis: 'x' | 'y') => `${(v / (axis === 'x' ? CW : CH)) * 100}%`;
 
@@ -107,7 +113,10 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
     };
 
     return (
-      <div className="absolute inset-0 z-30 flex items-center justify-center bg-black select-none">
+      <div
+        className="absolute inset-0 z-30 flex items-center justify-center bg-black select-none"
+        onPointerDown={skip}
+      >
         <div className="relative bg-black" style={{ aspectRatio: `${CW} / ${CH}`, height: '100%' }}>
           {showSadText && (
             <div
@@ -212,8 +221,6 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
   const walkFrame = cavemanWalking ? Math.floor(t / 120) % WALK_FRAMES : 0;
   const dragonFrame = Math.floor(t / 100) % DRAGON_FRAMES;
 
-  const showCongrats = t < T.CONGRATS_END;
-  const showThanks = t >= T.CAVEMAN_WALK_END && t < T.PRINCESS_THANKS_END;
   const showAnotherDragon = t >= T.ANOTHER_DRAGON_START && t < T.ANOTHER_DRAGON_END;
   const showSadText = t >= T.SAD_TEXT_APPEAR && t < T.CAVEMAN_EXIT_END;
   const showSaveLine = t >= T.BLANK1_END && t < T.SAVE_LINE_END;
@@ -234,22 +241,12 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
   };
 
   return (
-    <div className="absolute inset-0 z-30 flex items-center justify-center bg-black select-none">
+    <div
+      className="absolute inset-0 z-30 flex items-center justify-center bg-black select-none"
+      onPointerDown={skip}
+    >
       <div className="relative bg-black" style={{ aspectRatio: `${CW} / ${CH}`, height: '100%' }}>
-        {showCongrats && (
-          <div
-            className="absolute left-1/2 -translate-x-1/2 text-center font-caveman"
-            style={{
-              top: '5%', width: '94%',
-              color: 'hsl(var(--accent))',
-              fontSize: 'min(6vh, 3.2vw)',
-              textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
-              lineHeight: 1.2,
-            }}
-          >
-            CONGRATULATIONS!<br />YOU SAVED PRINCESS!
-          </div>
-        )}
+
 
         {showPrincess && (
           <div
@@ -295,24 +292,8 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
           );
         })()}
 
-        {showThanks && (
-          <div
-            className="absolute text-center font-caveman"
-            style={{
-              left: pct(princessX + princessW + 4, 'x'),
-              top: pct(princessY - 18, 'y'),
-              maxWidth: '40%',
-              color: '#fff',
-              background: 'rgba(0,0,0,0.7)',
-              border: '2px solid hsl(var(--accent))',
-              padding: '4px 8px',
-              borderRadius: 6,
-              fontSize: 'min(2.8vh, 1.5vw)',
-            }}
-          >
-            Thank you for saving me!
-          </div>
-        )}
+
+
 
         {showAnotherDragon && (
           <div

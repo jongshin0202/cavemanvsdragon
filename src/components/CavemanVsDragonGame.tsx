@@ -1149,9 +1149,12 @@ const CavemanVsDragonGame = () => {
           } else if (result.won && g.state === 'playing') {
             g.state = 'savedAnim';
             savedAnimReturnRef.current = 'next';
-            savedAnimKeyRef.current += 1;
-            savedAnimFullRef.current = false;
-            setGameState('savedAnim');
+            savedAnimFullRef.current = true;
+            // Wait 1s after caveman touches princess before starting the cinematic.
+            window.setTimeout(() => {
+              savedAnimKeyRef.current += 1;
+              setGameState('savedAnim');
+            }, 1000);
           }
 
           if ((s4 as any)._pendingGameOver !== undefined && (s4 as any)._pendingGameOver > 0) {
