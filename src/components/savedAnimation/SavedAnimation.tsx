@@ -221,7 +221,7 @@ export default function SavedAnimation({ onDone }: Props) {
                 height: sizePct(princessH, 'y'),
                 backgroundImage: `url(${princessSpriteUrl})`,
                 backgroundSize: '500% 100%',                       // 5 frames wide
-                backgroundPosition: `-${princessFrame * 100}% 0%`, // 0 = idle, 2 = HELP
+                backgroundPosition: `${(princessFrame / 4) * 100}% 0%`, // 0 = idle, 2 = HELP
                 backgroundRepeat: 'no-repeat',
                 imageRendering: 'pixelated',
                 // scaleX(-1) flips so princess faces left.
