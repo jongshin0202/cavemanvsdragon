@@ -42,6 +42,8 @@ export interface L4Mover {
   max: number;
   speed: number;
   pairIdx?: number;
+  /** Per-frame x-delta applied this tick (used by riders to move with the platform). */
+  dx?: number;
 }
 export interface L4Platform {
   y: number;
@@ -537,6 +539,7 @@ function tickMovingPlatforms(s: L4State) {
     const pl = L4_PLATFORMS[i];
     if (!pl.moving) continue;
     const w = pl.x2 - pl.x1;
+    const prevX1 = pl.x1;
     let nx = pl.x1 + pl.moving.speed;
     if (nx < pl.moving.min) { nx = pl.moving.min; pl.moving.speed = Math.abs(pl.moving.speed); }
     if (nx + w > pl.moving.max + w) { /* unreachable: max stored as left edge max */ }
@@ -544,6 +547,7 @@ function tickMovingPlatforms(s: L4State) {
     if (nx > pl.moving.max) { nx = pl.moving.max; pl.moving.speed = -Math.abs(pl.moving.speed); }
     pl.x1 = nx;
     pl.x2 = nx + w;
+    pl.moving.dx = pl.x1 - prevX1;
   }
   // Second pass: paired bounce (N).
   for (let i = 0; i < L4_PLATFORMS.length; i++) {
@@ -560,6 +564,9 @@ function tickMovingPlatforms(s: L4State) {
       other.x1 += overlap / 2; other.x2 += overlap / 2;
       pl.moving.speed = -Math.abs(pl.moving.speed);
       other.moving.speed = Math.abs(other.moving.speed);
+      // Reflect the separation in dx so riders move with their platform.
+      pl.moving.dx = (pl.moving.dx ?? 0) - overlap / 2;
+      other.moving.dx = (other.moving.dx ?? 0) + overlap / 2;
     }
   }
 }
@@ -794,18 +801,22 @@ function tickMonkeys(s: L4State) {
   for (const m of s.monkeys) {
     if (!m.alive) continue;
     let plat = L4_PLATFORMS[m.platIdx];
+    // Ride moving platforms smoothly — inherit the platform's per-frame dx.
+    if (plat.moving && plat.moving.dx) m.x += plat.moving.dx;
     m.x += m.vx;
     // Try stepping onto a neighboring same-row platform whose near edge is close.
+    // Keep m.x continuous (world coords) — do NOT snap it, that's what caused
+    // the visible "teleport" between static and moving platforms.
     const tryTransfer = () => {
       const neighbors = getMonkeyRowNeighbors(m.platIdx);
       for (const ni of neighbors) {
         const np = L4_PLATFORMS[ni];
         if (np.y !== plat.y) continue;
-        if (m.vx > 0 && Math.abs(np.x1 - plat.x2) <= 10) {
-          m.platIdx = ni; plat = np; m.x = np.x1 + 4; return true;
+        if (m.vx > 0 && Math.abs(np.x1 - plat.x2) <= 10 && m.x + 18 >= np.x1) {
+          m.platIdx = ni; plat = np; return true;
         }
-        if (m.vx < 0 && Math.abs(plat.x1 - np.x2) <= 10) {
-          m.platIdx = ni; plat = np; m.x = np.x2 - 18; return true;
+        if (m.vx < 0 && Math.abs(plat.x1 - np.x2) <= 10 && m.x + 4 <= np.x2) {
+          m.platIdx = ni; plat = np; return true;
         }
       }
       return false;
