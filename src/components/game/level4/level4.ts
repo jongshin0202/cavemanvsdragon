@@ -475,6 +475,7 @@ export function initLevel4(iter: number): L4State {
     carrying: null,
     eGrowChunk: 1 / Math.max(1, diff.hitsToKill),
     greenCanSpawned: false,
+    greenWatered: false,
     rockAtAIdx: -1,
     ending: { active: false, phase: 'hug', timer: 0, newDragonX: -DRAGON_W },
     won: false,
