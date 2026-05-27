@@ -254,26 +254,7 @@ export default function SavedAnimation({ onDone }: Props) {
           </div>
         )}
 
-        {/* Princess "HELP ME!!!" */}
-        {showHelp && (
-          <div
-            className="absolute text-center font-caveman"
-            style={{
-              left: pct(pX, 'x'),
-              top: pct(pY - 28, 'y'),
-              transform: 'translateX(-25%)',
-              color: '#ff5050',
-              background: 'rgba(0,0,0,0.75)',
-              border: '2px solid #ff5050',
-              padding: '4px 10px',
-              borderRadius: 6,
-              fontSize: 'min(2.4vh, 1.2vw)',
-              fontWeight: 'bold',
-            }}
-          >
-            HELP ME!!!
-          </div>
-        )}
+        {/* Princess "HELP!" is shown via the sprite frame itself (frame 2 contains the word). */}
 
         {/* Caveman line */}
         {showCavemanLine && (
