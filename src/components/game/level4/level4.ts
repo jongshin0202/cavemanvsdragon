@@ -921,15 +921,15 @@ function tickMonkeys(s: L4State) {
     } else if (m.vx < 0 && m.x < 4 && wrapPartner !== undefined) {
       const np = L4_PLATFORMS[wrapPartner];
       m.platIdx = wrapPartner; plat = np; m.x = np.x2 - 18;
-    } else if (m.x > monkeyRightLimit(plat)) {
+    } else if (m.x >= monkeyRightLimit(plat)) {
       if (!tryTransfer(1)) {
         m.x = monkeyRightLimit(plat);
-        if (hasTransferContact(1) || !(intent?.dir === 1 && intent.hold)) m.vx = -speed;
+        m.vx = -speed;
       }
-    } else if (m.x < monkeyLeftLimit(plat)) {
+    } else if (m.x <= monkeyLeftLimit(plat)) {
       if (!tryTransfer(-1)) {
         m.x = monkeyLeftLimit(plat);
-        if (hasTransferContact(-1) || !(intent?.dir === -1 && intent.hold)) m.vx = speed;
+        m.vx = speed;
       }
     }
     m.facing = m.vx >= 0 ? 1 : -1;
