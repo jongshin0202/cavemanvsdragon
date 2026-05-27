@@ -1694,10 +1694,12 @@ function tickEnding(s: L4State) {
   e.timer++;
   switch (e.phase) {
     case 'hug':
-      if (e.timer >= 120) { e.phase = 'pause'; e.timer = 0; }
+      // "Thank you, my hero!" for 3 seconds
+      if (e.timer >= 180) { e.phase = 'pause'; e.timer = 0; }
       break;
     case 'pause':
-      if (e.timer >= 120) { e.phase = 'kidnap'; e.timer = 0; e.newDragonX = -DRAGON_W; }
+      // "But the happiness didn't last long..." for 1 second
+      if (e.timer >= 60) { e.phase = 'kidnap'; e.timer = 0; e.newDragonX = -DRAGON_W; }
       break;
     case 'kidnap':
       e.newDragonX += 3;
