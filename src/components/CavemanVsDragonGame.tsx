@@ -1187,15 +1187,12 @@ const CavemanVsDragonGame = () => {
           const t = (wa.timer - 120) / 90;
           wa.cavemanFollowOffset = (CANVAS_W + 80) * t;
         } else {
-          // Phase: congrats overlay
-          wa.showCongrats = true;
-        }
-
-        // After CONGRATS has been visible ~1.5s, switch to LEVEL CLEAR
-        if (wa.timer > 210 + 90 && g.state === 'win') {
-          g.state = 'continue';
-          setGameState('continue');
-          continueArmedAtRef.current = performance.now() + 1000; // 1s input lock
+          // Phase ended — switch straight to LEVEL CLEAR (no congrats overlay)
+          if (g.state === 'win') {
+            g.state = 'continue';
+            setGameState('continue');
+            continueArmedAtRef.current = performance.now() + 1000; // 1s input lock
+          }
         }
       }
 
