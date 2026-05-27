@@ -2604,18 +2604,12 @@ const CavemanVsDragonGame = () => {
                 if (rectsOverlap(o, r)) groupIdxs.push(j);
               }
               const killCount = groupIdxs.length;
-              // Per spec: 2+ monkeys at same location = same points as
-              // killing 3 with one jump (combo 1+2+3 → 300+900+1500 = 2700).
-              let scoreGain: number;
-              if (killCount >= 2) {
-                scoreGain = 300 + 900 + 1500;
-                g.comboKills = 3;
-              } else {
-                const n = (g.comboKills || 0) + 1;
-                g.comboKills = n;
-                scoreGain = 300 * (2 * n - 1);
-              }
+              // Per scoring spec: 300 * (iteration+1)/2 per monkey, flat (no combo).
+              const perKill = scoreFor('killMonkey', getLevelIteration(g.round));
+              const scoreGain = perKill * killCount;
+              g.comboKills = (g.comboKills || 0) + killCount;
               g.score += scoreGain; setScore(g.score);
+
               playRobotKillSound();
               p.vy = -4;
               const wasMps = !!(r as any)._mpsL3;
