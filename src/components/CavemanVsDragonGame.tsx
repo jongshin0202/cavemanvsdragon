@@ -907,6 +907,7 @@ const CavemanVsDragonGame = () => {
               setScore(0); setLives(3);
               savedAnimReturnRef.current = 'next';
               savedAnimKeyRef.current += 1;
+              savedAnimFullRef.current = true;
               setGameState('savedAnim');
             }
             else if (taps === 6) startInLevel4Iter3Test();
