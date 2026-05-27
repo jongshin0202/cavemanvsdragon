@@ -31,9 +31,9 @@ const T = {
   DRAGON_REACH: 11500,
   CARRY_END: 13500,
   CAVEMAN_EXIT_END: 15500,
-  PAUSE_END: 16500,
-  TEXT_END: 16500,
-  DONE: 16500,
+  BLANK1_END: 16500,           // 1s blank after caveman exits
+  SAVE_LINE_END: 19500,        // show "I will save you princess!!!" 3s
+  DONE: 21500,                 // 2s blank, then next iteration
 };
 
 interface Props {
