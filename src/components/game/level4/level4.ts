@@ -246,6 +246,8 @@ interface Monkey {
   vx: number;
   facing: number;
   walkFrame: number; walkTimer: number;
+  transferCooldown?: number;
+  transferMisses?: number;
 }
 
 interface MonkeyFireball { x: number; y: number; vx: number; vy: number; r: number; age: number }
@@ -812,6 +814,8 @@ const MONKEY_EDGE_HOLD_GAP = 22;
 const MONKEY_APPROACH_WAIT_FRAMES = 45;
 const MONKEY_LEFT_OVERHANG = 6;
 const MONKEY_RIGHT_OVERHANG = 8;
+const MONKEY_TRANSFER_CHANCE = 1 / 3;
+const MONKEY_TRANSFER_COOLDOWN = 18;
 
 function monkeyLeftLimit(pl: L4Platform): number { return pl.x1 - MONKEY_LEFT_OVERHANG; }
 function monkeyRightLimit(pl: L4Platform): number { return pl.x2 - MONKEY_RIGHT_OVERHANG; }
@@ -857,24 +861,39 @@ function tickMonkeys(s: L4State) {
   for (const m of s.monkeys) {
     if (!m.alive) continue;
     let plat = L4_PLATFORMS[m.platIdx];
+    if ((m.transferCooldown ?? 0) > 0) m.transferCooldown = (m.transferCooldown ?? 0) - 1;
     // Ride moving platforms smoothly — inherit the platform's per-frame dx.
     if (plat.moving && plat.moving.dx) m.x += plat.moving.dx;
 
     const speed = Math.max(MONKEY_MIN_SPEED, Math.abs(m.vx) || MONKEY_MIN_SPEED);
-    const intent = getMonkeyTransferIntent(m, plat);
+    const intent = (m.transferCooldown ?? 0) <= 0 ? getMonkeyTransferIntent(m, plat) : null;
     if (intent) m.vx = intent.dir * speed;
 
     m.x += m.vx;
     // Keep m.x continuous (world coords) — do NOT snap it.
+    const hasTransferContact = (dir: -1 | 1) => getMonkeyAdjacentPlatforms(m.platIdx).some((ni) => {
+      const np = L4_PLATFORMS[ni];
+      if (np.y !== plat.y) return false;
+      return dir > 0
+        ? Math.abs(np.x1 - plat.x2) <= MONKEY_TRANSFER_GAP
+        : Math.abs(plat.x1 - np.x2) <= MONKEY_TRANSFER_GAP;
+    });
     const tryTransfer = (dir: -1 | 1) => {
+      if ((m.transferCooldown ?? 0) > 0) return false;
       for (const ni of getMonkeyAdjacentPlatforms(m.platIdx)) {
         const np = L4_PLATFORMS[ni];
         if (np.y !== plat.y) continue;
         if (dir > 0 && Math.abs(np.x1 - plat.x2) <= MONKEY_TRANSFER_GAP && m.x >= monkeyRightLimit(plat) - 3) {
-          m.platIdx = ni; plat = np; m.x = Math.max(m.x, monkeyLeftLimit(np)); return true;
+          if ((m.transferMisses ?? 0) >= 2 || Math.random() < MONKEY_TRANSFER_CHANCE) {
+            m.platIdx = ni; plat = np; m.x = monkeyLeftLimit(np) + 2; m.transferMisses = 0; m.transferCooldown = MONKEY_TRANSFER_COOLDOWN; return true;
+          }
+          m.transferMisses = (m.transferMisses ?? 0) + 1; m.transferCooldown = MONKEY_TRANSFER_COOLDOWN; return false;
         }
         if (dir < 0 && Math.abs(plat.x1 - np.x2) <= MONKEY_TRANSFER_GAP && m.x <= monkeyLeftLimit(plat) + 3) {
-          m.platIdx = ni; plat = np; m.x = Math.min(m.x, monkeyRightLimit(np)); return true;
+          if ((m.transferMisses ?? 0) >= 2 || Math.random() < MONKEY_TRANSFER_CHANCE) {
+            m.platIdx = ni; plat = np; m.x = monkeyRightLimit(np) - 2; m.transferMisses = 0; m.transferCooldown = MONKEY_TRANSFER_COOLDOWN; return true;
+          }
+          m.transferMisses = (m.transferMisses ?? 0) + 1; m.transferCooldown = MONKEY_TRANSFER_COOLDOWN; return false;
         }
       }
       return false;
@@ -890,12 +909,12 @@ function tickMonkeys(s: L4State) {
     } else if (m.x > monkeyRightLimit(plat)) {
       if (!tryTransfer(1)) {
         m.x = monkeyRightLimit(plat);
-        if (!(intent?.dir === 1 && intent.hold)) m.vx = -speed;
+        if (hasTransferContact(1) || !(intent?.dir === 1 && intent.hold)) m.vx = -speed;
       }
     } else if (m.x < monkeyLeftLimit(plat)) {
       if (!tryTransfer(-1)) {
         m.x = monkeyLeftLimit(plat);
-        if (!(intent?.dir === -1 && intent.hold)) m.vx = speed;
+        if (hasTransferContact(-1) || !(intent?.dir === -1 && intent.hold)) m.vx = speed;
       }
     }
     m.facing = m.vx >= 0 ? 1 : -1;
