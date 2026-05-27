@@ -1765,8 +1765,9 @@ const CavemanVsDragonGame = () => {
               pl.y + pl.h < fb.y - fb.radius + 4
             ) {
               fb.jumpedOver = true;
-              g.score += 100; setScore(g.score);
+              // Fireballs are volcano hazards, not apples — no score per spec.
             }
+
           }
 
           // Fireball lethal hit on player
