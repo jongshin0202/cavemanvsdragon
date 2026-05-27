@@ -248,6 +248,7 @@ interface Monkey {
   walkFrame: number; walkTimer: number;
   transferCooldown?: number;
   transferMisses?: number;
+  collisionCooldown?: number;
 }
 
 interface MonkeyFireball { x: number; y: number; vx: number; vy: number; r: number; age: number }
