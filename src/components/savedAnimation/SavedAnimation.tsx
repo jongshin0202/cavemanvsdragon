@@ -209,10 +209,10 @@ export default function SavedAnimation({ onDone }: Props) {
 
         {/* Princess — render only frame 0 from the 5-frame sheet, mirrored to face LEFT. */}
         {showPrincess && (() => {
-          // L1 princess "HELP!" toggle: alternate between idle frame 0 and help frame 2.
-          // During grab, toggle every 400ms so the scream is visibly animated within the short carry.
+          // L1 princess "HELP!" toggle: alternate between help frame 2 (visible) and idle frame 0 (hidden text),
+          // 1s on / 1s off, until carried off-screen.
           const princessFrame = princessHeldByDragon
-            ? (Math.floor(t / 400) % 2 === 0 ? 0 : 2)
+            ? (Math.floor((t - T.DRAGON_REACH) / 1000) % 2 === 0 ? 2 : 0)
             : 0;
           return (
             <div
