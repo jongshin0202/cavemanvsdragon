@@ -140,8 +140,8 @@ export default function SavedAnimation({ onDone }: Props) {
   }
   if (t >= T.CARRY_END) showPrincess = false;
 
-  // Sprite frame counters
-  const walkFrame = Math.floor(t / 90) % WALK_FRAMES;
+  // Sprite frame counters — caveman freezes on frame 0 when not walking (no flashing).
+  const walkFrame = cavemanWalking ? Math.floor(t / 120) % WALK_FRAMES : 0;
   const dragonFrame = Math.floor(t / 100) % DRAGON_FRAMES;
 
   // Overlay text states
