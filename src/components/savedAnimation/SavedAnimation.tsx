@@ -52,7 +52,7 @@ export default function SavedAnimation({ onDone }: Props) {
       setT(elapsed);
 
       // Wing flap sound while dragon is on-screen (hover + flight + carry).
-      if (elapsed >= 4000 && elapsed < T.CARRY_END) {
+      if (elapsed >= T.DRAGON_APPEAR && elapsed < T.CARRY_END) {
         if (now - lastFlapRef.current > 600) {
           lastFlapRef.current = now;
           playWingFlapSound();
