@@ -157,7 +157,7 @@ export default function SavedAnimation({ onDone }: Props) {
   const showCongrats = t < T.CONGRATS_END;
   const showThanks = t >= T.CAVEMAN_WALK_END && t < T.PRINCESS_THANKS_END;
   const showHelp = t >= T.DRAGON_REACH && t < T.CARRY_END;
-  const showCavemanLine = t >= T.DRAGON_REACH && t < T.CAVEMAN_EXIT_END;
+  const showCavemanLine = false;
   const showSadText = t >= T.SAD_TEXT_APPEAR && t < T.CAVEMAN_EXIT_END;
   const showSaveLine = t >= T.BLANK1_END && t < T.SAVE_LINE_END;
 
