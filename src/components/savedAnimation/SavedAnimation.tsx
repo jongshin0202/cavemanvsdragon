@@ -311,13 +311,14 @@ export default function SavedAnimation({ onDone }: Props) {
         {/* Sad ending text */}
         {showSadText && (
           <div
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center font-caveman"
+            className="absolute left-1/2 -translate-x-1/2 text-center font-caveman"
             style={{
-              color: '#fff',
-              fontSize: 'min(3vh, 1.5vw)',
-              textShadow: '2px 2px 0 #000',
-              width: '90%',
-              lineHeight: 1.3,
+              top: '5%',
+              width: '94%',
+              color: 'hsl(var(--accent))',
+              fontSize: 'min(3.4vh, 1.7vw)',
+              textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
+              lineHeight: 1.2,
             }}
           >
             ... but the happiness did not last long ...
