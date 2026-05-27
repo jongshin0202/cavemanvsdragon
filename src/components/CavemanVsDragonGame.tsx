@@ -1125,9 +1125,9 @@ const CavemanVsDragonGame = () => {
             }
             // L4 handles its own death-flash + respawn — do not reinit.
           } else if (result.won && g.state === 'playing') {
-            g.state = 'continue';
-            setGameState('continue');
-            continueArmedAtRef.current = performance.now() + 1000;
+            g.state = 'savedAnim';
+            savedAnimReturnRef.current = 'next';
+            setGameState('savedAnim');
           }
 
           if ((s4 as any)._pendingGameOver !== undefined && (s4 as any)._pendingGameOver > 0) {
