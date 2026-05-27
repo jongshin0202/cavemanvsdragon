@@ -2015,14 +2015,14 @@ function drawCan(ctx: CanvasRenderingContext2D, sprites: L4Sprites, c: Can) {
     ctx.rotate(c.spin ?? 0);
     ctx.translate(-cx, -cy);
   }
+  // Unified glow: green or purple circle behind the sprite.
+  ctx.fillStyle = c.color === 'green'
+    ? 'rgba(116, 224, 127, 0.45)'
+    : 'rgba(176, 120, 230, 0.45)';
+  ctx.beginPath(); ctx.arc(cx, cy, 12, 0, Math.PI * 2); ctx.fill();
   if (sprites.wateringCan.complete) {
-    ctx.drawImage(sprites.wateringCan, c.x - 2, c.y, 18, 14);
-    if (c.color === 'purple') {
-      ctx.globalAlpha = 0.55;
-      ctx.fillStyle = '#9b59b6';
-      ctx.fillRect(c.x - 2, c.y, 18, 14);
-      ctx.globalAlpha = 1;
-    }
+    const drawW = 22, drawH = 18;
+    ctx.drawImage(sprites.wateringCan, cx - drawW / 2, cy - drawH / 2, drawW, drawH);
   } else {
     ctx.fillStyle = c.color === 'green' ? '#3CB043' : '#9b59b6';
     ctx.fillRect(c.x - 2, c.y, 18, 14);
