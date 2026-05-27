@@ -31,9 +31,9 @@ const T = {
   DRAGON_REACH: 11500,
   CARRY_END: 13500,
   CAVEMAN_EXIT_END: 15500,
-  PAUSE_END: 16500,
-  TEXT_END: 16500,
-  DONE: 16500,
+  BLANK1_END: 16500,           // 1s blank after caveman exits
+  SAVE_LINE_END: 19500,        // show "I will save you princess!!!" 3s
+  DONE: 21500,                 // 2s blank, then next iteration
 };
 
 interface Props {
@@ -158,7 +158,8 @@ export default function SavedAnimation({ onDone }: Props) {
   const showThanks = t >= T.CAVEMAN_WALK_END && t < T.PRINCESS_THANKS_END;
   const showHelp = t >= T.DRAGON_REACH && t < T.CARRY_END;
   const showCavemanLine = t >= T.DRAGON_REACH && t < T.CAVEMAN_EXIT_END;
-  const showSadText = t >= T.SAD_TEXT_APPEAR;
+  const showSadText = t >= T.SAD_TEXT_APPEAR && t < T.CAVEMAN_EXIT_END;
+  const showSaveLine = t >= T.BLANK1_END && t < T.SAVE_LINE_END;
 
   // Scale virtual coords → percentage so this overlay matches the canvas aspect box.
   const pct = (v: number, axis: 'x' | 'y') => `${(v / (axis === 'x' ? CW : CH)) * 100}%`;
@@ -322,6 +323,22 @@ export default function SavedAnimation({ onDone }: Props) {
             }}
           >
             ... but the happiness did not last long ...
+          </div>
+        )}
+
+        {/* "I will save you princess!!!" centered after caveman exits */}
+        {showSaveLine && (
+          <div
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center font-caveman"
+            style={{
+              width: '94%',
+              color: 'hsl(var(--accent))',
+              fontSize: 'min(3.4vh, 1.7vw)',
+              textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
+              lineHeight: 1.2,
+            }}
+          >
+            I will save you princess!!!
           </div>
         )}
       </div>
