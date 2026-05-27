@@ -289,24 +289,8 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
           );
         })()}
 
-        {showThanks && (
-          <div
-            className="absolute text-center font-caveman"
-            style={{
-              left: pct(princessX + princessW + 4, 'x'),
-              top: pct(princessY - 18, 'y'),
-              maxWidth: '40%',
-              color: '#fff',
-              background: 'rgba(0,0,0,0.7)',
-              border: '2px solid hsl(var(--accent))',
-              padding: '4px 8px',
-              borderRadius: 6,
-              fontSize: 'min(2.8vh, 1.5vw)',
-            }}
-          >
-            Thank you for saving me!
-          </div>
-        )}
+
+
 
         {showAnotherDragon && (
           <div
