@@ -1573,7 +1573,7 @@ function tickCollisions(s: L4State) {
       } else {
         d.state = 'downed';
         d.downedTimer = Math.round(3 * 60);
-        if (!s.purpleCan) spawnCanFromDragon(s, 'purple');
+        // Purple can only spawns on the killing blow — not on intermediate bonks.
       }
       // bounce caveman off dragon's head
       p.vy = JUMP_FORCE * 0.8;
