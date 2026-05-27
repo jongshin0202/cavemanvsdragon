@@ -320,7 +320,9 @@ export interface L4State {
   princessY: number;
   helpTimer: number;
   showHelp: boolean;
+  scoreEvents: ScoreAction[];
 }
+
 
 export interface L4Sprites {
   cavemanWalk: HTMLImageElement;
