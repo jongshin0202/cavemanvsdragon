@@ -58,9 +58,8 @@ export function getLevel4Difficulty(iter: number): Level4Difficulty {
     LEVEL4_PARAMS.SHRINK_SEC_FLOOR,
     LEVEL4_PARAMS.SHRINK_SEC_BASE * Math.pow(LEVEL4_PARAMS.SHRINK_SCALE_PER_ITER, steps),
   );
-  // hitsToKill = 3 until heartsToFill reaches cap, then +1 per iter
-  const itersAfterCap = Math.max(0, i - (LEVEL4_PARAMS.HEARTS_TO_FILL_CAP - LEVEL4_PARAMS.HEARTS_TO_FILL_BASE + 1));
-  const hitsToKill = LEVEL4_PARAMS.HITS_TO_KILL_BASE + itersAfterCap;
+  // hitsToKill = iteration number (iter1=1, iter2=2, ...)
+  const hitsToKill = i;
   const dragonSpeedMul = 1 * Math.pow(1 + LEVEL4_PARAMS.DRAGON_SPEED_PER_ITER, steps);
   const monkeyCount = LEVEL4_PARAMS.MONKEYS_BASE + steps;
   return { iteration: i, heartsToFill, shrinkSec, hitsToKill, dragonSpeedMul, monkeyCount };
