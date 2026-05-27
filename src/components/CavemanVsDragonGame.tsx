@@ -365,7 +365,7 @@ const CavemanVsDragonGame = () => {
     frameCount: 0,
     playerHasMoved: true, // start spawning barrels and audio immediately
     barrelStartDelay: 0,
-    winAnim: { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 },
+    winAnim: { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, timer: 0 },
     pendingClimb: null as null | 'up' | 'down',
     courseDir: 0 as -1 | 0 | 1,
     // Kill-monkeys → key → grow topmost vine mechanic
@@ -438,7 +438,7 @@ const CavemanVsDragonGame = () => {
     g.barrelStartDelay = 0;
     g.dkAnimTimer = 0; g.dkFrame = 0;
     g.princessAnimTimer = 0; g.helpTimer = 0; g.showHelp = false;
-    g.winAnim = { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
+    g.winAnim = { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, timer: 0 };
     g.monkeysKilled = 0;
     g.comboKills = 0;
     (g as any).l2RespawnQueue = [];
@@ -1144,7 +1144,7 @@ const CavemanVsDragonGame = () => {
       }
 
 
-      const wa: any = g.winAnim || { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
+      const wa: any = g.winAnim || { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, timer: 0 };
       if (!g.winAnim) g.winAnim = wa;
       if (wa.active) {
         wa.timer++;
@@ -1187,15 +1187,12 @@ const CavemanVsDragonGame = () => {
           const t = (wa.timer - 120) / 90;
           wa.cavemanFollowOffset = (CANVAS_W + 80) * t;
         } else {
-          // Phase: congrats overlay
-          wa.showCongrats = true;
-        }
-
-        // After CONGRATS has been visible ~1.5s, switch to LEVEL CLEAR
-        if (wa.timer > 210 + 90 && g.state === 'win') {
-          g.state = 'continue';
-          setGameState('continue');
-          continueArmedAtRef.current = performance.now() + 1000; // 1s input lock
+          // Phase ended — switch straight to LEVEL CLEAR (no congrats overlay)
+          if (g.state === 'win') {
+            g.state = 'continue';
+            setGameState('continue');
+            continueArmedAtRef.current = performance.now() + 1000; // 1s input lock
+          }
         }
       }
 
@@ -1706,7 +1703,6 @@ const CavemanVsDragonGame = () => {
             wa.gorillaY = 76;
             wa.gorillaRotation = 0;
             wa.showKiss = false;
-            wa.showCongrats = false;
           }
         }
 
@@ -1864,7 +1860,6 @@ const CavemanVsDragonGame = () => {
               wa.gorillaY = 76;
               wa.gorillaRotation = 0;
               wa.showKiss = false;
-              wa.showCongrats = false;
             }
           }
 
@@ -3136,19 +3131,6 @@ const CavemanVsDragonGame = () => {
         ctx.fillText(continuePrompt, CANVAS_W / 2, CANVAS_H / 2 + 50);
         ctx.fillText('TO CONTINUE', CANVAS_W / 2, CANVAS_H / 2 + 78);
       }
-      if (g.state === 'win' && wa.showCongrats) {
-        ctx.fillStyle = 'rgba(0,0,0,0.9)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-        ctx.fillStyle = '#FFD700'; ctx.font = `bold 40px ${arcade}`;
-        ctx.fillText('CONGRATS!', CANVAS_W / 2, CANVAS_H / 2 - 110);
-        ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 52px ${arcade}`;
-        ctx.fillText('YOU WON!', CANVAS_W / 2, CANVAS_H / 2 - 50);
-        ctx.fillStyle = '#FFD700'; ctx.font = `bold 34px ${arcade}`;
-        ctx.fillText(`SCORE: ${g.score}`, CANVAS_W / 2, CANVAS_H / 2 + 20);
-      }
-      // Use g.state alongside the React ref so we don't get a 1-frame flash of
-      // the bare game scene when transitioning from 'win' (CONGRATS) → 'continue'
-      // (LEVEL CLEAR), since g.state mutates immediately while gameStateRef.current
-      // only updates on the next React commit.
       if (gameStateRef.current === 'continue' || g.state === 'continue') {
         ctx.fillStyle = 'rgba(0,0,0,0.9)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
         ctx.fillStyle = '#FFD700'; ctx.font = `bold 28px ${arcade}`;
