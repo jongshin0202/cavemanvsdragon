@@ -801,18 +801,22 @@ function tickMonkeys(s: L4State) {
   for (const m of s.monkeys) {
     if (!m.alive) continue;
     let plat = L4_PLATFORMS[m.platIdx];
+    // Ride moving platforms smoothly — inherit the platform's per-frame dx.
+    if (plat.moving && plat.moving.dx) m.x += plat.moving.dx;
     m.x += m.vx;
     // Try stepping onto a neighboring same-row platform whose near edge is close.
+    // Keep m.x continuous (world coords) — do NOT snap it, that's what caused
+    // the visible "teleport" between static and moving platforms.
     const tryTransfer = () => {
       const neighbors = getMonkeyRowNeighbors(m.platIdx);
       for (const ni of neighbors) {
         const np = L4_PLATFORMS[ni];
         if (np.y !== plat.y) continue;
-        if (m.vx > 0 && Math.abs(np.x1 - plat.x2) <= 10) {
-          m.platIdx = ni; plat = np; m.x = np.x1 + 4; return true;
+        if (m.vx > 0 && Math.abs(np.x1 - plat.x2) <= 10 && m.x + 18 >= np.x1) {
+          m.platIdx = ni; plat = np; return true;
         }
-        if (m.vx < 0 && Math.abs(plat.x1 - np.x2) <= 10) {
-          m.platIdx = ni; plat = np; m.x = np.x2 - 18; return true;
+        if (m.vx < 0 && Math.abs(plat.x1 - np.x2) <= 10 && m.x + 4 <= np.x2) {
+          m.platIdx = ni; plat = np; return true;
         }
       }
       return false;
