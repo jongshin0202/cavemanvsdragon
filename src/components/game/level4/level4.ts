@@ -821,6 +821,30 @@ function tickMonkeys(s: L4State) {
       if (targetDir !== 0) m.vx = targetDir * speed;
     }
 
+    // If standing on a static platform with a moving neighbor heading toward
+    // it, walk toward the shared edge so the monkey is in position to step on
+    // as soon as the mover arrives.
+    if (!plat.moving) {
+      const speed = Math.abs(m.vx) || 0.55;
+      const neighbors = getMonkeyRowNeighbors(m.platIdx);
+      let targetDir = 0;
+      let holdEdge = false;
+      for (const ni of neighbors) {
+        const np = L4_PLATFORMS[ni];
+        if (np.y !== plat.y || !np.moving) continue;
+        const moverDir = Math.sign(np.moving.speed) || 1;
+        // Mover is to our right and approaching → walk right toward shared edge.
+        if (np.x1 >= plat.x2 - 1 && moverDir < 0) { targetDir = 1; holdEdge = true; break; }
+        // Mover is to our left and approaching → walk left.
+        if (np.x2 <= plat.x1 + 1 && moverDir > 0) { targetDir = -1; holdEdge = true; break; }
+      }
+      if (targetDir !== 0) m.vx = targetDir * speed;
+      // Remember intent so we hold at the edge instead of bouncing back.
+      (m as Monkey & { _holdEdge?: boolean })._holdEdge = holdEdge;
+    } else {
+      (m as Monkey & { _holdEdge?: boolean })._holdEdge = false;
+    }
+
     m.x += m.vx;
     // Keep m.x continuous (world coords) — do NOT snap it.
     const tryTransfer = () => {
@@ -839,6 +863,7 @@ function tickMonkeys(s: L4State) {
     };
     const WRAP_PAIRS: Record<number, number> = { 5: 9, 9: 5, 12: 14, 14: 12, 15: 18, 18: 15, 19: 21, 21: 19 };
     const wrapPartner = (s.iter >= 3) ? WRAP_PAIRS[m.platIdx] : undefined;
+    const holdEdge = (m as Monkey & { _holdEdge?: boolean })._holdEdge;
     if (m.vx > 0 && m.x > CANVAS_W - 18 && wrapPartner !== undefined) {
       const np = L4_PLATFORMS[wrapPartner];
       m.platIdx = wrapPartner; plat = np; m.x = np.x1 + 4;
@@ -848,14 +873,13 @@ function tickMonkeys(s: L4State) {
     } else if (m.x > plat.x2 - 18) {
       if (!tryTransfer()) {
         m.x = plat.x2 - 18;
-        // On a mover, hold at the edge instead of bouncing so the monkey can
-        // step off as soon as a static neighbor comes within reach.
-        if (!plat.moving) m.vx = -Math.abs(m.vx);
+        // Hold at edge if on a mover OR waiting for an approaching mover.
+        if (!plat.moving && !holdEdge) m.vx = -Math.abs(m.vx);
       }
     } else if (m.x < plat.x1 + 4) {
       if (!tryTransfer()) {
         m.x = plat.x1 + 4;
-        if (!plat.moving) m.vx = Math.abs(m.vx);
+        if (!plat.moving && !holdEdge) m.vx = Math.abs(m.vx);
       }
     }
     m.facing = m.vx >= 0 ? 1 : -1;
