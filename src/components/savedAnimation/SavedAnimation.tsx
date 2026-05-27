@@ -24,14 +24,16 @@ const DRAGON_FRAMES = 5;
 const T = {
   CAVEMAN_WALK_END: 2000,
   PRINCESS_THANKS_END: 4000,
-  DRAGON_APPEAR: 5000,
-  DRAGON_HOVER_END: 7000,
-  DRAGON_REACH: 8500,
-  CARRY_END: 10500,      // dragon (+ princess) fully off-screen right
-  CAVEMAN_EXIT_END: 12500, // caveman walks right and exits after dragon is gone
-  PAUSE_END: 13500,
-  TEXT_END: 15500,
-  DONE: 15500,
+  CONGRATS_END: 5000,      // 1s after thanks disappears
+  SAD_TEXT_APPEAR: 7000,   // 2s after congrats disappears
+  DRAGON_APPEAR: 8000,     // 1s after sad text appears
+  DRAGON_HOVER_END: 10000,
+  DRAGON_REACH: 11500,
+  CARRY_END: 13500,
+  CAVEMAN_EXIT_END: 15500,
+  PAUSE_END: 16500,
+  TEXT_END: 16500,
+  DONE: 16500,
 };
 
 interface Props {
