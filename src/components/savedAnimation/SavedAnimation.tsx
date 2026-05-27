@@ -251,27 +251,47 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
           </div>
         )}
 
-        {showPrincess && (() => {
-          const princessFrame = princessHeldByDragon
-            ? (Math.floor((t - T.DRAGON_REACH) / 1000) % 2 === 0 ? 2 : 0)
-            : 0;
+        {showPrincess && (
+          <div
+            style={{
+              position: 'absolute',
+              left: pct(pX, 'x'),
+              top: pct(pY, 'y'),
+              width: sizePct(princessW, 'x'),
+              height: sizePct(princessH, 'y'),
+              backgroundImage: `url(${princessSpriteUrl})`,
+              backgroundSize: '500% 100%',
+              backgroundPosition: '0% 0%',
+              backgroundRepeat: 'no-repeat',
+              imageRendering: 'pixelated',
+              transform: princessHeldByDragon ? 'scaleX(-1) rotate(8deg)' : 'scaleX(-1)',
+              transition: 'transform 0.2s',
+            }}
+          />
+        )}
+
+        {/* HELP! text bubble next to princess while she is being carried.
+            1s after grab → show 2s → hide 1s → repeat until off-screen. */}
+        {showPrincess && princessHeldByDragon && (() => {
+          const since = t - T.DRAGON_REACH;
+          if (since < 1000) return null;
+          if ((since - 1000) % 3000 >= 2000) return null;
           return (
             <div
+              className="absolute font-caveman"
               style={{
-                position: 'absolute',
-                left: pct(pX, 'x'),
-                top: pct(pY, 'y'),
-                width: sizePct(princessW, 'x'),
-                height: sizePct(princessH, 'y'),
-                backgroundImage: `url(${princessSpriteUrl})`,
-                backgroundSize: '500% 100%',
-                backgroundPosition: `${(princessFrame / 4) * 100}% 0%`,
-                backgroundRepeat: 'no-repeat',
-                imageRendering: 'pixelated',
-                transform: princessHeldByDragon ? 'scaleX(-1) rotate(8deg)' : 'scaleX(-1)',
-                transition: 'transform 0.2s',
+                left: pct(pX + princessW + 2, 'x'),
+                top: pct(pY - 4, 'y'),
+                color: '#fff',
+                background: '#000',
+                padding: '2px 6px',
+                fontSize: 'min(3.2vh, 1.7vw)',
+                letterSpacing: '0.08em',
+                whiteSpace: 'nowrap',
               }}
-            />
+            >
+              HELP!
+            </div>
           );
         })()}
 
