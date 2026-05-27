@@ -1906,7 +1906,7 @@ function tickEnding(s: L4State) {
       break;
     case 'follow':
       s.player.x += 2;
-      if (s.player.x > CANVAS_W + 20) { e.phase = 'done'; s.won = true; }
+      if (s.player.x > CANVAS_W + 20) { e.phase = 'done'; if (!s.won) { s.won = true; s.scoreEvents.push('completeLevel4'); } }
       break;
     case 'done':
       break;
