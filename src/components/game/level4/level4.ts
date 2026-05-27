@@ -308,6 +308,7 @@ export interface L4State {
   carrying: null | 'green' | 'purple';
   eGrowChunk: number;
   greenCanSpawned: boolean;
+  greenWatered: boolean;
   rockAtAIdx: number;
   ending: Ending;
   won: boolean;
@@ -474,6 +475,7 @@ export function initLevel4(iter: number): L4State {
     carrying: null,
     eGrowChunk: 1 / Math.max(1, diff.hitsToKill),
     greenCanSpawned: false,
+    greenWatered: false,
     rockAtAIdx: -1,
     ending: { active: false, phase: 'hug', timer: 0, newDragonX: -DRAGON_W },
     won: false,
@@ -1689,7 +1691,8 @@ function tickCans(s: L4State) {
     return false;
   };
   if (pickup(s.greenCan)) s.greenCan = null;
-  if (pickup(s.purpleCan)) s.purpleCan = null;
+  // Purple can is unobtainable until the green sprout has been watered.
+  if (s.greenWatered && pickup(s.purpleCan)) s.purpleCan = null;
 
   // Auto-water D when caveman stands on D base carrying green can.
   if (s.carrying === 'green' && p.onGround && p.groundPlatIdx === D_BASE_PLAT_IDX) {
@@ -1700,6 +1703,7 @@ function tickCans(s: L4State) {
         playWaterSproutSound();
         playVineGrowSound();
         s.scoreEvents.push('waterGreen');
+        s.greenWatered = true;
       }
       s.carrying = null;
     }
