@@ -803,26 +803,40 @@ function tickMonkeys(s: L4State) {
     let plat = L4_PLATFORMS[m.platIdx];
     // Ride moving platforms smoothly — inherit the platform's per-frame dx.
     if (plat.moving && plat.moving.dx) m.x += plat.moving.dx;
+
+    // If standing on a mover, predictively walk toward whichever static
+    // neighbor the mover is approaching, so the monkey is at the right edge
+    // when they touch and can step off smoothly.
+    if (plat.moving) {
+      const speed = Math.abs(m.vx) || 0.55;
+      const moverDir = Math.sign(plat.moving.speed) || 1;
+      const neighbors = getMonkeyRowNeighbors(m.platIdx);
+      let targetDir = 0;
+      for (const ni of neighbors) {
+        const np = L4_PLATFORMS[ni];
+        if (np.y !== plat.y || np.moving) continue;
+        if (moverDir > 0 && np.x1 >= plat.x2 - 1) { targetDir = 1; break; }
+        if (moverDir < 0 && np.x2 <= plat.x1 + 1) { targetDir = -1; break; }
+      }
+      if (targetDir !== 0) m.vx = targetDir * speed;
+    }
+
     m.x += m.vx;
-    // Try stepping onto a neighboring same-row platform whose near edge is close.
-    // Keep m.x continuous (world coords) — do NOT snap it, that's what caused
-    // the visible "teleport" between static and moving platforms.
+    // Keep m.x continuous (world coords) — do NOT snap it.
     const tryTransfer = () => {
       const neighbors = getMonkeyRowNeighbors(m.platIdx);
       for (const ni of neighbors) {
         const np = L4_PLATFORMS[ni];
         if (np.y !== plat.y) continue;
-        if (m.vx > 0 && Math.abs(np.x1 - plat.x2) <= 10 && m.x + 18 >= np.x1) {
+        if (m.vx >= 0 && Math.abs(np.x1 - plat.x2) <= 10 && m.x + 18 >= np.x1) {
           m.platIdx = ni; plat = np; return true;
         }
-        if (m.vx < 0 && Math.abs(plat.x1 - np.x2) <= 10 && m.x + 4 <= np.x2) {
+        if (m.vx <= 0 && Math.abs(plat.x1 - np.x2) <= 10 && m.x + 4 <= np.x2) {
           m.platIdx = ni; plat = np; return true;
         }
       }
       return false;
     };
-    // From iter 3+, monkeys on the edge platform of a row can wrap around the
-    // screen by walking off the canvas edge (mirrors dragon wrap behavior).
     const WRAP_PAIRS: Record<number, number> = { 5: 9, 9: 5, 12: 14, 14: 12, 15: 18, 18: 15, 19: 21, 21: 19 };
     const wrapPartner = (s.iter >= 3) ? WRAP_PAIRS[m.platIdx] : undefined;
     if (m.vx > 0 && m.x > CANVAS_W - 18 && wrapPartner !== undefined) {
@@ -832,9 +846,17 @@ function tickMonkeys(s: L4State) {
       const np = L4_PLATFORMS[wrapPartner];
       m.platIdx = wrapPartner; plat = np; m.x = np.x2 - 18;
     } else if (m.x > plat.x2 - 18) {
-      if (!tryTransfer()) { m.x = plat.x2 - 18; m.vx = -Math.abs(m.vx); }
+      if (!tryTransfer()) {
+        m.x = plat.x2 - 18;
+        // On a mover, hold at the edge instead of bouncing so the monkey can
+        // step off as soon as a static neighbor comes within reach.
+        if (!plat.moving) m.vx = -Math.abs(m.vx);
+      }
     } else if (m.x < plat.x1 + 4) {
-      if (!tryTransfer()) { m.x = plat.x1 + 4; m.vx = Math.abs(m.vx); }
+      if (!tryTransfer()) {
+        m.x = plat.x1 + 4;
+        if (!plat.moving) m.vx = Math.abs(m.vx);
+      }
     }
     m.facing = m.vx >= 0 ? 1 : -1;
     m.y = platY(plat, m.x) - 16;
