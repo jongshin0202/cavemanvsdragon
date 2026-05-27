@@ -3576,6 +3576,7 @@ const CavemanVsDragonGame = () => {
         {gameState === 'savedAnim' && (
           <SavedAnimation
             key={savedAnimKeyRef.current}
+            full={savedAnimFullRef.current}
             onDone={() => {
               if (savedAnimReturnRef.current === 'intro') {
                 setGameState('intro');
