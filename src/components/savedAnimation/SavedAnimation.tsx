@@ -83,6 +83,12 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
     return () => cancelAnimationFrame(raf);
   }, [onDone, full, DONE]);
 
+  const skip = () => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    onDone();
+  };
+
   const pct = (v: number, axis: 'x' | 'y') => `${(v / (axis === 'x' ? CW : CH)) * 100}%`;
   const sizePct = (v: number, axis: 'x' | 'y') => `${(v / (axis === 'x' ? CW : CH)) * 100}%`;
 
