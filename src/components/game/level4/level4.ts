@@ -1002,7 +1002,7 @@ function tickMonkeys(s: L4State) {
       }
     }
   }
-  if (!s.greenCanSpawned && !s.greenCan && s.dragon.state !== 'dead' && s.monkeys.every(m => !m.alive)) {
+  if (!s.greenCanSpawned && !s.greenCan && s.monkeys.every(m => !m.alive)) {
     spawnCan(s, 'green');
     s.greenCanSpawned = true;
   }
