@@ -77,7 +77,8 @@ export default function SavedAnimation({ onDone }: Props) {
   const princessX = CW / 2 - princessW / 2;
   const princessY = CH / 2 - princessH / 2;
 
-  const cavemanW = 28, cavemanH = 40;
+  // Caveman is the SAME size as princess.
+  const cavemanW = princessW, cavemanH = princessH;
   const cavemanY = princessY + princessH - cavemanH; // feet aligned with princess
 
   // Caveman path
@@ -96,8 +97,8 @@ export default function SavedAnimation({ onDone }: Props) {
     cavemanWalking = true;
   }
 
-  // Dragon
-  const dragonW = 64, dragonH = 64;
+  // Dragon — TWICE the size of princess.
+  const dragonW = princessW * 2, dragonH = princessH * 2;
   const dragonHoverY = CH / 4 - dragonH / 2; // 1/4 from top
   let dragonX = -dragonW;
   let dragonY = dragonHoverY;
@@ -139,8 +140,8 @@ export default function SavedAnimation({ onDone }: Props) {
   }
   if (t >= T.CARRY_END) showPrincess = false;
 
-  // Sprite frame counters
-  const walkFrame = Math.floor(t / 90) % WALK_FRAMES;
+  // Sprite frame counters — caveman freezes on frame 0 when not walking (no flashing).
+  const walkFrame = cavemanWalking ? Math.floor(t / 120) % WALK_FRAMES : 0;
   const dragonFrame = Math.floor(t / 100) % DRAGON_FRAMES;
 
   // Overlay text states
