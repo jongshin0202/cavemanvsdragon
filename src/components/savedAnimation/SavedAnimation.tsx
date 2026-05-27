@@ -325,6 +325,22 @@ export default function SavedAnimation({ onDone }: Props) {
             ... but the happiness did not last long ...
           </div>
         )}
+
+        {/* "I will save you princess!!!" centered after caveman exits */}
+        {showSaveLine && (
+          <div
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center font-caveman"
+            style={{
+              width: '94%',
+              color: 'hsl(var(--accent))',
+              fontSize: 'min(3.4vh, 1.7vw)',
+              textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
+              lineHeight: 1.2,
+            }}
+          >
+            I will save you princess!!!
+          </div>
+        )}
       </div>
     </div>
   );
