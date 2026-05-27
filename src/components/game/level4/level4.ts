@@ -539,6 +539,7 @@ function tickMovingPlatforms(s: L4State) {
     const pl = L4_PLATFORMS[i];
     if (!pl.moving) continue;
     const w = pl.x2 - pl.x1;
+    const prevX1 = pl.x1;
     let nx = pl.x1 + pl.moving.speed;
     if (nx < pl.moving.min) { nx = pl.moving.min; pl.moving.speed = Math.abs(pl.moving.speed); }
     if (nx + w > pl.moving.max + w) { /* unreachable: max stored as left edge max */ }
@@ -546,6 +547,7 @@ function tickMovingPlatforms(s: L4State) {
     if (nx > pl.moving.max) { nx = pl.moving.max; pl.moving.speed = -Math.abs(pl.moving.speed); }
     pl.x1 = nx;
     pl.x2 = nx + w;
+    pl.moving.dx = pl.x1 - prevX1;
   }
   // Second pass: paired bounce (N).
   for (let i = 0; i < L4_PLATFORMS.length; i++) {
@@ -562,6 +564,9 @@ function tickMovingPlatforms(s: L4State) {
       other.x1 += overlap / 2; other.x2 += overlap / 2;
       pl.moving.speed = -Math.abs(pl.moving.speed);
       other.moving.speed = Math.abs(other.moving.speed);
+      // Reflect the separation in dx so riders move with their platform.
+      pl.moving.dx = (pl.moving.dx ?? 0) - overlap / 2;
+      other.moving.dx = (other.moving.dx ?? 0) + overlap / 2;
     }
   }
 }
