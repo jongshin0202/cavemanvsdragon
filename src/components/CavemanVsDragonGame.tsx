@@ -3556,6 +3556,20 @@ const CavemanVsDragonGame = () => {
           style={{ WebkitAppearance: 'none', appearance: 'none' }}
         />
 
+        {/* L4-cleared cinematic: dragon re-kidnaps the princess. */}
+        {gameState === 'savedAnim' && (
+          <SavedAnimation
+            onDone={() => {
+              if (savedAnimReturnRef.current === 'intro') {
+                setGameState('intro');
+                gameRef.current.state = 'intro';
+              } else {
+                startNextLevel();
+              }
+            }}
+          />
+        )}
+
         {/* Arcade-style intro / title screen overlay */}
         {gameState === 'intro' && (
           <button
