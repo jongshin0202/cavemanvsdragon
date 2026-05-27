@@ -410,6 +410,9 @@ const CavemanVsDragonGame = () => {
   // Bumped each time we enter savedAnim so the overlay remounts and the
   // animation always plays from t=0.
   const savedAnimKeyRef = useRef<number>(0);
+  // True when the 7-tap preview wants the full kidnap cinematic; false when
+  // we're coming off a real L4 win (where L4 already showed the kidnap).
+  const savedAnimFullRef = useRef<boolean>(false);
 
   const resetPlayer = useCallback(() => {
     const g = gameRef.current;
@@ -904,6 +907,7 @@ const CavemanVsDragonGame = () => {
               setScore(0); setLives(3);
               savedAnimReturnRef.current = 'next';
               savedAnimKeyRef.current += 1;
+              savedAnimFullRef.current = true;
               setGameState('savedAnim');
             }
             else if (taps === 6) startInLevel4Iter3Test();
@@ -1146,6 +1150,7 @@ const CavemanVsDragonGame = () => {
             g.state = 'savedAnim';
             savedAnimReturnRef.current = 'next';
             savedAnimKeyRef.current += 1;
+            savedAnimFullRef.current = false;
             setGameState('savedAnim');
           }
 
@@ -3571,6 +3576,7 @@ const CavemanVsDragonGame = () => {
         {gameState === 'savedAnim' && (
           <SavedAnimation
             key={savedAnimKeyRef.current}
+            full={savedAnimFullRef.current}
             onDone={() => {
               if (savedAnimReturnRef.current === 'intro') {
                 setGameState('intro');
