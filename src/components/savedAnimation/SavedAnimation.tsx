@@ -199,25 +199,33 @@ export default function SavedAnimation({ onDone }: Props) {
         )}
 
         {/* Princess — render only frame 0 from the 5-frame sheet, mirrored to face LEFT. */}
-        {showPrincess && (
-          <div
-            style={{
-              position: 'absolute',
-              left: pct(pX, 'x'),
-              top: pct(pY, 'y'),
-              width: sizePct(princessW, 'x'),
-              height: sizePct(princessH, 'y'),
-              backgroundImage: `url(${princessSpriteUrl})`,
-              backgroundSize: '500% 100%',          // 5 frames wide → show 1/5
-              backgroundPosition: '0% 0%',          // frame 0
-              backgroundRepeat: 'no-repeat',
-              imageRendering: 'pixelated',
-              // scaleX(-1) flips the sprite so princess faces left (toward incoming caveman).
-              transform: princessHeldByDragon ? 'scaleX(-1) rotate(8deg)' : 'scaleX(-1)',
-              transition: 'transform 0.2s',
-            }}
-          />
-        )}
+        {showPrincess && (() => {
+          // L1 princess "HELP!" toggle: alternate between idle frame 0 and help frame 2.
+          // During grab, toggle every 400ms so the scream is visibly animated within the short carry.
+          const princessFrame = princessHeldByDragon
+            ? (Math.floor(t / 400) % 2 === 0 ? 0 : 2)
+            : 0;
+          return (
+            <div
+              style={{
+                position: 'absolute',
+                left: pct(pX, 'x'),
+                top: pct(pY, 'y'),
+                width: sizePct(princessW, 'x'),
+                height: sizePct(princessH, 'y'),
+                backgroundImage: `url(${princessSpriteUrl})`,
+                backgroundSize: '500% 100%',                       // 5 frames wide
+                backgroundPosition: `-${princessFrame * 100}% 0%`, // 0 = idle, 2 = HELP
+                backgroundRepeat: 'no-repeat',
+                imageRendering: 'pixelated',
+                // scaleX(-1) flips so princess faces left.
+                transform: princessHeldByDragon ? 'scaleX(-1) rotate(8deg)' : 'scaleX(-1)',
+                transition: 'transform 0.2s',
+              }}
+            />
+          );
+        })()}
+
 
 
         {/* Princess "Thank you" speech bubble */}
