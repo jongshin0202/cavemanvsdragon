@@ -6,6 +6,8 @@ import {
   Barrel, Robot
 } from './game/constants';
 import { initLevel4, updateLevel4, renderLevel4, type L4State, type L4Sprites, type L4Input } from './game/level4/level4';
+import { scoreFor, type ScoreAction } from './game/scoring';
+
 import heartUrl from '@/assets/heart.png';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarTracked, playPrincessHelpSound, isDragonRoaringNow, unlockAudio } from './game/sounds';
 import { loadScores, qualifiesForTop, insertScore, clearLocalScores, formatDate, entryDisplayName, MAX_ENTRIES, type LeaderboardEntry } from './game/leaderboard';
