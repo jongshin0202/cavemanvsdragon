@@ -211,7 +211,9 @@ interface Rock {
   hitConsumed?: boolean;
   kicked?: boolean;
   rollPhase?: number;
+  jumpedOver?: boolean;
 }
+
 
 type DragonState = 'intro' | 'roam' | 'downed' | 'dying' | 'dead';
 interface Dragon {
