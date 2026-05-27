@@ -161,11 +161,12 @@ export default function SavedAnimation({ onDone }: Props) {
   const pct = (v: number, axis: 'x' | 'y') => `${(v / (axis === 'x' ? CW : CH)) * 100}%`;
   const sizePct = (v: number, axis: 'x' | 'y') => `${(v / (axis === 'x' ? CW : CH)) * 100}%`;
 
-  // Caveman sprite — sheet is 4 frames wide. We render via background-image for crisp pixel scaling.
+  // Caveman sprite — sheet is 4 frames wide. Use the correct sprite-sheet percentage
+  // formula: backgroundPosition percent = frame / (frames - 1) * 100.
   const cavemanBg: React.CSSProperties = {
     backgroundImage: `url(${cavemanWalkUrl})`,
     backgroundSize: `${WALK_FRAMES * 100}% 100%`,
-    backgroundPosition: `-${walkFrame * 100}% 0`,
+    backgroundPosition: `${(walkFrame / (WALK_FRAMES - 1)) * 100}% 0%`,
     backgroundRepeat: 'no-repeat',
     imageRendering: 'pixelated',
     transform: 'scaleX(1)',
@@ -173,11 +174,10 @@ export default function SavedAnimation({ onDone }: Props) {
   const dragonBg: React.CSSProperties = {
     backgroundImage: `url(${dragonAngryUrl})`,
     backgroundSize: `${DRAGON_FRAMES * 100}% 100%`,
-    backgroundPosition: `-${dragonFrame * 100}% 0`,
+    backgroundPosition: `${(dragonFrame / (DRAGON_FRAMES - 1)) * 100}% 0%`,
     backgroundRepeat: 'no-repeat',
     imageRendering: 'pixelated',
-    // Dragon faces right when flying right; mirror when needed.
-    transform: t >= T.DRAGON_HOVER_END ? 'scaleX(1)' : 'scaleX(1)',
+    transform: 'scaleX(1)',
   };
 
   return (
@@ -221,7 +221,7 @@ export default function SavedAnimation({ onDone }: Props) {
                 height: sizePct(princessH, 'y'),
                 backgroundImage: `url(${princessSpriteUrl})`,
                 backgroundSize: '500% 100%',                       // 5 frames wide
-                backgroundPosition: `-${princessFrame * 100}% 0%`, // 0 = idle, 2 = HELP
+                backgroundPosition: `${(princessFrame / 4) * 100}% 0%`, // 0 = idle, 2 = HELP
                 backgroundRepeat: 'no-repeat',
                 imageRendering: 'pixelated',
                 // scaleX(-1) flips so princess faces left.
