@@ -197,23 +197,27 @@ export default function SavedAnimation({ onDone }: Props) {
           </div>
         )}
 
-        {/* Princess */}
+        {/* Princess — render only frame 0 from the 5-frame sheet, mirrored to face LEFT. */}
         {showPrincess && (
-          <img
-            src={princessSpriteUrl}
-            alt=""
+          <div
             style={{
               position: 'absolute',
               left: pct(pX, 'x'),
               top: pct(pY, 'y'),
               width: sizePct(princessW, 'x'),
               height: sizePct(princessH, 'y'),
+              backgroundImage: `url(${princessSpriteUrl})`,
+              backgroundSize: '500% 100%',          // 5 frames wide → show 1/5
+              backgroundPosition: '0% 0%',          // frame 0
+              backgroundRepeat: 'no-repeat',
               imageRendering: 'pixelated',
-              transform: princessHeldByDragon ? 'rotate(8deg)' : 'none',
+              // scaleX(-1) flips the sprite so princess faces left (toward incoming caveman).
+              transform: princessHeldByDragon ? 'scaleX(-1) rotate(8deg)' : 'scaleX(-1)',
               transition: 'transform 0.2s',
             }}
           />
         )}
+
 
         {/* Princess "Thank you" speech bubble */}
         {showThanks && (
