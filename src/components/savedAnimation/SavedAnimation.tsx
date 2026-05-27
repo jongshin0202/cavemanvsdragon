@@ -238,22 +238,12 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
   };
 
   return (
-    <div className="absolute inset-0 z-30 flex items-center justify-center bg-black select-none">
+    <div
+      className="absolute inset-0 z-30 flex items-center justify-center bg-black select-none"
+      onPointerDown={skip}
+    >
       <div className="relative bg-black" style={{ aspectRatio: `${CW} / ${CH}`, height: '100%' }}>
-        {showCongrats && (
-          <div
-            className="absolute left-1/2 -translate-x-1/2 text-center font-caveman"
-            style={{
-              top: '5%', width: '94%',
-              color: 'hsl(var(--accent))',
-              fontSize: 'min(6vh, 3.2vw)',
-              textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
-              lineHeight: 1.2,
-            }}
-          >
-            CONGRATULATIONS!<br />YOU SAVED PRINCESS!
-          </div>
-        )}
+
 
         {showPrincess && (
           <div
