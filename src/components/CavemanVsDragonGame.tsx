@@ -438,7 +438,7 @@ const CavemanVsDragonGame = () => {
     g.barrelStartDelay = 0;
     g.dkAnimTimer = 0; g.dkFrame = 0;
     g.princessAnimTimer = 0; g.helpTimer = 0; g.showHelp = false;
-    g.winAnim = { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
+    g.winAnim = { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, timer: 0 };
     g.monkeysKilled = 0;
     g.comboKills = 0;
     (g as any).l2RespawnQueue = [];
