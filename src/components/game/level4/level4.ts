@@ -1788,8 +1788,20 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
 
   if (s.carrying) {
     const p = s.player;
-    ctx.fillStyle = s.carrying === 'green' ? '#3CB043' : '#9b59b6';
-    ctx.fillRect(p.x - 1, p.y - 10, 18, 8);
+    const cx = p.x + p.w / 2;
+    const cy = p.y - 6;
+    const glow = s.carrying === 'green'
+      ? 'rgba(116,224,127,0.45)'
+      : 'rgba(176,120,230,0.45)';
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+    ctx.fill();
+    const canImg = sprites.wateringCan;
+    const drawW = 20, drawH = 16;
+    if (canImg && canImg.complete && canImg.naturalWidth > 0) {
+      ctx.drawImage(canImg, cx - drawW / 2, cy - drawH / 2, drawW, drawH);
+    }
   }
 
   // Dragon
