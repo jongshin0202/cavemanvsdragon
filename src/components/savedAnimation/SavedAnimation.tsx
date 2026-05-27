@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import cavemanWalkUrl from '@/assets/caveman-walk.png';
 import princessSpriteUrl from '@/assets/princess-sprite.png';
 import dragonAngryUrl from '@/assets/dragon-angry.png';
-import { playWingFlapSound, playPrincessHelpSound } from './sounds';
+import { playWingFlapSound, playPrincessHelpSound } from '../game/sounds';
 
 // Virtual canvas size (matches CavemanVsDragonGame CANVAS_W/H).
 const CW = 512;
