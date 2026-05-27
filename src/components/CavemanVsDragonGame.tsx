@@ -3095,15 +3095,15 @@ const CavemanVsDragonGame = () => {
         }
       }
 
-      // HUD
-      ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 18px "Press Start 2P", monospace';
+      // HUD — sized to fit up to 10-digit scores within 512px canvas
+      ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 11px "Press Start 2P", monospace';
       ctx.textAlign = 'left';
-      ctx.fillText(`SCORE: ${g.score}`, 10, 28);
+      ctx.fillText(`SCORE ${g.score}`, 6, 24);
       ctx.textAlign = 'right';
-      ctx.fillText(`LIVES: ${'♥'.repeat(g.lives)}`, CANVAS_W - 10, 28);
+      ctx.fillText(`LIVES ${'♥'.repeat(g.lives)}`, CANVAS_W - 6, 24);
       ctx.textAlign = 'center';
       const topScore = globalScoresRef.current[0]?.score ?? 0;
-      ctx.fillText(`HI: ${topScore}`, CANVAS_W / 2, 28);
+      ctx.fillText(`HI ${topScore}`, CANVAS_W / 2, 24);
       ctx.textAlign = 'left';
 
       // Overlays - large, centered
