@@ -26,10 +26,11 @@ const T = {
   PRINCESS_THANKS_END: 4000,
   DRAGON_HOVER_END: 6000,
   DRAGON_REACH: 7500,
-  CARRY_END: 9500,
-  PAUSE_END: 10500,
-  TEXT_END: 12500,
-  DONE: 12500,
+  CARRY_END: 9500,      // dragon (+ princess) fully off-screen right
+  CAVEMAN_EXIT_END: 11500, // caveman walks right and exits after dragon is gone
+  PAUSE_END: 12500,
+  TEXT_END: 14500,
+  DONE: 14500,
 };
 
 interface Props {
