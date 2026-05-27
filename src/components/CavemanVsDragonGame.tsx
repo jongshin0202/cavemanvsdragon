@@ -1150,6 +1150,7 @@ const CavemanVsDragonGame = () => {
             g.state = 'savedAnim';
             savedAnimReturnRef.current = 'next';
             savedAnimKeyRef.current += 1;
+            savedAnimFullRef.current = false;
             setGameState('savedAnim');
           }
 
