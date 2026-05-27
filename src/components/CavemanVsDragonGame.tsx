@@ -2521,17 +2521,21 @@ const CavemanVsDragonGame = () => {
           }
 
           const movedDist = Math.abs(r.x - prevRobotX) + Math.abs(r.y - prevRobotY);
-          (r as any)._stillFrames = movedDist < 0.08 ? ((r as any)._stillFrames ?? 0) + 1 : 0;
-          if ((r as any)._stillFrames > 24) {
+          (r as any)._stillFrames = movedDist < 0.15 ? ((r as any)._stillFrames ?? 0) + 1 : 0;
+          // Monkeys must NEVER stall in place. If we detect <0.15px movement for
+          // even a few frames, force a direction flip and apply movement now so
+          // the walking animation always matches actual displacement.
+          if ((r as any)._stillFrames > 4) {
             const recoverDir = ((r as any).wanderDir || r.direction || 1) * -1;
             (r as any).wanderDir = recoverDir;
             r.direction = recoverDir;
+            (r as any).wanderTimer = 20 + Math.floor(Math.random() * 30);
             if (r.climbing) {
-              r.vy = r.vy === 0 ? recoverDir * Math.max(r.speed, 0.45) : -r.vy;
+              r.vy = recoverDir * Math.max(r.speed, 0.6);
               r.y += r.vy;
             } else {
-              r.vx = recoverDir * Math.max(r.speed, 0.45);
-              r.x += r.vx;
+              r.vx = recoverDir * Math.max(r.speed, 0.6);
+              r.x = Math.max(0, Math.min(CANVAS_W - r.w, r.x + r.vx));
             }
             (r as any)._stillFrames = 0;
           }
