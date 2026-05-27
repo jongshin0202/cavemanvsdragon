@@ -403,6 +403,10 @@ const CavemanVsDragonGame = () => {
   // Tap-count buffer for the intro shortcut: 2 taps → L2, 3 taps → L3.
   const introTapCountRef = useRef<number>(0);
   const introTapTimerRef = useRef<number | null>(null);
+  // Where to go after the L4 "saved princess" cinematic finishes.
+  // 'next' → start next level (after a real L4 clear).
+  // 'intro' → back to the title screen (7-tap preview from intro).
+  const savedAnimReturnRef = useRef<'next' | 'intro'>('next');
 
   const resetPlayer = useCallback(() => {
     const g = gameRef.current;
