@@ -486,7 +486,9 @@ export function initLevel4(iter: number): L4State {
     princessY: PRINCESS_Y,
     helpTimer: 0,
     showHelp: false,
+    scoreEvents: [],
   };
+
 }
 
 // ── Update ───────────────────────────────────────────────────
