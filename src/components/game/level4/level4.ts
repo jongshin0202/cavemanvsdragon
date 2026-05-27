@@ -248,6 +248,7 @@ interface Monkey {
   walkFrame: number; walkTimer: number;
   transferCooldown?: number;
   transferMisses?: number;
+  collisionCooldown?: number;
 }
 
 interface MonkeyFireball { x: number; y: number; vx: number; vy: number; r: number; age: number }
@@ -876,23 +877,19 @@ function tickMonkeys(s: L4State) {
     if (!m.alive) continue;
     let plat = L4_PLATFORMS[m.platIdx];
     if ((m.transferCooldown ?? 0) > 0) m.transferCooldown = (m.transferCooldown ?? 0) - 1;
+    if ((m.collisionCooldown ?? 0) > 0) m.collisionCooldown = (m.collisionCooldown ?? 0) - 1;
     // Ride moving platforms smoothly — inherit the platform's per-frame dx.
     if (plat.moving && plat.moving.dx) m.x += plat.moving.dx;
 
     const speed = Math.max(MONKEY_MIN_SPEED, Math.abs(m.vx) || MONKEY_MIN_SPEED);
     const preferredDir = getMonkeyCavemanTransferDir(s, m, plat);
-    const intent = (m.transferCooldown ?? 0) <= 0 ? getMonkeyTransferIntent(m, plat, preferredDir) : null;
+    const intent = (m.transferCooldown ?? 0) <= 0 && (m.collisionCooldown ?? 0) <= 0
+      ? getMonkeyTransferIntent(m, plat, preferredDir)
+      : null;
     if (intent) m.vx = intent.dir * speed;
 
     m.x += m.vx;
     // Keep m.x continuous (world coords) — do NOT snap it.
-    const hasTransferContact = (dir: -1 | 1) => getMonkeyAdjacentPlatforms(m.platIdx).some((ni) => {
-      const np = L4_PLATFORMS[ni];
-      if (np.y !== plat.y) return false;
-      return dir > 0
-        ? Math.abs(np.x1 - plat.x2) <= MONKEY_TRANSFER_GAP
-        : Math.abs(plat.x1 - np.x2) <= MONKEY_TRANSFER_GAP;
-    });
     const tryTransfer = (dir: -1 | 1) => {
       if ((m.transferCooldown ?? 0) > 0) return false;
       for (const ni of getMonkeyAdjacentPlatforms(m.platIdx)) {
@@ -924,12 +921,12 @@ function tickMonkeys(s: L4State) {
     } else if (m.x >= monkeyRightLimit(plat)) {
       if (!tryTransfer(1)) {
         m.vx = -speed;
-        m.x = monkeyRightLimit(plat) + m.vx;
+        m.x = monkeyRightLimit(plat) - 0.5;
       }
     } else if (m.x <= monkeyLeftLimit(plat)) {
       if (!tryTransfer(-1)) {
         m.vx = speed;
-        m.x = monkeyLeftLimit(plat) + m.vx;
+        m.x = monkeyLeftLimit(plat) + 0.5;
       }
     }
     m.facing = m.vx >= 0 ? 1 : -1;
@@ -937,7 +934,7 @@ function tickMonkeys(s: L4State) {
     m.walkTimer++;
     if (m.walkTimer >= 6) { m.walkTimer = 0; m.walkFrame = (m.walkFrame + 1) % ROBOT_FRAMES; }
   }
-  // Separate overlapping monkeys on same platform — force them to walk in opposite directions.
+  // Separate overlapping monkeys on same platform — force opposite directions, but only when actually overlapping.
   const OVERLAP = 14;
   for (let i = 0; i < s.monkeys.length; i++) {
     const a = s.monkeys[i];
@@ -946,16 +943,22 @@ function tickMonkeys(s: L4State) {
       const b = s.monkeys[j];
       if (!b.alive || b.platIdx !== a.platIdx) continue;
       const dx = b.x - a.x;
-      if (Math.abs(dx) < OVERLAP) {
+      const adx = Math.abs(dx);
+      if (adx < OVERLAP) {
         const sp = Math.max(MONKEY_MIN_SPEED, Math.abs(a.vx) || Math.abs(b.vx) || MONKEY_MIN_SPEED);
-        const push = (OVERLAP - Math.abs(dx)) / 2 + 0.5;
-        if (dx >= 0) {
-          a.x -= push; b.x += push;
-          a.vx = -sp; b.vx = sp;
-        } else {
-          a.x += push; b.x -= push;
-          a.vx = sp; b.vx = -sp;
+        // Only flip directions if they are walking toward each other (or stuck same-direction collision).
+        const approaching = (dx >= 0 && a.vx > 0 && b.vx < 0) ||
+                            (dx < 0 && a.vx < 0 && b.vx > 0) ||
+                            Math.sign(a.vx) === Math.sign(b.vx);
+        if (approaching && (a.collisionCooldown ?? 0) <= 0 && (b.collisionCooldown ?? 0) <= 0) {
+          if (dx >= 0) { a.vx = -sp; b.vx = sp; }
+          else { a.vx = sp; b.vx = -sp; }
+          a.collisionCooldown = 30; b.collisionCooldown = 30;
         }
+        // Gentle separation — small nudge so positions diverge smoothly, no big jump.
+        const nudge = 0.5;
+        if (dx >= 0) { a.x -= nudge; b.x += nudge; }
+        else { a.x += nudge; b.x -= nudge; }
         a.facing = a.vx >= 0 ? 1 : -1;
         b.facing = b.vx >= 0 ? 1 : -1;
       }
