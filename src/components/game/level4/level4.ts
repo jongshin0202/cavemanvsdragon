@@ -1568,7 +1568,7 @@ function tickCollisions(s: L4State) {
         playDragonRoarSound();
       } else {
         d.state = 'downed';
-        d.downedTimer = Math.round(5 * 60);
+        d.downedTimer = Math.round(3 * 60);
         if (!s.purpleCan) spawnCanFromDragon(s, 'purple');
       }
       // bounce caveman off dragon's head
