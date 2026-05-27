@@ -3570,6 +3570,7 @@ const CavemanVsDragonGame = () => {
         {/* L4-cleared cinematic: dragon re-kidnaps the princess. */}
         {gameState === 'savedAnim' && (
           <SavedAnimation
+            key={savedAnimKeyRef.current}
             onDone={() => {
               if (savedAnimReturnRef.current === 'intro') {
                 setGameState('intro');
