@@ -1872,7 +1872,7 @@ const CavemanVsDragonGame = () => {
             const paulX = 175, paulY = 64;
             if (rectsOverlap(pl, { x: paulX, y: paulY, w: 40, h: 48 })) {
               g.state = 'win'; setGameState('win');
-              g.score += 2000 + g.lives * 1000; setScore(g.score);
+              g.score += scoreFor('completeLevel', getLevelIteration(g.round)); setScore(g.score);
               playWinSound(); playPrincessSavedSound();
               wa.active = true;
               wa.timer = 0;
