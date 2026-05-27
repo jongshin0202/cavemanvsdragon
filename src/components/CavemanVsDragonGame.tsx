@@ -3151,14 +3151,14 @@ const CavemanVsDragonGame = () => {
       // only updates on the next React commit.
       if (gameStateRef.current === 'continue' || g.state === 'continue') {
         ctx.fillStyle = 'rgba(0,0,0,0.9)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-        ctx.fillStyle = '#FFD700'; ctx.font = `bold 40px ${arcade}`;
-        ctx.fillText(`LEVEL ${g.round} CLEAR!`, CANVAS_W / 2, CANVAS_H / 2 - 90);
-        ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 28px ${arcade}`;
-        ctx.fillText(`SCORE: ${g.score}`, CANVAS_W / 2, CANVAS_H / 2 - 30);
-        ctx.fillText(`LIVES: ${g.lives}`, CANVAS_W / 2, CANVAS_H / 2 + 10);
-        ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 22px ${arcade}`;
+        ctx.fillStyle = '#FFD700'; ctx.font = `bold 28px ${arcade}`;
+        ctx.fillText(`LEVEL ${g.round} CLEAR!`, CANVAS_W / 2, CANVAS_H / 2 - 70);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 20px ${arcade}`;
+        ctx.fillText(`SCORE: ${g.score}`, CANVAS_W / 2, CANVAS_H / 2 - 20);
+        ctx.fillText(`LIVES: ${g.lives}`, CANVAS_W / 2, CANVAS_H / 2 + 16);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 16px ${arcade}`;
         ctx.fillText(continuePrompt, CANVAS_W / 2, CANVAS_H / 2 + 70);
-        ctx.fillText('TO CONTINUE', CANVAS_W / 2, CANVAS_H / 2 + 100);
+        ctx.fillText('TO CONTINUE', CANVAS_W / 2, CANVAS_H / 2 + 96);
       }
       if (gameStateRef.current === 'enterName') {
         ctx.fillStyle = 'rgba(0,0,0,0.95)'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
