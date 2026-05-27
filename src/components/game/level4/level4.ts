@@ -1825,11 +1825,32 @@ function tickCollisions(s: L4State) {
         m.alive = false;
         playRobotKillSound();
         p.vy = JUMP_FORCE * 0.8;
+        s.scoreEvents.push('killMonkey');
       } else if (s.invuln <= 0) {
         loseLife(s);
       }
     }
   }
+
+  // Jumping over rolling rocks (caveman airborne, feet above rock, horizontal overlap)
+  for (const r of s.rocks) {
+    if (r.jumpedOver || r.state === 'dead' || r.state === 'flying') continue;
+    const horizOverlap = p.x + p.w > r.x - r.r && p.x < r.x + r.r;
+    if (!p.onGround && horizOverlap && (p.y + p.h) < r.y - r.r + 2) {
+      r.jumpedOver = true;
+      s.scoreEvents.push('jumpRock');
+    }
+  }
+  // Jumping over monkey "apples" (fireballs)
+  for (const fb of s.monkeyFireballs) {
+    if (fb.jumpedOver) continue;
+    const horizOverlap = p.x + p.w > fb.x - fb.r && p.x < fb.x + fb.r;
+    if (!p.onGround && horizOverlap && (p.y + p.h) < fb.y - fb.r + 2) {
+      fb.jumpedOver = true;
+      s.scoreEvents.push('jumpApple');
+    }
+  }
+
 
   // Win check
   if (d.state === 'dead' && Math.abs(p.y + p.h - L4_PLATFORMS[PRINCESS_PLAT_IDX].y) < 6) {
