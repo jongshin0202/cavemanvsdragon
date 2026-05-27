@@ -113,7 +113,10 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
     };
 
     return (
-      <div className="absolute inset-0 z-30 flex items-center justify-center bg-black select-none">
+      <div
+        className="absolute inset-0 z-30 flex items-center justify-center bg-black select-none"
+        onPointerDown={skip}
+      >
         <div className="relative bg-black" style={{ aspectRatio: `${CW} / ${CH}`, height: '100%' }}>
           {showSadText && (
             <div
