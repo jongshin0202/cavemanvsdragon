@@ -3054,20 +3054,23 @@ const CavemanVsDragonGame = () => {
           ctx.drawImage(canImg, cx - drawW / 2, cy - drawH / 2, drawW, drawH);
         }
       }
-      // L2: carried can (colored) or carried grey rock above the player
+      // L2: carried can (colored glow + L1 sprite) or carried grey rock above the player
       if (isLevel2Round(g.round)) {
         const cx = pl.x + pl.w / 2;
         const cy = pl.y - 6;
         if (l2Ref.current.carryingCan) {
-          const fill = l2Ref.current.carryingCan === 'green' ? '#2e9b3a' : '#7a2bd1';
-          const hi = l2Ref.current.carryingCan === 'green' ? '#74e07f' : '#c79bff';
-          ctx.fillStyle = fill;
-          ctx.fillRect(cx - 8, cy - 5, 14, 10);
-          ctx.fillRect(cx + 5, cy - 2, 4, 4);
-          ctx.fillStyle = hi;
-          ctx.fillRect(cx - 7, cy - 4, 4, 2);
-          ctx.fillStyle = fill;
-          ctx.fillRect(cx - 12, cy - 3, 4, 3);
+          const glow = l2Ref.current.carryingCan === 'green'
+            ? 'rgba(116,224,127,0.45)'
+            : 'rgba(176,120,230,0.45)';
+          ctx.fillStyle = glow;
+          ctx.beginPath();
+          ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+          ctx.fill();
+          const canImg = wateringCanRef.current;
+          const drawW = 20, drawH = 16;
+          if (canImg && canImg.complete && canImg.naturalWidth > 0) {
+            ctx.drawImage(canImg, cx - drawW / 2, cy - drawH / 2, drawW, drawH);
+          }
         }
         if (l2Ref.current.carryingRock) {
           ctx.fillStyle = '#777';
