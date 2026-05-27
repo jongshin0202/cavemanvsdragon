@@ -6,6 +6,8 @@ import {
   Barrel, Robot
 } from './game/constants';
 import { initLevel4, updateLevel4, renderLevel4, type L4State, type L4Sprites, type L4Input } from './game/level4/level4';
+import { scoreFor, type ScoreAction } from './game/scoring';
+
 import heartUrl from '@/assets/heart.png';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarTracked, playPrincessHelpSound, isDragonRoaringNow, unlockAudio } from './game/sounds';
 import { loadScores, qualifiesForTop, insertScore, clearLocalScores, formatDate, entryDisplayName, MAX_ENTRIES, type LeaderboardEntry } from './game/leaderboard';
@@ -1104,6 +1106,13 @@ const CavemanVsDragonGame = () => {
         const pendingGO = (s4 as any)._pendingGameOver as number | undefined;
         if (pendingGO === undefined || pendingGO > 0) {
           const result = updateLevel4(s4, input);
+          if (result.scoreEvents && result.scoreEvents.length) {
+            const iter = getLevelIteration(g.round);
+            for (const ev of result.scoreEvents) {
+              g.score += scoreFor(ev, iter);
+            }
+            setScore(g.score);
+          }
           if (result.died) {
             g.lives -= 1;
             setLives(g.lives);
@@ -1118,6 +1127,7 @@ const CavemanVsDragonGame = () => {
             setGameState('continue');
             continueArmedAtRef.current = performance.now() + 1000;
           }
+
           if ((s4 as any)._pendingGameOver !== undefined && (s4 as any)._pendingGameOver > 0) {
             (s4 as any)._pendingGameOver -= 1;
           }
@@ -1666,7 +1676,6 @@ const CavemanVsDragonGame = () => {
           g.keyBob = (g.keyBob + 1) % 120;
           if (g.keyPos && rectsOverlap(p, g.keyPos)) {
             g.keyGrabbed = true;
-            g.score += 200; setScore(g.score);
             playKeyGrabSound();
           }
         }
@@ -1682,7 +1691,9 @@ const CavemanVsDragonGame = () => {
             g.seedPlanted = true; // triggers vine-grow animation
             playWaterSproutSound();
             playVineGrowSound();
+            g.score += scoreFor('waterGreen', getLevelIteration(g.round)); setScore(g.score);
           }
+
         }
         // Grow the vine after watering (~1.5s at 60fps ≈ 68 frames)
         if (g.seedPlanted && g.topVineGrowth < 1) {
@@ -1697,7 +1708,7 @@ const CavemanVsDragonGame = () => {
           const paulX = 175, paulY = 64;
           if (rectsOverlap(p, { x: paulX, y: paulY, w: 40, h: 48 })) {
             g.state = 'win'; setGameState('win');
-            g.score += 2000 + g.lives * 1000; setScore(g.score); playWinSound(); playPrincessSavedSound();
+            g.score += scoreFor('completeLevel', getLevelIteration(g.round)); setScore(g.score); playWinSound(); playPrincessSavedSound();
             wa.active = true;
             wa.timer = 0;
             wa.gorillaY = 76;
@@ -1754,8 +1765,9 @@ const CavemanVsDragonGame = () => {
               pl.y + pl.h < fb.y - fb.radius + 4
             ) {
               fb.jumpedOver = true;
-              g.score += 100; setScore(g.score);
+              // Fireballs are volcano hazards, not apples — no score per spec.
             }
+
           }
 
           // Fireball lethal hit on player
@@ -1781,7 +1793,8 @@ const CavemanVsDragonGame = () => {
               const passedLeft  = a.vx < 0 && a.x + a.w < pl.x - 2;
               if (passedRight || passedLeft) {
                 a._scored = true;
-                g.score += 100; setScore(g.score);
+                g.score += scoreFor('jumpApple', getLevelIteration(g.round)); setScore(g.score);
+
               }
             }
             if (g.invulnTimer === 0 && !g.dying) {
@@ -1811,12 +1824,16 @@ const CavemanVsDragonGame = () => {
               const playerCXNow = pl.x + pl.w / 2;
               const playerFeetNow = pl.y + pl.h;
               if (Math.abs(playerCXNow - sproutX) < 16 && Math.abs(playerFeetNow - sproutY) < 12) {
-                if (waterTopSprout(l2Ref.current.carryingCan)) {
+                const wateringColor = l2Ref.current.carryingCan;
+                if (waterTopSprout(wateringColor)) {
                   playWaterSproutSound();
                   playVineGrowSound();
                   l2Ref.current.carryingCan = null;
+                  const action: ScoreAction = wateringColor === 'green' ? 'waterGreen' : 'waterPurple';
+                  g.score += scoreFor(action, getLevelIteration(g.round)); setScore(g.score);
                 }
               }
+
             }
           }
 
@@ -1834,6 +1851,8 @@ const CavemanVsDragonGame = () => {
           if (l2Ref.current.carryingRock) {
             if (trySealVolcano(l2Ref.current, pl.x + pl.w / 2, pl.y + pl.h)) {
               playWinSound();
+              g.score += scoreFor('coverVolcano', getLevelIteration(g.round)); setScore(g.score);
+
               // L3: queue iter*2 respawns split between SS + MPS rows.
               if (isLevel3Round(g.round)) {
                 const total = notifyVolcanoSealedL3(l2Ref.current);
@@ -1853,7 +1872,7 @@ const CavemanVsDragonGame = () => {
             const paulX = 175, paulY = 64;
             if (rectsOverlap(pl, { x: paulX, y: paulY, w: 40, h: 48 })) {
               g.state = 'win'; setGameState('win');
-              g.score += 2000 + g.lives * 1000; setScore(g.score);
+              g.score += scoreFor('completeLevel', getLevelIteration(g.round)); setScore(g.score);
               playWinSound(); playPrincessSavedSound();
               wa.active = true;
               wa.timer = 0;
@@ -2199,7 +2218,7 @@ const CavemanVsDragonGame = () => {
             p.y + p.h < b.y + 4 // player's feet are above the barrel's top
           ) {
             b.jumpedOver = true;
-            g.score += 100; setScore(g.score);
+            g.score += scoreFor('jumpRock', getLevelIteration(g.round)); setScore(g.score);
           }
         }
 
@@ -2585,18 +2604,12 @@ const CavemanVsDragonGame = () => {
                 if (rectsOverlap(o, r)) groupIdxs.push(j);
               }
               const killCount = groupIdxs.length;
-              // Per spec: 2+ monkeys at same location = same points as
-              // killing 3 with one jump (combo 1+2+3 → 300+900+1500 = 2700).
-              let scoreGain: number;
-              if (killCount >= 2) {
-                scoreGain = 300 + 900 + 1500;
-                g.comboKills = 3;
-              } else {
-                const n = (g.comboKills || 0) + 1;
-                g.comboKills = n;
-                scoreGain = 300 * (2 * n - 1);
-              }
+              // Per scoring spec: 300 * (iteration+1)/2 per monkey, flat (no combo).
+              const perKill = scoreFor('killMonkey', getLevelIteration(g.round));
+              const scoreGain = perKill * killCount;
+              g.comboKills = (g.comboKills || 0) + killCount;
               g.score += scoreGain; setScore(g.score);
+
               playRobotKillSound();
               p.vy = -4;
               const wasMps = !!(r as any)._mpsL3;

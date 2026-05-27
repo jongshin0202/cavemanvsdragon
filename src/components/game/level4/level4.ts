@@ -28,6 +28,8 @@
 import { CANVAS_W, CANVAS_H, getRoundDifficulty } from '../constants';
 import { LEVEL4_PARAMS, getLevel4Difficulty, type Level4Difficulty } from './params';
 import { playWingFlapSound, playJumpSound, playRobotKillSound, playHitSound, playBarrelRollSound, playFireBreathSound, playDragonRoarSound, playWaterSproutSound, playVineGrowSound } from '../sounds';
+import type { ScoreAction } from '../scoring';
+
 
 const GRAVITY = 0.38;
 const MOVE_SPEED = 1.9;
@@ -211,7 +213,9 @@ interface Rock {
   hitConsumed?: boolean;
   kicked?: boolean;
   rollPhase?: number;
+  jumpedOver?: boolean;
 }
+
 
 type DragonState = 'intro' | 'roam' | 'downed' | 'dying' | 'dead';
 interface Dragon {
@@ -251,7 +255,7 @@ interface Monkey {
   collisionCooldown?: number;
 }
 
-interface MonkeyFireball { x: number; y: number; vx: number; vy: number; r: number; age: number }
+interface MonkeyFireball { x: number; y: number; vx: number; vy: number; r: number; age: number; jumpedOver?: boolean }
 interface VolcanoFireball {
   startX: number; startY: number;
   endX: number; endY: number;
@@ -316,7 +320,9 @@ export interface L4State {
   princessY: number;
   helpTimer: number;
   showHelp: boolean;
+  scoreEvents: ScoreAction[];
 }
+
 
 export interface L4Sprites {
   cavemanWalk: HTMLImageElement;
@@ -480,15 +486,18 @@ export function initLevel4(iter: number): L4State {
     princessY: PRINCESS_Y,
     helpTimer: 0,
     showHelp: false,
+    scoreEvents: [],
   };
+
 }
 
 // ── Update ───────────────────────────────────────────────────
-export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: boolean } {
+export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: boolean; scoreEvents: ScoreAction[] } {
   s.tick++;
+  const drain = (): ScoreAction[] => { const e = s.scoreEvents; s.scoreEvents = []; return e; };
   if (s.ending.active) {
     tickEnding(s);
-    return { died: false, won: s.won };
+    return { died: false, won: s.won, scoreEvents: drain() };
   }
   if (s.dying) {
     s.deathTimer++;
@@ -500,7 +509,7 @@ export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: 
       s.deathTimer = 0;
       s.invuln = 120;
     }
-    return { died: reportDied, won: false };
+    return { died: reportDied, won: false, scoreEvents: drain() };
   }
   if (s.invuln > 0) s.invuln--;
 
@@ -523,8 +532,9 @@ export function updateLevel4(s: L4State, input: L4Input): { died: boolean; won: 
   tickCans(s);
   tickCollisions(s);
 
-  return { died: false, won: s.won };
+  return { died: false, won: s.won, scoreEvents: drain() };
 }
+
 
 function respawnPlayer(s: L4State) {
   const p = s.player;
@@ -1693,6 +1703,7 @@ function tickCans(s: L4State) {
         s.sproutD.phase = 'growing';
         playWaterSproutSound();
         playVineGrowSound();
+        s.scoreEvents.push('waterGreen');
       }
       s.carrying = null;
     }
@@ -1706,12 +1717,14 @@ function tickCans(s: L4State) {
       if (s.sproutE.growProgress >= 1) s.sproutE.phase = 'alive';
       playWaterSproutSound();
       playVineGrowSound();
+      s.scoreEvents.push('waterPurple');
       s.carrying = null;
       s.sproutD.phase = 'withering';
       if (s.dragon.hits < s.diff.hitsToKill) respawnMonkeyWave(s);
     }
   }
 }
+
 
 // ── Collisions ──────────────────────────────────────────────
 function tickCollisions(s: L4State) {
@@ -1734,11 +1747,15 @@ function tickCollisions(s: L4State) {
         d.dyingVy = -2;
         d.dyingSpin = 0;
         playDragonRoarSound();
+        s.scoreEvents.push('bonkDragon');
+        s.scoreEvents.push('killDragon');
       } else {
         d.state = 'downed';
         d.downedTimer = Math.round(3 * 60);
         // Purple can only spawns on the killing blow — not on intermediate bonks.
+        s.scoreEvents.push('bonkDragon');
       }
+
       // bounce caveman off dragon's head
       p.vy = JUMP_FORCE * 0.8;
       p.jumping = true;
@@ -1808,11 +1825,32 @@ function tickCollisions(s: L4State) {
         m.alive = false;
         playRobotKillSound();
         p.vy = JUMP_FORCE * 0.8;
+        s.scoreEvents.push('killMonkey');
       } else if (s.invuln <= 0) {
         loseLife(s);
       }
     }
   }
+
+  // Jumping over rolling rocks (caveman airborne, feet above rock, horizontal overlap)
+  for (const r of s.rocks) {
+    if (r.jumpedOver || r.state === 'dead' || r.state === 'flying') continue;
+    const horizOverlap = p.x + p.w > r.x - r.r && p.x < r.x + r.r;
+    if (!p.onGround && horizOverlap && (p.y + p.h) < r.y - r.r + 2) {
+      r.jumpedOver = true;
+      s.scoreEvents.push('jumpRock');
+    }
+  }
+  // Jumping over monkey "apples" (fireballs)
+  for (const fb of s.monkeyFireballs) {
+    if (fb.jumpedOver) continue;
+    const horizOverlap = p.x + p.w > fb.x - fb.r && p.x < fb.x + fb.r;
+    if (!p.onGround && horizOverlap && (p.y + p.h) < fb.y - fb.r + 2) {
+      fb.jumpedOver = true;
+      s.scoreEvents.push('jumpApple');
+    }
+  }
+
 
   // Win check
   if (d.state === 'dead' && Math.abs(p.y + p.h - L4_PLATFORMS[PRINCESS_PLAT_IDX].y) < 6) {
@@ -1868,7 +1906,7 @@ function tickEnding(s: L4State) {
       break;
     case 'follow':
       s.player.x += 2;
-      if (s.player.x > CANVAS_W + 20) { e.phase = 'done'; s.won = true; }
+      if (s.player.x > CANVAS_W + 20) { e.phase = 'done'; if (!s.won) { s.won = true; s.scoreEvents.push('completeLevel4'); } }
       break;
     case 'done':
       break;
