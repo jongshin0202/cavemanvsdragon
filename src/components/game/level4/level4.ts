@@ -852,8 +852,9 @@ function tickMonkeyFireballs(s: L4State) {
   s.monkeyFireballs = s.monkeyFireballs.filter(
     fb => fb.age < 600 && fb.x > -30 && fb.x < CANVAS_W + 30 && fb.y > -30 && fb.y < CANVAS_H + 30,
   );
-  if (s.iter < 2) return;
-  const steps = s.iter - 2;
+  // Horizontal-only fireballs for L4 iter 1-3; aimed anywhere from iter 4+.
+  if (s.iter < 1) return;
+  const steps = Math.max(0, s.iter - 2);
   const maxFireballs = 1 + Math.floor(steps / 3);
   if (s.monkeyFireballs.length >= maxFireballs) return;
   if (s.monkeyFireballTimer > 0) { s.monkeyFireballTimer--; return; }
@@ -861,14 +862,25 @@ function tickMonkeyFireballs(s: L4State) {
   if (!alive.length) { s.monkeyFireballTimer = 60; return; }
   const m = alive[Math.floor(Math.random() * alive.length)];
   const p = s.player;
-  const tx = p.x + p.w / 2;
-  const ty = p.y + p.h / 2;
   const sx = m.x + 7;
   const sy = m.y + 4;
-  const dx = tx - sx, dy = ty - sy;
-  const L = Math.hypot(dx, dy) || 1;
   const speed = 2.2 * Math.pow(1.1, steps);
-  s.monkeyFireballs.push({ x: sx, y: sy, vx: (dx / L) * speed, vy: (dy / L) * speed, r: 5, age: 0 });
+  let vx: number, vy: number;
+  if (s.iter <= 3) {
+    // Horizontal only: face the player and shoot straight
+    const dir = p.x + p.w / 2 < sx ? -1 : 1;
+    vx = dir * speed;
+    vy = 0;
+  } else {
+    // Aimed at player
+    const tx = p.x + p.w / 2;
+    const ty = p.y + p.h / 2;
+    const dx = tx - sx, dy = ty - sy;
+    const L = Math.hypot(dx, dy) || 1;
+    vx = (dx / L) * speed;
+    vy = (dy / L) * speed;
+  }
+  s.monkeyFireballs.push({ x: sx, y: sy, vx, vy, r: 5, age: 0 });
   const intervalSec = 5.95 * Math.pow(0.9, steps);
   s.monkeyFireballTimer = Math.round(intervalSec * 60 * (0.5 + Math.random()));
 }
