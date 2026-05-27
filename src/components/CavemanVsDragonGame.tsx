@@ -1824,12 +1824,16 @@ const CavemanVsDragonGame = () => {
               const playerCXNow = pl.x + pl.w / 2;
               const playerFeetNow = pl.y + pl.h;
               if (Math.abs(playerCXNow - sproutX) < 16 && Math.abs(playerFeetNow - sproutY) < 12) {
-                if (waterTopSprout(l2Ref.current.carryingCan)) {
+                const wateringColor = l2Ref.current.carryingCan;
+                if (waterTopSprout(wateringColor)) {
                   playWaterSproutSound();
                   playVineGrowSound();
                   l2Ref.current.carryingCan = null;
+                  const action: ScoreAction = wateringColor === 'green' ? 'waterGreen' : 'waterPurple';
+                  g.score += scoreFor(action, getLevelIteration(g.round)); setScore(g.score);
                 }
               }
+
             }
           }
 
