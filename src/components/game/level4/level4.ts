@@ -1851,16 +1851,25 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     }
   }
 
-  // Monkey fireballs — orange glowing balls
+  // Monkey-thrown apples (same look as Level 2 apples)
   for (const fb of s.monkeyFireballs) {
-    ctx.save();
-    ctx.fillStyle = 'rgba(255,160,40,0.35)';
-    ctx.beginPath(); ctx.arc(fb.x, fb.y, fb.r + 3, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#ff6a1a';
-    ctx.beginPath(); ctx.arc(fb.x, fb.y, fb.r, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#ffd24a';
-    ctx.beginPath(); ctx.arc(fb.x - 1, fb.y - 1, fb.r * 0.45, 0, Math.PI * 2); ctx.fill();
-    ctx.restore();
+    const cx = fb.x;
+    const cy = fb.y;
+    const drawH = 7;
+    // body
+    ctx.fillStyle = '#d6201f';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 7 / 2 + 1, 0, Math.PI * 2);
+    ctx.fill();
+    // shine
+    ctx.fillStyle = '#ff8a87';
+    ctx.fillRect(cx - 2, cy - 3, 2, 2);
+    // stem
+    ctx.fillStyle = '#5a2a08';
+    ctx.fillRect(cx, cy - drawH / 2 - 2, 1, 2);
+    // leaf
+    ctx.fillStyle = '#2e8b33';
+    ctx.fillRect(cx + 1, cy - drawH / 2 - 1, 2, 1);
   }
 
   // Volcano fireballs — red-hot lava rocks
