@@ -1851,6 +1851,8 @@ const CavemanVsDragonGame = () => {
           if (l2Ref.current.carryingRock) {
             if (trySealVolcano(l2Ref.current, pl.x + pl.w / 2, pl.y + pl.h)) {
               playWinSound();
+              g.score += scoreFor('coverVolcano', getLevelIteration(g.round)); setScore(g.score);
+
               // L3: queue iter*2 respawns split between SS + MPS rows.
               if (isLevel3Round(g.round)) {
                 const total = notifyVolcanoSealedL3(l2Ref.current);
