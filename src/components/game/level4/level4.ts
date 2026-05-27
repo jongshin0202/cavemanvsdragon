@@ -308,6 +308,7 @@ export interface L4State {
   carrying: null | 'green' | 'purple';
   eGrowChunk: number;
   greenCanSpawned: boolean;
+  greenWatered: boolean;
   rockAtAIdx: number;
   ending: Ending;
   won: boolean;
