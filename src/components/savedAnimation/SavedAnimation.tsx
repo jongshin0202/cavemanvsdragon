@@ -158,7 +158,8 @@ export default function SavedAnimation({ onDone }: Props) {
   const showThanks = t >= T.CAVEMAN_WALK_END && t < T.PRINCESS_THANKS_END;
   const showHelp = t >= T.DRAGON_REACH && t < T.CARRY_END;
   const showCavemanLine = t >= T.DRAGON_REACH && t < T.CAVEMAN_EXIT_END;
-  const showSadText = t >= T.SAD_TEXT_APPEAR;
+  const showSadText = t >= T.SAD_TEXT_APPEAR && t < T.CAVEMAN_EXIT_END;
+  const showSaveLine = t >= T.BLANK1_END && t < T.SAVE_LINE_END;
 
   // Scale virtual coords → percentage so this overlay matches the canvas aspect box.
   const pct = (v: number, axis: 'x' | 'y') => `${(v / (axis === 'x' ? CW : CH)) * 100}%`;
