@@ -797,6 +797,62 @@ function getMonkeyRowNeighbors(platIdx: number): number[] {
   for (const row of MONKEY_ROW_NEIGHBORS) if (row.includes(platIdx)) return row.filter(i => i !== platIdx);
   return [];
 }
+
+function getMonkeyAdjacentPlatforms(platIdx: number): number[] {
+  for (const row of MONKEY_ROW_NEIGHBORS) {
+    const idx = row.indexOf(platIdx);
+    if (idx >= 0) return [row[idx - 1], row[idx + 1]].filter((i): i is number => i !== undefined);
+  }
+  return [];
+}
+
+const MONKEY_MIN_SPEED = 0.55;
+const MONKEY_TRANSFER_GAP = 12;
+const MONKEY_EDGE_HOLD_GAP = 22;
+const MONKEY_APPROACH_WAIT_FRAMES = 45;
+const MONKEY_LEFT_OVERHANG = 6;
+const MONKEY_RIGHT_OVERHANG = 8;
+
+function monkeyLeftLimit(pl: L4Platform): number { return pl.x1 - MONKEY_LEFT_OVERHANG; }
+function monkeyRightLimit(pl: L4Platform): number { return pl.x2 - MONKEY_RIGHT_OVERHANG; }
+
+function shouldAimForTransfer(gap: number, closingSpeed: number, distToEdge: number, walkSpeed: number): boolean {
+  if (gap <= MONKEY_TRANSFER_GAP) return true;
+  if (closingSpeed <= 0) return false;
+  const framesToTouch = gap / closingSpeed;
+  const framesToEdge = Math.max(0, distToEdge) / Math.max(0.1, walkSpeed);
+  return framesToTouch <= framesToEdge + MONKEY_APPROACH_WAIT_FRAMES;
+}
+
+function getMonkeyTransferIntent(m: Monkey, plat: L4Platform): { dir: -1 | 1; hold: boolean } | null {
+  const walkSpeed = Math.max(MONKEY_MIN_SPEED, Math.abs(m.vx) || MONKEY_MIN_SPEED);
+  const platSpeed = plat.moving?.speed ?? 0;
+  for (const ni of getMonkeyAdjacentPlatforms(m.platIdx)) {
+    const np = L4_PLATFORMS[ni];
+    if (np.y !== plat.y) continue;
+    const neighborSpeed = np.moving?.speed ?? 0;
+    const gapRight = np.x1 - plat.x2;
+    if (gapRight >= -MONKEY_TRANSFER_GAP) {
+      const closing = platSpeed - neighborSpeed;
+      const dist = monkeyRightLimit(plat) - m.x;
+      if (shouldAimForTransfer(Math.max(0, gapRight), closing, dist, walkSpeed)) {
+        const framesToTouch = closing > 0 ? Math.max(0, gapRight) / closing : 0;
+        return { dir: 1, hold: gapRight <= MONKEY_EDGE_HOLD_GAP || framesToTouch <= MONKEY_APPROACH_WAIT_FRAMES };
+      }
+    }
+    const gapLeft = plat.x1 - np.x2;
+    if (gapLeft >= -MONKEY_TRANSFER_GAP) {
+      const closing = neighborSpeed - platSpeed;
+      const dist = m.x - monkeyLeftLimit(plat);
+      if (shouldAimForTransfer(Math.max(0, gapLeft), closing, dist, walkSpeed)) {
+        const framesToTouch = closing > 0 ? Math.max(0, gapLeft) / closing : 0;
+        return { dir: -1, hold: gapLeft <= MONKEY_EDGE_HOLD_GAP || framesToTouch <= MONKEY_APPROACH_WAIT_FRAMES };
+      }
+    }
+  }
+  return null;
+}
+
 function tickMonkeys(s: L4State) {
   for (const m of s.monkeys) {
     if (!m.alive) continue;
@@ -804,82 +860,42 @@ function tickMonkeys(s: L4State) {
     // Ride moving platforms smoothly — inherit the platform's per-frame dx.
     if (plat.moving && plat.moving.dx) m.x += plat.moving.dx;
 
-    // If standing on a mover, predictively walk toward whichever static
-    // neighbor the mover is approaching, so the monkey is at the right edge
-    // when they touch and can step off smoothly.
-    if (plat.moving) {
-      const speed = Math.abs(m.vx) || 0.55;
-      const moverDir = Math.sign(plat.moving.speed) || 1;
-      const neighbors = getMonkeyRowNeighbors(m.platIdx);
-      let targetDir = 0;
-      for (const ni of neighbors) {
-        const np = L4_PLATFORMS[ni];
-        if (np.y !== plat.y || np.moving) continue;
-        if (moverDir > 0 && np.x1 >= plat.x2 - 1) { targetDir = 1; break; }
-        if (moverDir < 0 && np.x2 <= plat.x1 + 1) { targetDir = -1; break; }
-      }
-      if (targetDir !== 0) m.vx = targetDir * speed;
-    }
-
-    // If standing on a static platform with a moving neighbor heading toward
-    // it, walk toward the shared edge so the monkey is in position to step on
-    // as soon as the mover arrives.
-    if (!plat.moving) {
-      const speed = Math.abs(m.vx) || 0.55;
-      const neighbors = getMonkeyRowNeighbors(m.platIdx);
-      let targetDir = 0;
-      let holdEdge = false;
-      for (const ni of neighbors) {
-        const np = L4_PLATFORMS[ni];
-        if (np.y !== plat.y || !np.moving) continue;
-        const moverDir = Math.sign(np.moving.speed) || 1;
-        // Mover is to our right and approaching → walk right toward shared edge.
-        if (np.x1 >= plat.x2 - 1 && moverDir < 0) { targetDir = 1; holdEdge = true; break; }
-        // Mover is to our left and approaching → walk left.
-        if (np.x2 <= plat.x1 + 1 && moverDir > 0) { targetDir = -1; holdEdge = true; break; }
-      }
-      if (targetDir !== 0) m.vx = targetDir * speed;
-      // Remember intent so we hold at the edge instead of bouncing back.
-      (m as Monkey & { _holdEdge?: boolean })._holdEdge = holdEdge;
-    } else {
-      (m as Monkey & { _holdEdge?: boolean })._holdEdge = false;
-    }
+    const speed = Math.max(MONKEY_MIN_SPEED, Math.abs(m.vx) || MONKEY_MIN_SPEED);
+    const intent = getMonkeyTransferIntent(m, plat);
+    if (intent) m.vx = intent.dir * speed;
 
     m.x += m.vx;
     // Keep m.x continuous (world coords) — do NOT snap it.
-    const tryTransfer = () => {
-      const neighbors = getMonkeyRowNeighbors(m.platIdx);
-      for (const ni of neighbors) {
+    const tryTransfer = (dir: -1 | 1) => {
+      for (const ni of getMonkeyAdjacentPlatforms(m.platIdx)) {
         const np = L4_PLATFORMS[ni];
         if (np.y !== plat.y) continue;
-        if (m.vx >= 0 && Math.abs(np.x1 - plat.x2) <= 10 && m.x + 18 >= np.x1) {
-          m.platIdx = ni; plat = np; return true;
+        if (dir > 0 && Math.abs(np.x1 - plat.x2) <= MONKEY_TRANSFER_GAP && m.x >= monkeyRightLimit(plat) - 3) {
+          m.platIdx = ni; plat = np; m.x = Math.max(m.x, monkeyLeftLimit(np)); return true;
         }
-        if (m.vx <= 0 && Math.abs(plat.x1 - np.x2) <= 10 && m.x + 4 <= np.x2) {
-          m.platIdx = ni; plat = np; return true;
+        if (dir < 0 && Math.abs(plat.x1 - np.x2) <= MONKEY_TRANSFER_GAP && m.x <= monkeyLeftLimit(plat) + 3) {
+          m.platIdx = ni; plat = np; m.x = Math.min(m.x, monkeyRightLimit(np)); return true;
         }
       }
       return false;
     };
     const WRAP_PAIRS: Record<number, number> = { 5: 9, 9: 5, 12: 14, 14: 12, 15: 18, 18: 15, 19: 21, 21: 19 };
     const wrapPartner = (s.iter >= 3) ? WRAP_PAIRS[m.platIdx] : undefined;
-    const holdEdge = (m as Monkey & { _holdEdge?: boolean })._holdEdge;
     if (m.vx > 0 && m.x > CANVAS_W - 18 && wrapPartner !== undefined) {
       const np = L4_PLATFORMS[wrapPartner];
       m.platIdx = wrapPartner; plat = np; m.x = np.x1 + 4;
     } else if (m.vx < 0 && m.x < 4 && wrapPartner !== undefined) {
       const np = L4_PLATFORMS[wrapPartner];
       m.platIdx = wrapPartner; plat = np; m.x = np.x2 - 18;
-    } else if (m.x > plat.x2 - 18) {
-      if (!tryTransfer()) {
-        m.x = plat.x2 - 18;
-        // Hold at edge if on a mover OR waiting for an approaching mover.
-        if (!plat.moving && !holdEdge) m.vx = -Math.abs(m.vx);
+    } else if (m.x > monkeyRightLimit(plat)) {
+      if (!tryTransfer(1)) {
+        m.x = monkeyRightLimit(plat);
+        if (!(intent?.dir === 1 && intent.hold)) m.vx = -speed;
       }
-    } else if (m.x < plat.x1 + 4) {
-      if (!tryTransfer()) {
-        m.x = plat.x1 + 4;
-        if (!plat.moving && !holdEdge) m.vx = Math.abs(m.vx);
+    } else if (m.x < monkeyLeftLimit(plat)) {
+      if (!tryTransfer(-1)) {
+        m.x = monkeyLeftLimit(plat);
+        if (!(intent?.dir === -1 && intent.hold)) m.vx = speed;
       }
     }
     m.facing = m.vx >= 0 ? 1 : -1;
