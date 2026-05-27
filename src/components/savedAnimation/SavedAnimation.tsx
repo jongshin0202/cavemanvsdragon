@@ -297,16 +297,18 @@ export default function SavedAnimation({ onDone }: Props) {
         )}
 
         {/* Caveman */}
-        <div
-          style={{
-            position: 'absolute',
-            left: pct(cavemanX, 'x'),
-            top: pct(cavemanY, 'y'),
-            width: sizePct(cavemanW, 'x'),
-            height: sizePct(cavemanH, 'y'),
-            ...cavemanBg,
-          }}
-        />
+        {cavemanVisible && (
+          <div
+            style={{
+              position: 'absolute',
+              left: pct(cavemanX, 'x'),
+              top: pct(cavemanY, 'y'),
+              width: sizePct(cavemanW, 'x'),
+              height: sizePct(cavemanH, 'y'),
+              ...cavemanBg,
+            }}
+          />
+        )}
 
         {/* Dragon */}
         {showDragon && (
