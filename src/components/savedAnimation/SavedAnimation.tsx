@@ -111,12 +111,12 @@ export default function SavedAnimation({ onDone }: Props) {
   let dragonY = dragonHoverY;
   let showDragon = false;
   let princessHeldByDragon = false;
-  if (t >= 4000 && t < T.DRAGON_HOVER_END) {
+  if (t >= T.DRAGON_APPEAR && t < T.DRAGON_HOVER_END) {
     // Hover at far left
     showDragon = true;
     dragonX = 8;
     // gentle bob
-    dragonY = dragonHoverY + Math.sin((t - 4000) / 120) * 3;
+    dragonY = dragonHoverY + Math.sin((t - T.DRAGON_APPEAR) / 120) * 3;
   } else if (t >= T.DRAGON_HOVER_END && t < T.DRAGON_REACH) {
     showDragon = true;
     const p = (t - T.DRAGON_HOVER_END) / (T.DRAGON_REACH - T.DRAGON_HOVER_END);
