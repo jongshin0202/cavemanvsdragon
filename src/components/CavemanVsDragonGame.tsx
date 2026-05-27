@@ -1676,7 +1676,6 @@ const CavemanVsDragonGame = () => {
           g.keyBob = (g.keyBob + 1) % 120;
           if (g.keyPos && rectsOverlap(p, g.keyPos)) {
             g.keyGrabbed = true;
-            g.score += 200; setScore(g.score);
             playKeyGrabSound();
           }
         }
@@ -1692,7 +1691,9 @@ const CavemanVsDragonGame = () => {
             g.seedPlanted = true; // triggers vine-grow animation
             playWaterSproutSound();
             playVineGrowSound();
+            g.score += scoreFor('waterGreen', getLevelIteration(g.round)); setScore(g.score);
           }
+
         }
         // Grow the vine after watering (~1.5s at 60fps ≈ 68 frames)
         if (g.seedPlanted && g.topVineGrowth < 1) {
