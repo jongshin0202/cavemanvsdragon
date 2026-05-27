@@ -1703,7 +1703,6 @@ const CavemanVsDragonGame = () => {
             wa.gorillaY = 76;
             wa.gorillaRotation = 0;
             wa.showKiss = false;
-            wa.showCongrats = false;
           }
         }
 
