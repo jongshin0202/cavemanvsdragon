@@ -1387,13 +1387,8 @@ function tickDragon(s: L4State) {
       else if (b === d.platIdx) pushNeighbor(a);
     }
     if (options.length > 0) {
-      // Bias: stay on P4 row (dragon's home band where caveman stomps) with
-      // P = 0.9 at iter 1, decreasing 0.05/iter, floor 0.5.
-      const P4_ROW = new Set([5, 6, 7, 8, 9]);
-      const stayProb = Math.max(0.5, 0.9 - 0.05 * Math.max(0, s.iter - 1));
-      const p4Options = options.filter(o => P4_ROW.has(o.tgt));
-      let pool = options;
-      if (p4Options.length > 0 && Math.random() < stayProb) pool = p4Options;
+      // Equal time across all platform rows — no P4 home bias.
+      const pool = options;
       // Bias: chase caveman with P = 0.5 + 0.1*(iter-1), capped at 1.0.
       const chaseProb = Math.min(1, 0.5 + 0.1 * Math.max(0, s.iter - 1));
       const pc = s.player;
