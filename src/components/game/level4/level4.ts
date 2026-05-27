@@ -937,6 +937,30 @@ function tickMonkeys(s: L4State) {
     m.walkTimer++;
     if (m.walkTimer >= 6) { m.walkTimer = 0; m.walkFrame = (m.walkFrame + 1) % ROBOT_FRAMES; }
   }
+  // Separate overlapping monkeys on same platform — force them to walk in opposite directions.
+  const OVERLAP = 14;
+  for (let i = 0; i < s.monkeys.length; i++) {
+    const a = s.monkeys[i];
+    if (!a.alive) continue;
+    for (let j = i + 1; j < s.monkeys.length; j++) {
+      const b = s.monkeys[j];
+      if (!b.alive || b.platIdx !== a.platIdx) continue;
+      const dx = b.x - a.x;
+      if (Math.abs(dx) < OVERLAP) {
+        const sp = Math.max(MONKEY_MIN_SPEED, Math.abs(a.vx) || Math.abs(b.vx) || MONKEY_MIN_SPEED);
+        const push = (OVERLAP - Math.abs(dx)) / 2 + 0.5;
+        if (dx >= 0) {
+          a.x -= push; b.x += push;
+          a.vx = -sp; b.vx = sp;
+        } else {
+          a.x += push; b.x -= push;
+          a.vx = sp; b.vx = -sp;
+        }
+        a.facing = a.vx >= 0 ? 1 : -1;
+        b.facing = b.vx >= 0 ? 1 : -1;
+      }
+    }
+  }
   if (!s.greenCanSpawned && !s.greenCan && s.dragon.state !== 'dead' && s.monkeys.every(m => !m.alive)) {
     spawnCan(s, 'green');
     s.greenCanSpawned = true;
