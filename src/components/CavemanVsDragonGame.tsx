@@ -1144,7 +1144,7 @@ const CavemanVsDragonGame = () => {
       }
 
 
-      const wa: any = g.winAnim || { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, showCongrats: false, timer: 0 };
+      const wa: any = g.winAnim || { active: false, gorillaY: 76, gorillaRotation: 0, showKiss: false, timer: 0 };
       if (!g.winAnim) g.winAnim = wa;
       if (wa.active) {
         wa.timer++;
