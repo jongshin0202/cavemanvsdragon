@@ -923,13 +923,13 @@ function tickMonkeys(s: L4State) {
       m.platIdx = wrapPartner; plat = np; m.x = np.x2 - 18;
     } else if (m.x >= monkeyRightLimit(plat)) {
       if (!tryTransfer(1)) {
-        m.x = monkeyRightLimit(plat);
         m.vx = -speed;
+        m.x = monkeyRightLimit(plat) + m.vx;
       }
     } else if (m.x <= monkeyLeftLimit(plat)) {
       if (!tryTransfer(-1)) {
-        m.x = monkeyLeftLimit(plat);
         m.vx = speed;
+        m.x = monkeyLeftLimit(plat) + m.vx;
       }
     }
     m.facing = m.vx >= 0 ? 1 : -1;
