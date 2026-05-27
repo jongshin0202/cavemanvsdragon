@@ -157,7 +157,7 @@ export default function SavedAnimation({ onDone }: Props) {
   const showCongrats = t < T.CONGRATS_END;
   const showThanks = t >= T.CAVEMAN_WALK_END && t < T.PRINCESS_THANKS_END;
   const showHelp = t >= T.DRAGON_REACH && t < T.CARRY_END;
-  const showCavemanLine = t >= T.DRAGON_REACH && t < T.CAVEMAN_EXIT_END;
+  const showCavemanLine = false;
   const showSadText = t >= T.SAD_TEXT_APPEAR && t < T.CAVEMAN_EXIT_END;
   const showSaveLine = t >= T.BLANK1_END && t < T.SAVE_LINE_END;
 
@@ -199,7 +199,7 @@ export default function SavedAnimation({ onDone }: Props) {
               top: '5%',
               width: '94%',
               color: 'hsl(var(--accent))',
-              fontSize: 'min(3.4vh, 1.7vw)',
+              fontSize: 'min(6vh, 3.2vw)',
               textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
               lineHeight: 1.2,
             }}
@@ -251,7 +251,7 @@ export default function SavedAnimation({ onDone }: Props) {
               border: '2px solid hsl(var(--accent))',
               padding: '4px 8px',
               borderRadius: 6,
-              fontSize: 'min(1.8vh, 0.95vw)',
+              fontSize: 'min(2.8vh, 1.5vw)',
             }}
           >
             Thank you for saving me!
@@ -272,7 +272,7 @@ export default function SavedAnimation({ onDone }: Props) {
               border: '2px solid hsl(var(--accent))',
               padding: '3px 8px',
               borderRadius: 6,
-              fontSize: 'min(1.8vh, 0.95vw)',
+              fontSize: 'min(2.8vh, 1.5vw)',
               whiteSpace: 'nowrap',
               transform: 'translateX(-20%)',
             }}
@@ -317,7 +317,7 @@ export default function SavedAnimation({ onDone }: Props) {
               top: '5%',
               width: '94%',
               color: 'hsl(var(--accent))',
-              fontSize: 'min(3.4vh, 1.7vw)',
+              fontSize: 'min(6vh, 3.2vw)',
               textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
               lineHeight: 1.2,
             }}
@@ -333,7 +333,7 @@ export default function SavedAnimation({ onDone }: Props) {
             style={{
               width: '94%',
               color: 'hsl(var(--accent))',
-              fontSize: 'min(3.4vh, 1.7vw)',
+              fontSize: 'min(6vh, 3.2vw)',
               textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
               lineHeight: 1.2,
             }}
