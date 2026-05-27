@@ -2218,7 +2218,7 @@ const CavemanVsDragonGame = () => {
             p.y + p.h < b.y + 4 // player's feet are above the barrel's top
           ) {
             b.jumpedOver = true;
-            g.score += 100; setScore(g.score);
+            g.score += scoreFor('jumpRock', getLevelIteration(g.round)); setScore(g.score);
           }
         }
 
