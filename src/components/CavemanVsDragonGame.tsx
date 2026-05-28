@@ -940,7 +940,7 @@ const CavemanVsDragonGame = () => {
               // Level 1 iteration. round 4 = L4 iter 1; startNextLevel bumps
               // it to round 5 = L1 iter 2 and shows the "Level" intro.
               const g = gameRef.current;
-              g.score = 0; g.lives = 3; g.round = 4;
+              g.score = 0; g.lives = 3; g.lastLifeMilestone = 0; g.round = 4;
               setScore(0); setLives(3);
               savedAnimReturnRef.current = 'next';
               savedAnimKeyRef.current += 1;
@@ -1170,9 +1170,8 @@ const CavemanVsDragonGame = () => {
           if (result.scoreEvents && result.scoreEvents.length) {
             const iter = getLevelIteration(g.round);
             for (const ev of result.scoreEvents) {
-              g.score += scoreFor(ev, iter);
+              awardScore(scoreFor(ev, iter));
             }
-            setScore(g.score);
           }
           if (result.died) {
             g.lives -= 1;
@@ -1757,7 +1756,7 @@ const CavemanVsDragonGame = () => {
             g.seedPlanted = true; // triggers vine-grow animation
             playWaterSproutSound();
             playVineGrowSound();
-            g.score += scoreFor('waterGreen', getLevelIteration(g.round)); setScore(g.score);
+            awardScore(scoreFor('waterGreen', getLevelIteration(g.round)));
           }
 
         }
@@ -1774,7 +1773,7 @@ const CavemanVsDragonGame = () => {
           const paulX = 175, paulY = 64;
           if (rectsOverlap(p, { x: paulX, y: paulY, w: 40, h: 48 })) {
             g.state = 'win'; setGameState('win');
-            g.score += scoreFor('completeLevel', getLevelIteration(g.round)); setScore(g.score); playWinSound(); playPrincessSavedSound();
+            awardScore(scoreFor('completeLevel', getLevelIteration(g.round))); playWinSound(); playPrincessSavedSound();
             wa.active = true;
             wa.timer = 0;
             wa.gorillaY = 76;
@@ -1859,7 +1858,7 @@ const CavemanVsDragonGame = () => {
               const passedLeft  = a.vx < 0 && a.x + a.w < pl.x - 2;
               if (passedRight || passedLeft) {
                 a._scored = true;
-                g.score += scoreFor('jumpApple', getLevelIteration(g.round)); setScore(g.score);
+                awardScore(scoreFor('jumpApple', getLevelIteration(g.round)));
 
               }
             }
@@ -1896,7 +1895,7 @@ const CavemanVsDragonGame = () => {
                   playVineGrowSound();
                   l2Ref.current.carryingCan = null;
                   const action: ScoreAction = wateringColor === 'green' ? 'waterGreen' : 'waterPurple';
-                  g.score += scoreFor(action, getLevelIteration(g.round)); setScore(g.score);
+                  awardScore(scoreFor(action, getLevelIteration(g.round)));
                 }
               }
 
