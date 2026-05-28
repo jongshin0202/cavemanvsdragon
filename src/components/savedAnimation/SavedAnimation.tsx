@@ -223,8 +223,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
   }
 
   let pX = princessX, pY = princessY;
-  const princessHandoffMs = 220;
-  const showStandingPrincess = t < T.DRAGON_REACH + princessHandoffMs;
+  const showStandingPrincess = t < T.DRAGON_REACH;
   const showHeldPrincess = princessHeldByDragon && t < T.CARRY_END;
   const showPrincess = showStandingPrincess || showHeldPrincess;
   if (princessHeldByDragon) {
