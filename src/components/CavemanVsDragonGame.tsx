@@ -1916,7 +1916,7 @@ const CavemanVsDragonGame = () => {
           if (l2Ref.current.carryingRock) {
             if (trySealVolcano(l2Ref.current, pl.x + pl.w / 2, pl.y + pl.h)) {
               playWinSound();
-              g.score += scoreFor('coverVolcano', getLevelIteration(g.round)); setScore(g.score);
+              awardScore(scoreFor('coverVolcano', getLevelIteration(g.round)));
 
               // L3: queue iter*2 respawns split between SS + MPS rows.
               if (isLevel3Round(g.round)) {
@@ -1937,7 +1937,7 @@ const CavemanVsDragonGame = () => {
             const paulX = 175, paulY = 64;
             if (rectsOverlap(pl, { x: paulX, y: paulY, w: 40, h: 48 })) {
               g.state = 'win'; setGameState('win');
-              g.score += scoreFor('completeLevel', getLevelIteration(g.round)); setScore(g.score);
+              awardScore(scoreFor('completeLevel', getLevelIteration(g.round)));
               playWinSound(); playPrincessSavedSound();
               wa.active = true;
               wa.timer = 0;
@@ -2283,7 +2283,7 @@ const CavemanVsDragonGame = () => {
             p.y + p.h < b.y + 4 // player's feet are above the barrel's top
           ) {
             b.jumpedOver = true;
-            g.score += scoreFor('jumpRock', getLevelIteration(g.round)); setScore(g.score);
+            awardScore(scoreFor('jumpRock', getLevelIteration(g.round)));
           }
         }
 
@@ -2675,7 +2675,7 @@ const CavemanVsDragonGame = () => {
               const perKill = scoreFor('killMonkey', getLevelIteration(g.round));
               const scoreGain = perKill * killCount;
               g.comboKills = (g.comboKills || 0) + killCount;
-              g.score += scoreGain; setScore(g.score);
+              awardScore(scoreGain);
 
               playRobotKillSound();
               p.vy = -4;
