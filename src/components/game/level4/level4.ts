@@ -300,9 +300,9 @@ interface VolcanoFireball {
   x: number; y: number;
   radius: number;
   landed: boolean;
-  /** Once bezier arc completes, switch to free-fall using these velocities. */
-  falling?: boolean;
-  fvx?: number; fvy?: number;
+  /** Pre-chosen platform/x where this rock will punch a hole on landing. */
+  targetPlatIdx: number;
+  targetX: number;
 }
 
 interface Can {
