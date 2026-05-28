@@ -365,6 +365,7 @@ const CavemanVsDragonGame = () => {
     robotsInitialized: false,
     score: 0,
     lives: 3,
+    lastLifeMilestone: 0,
     round: 1,
     state: 'intro' as string,
     dkFrame: 0,
