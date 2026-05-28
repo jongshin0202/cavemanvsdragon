@@ -292,7 +292,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
               background: 'rgba(255,255,255,0.92)',
               padding: '3px 8px',
               borderRadius: 6,
-              fontSize: 'min(2.8vh, 1.5vw)',
+              fontSize: 'min(4.2vh, 2.25vw)',
               whiteSpace: 'nowrap',
             }}
           >
@@ -342,7 +342,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
               border: '2px solid hsl(var(--accent))',
               padding: '3px 8px',
               borderRadius: 6,
-              fontSize: 'min(2.8vh, 1.5vw)',
+              fontSize: 'min(4.2vh, 2.25vw)',
               whiteSpace: 'nowrap',
               transform: 'translateX(-20%)',
             }}
