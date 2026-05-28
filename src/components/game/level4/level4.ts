@@ -1536,8 +1536,6 @@ function tickPlayer(s: L4State, input: L4Input) {
         s.sproutE.growProgress = Math.min(1, s.sproutE.growProgress + s.eGrowChunk);
         if (s.sproutE.growProgress >= 1) { s.sproutE.phase = 'alive'; }
         s.carrying = null;
-        // Re-seed D
-        s.sproutD.phase = 'withering';
         if (s.dragon.hits < s.diff.hitsToKill) respawnMonkeyWave(s);
       } else {
         playJumpSound();
