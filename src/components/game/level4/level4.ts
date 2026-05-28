@@ -529,6 +529,7 @@ export function initLevel4(iter: number): L4State {
     helpTimer: 0,
     showHelp: false,
     scoreEvents: [],
+    holes: [],
   };
 
 }
