@@ -2113,32 +2113,8 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
 
   // (dragon-hits HUD removed)
 
-  // Ending overlay
-  if (s.ending.active) {
-    const e = s.ending;
-    if (e.phase === 'hug') {
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      ctx.fillRect(140, 60, 180, 36);
-      ctx.fillStyle = '#000';
-      ctx.font = '14px sans-serif';
-      ctx.fillText('Thank you, my hero!', 158, 84);
-    } else if (e.phase === 'pause') {
-      ctx.fillStyle = 'rgba(0,0,0,0.85)';
-      ctx.fillRect(60, 60, 340, 36);
-      ctx.fillStyle = '#fff';
-      ctx.font = '13px sans-serif';
-      ctx.fillText("But the happiness didn't last long...", 78, 84);
-    }
-    if (e.phase === 'kidnap') {
-      const img = sprites.dragonAngry;
-      if (img.complete) {
-        const fw = img.width / 5;
-        ctx.drawImage(img, 0, 0, fw, img.height, e.newDragonX, s.princessY - 4, DRAGON_W, DRAGON_H);
-      } else {
-        ctx.fillStyle = '#700'; ctx.fillRect(e.newDragonX, s.princessY, DRAGON_W, DRAGON_H);
-      }
-    }
-  }
+  // Ending overlay removed — SavedAnimation handles all post-win storytelling.
+
 
   ctx.restore();
 }
