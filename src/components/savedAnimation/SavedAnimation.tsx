@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import cavemanWalkUrl from '@/assets/caveman-walk.png';
 import princessSpriteUrl from '@/assets/princess-sprite.png';
 import princessScaredUrl from '@/assets/princess-scared.png';
@@ -52,6 +53,8 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
   const lastFlapRef = useRef<number>(0);
   const helpPlayedRef = useRef<boolean>(false);
   const doneRef = useRef<boolean>(false);
+  const isMobile = useIsMobile();
+  const fs = (vh: number, vw: number) => `min(${vh * (isMobile ? 1 : 0.8)}vh, ${vw}vw)`;
 
   const DONE = full ? T_FULL.DONE : T_SHORT.DONE;
 
@@ -133,7 +136,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
               style={{
                 top: '5%', width: '94%',
                 color: 'hsl(var(--accent))',
-                fontSize: 'min(4.8vh, 5.1vw)',
+                fontSize: fs(4.8, 5.1),
                 textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
                 lineHeight: 1.2,
               }}
@@ -150,7 +153,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
               style={{
                 width: '94%',
                 color: 'hsl(var(--accent))',
-                fontSize: 'min(4.8vh, 5.1vw)',
+                fontSize: fs(4.8, 5.1),
                 textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
                 lineHeight: 1.2,
               }}
@@ -270,7 +273,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
             style={{
               top: '5%', width: '94%',
               color: 'hsl(var(--accent))',
-              fontSize: 'min(4.8vh, 5.1vw)',
+              fontSize: fs(4.8, 5.1),
               textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
               lineHeight: 1.2,
             }}
@@ -292,7 +295,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
               background: 'rgba(255,255,255,0.92)',
               padding: '3px 8px',
               borderRadius: 6,
-              fontSize: 'min(4.2vh, 4.5vw)',
+              fontSize: fs(4.2, 4.5),
               whiteSpace: 'nowrap',
             }}
           >
@@ -317,7 +320,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
                 color: '#fff',
                 background: '#000',
                 padding: '2px 6px',
-                fontSize: 'min(6.4vh, 6.8vw)',
+                fontSize: fs(6.4, 6.8),
                 letterSpacing: '0.08em',
                 whiteSpace: 'nowrap',
               }}
@@ -342,7 +345,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
               border: '2px solid hsl(var(--accent))',
               padding: '3px 8px',
               borderRadius: 6,
-              fontSize: 'min(4.2vh, 4.5vw)',
+              fontSize: fs(4.2, 4.5),
               whiteSpace: 'nowrap',
               transform: 'translateX(-20%)',
             }}
@@ -403,7 +406,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
             style={{
               top: '5%', width: '94%',
               color: 'hsl(var(--accent))',
-              fontSize: 'min(4.8vh, 5.1vw)',
+              fontSize: fs(4.8, 5.1),
               textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
               lineHeight: 1.2,
             }}
@@ -418,7 +421,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
             style={{
               width: '94%',
               color: 'hsl(var(--accent))',
-              fontSize: 'min(4.8vh, 5.1vw)',
+              fontSize: fs(4.8, 5.1),
               textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
               lineHeight: 1.2,
             }}
