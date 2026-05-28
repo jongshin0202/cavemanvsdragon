@@ -244,6 +244,8 @@ const CavemanVsDragonGame = () => {
   // this flag once, so we don't race the server commit and overwrite the
   // freshly-inserted row with a stale fetch.
   const justSubmittedSkipProbe = useRef<boolean>(false);
+  const justSubmittedLocalDateRef = useRef<string | null>(null);
+  const justSubmittedGlobalIdRef = useRef<string | null>(null);
   const [nameInput, setNameInput] = useState<string>('');
   const [nameError, setNameError] = useState<string>('');
   const [pendingScore, setPendingScore] = useState(0);
@@ -545,6 +547,8 @@ const CavemanVsDragonGame = () => {
     g.score = 0; g.lives = 3; g.round = 1;
     setScore(0); setLives(3);
     setGameState('playing');
+    justSubmittedLocalDateRef.current = null;
+    justSubmittedGlobalIdRef.current = null;
     // Anonymous usage stats: count this as a launch (round 1 implicit).
     recordRound();
     recordLaunchAndMaybeFlush().catch(() => { /* logged in module */ });
@@ -663,6 +667,7 @@ const CavemanVsDragonGame = () => {
     const next = insertScore(entry);
     setScores(next);
     setNameError('');
+    justSubmittedLocalDateRef.current = entry.date;
 
     // 2) If it qualifies globally, write to the cloud and show GLOBAL view.
     //    Otherwise, show LOCAL view.
@@ -695,6 +700,7 @@ const CavemanVsDragonGame = () => {
         level: pendingLevel,
       });
       if (saved) {
+        justSubmittedGlobalIdRef.current = saved.id ?? null;
         // Replace the optimistic placeholder with the real row (now has id).
         setGlobalScores((prev) => {
           const withoutOptimistic = prev.filter(
@@ -763,10 +769,18 @@ const CavemanVsDragonGame = () => {
   // (gameover without high score, or after viewing the leaderboard post-game).
   useEffect(() => {
     if (gameState !== 'gameover' && gameState !== 'leaderboard' && gameState !== 'globalLeaderboard') return;
-    let timer = window.setTimeout(() => setGameState('intro'), 5000);
+    let timer = window.setTimeout(() => {
+      justSubmittedLocalDateRef.current = null;
+      justSubmittedGlobalIdRef.current = null;
+      setGameState('intro');
+    }, 5000);
     const reset = () => {
       window.clearTimeout(timer);
-      timer = window.setTimeout(() => setGameState('intro'), 5000);
+      timer = window.setTimeout(() => {
+        justSubmittedLocalDateRef.current = null;
+        justSubmittedGlobalIdRef.current = null;
+        setGameState('intro');
+      }, 5000);
     };
     window.addEventListener('keydown', reset);
     window.addEventListener('pointerdown', reset);
@@ -3255,8 +3269,8 @@ const CavemanVsDragonGame = () => {
           ctx.fillText(`${i + 1}.`, colRank, y);
           if (isGlobal) {
             const e = globalScoresRef.current[i];
-            const isMine = e && e.score === pendingScore && e.name === typedName;
-            ctx.fillStyle = isMine ? '#FFD700' : '#FFFFFF';
+            const isMine = e && e.id === justSubmittedGlobalIdRef.current;
+            ctx.fillStyle = isMine ? '#00FF00' : '#FFFFFF';
             ctx.fillText(`${i + 1}.`, colRank, y);
             if (e) {
               ctx.fillText((e.name || '---').slice(0, 10), colName, y);
@@ -3272,8 +3286,8 @@ const CavemanVsDragonGame = () => {
             }
           } else {
             const e = scoresRef.current[i];
-            const isMine = e && e.score === pendingScore && (e.name === typedName || e.name === nameInputRef.current);
-            ctx.fillStyle = isMine ? '#FFD700' : '#FFFFFF';
+            const isMine = e && e.date === justSubmittedLocalDateRef.current;
+            ctx.fillStyle = isMine ? '#00FF00' : '#FFFFFF';
             ctx.fillText(`${i + 1}.`, colRank, y);
             if (e) {
               const display = (e.name && e.name.trim()) || e.initials;
