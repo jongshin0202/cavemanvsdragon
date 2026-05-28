@@ -698,6 +698,7 @@ const CavemanVsDragonGame = () => {
         level: pendingLevel,
       });
       if (saved) {
+        justSubmittedGlobalIdRef.current = saved.id ?? null;
         // Replace the optimistic placeholder with the real row (now has id).
         setGlobalScores((prev) => {
           const withoutOptimistic = prev.filter(
