@@ -584,7 +584,7 @@ const CavemanVsDragonGame = () => {
   const startInLevel2Test = useCallback(() => {
     if (!LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2) return;
     const g = gameRef.current;
-    g.score = 0; g.lives = 3; g.round = 2;
+    g.score = 0; g.lives = 3; g.lastLifeMilestone = 0; g.round = 2;
     setScore(0); setLives(3);
     setGameState('playing');
     recordRound();
@@ -596,7 +596,7 @@ const CavemanVsDragonGame = () => {
   const startInLevel3Test = useCallback(() => {
     if (!LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2) return;
     const g = gameRef.current;
-    g.score = 0; g.lives = 3; g.round = 3;
+    g.score = 0; g.lives = 3; g.lastLifeMilestone = 0; g.round = 3;
     setScore(0); setLives(3);
     setGameState('playing');
     recordRound();
@@ -607,7 +607,7 @@ const CavemanVsDragonGame = () => {
   const startInLevel3Iter4Test = useCallback(() => {
     if (!LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2) return;
     const g = gameRef.current;
-    g.score = 0; g.lives = 3; g.round = 15;
+    g.score = 0; g.lives = 3; g.lastLifeMilestone = 0; g.round = 15;
     setScore(0); setLives(3);
     setGameState('playing');
     recordRound();
@@ -618,7 +618,7 @@ const CavemanVsDragonGame = () => {
   const startInLevel4Test = useCallback(() => {
     if (!LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2) return;
     const g = gameRef.current;
-    g.score = 0; g.lives = 3; g.round = 4;
+    g.score = 0; g.lives = 3; g.lastLifeMilestone = 0; g.round = 4;
     setScore(0); setLives(3);
     setGameState('playing');
     recordRound();
@@ -629,7 +629,7 @@ const CavemanVsDragonGame = () => {
   const startInLevel4Iter2Test = useCallback(() => {
     if (!LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2) return;
     const g = gameRef.current;
-    g.score = 0; g.lives = 3; g.round = 8;
+    g.score = 0; g.lives = 3; g.lastLifeMilestone = 0; g.round = 8;
     setScore(0); setLives(3);
     setGameState('playing');
     recordRound();
@@ -640,7 +640,7 @@ const CavemanVsDragonGame = () => {
   const startInLevel4Iter3Test = useCallback(() => {
     if (!LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2) return;
     const g = gameRef.current;
-    g.score = 0; g.lives = 3; g.round = 12;
+    g.score = 0; g.lives = 3; g.lastLifeMilestone = 0; g.round = 12;
     setScore(0); setLives(3);
     setGameState('playing');
     recordRound();
