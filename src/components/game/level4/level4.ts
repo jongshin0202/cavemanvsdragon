@@ -264,6 +264,9 @@ interface VolcanoFireball {
   x: number; y: number;
   radius: number;
   landed: boolean;
+  /** Once bezier arc completes, switch to free-fall using these velocities. */
+  falling?: boolean;
+  fvx?: number; fvy?: number;
 }
 
 interface Can {
@@ -1065,15 +1068,30 @@ function tickMonkeyFireballs(s: L4State) {
 //   - flight (sec)     = 12.8 * 0.9^steps  (faster = shorter flight)
 // Volcano mouth sits near (VOLCANO_X, P6.y - 48).
 function tickVolcanoFireballs(s: L4State) {
-  // Advance existing arcs.
+  // Advance existing arcs / free-fall.
   for (const fb of s.volcanoFireballs) {
     if (fb.landed) continue;
-    fb.t = Math.min(1, fb.t + 1 / Math.max(1, fb.duration));
-    const t = fb.t, omt = 1 - t;
-    fb.x = omt * omt * fb.startX + 2 * omt * t * fb.apexX + t * t * fb.endX;
-    fb.y = omt * omt * fb.startY + 2 * omt * t * fb.apexY + t * t * fb.endY;
-    fb.radius = 4 + 6 * t;
-    if (fb.t >= 1 || fb.y > CANVAS_H + 12 || fb.x < -20 || fb.x > CANVAS_W + 20) {
+    if (fb.falling) {
+      // Free-fall continuation after bezier arc completed mid-air.
+      fb.fvy = (fb.fvy ?? 0) + 0.25; // gravity
+      fb.x += fb.fvx ?? 0;
+      fb.y += fb.fvy;
+    } else {
+      fb.t = Math.min(1, fb.t + 1 / Math.max(1, fb.duration));
+      const t = fb.t, omt = 1 - t;
+      const prevX = fb.x, prevY = fb.y;
+      fb.x = omt * omt * fb.startX + 2 * omt * t * fb.apexX + t * t * fb.endX;
+      fb.y = omt * omt * fb.startY + 2 * omt * t * fb.apexY + t * t * fb.endY;
+      fb.radius = 4 + 6 * t;
+      if (fb.t >= 1) {
+        // Switch to free-fall using the final bezier velocity so the rock
+        // keeps travelling instead of vanishing mid-air.
+        fb.falling = true;
+        fb.fvx = fb.x - prevX;
+        fb.fvy = fb.y - prevY;
+      }
+    }
+    if (fb.y > CANVAS_H + 12 || fb.x < -20 || fb.x > CANVAS_W + 20) {
       fb.landed = true;
     }
   }
