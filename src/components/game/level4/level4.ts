@@ -27,7 +27,7 @@
 
 import { CANVAS_W, CANVAS_H, getRoundDifficulty } from '../constants';
 import { LEVEL4_PARAMS, getLevel4Difficulty, type Level4Difficulty } from './params';
-import { playWingFlapSound, playJumpSound, playRobotKillSound, playHitSound, playBarrelRollSound, playFireBreathSound, playDragonRoarSound, playWaterSproutSound, playVineGrowSound } from '../sounds';
+import { playWingFlapSound, playJumpSound, playRobotKillSound, playHitSound, playBarrelRollSound, playFireBreathSound, playDragonRoarSound, playWaterSproutSound, playVineGrowSound, playKeyGrabSound } from '../sounds';
 import type { ScoreAction } from '../scoring';
 
 
@@ -1704,9 +1704,9 @@ function tickCans(s: L4State) {
     }
     return false;
   };
-  if (pickup(s.greenCan)) s.greenCan = null;
+  if (pickup(s.greenCan)) { playKeyGrabSound(); s.greenCan = null; }
   // Purple can is unobtainable until the green sprout is fully grown.
-  if (s.sproutD.phase === 'alive' && pickup(s.purpleCan)) s.purpleCan = null;
+  if (s.sproutD.phase === 'alive' && pickup(s.purpleCan)) { playKeyGrabSound(); s.purpleCan = null; }
 
   // Auto-water D when caveman stands on D base carrying green can.
   if (s.carrying === 'green' && p.onGround && p.groundPlatIdx === D_BASE_PLAT_IDX) {
