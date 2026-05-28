@@ -291,7 +291,8 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
               lineHeight: 1.2,
             }}
           >
-            CONGRATULATIONS! YOU SAVED THE PRINCESS!
+            <div>CONGRATULATIONS!</div>
+            <div>YOU SAVED THE PRINCESS!</div>
           </div>
         )}
 
