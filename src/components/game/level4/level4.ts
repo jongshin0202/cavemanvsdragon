@@ -159,6 +159,42 @@ const MONKEY_PLAT_ANCHORS: number[] = [
 const MONKEY_PER_PLAT_CAP = 5;
 const MONKEY_TOTAL_CAP    = 20;
 
+// ── Volcano-rock hole config (mirrors L2 fireball hole rules) ─────
+const L4_HOLE_WIDTH = 28;
+// Static, non-ice, non-mover platforms (and not the top platform with the volcano).
+const L4_HOLE_CANDIDATE_PLATS = [2, 4, 5, 7, 9, 12, 14, 15, 18, 19, 21];
+// Sprout anchor points (base + top) by platform — holes must not destroy these.
+const L4_SPROUT_ANCHORS: { plat: number; x: number }[] = [
+  { plat: 5,  x: 30  }, { plat: 2,  x: 30  }, // D
+  { plat: 4,  x: 185 },                       // E (top is plat 0, excluded)
+  { plat: 21, x: 480 }, { plat: 18, x: 480 }, // H1
+  { plat: 15, x: 30  }, { plat: 12, x: 30  }, // H2
+  { plat: 14, x: 480 }, { plat: 9,  x: 480 }, // H3
+  { plat: 12, x: 30  }, { plat: 5,  x: 30  }, // H4
+  { plat: 19, x: 30  }, { plat: 15, x: 30  }, // H5
+  { plat: 18, x: 480 }, { plat: 14, x: 480 }, // H6
+  { plat: 5,  x: 30  }, { plat: 2,  x: 30  }, // H7
+];
+
+interface L4Hole { platformIdx: number; centerX: number; width: number; ttl: number }
+
+function isHoleOverlappingSproutL4(platIdx: number, x: number): boolean {
+  const minDist = L4_HOLE_WIDTH / 2 + 10 + 2;
+  for (const a of L4_SPROUT_ANCHORS) {
+    if (a.plat === platIdx && Math.abs(a.x - x) < minDist) return true;
+  }
+  return false;
+}
+
+export function isHoleAtL4Platform(s: L4State, platformIdx: number, x: number): boolean {
+  if (!s.holes) return false;
+  for (const h of s.holes) {
+    if (h.platformIdx !== platformIdx) continue;
+    if (x >= h.centerX - h.width / 2 && x <= h.centerX + h.width / 2) return true;
+  }
+  return false;
+}
+
 const PRINCESS_W = 40, PRINCESS_H = 48;
 const PLAYER_DRAW_W = 42, PLAYER_DRAW_H = 48;
 const MONKEY_DRAW_W = 33, MONKEY_DRAW_H = 33;
@@ -264,9 +300,9 @@ interface VolcanoFireball {
   x: number; y: number;
   radius: number;
   landed: boolean;
-  /** Once bezier arc completes, switch to free-fall using these velocities. */
-  falling?: boolean;
-  fvx?: number; fvy?: number;
+  /** Pre-chosen platform/x where this rock will punch a hole on landing. */
+  targetPlatIdx: number;
+  targetX: number;
 }
 
 interface Can {
@@ -324,6 +360,7 @@ export interface L4State {
   princessY: number;
   helpTimer: number;
   showHelp: boolean;
+  holes: L4Hole[];
   scoreEvents: ScoreAction[];
 }
 
@@ -492,6 +529,7 @@ export function initLevel4(iter: number): L4State {
     helpTimer: 0,
     showHelp: false,
     scoreEvents: [],
+    holes: [],
   };
 
 }
@@ -1068,57 +1106,106 @@ function tickMonkeyFireballs(s: L4State) {
 //   - flight (sec)     = 12.8 * 0.9^steps  (faster = shorter flight)
 // Volcano mouth sits near (VOLCANO_X, P6.y - 48).
 function tickVolcanoFireballs(s: L4State) {
-  // Advance existing arcs / free-fall.
+  // Tick hole TTLs (filled holes disappear).
+  if (s.holes && s.holes.length) {
+    for (let i = s.holes.length - 1; i >= 0; i--) {
+      s.holes[i].ttl--;
+      if (s.holes[i].ttl <= 0) s.holes.splice(i, 1);
+    }
+  }
+
+  // Advance existing arcs along their pre-planned trajectory and punch a
+  // hole on landing (mirrors L2 fireball behaviour).
   for (const fb of s.volcanoFireballs) {
     if (fb.landed) continue;
-    if (fb.falling) {
-      // Free-fall continuation after bezier arc completed mid-air.
-      fb.fvy = (fb.fvy ?? 0) + 0.25; // gravity
-      fb.x += fb.fvx ?? 0;
-      fb.y += fb.fvy;
-    } else {
-      fb.t = Math.min(1, fb.t + 1 / Math.max(1, fb.duration));
-      const t = fb.t, omt = 1 - t;
-      const prevX = fb.x, prevY = fb.y;
-      fb.x = omt * omt * fb.startX + 2 * omt * t * fb.apexX + t * t * fb.endX;
-      fb.y = omt * omt * fb.startY + 2 * omt * t * fb.apexY + t * t * fb.endY;
-      fb.radius = 4 + 6 * t;
-      if (fb.t >= 1) {
-        // Switch to free-fall using the final bezier velocity so the rock
-        // keeps travelling instead of vanishing mid-air.
-        fb.falling = true;
-        fb.fvx = fb.x - prevX;
-        fb.fvy = fb.y - prevY;
+    fb.t = Math.min(1, fb.t + 1 / Math.max(1, fb.duration));
+    const t = fb.t, omt = 1 - t;
+    fb.x = omt * omt * fb.startX + 2 * omt * t * fb.apexX + t * t * fb.endX;
+    fb.y = omt * omt * fb.startY + 2 * omt * t * fb.apexY + t * t * fb.endY;
+    fb.radius = 4 + 6 * t;
+    const tp = L4_PLATFORMS[fb.targetPlatIdx];
+    if (tp) {
+      const py = platY(tp, fb.targetX);
+      if (fb.t >= 1 || fb.y >= py - 4) {
+        // Force-land at the pre-chosen target x/y and punch a hole.
+        fb.x = fb.targetX;
+        fb.y = py;
+        fb.landed = true;
+        addHoleAtL4(s, fb.targetPlatIdx, fb.targetX);
       }
-    }
-    if (fb.y > CANVAS_H + 12 || fb.x < -20 || fb.x > CANVAS_W + 20) {
+    } else if (fb.t >= 1) {
       fb.landed = true;
     }
   }
   s.volcanoFireballs = s.volcanoFireballs.filter(fb => !fb.landed);
+
   if (s.iter < 1) return;
   const steps = Math.max(0, s.iter - 2);
   // Max active volcano rocks at any time = iteration number, capped at 5.
   const maxFB = Math.min(5, Math.max(1, s.iter));
   if (s.volcanoFireballs.length >= maxFB) return;
   if (s.volcanoFireballTimer > 0) { s.volcanoFireballTimer--; return; }
+
   const mouthX = VOLCANO_X;
   const mouthY = L4_PLATFORMS[0].y - 48;
-  const p = s.player;
-  const targetX = Math.max(8, Math.min(CANVAS_W - 8, p.x + p.w / 2 + (Math.random() - 0.5) * 40));
-  const targetY = p.y + p.h / 2;
-  const apexX = mouthX + (targetX - mouthX) * (0.4 + Math.random() * 0.2);
+
+  // Pick a random target platform + x that respects hole spacing & sprout rules.
+  const HOLE_W = L4_HOLE_WIDTH;
+  const MIN_CENTER_DIST = HOLE_W * 2;
+  const pickTarget = (): { pi: number; x: number } | null => {
+    const shuffled = [...L4_HOLE_CANDIDATE_PLATS].sort(() => Math.random() - 0.5);
+    for (const pi of shuffled) {
+      const pl = L4_PLATFORMS[pi];
+      const margin = HOLE_W / 2 + 6;
+      const minX = pl.x1 + margin;
+      const maxX = pl.x2 - margin;
+      if (maxX <= minX) continue;
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const x = minX + Math.random() * (maxX - minX);
+        const tooClose = s.holes.some(h =>
+          h.platformIdx === pi && Math.abs(h.centerX - x) < MIN_CENTER_DIST);
+        if (tooClose) continue;
+        if (isHoleOverlappingSproutL4(pi, x)) continue;
+        return { pi, x };
+      }
+    }
+    return null;
+  };
+  const tgt = pickTarget();
+  if (!tgt) { s.volcanoFireballTimer = 30; return; }
+
+  const targetPlat = L4_PLATFORMS[tgt.pi];
+  const targetY = platY(targetPlat, tgt.x);
+  const apexX = mouthX + (tgt.x - mouthX) * (0.4 + Math.random() * 0.2);
   const apexY = Math.min(mouthY, targetY) - (60 + Math.random() * 30);
   const flightSec = 12.8 * Math.pow(0.9, steps);
   s.volcanoFireballs.push({
     startX: mouthX, startY: mouthY,
-    endX: targetX, endY: targetY,
+    endX: tgt.x, endY: targetY,
     apexX, apexY,
     t: 0, duration: Math.round(flightSec * 60),
     x: mouthX, y: mouthY, radius: 4, landed: false,
+    targetPlatIdx: tgt.pi, targetX: tgt.x,
   });
   const intervalSec = 5.95 * Math.pow(0.9, steps);
   s.volcanoFireballTimer = Math.round(intervalSec * 60 * (0.5 + Math.random()));
+}
+
+function addHoleAtL4(s: L4State, platformIdx: number, x: number) {
+  const w = L4_HOLE_WIDTH;
+  const pl = L4_PLATFORMS[platformIdx];
+  if (!pl) return;
+  const cx = Math.max(pl.x1 + w / 2 + 4, Math.min(pl.x2 - w / 2 - 4, x));
+  // Mirror L2 hole TTL (iter-scaled +10% per iter).
+  const iter = Math.max(1, s.iter);
+  const holeFactor = Math.pow(1.1, iter - 1);
+  const min = 1 * 60 * holeFactor;
+  const max = 2.5 * 60 * holeFactor;
+  const extraMin = 2.5 * 60 * holeFactor;
+  const extraMax = 5 * 60 * holeFactor;
+  const ttl = Math.round(min + Math.random() * (max - min)
+    + extraMin + Math.random() * (extraMax - extraMin));
+  s.holes.push({ platformIdx, centerX: cx, width: w, ttl });
 }
 
 
@@ -1631,6 +1718,8 @@ function tickPlayer(s: L4State, input: L4Input) {
       if (p.x + p.w < plat.x1 || p.x > plat.x2) continue;
       const py = platY(plat, p.x + p.w / 2);
       const wasAbove = (p.y + p.h - p.vy) <= py + 1;
+      // Skip platform if a volcano-rock hole opens under the player's feet.
+      if (isHoleAtL4Platform(s, i, p.x + p.w / 2)) continue;
       if (wasAbove && p.y + p.h >= py && p.y + p.h <= py + 14 && p.vy >= 0) {
         p.y = py - p.h;
         p.vy = 0;
@@ -1952,6 +2041,28 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     ctx.lineTo(plat.x1, y1 + 3);
     ctx.closePath();
     ctx.fill();
+  }
+
+  // Volcano-rock holes — punch out a gap in the platform surface + underside.
+  if (s.holes && s.holes.length) {
+    ctx.save();
+    ctx.fillStyle = '#0a0010';
+    for (const h of s.holes) {
+      const pl = L4_PLATFORMS[h.platformIdx];
+      if (!pl) continue;
+      const hx1 = h.centerX - h.width / 2;
+      const hx2 = h.centerX + h.width / 2;
+      const y1 = platY(pl, Math.max(pl.x1, hx1));
+      const y2 = platY(pl, Math.min(pl.x2, hx2));
+      ctx.beginPath();
+      ctx.moveTo(hx1, y1 - 1);
+      ctx.lineTo(hx2, y2 - 1);
+      ctx.lineTo(hx2, y2 + 10);
+      ctx.lineTo(hx1, y1 + 10);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
   }
 
   // Volcano
