@@ -665,6 +665,7 @@ const CavemanVsDragonGame = () => {
     const next = insertScore(entry);
     setScores(next);
     setNameError('');
+    justSubmittedLocalDateRef.current = entry.date;
 
     // 2) If it qualifies globally, write to the cloud and show GLOBAL view.
     //    Otherwise, show LOCAL view.
