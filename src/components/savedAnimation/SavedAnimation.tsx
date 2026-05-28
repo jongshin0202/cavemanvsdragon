@@ -224,9 +224,10 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
 
   let pX = princessX, pY = princessY;
   const showStandingPrincess = t < T.DRAGON_REACH;
-  const showHeldPrincess = princessHeldByDragon && t < T.CARRY_END;
-  const showPrincess = showStandingPrincess || showHeldPrincess;
-  if (princessHeldByDragon) {
+  const heldPrincessVisible = princessHeldByDragon && t < T.CARRY_END;
+  const showHeldPrincess = t >= T.DRAGON_HOVER_END && t < T.CARRY_END;
+  const showPrincess = showStandingPrincess || heldPrincessVisible;
+  if (heldPrincessVisible) {
     pX = dragonX + dragonW / 2 - princessW / 2;
     pY = dragonY + dragonH - 24;
   }
@@ -305,7 +306,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
 
         {/* HELP! bubble to the LEFT of the princess's mouth while carried.
             0.5s after grab → show 1s → hide 0.5s → repeat until off-screen. */}
-        {showHeldPrincess && (() => {
+        {heldPrincessVisible && (() => {
           const since = t - T.DRAGON_REACH;
           if (since < 500) return null;
           if ((since - 500) % 1500 >= 1000) return null;
@@ -414,6 +415,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
               backgroundRepeat: 'no-repeat',
               imageRendering: 'pixelated',
               transform: 'scaleX(-1) rotate(8deg)',
+              opacity: heldPrincessVisible ? 1 : 0,
               zIndex: 3,
             }}
           />
