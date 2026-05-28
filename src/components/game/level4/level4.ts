@@ -2043,6 +2043,28 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
     ctx.fill();
   }
 
+  // Volcano-rock holes — punch out a gap in the platform surface + underside.
+  if (s.holes && s.holes.length) {
+    ctx.save();
+    ctx.fillStyle = '#0a0010';
+    for (const h of s.holes) {
+      const pl = L4_PLATFORMS[h.platformIdx];
+      if (!pl) continue;
+      const hx1 = h.centerX - h.width / 2;
+      const hx2 = h.centerX + h.width / 2;
+      const y1 = platY(pl, Math.max(pl.x1, hx1));
+      const y2 = platY(pl, Math.min(pl.x2, hx2));
+      ctx.beginPath();
+      ctx.moveTo(hx1, y1 - 1);
+      ctx.lineTo(hx2, y2 - 1);
+      ctx.lineTo(hx2, y2 + 10);
+      ctx.lineTo(hx1, y1 + 10);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   // Volcano
   drawVolcano(ctx, VOLCANO_X, L4_PLATFORMS[0].y);
 
