@@ -354,7 +354,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
         )}
 
         {showDragon && (
-          <div style={{ position: 'absolute', left: pct(dragonX, 'x'), top: pct(dragonY, 'y'), width: sizePct(dragonW, 'x'), height: sizePct(dragonH, 'y'), zIndex: 2, ...dragonBg }} />
+          <div style={{ position: 'absolute', left: pct(dragonX, 'x'), top: pct(dragonY, 'y'), width: sizePct(dragonW, 'x'), height: sizePct(dragonH, 'y'), zIndex: 4, ...dragonBg }} />
         )}
 
         {showPrincess && (
