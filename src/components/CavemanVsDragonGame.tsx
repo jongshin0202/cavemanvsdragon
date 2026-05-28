@@ -227,6 +227,16 @@ type GameState =
 
 const CavemanVsDragonGame = () => {
   const isMobile = useIsMobile();
+  // Touch device detection — controls must ONLY appear on touch devices,
+  // never on PC/desktop regardless of window width.
+  const [isTouchDevice, setIsTouchDevice] = useState<boolean>(false);
+  useEffect(() => {
+    const mql = window.matchMedia('(pointer: coarse)');
+    const update = () => setIsTouchDevice(mql.matches);
+    update();
+    mql.addEventListener('change', update);
+    return () => mql.removeEventListener('change', update);
+  }, []);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const keysRef = useRef<Set<string>>(new Set());
   const [score, setScore] = useState(0);
@@ -3792,9 +3802,10 @@ const CavemanVsDragonGame = () => {
         )}
       </div>
 
-      {/* Controls — hidden on desktop (md+); on mobile, also hidden during intro/attract screens or when a hardware gamepad is detected */}
-      {!gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls') && (
-      <div className="md:hidden w-full shrink-0 overflow-hidden px-2 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] touch-none">
+      {/* Controls — only on touch devices (mobile/tablet). Never on PC, regardless of window width.
+          Also hidden during intro/attract screens or when a hardware gamepad is detected. */}
+      {isTouchDevice && !gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls') && (
+      <div className="w-full shrink-0 overflow-hidden px-2 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] touch-none">
         <div className="grid h-[152px] w-full grid-cols-[minmax(0,1fr)_3rem_minmax(7.5rem,38vw)] items-stretch gap-2">
           {/* Locked D-pad shape: box-style arrows only, wide Up/Down, L/R centered and slightly taller */}
           <div
