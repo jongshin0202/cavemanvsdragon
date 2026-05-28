@@ -133,7 +133,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
               style={{
                 top: '5%', width: '94%',
                 color: 'hsl(var(--accent))',
-                fontSize: 'min(6vh, 6.4vw)',
+                fontSize: 'min(4.8vh, 5.1vw)',
                 textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
                 lineHeight: 1.2,
               }}
@@ -150,7 +150,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
               style={{
                 width: '94%',
                 color: 'hsl(var(--accent))',
-                fontSize: 'min(6vh, 6.4vw)',
+                fontSize: 'min(4.8vh, 5.1vw)',
                 textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
                 lineHeight: 1.2,
               }}
@@ -270,7 +270,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
             style={{
               top: '5%', width: '94%',
               color: 'hsl(var(--accent))',
-              fontSize: 'min(6vh, 6.4vw)',
+              fontSize: 'min(4.8vh, 5.1vw)',
               textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
               lineHeight: 1.2,
             }}
@@ -403,7 +403,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
             style={{
               top: '5%', width: '94%',
               color: 'hsl(var(--accent))',
-              fontSize: 'min(6vh, 6.4vw)',
+              fontSize: 'min(4.8vh, 5.1vw)',
               textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
               lineHeight: 1.2,
             }}
@@ -418,7 +418,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
             style={{
               width: '94%',
               color: 'hsl(var(--accent))',
-              fontSize: 'min(6vh, 6.4vw)',
+              fontSize: 'min(4.8vh, 5.1vw)',
               textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
               lineHeight: 1.2,
             }}
