@@ -1887,31 +1887,17 @@ function loseLife(s: L4State) {
 }
 
 // ── Ending ──────────────────────────────────────────────────
+// Caveman touches princess → wait 2 seconds → mark won so the
+// SavedAnimation cinematic plays. No on-canvas overlays.
 function tickEnding(s: L4State) {
   const e = s.ending;
   e.timer++;
-  switch (e.phase) {
-    case 'hug':
-      // "Thank you, my hero!" for 2 seconds
-      if (e.timer >= 120) { e.phase = 'pause'; e.timer = 0; }
-      break;
-    case 'pause':
-      // "But the happiness didn't last long..." for 2 seconds
-      if (e.timer >= 120) { e.phase = 'kidnap'; e.timer = 0; e.newDragonX = -DRAGON_W; }
-      break;
-    case 'kidnap':
-      e.newDragonX += 3;
-      if (e.newDragonX > s.princessX) s.princessX = e.newDragonX + 6;
-      if (e.newDragonX > CANVAS_W + 40) { e.phase = 'follow'; e.timer = 0; }
-      break;
-    case 'follow':
-      s.player.x += 2;
-      if (s.player.x > CANVAS_W + 20) { e.phase = 'done'; if (!s.won) { s.won = true; s.scoreEvents.push('completeLevel4'); } }
-      break;
-    case 'done':
-      break;
+  if (e.phase !== 'done' && e.timer >= 120) {
+    e.phase = 'done';
+    if (!s.won) { s.won = true; s.scoreEvents.push('completeLevel4'); }
   }
 }
+
 
 // ── Render ──────────────────────────────────────────────────
 export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites: L4Sprites) {
