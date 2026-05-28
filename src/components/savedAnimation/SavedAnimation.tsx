@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import cavemanWalkUrl from '@/assets/caveman-walk.png';
 import princessSpriteUrl from '@/assets/princess-sprite.png';
+import princessScaredUrl from '@/assets/princess-scared.png';
 import dragonAngryUrl from '@/assets/dragon-angry.png';
 import { playWingFlapSound, playPrincessHelpSound } from '../game/sounds';
 
