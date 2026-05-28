@@ -159,6 +159,42 @@ const MONKEY_PLAT_ANCHORS: number[] = [
 const MONKEY_PER_PLAT_CAP = 5;
 const MONKEY_TOTAL_CAP    = 20;
 
+// ── Volcano-rock hole config (mirrors L2 fireball hole rules) ─────
+const L4_HOLE_WIDTH = 28;
+// Static, non-ice, non-mover platforms (and not the top platform with the volcano).
+const L4_HOLE_CANDIDATE_PLATS = [2, 4, 5, 7, 9, 12, 14, 15, 18, 19, 21];
+// Sprout anchor points (base + top) by platform — holes must not destroy these.
+const L4_SPROUT_ANCHORS: { plat: number; x: number }[] = [
+  { plat: 5,  x: 30  }, { plat: 2,  x: 30  }, // D
+  { plat: 4,  x: 185 },                       // E (top is plat 0, excluded)
+  { plat: 21, x: 480 }, { plat: 18, x: 480 }, // H1
+  { plat: 15, x: 30  }, { plat: 12, x: 30  }, // H2
+  { plat: 14, x: 480 }, { plat: 9,  x: 480 }, // H3
+  { plat: 12, x: 30  }, { plat: 5,  x: 30  }, // H4
+  { plat: 19, x: 30  }, { plat: 15, x: 30  }, // H5
+  { plat: 18, x: 480 }, { plat: 14, x: 480 }, // H6
+  { plat: 5,  x: 30  }, { plat: 2,  x: 30  }, // H7
+];
+
+interface L4Hole { platformIdx: number; centerX: number; width: number; ttl: number }
+
+function isHoleOverlappingSproutL4(platIdx: number, x: number): boolean {
+  const minDist = L4_HOLE_WIDTH / 2 + 10 + 2;
+  for (const a of L4_SPROUT_ANCHORS) {
+    if (a.plat === platIdx && Math.abs(a.x - x) < minDist) return true;
+  }
+  return false;
+}
+
+export function isHoleAtL4Platform(s: L4State, platformIdx: number, x: number): boolean {
+  if (!s.holes) return false;
+  for (const h of s.holes) {
+    if (h.platformIdx !== platformIdx) continue;
+    if (x >= h.centerX - h.width / 2 && x <= h.centerX + h.width / 2) return true;
+  }
+  return false;
+}
+
 const PRINCESS_W = 40, PRINCESS_H = 48;
 const PLAYER_DRAW_W = 42, PLAYER_DRAW_H = 48;
 const MONKEY_DRAW_W = 33, MONKEY_DRAW_H = 33;
