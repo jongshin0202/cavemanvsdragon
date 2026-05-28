@@ -769,10 +769,18 @@ const CavemanVsDragonGame = () => {
   // (gameover without high score, or after viewing the leaderboard post-game).
   useEffect(() => {
     if (gameState !== 'gameover' && gameState !== 'leaderboard' && gameState !== 'globalLeaderboard') return;
-    let timer = window.setTimeout(() => setGameState('intro'), 5000);
+    let timer = window.setTimeout(() => {
+      justSubmittedLocalDateRef.current = null;
+      justSubmittedGlobalIdRef.current = null;
+      setGameState('intro');
+    }, 5000);
     const reset = () => {
       window.clearTimeout(timer);
-      timer = window.setTimeout(() => setGameState('intro'), 5000);
+      timer = window.setTimeout(() => {
+        justSubmittedLocalDateRef.current = null;
+        justSubmittedGlobalIdRef.current = null;
+        setGameState('intro');
+      }, 5000);
     };
     window.addEventListener('keydown', reset);
     window.addEventListener('pointerdown', reset);
