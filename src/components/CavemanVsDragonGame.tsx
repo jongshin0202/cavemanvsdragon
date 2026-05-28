@@ -2392,10 +2392,48 @@ const CavemanVsDragonGame = () => {
             if (r.wanderTimer === undefined) r.wanderTimer = 0;
             if (r.wanderDir === undefined) r.wanderDir = r.direction || 1;
             r.wanderTimer--;
+
+            // ── Anti-stall commit: if the monkey has been oscillating in a
+            // tiny X range for ~1.3s (e.g. blocked next to the player), force
+            // it to walk to the far end of its current platform for a longer
+            // stretch so it actually changes location instead of jittering.
+            const xHist: number[] = (r as any)._xHist || ((r as any)._xHist = []);
+            xHist.push(r.x);
+            if (xHist.length > 60) xHist.shift();
+            let commitX: number | undefined = (r as any)._commitX;
+            let commitTimer: number = (r as any)._commitTimer || 0;
+            if (commitTimer <= 0 && commitX === undefined && xHist.length >= 60) {
+              let mn = xHist[0], mx = xHist[0];
+              for (const v of xHist) { if (v < mn) mn = v; if (v > mx) mx = v; }
+              if (mx - mn < 20) {
+                const curPlat = PLATFORMS[rPlatIdx];
+                if (curPlat && curPlat.x2 - curPlat.x1 > 40) {
+                  // Aim for whichever platform edge is farther from current X.
+                  const leftTarget = curPlat.x1 + 6;
+                  const rightTarget = curPlat.x2 - r.w - 6;
+                  const goRight = (rightTarget - r.x) > (r.x - leftTarget);
+                  commitX = goRight ? rightTarget : leftTarget;
+                  (r as any)._commitX = commitX;
+                  commitTimer = 120 + Math.floor(Math.random() * 60);
+                  (r as any)._commitTimer = commitTimer;
+                  xHist.length = 0;
+                }
+              }
+            }
+
             // L3 SS monkey: actively seek a grown sprout vine near the player,
             // then climb down into the sprout / moving-platform section.
             const isSsSeek = isLevel3Round(g.round) && (r as any)._ssL3 && rPlatIdx === 4;
-            if (isSsSeek && r.wanderTimer <= 0) {
+            if (commitX !== undefined && commitTimer > 0) {
+              // Force-commit overrides normal wander while active.
+              r.wanderDir = commitX > rCenterX ? 1 : -1;
+              r.wanderTimer = Math.max(r.wanderTimer, 10);
+              (r as any)._commitTimer = commitTimer - 1;
+              if (Math.abs(rCenterX - commitX) < 8 || commitTimer - 1 <= 0) {
+                (r as any)._commitX = undefined;
+                (r as any)._commitTimer = 0;
+              }
+            } else if (isSsSeek && r.wanderTimer <= 0) {
               const playerOnSproutPlatform = playerFeetY <= PLATFORMS[4].y + 24;
               // If player is on platform 4 on the OPPOSITE side of the hole,
               // monkey can't cross the hole — head toward nearest screen edge
@@ -2432,11 +2470,19 @@ const CavemanVsDragonGame = () => {
                 }
               }
             } else if (!isSsSeek && r.wanderTimer <= 0) {
-              r.wanderTimer = 30 + Math.floor(Math.random() * 60); // 0.7-2s at 45fps
+              r.wanderTimer = 45 + Math.floor(Math.random() * 75); // ~1-2.6s at 45fps
               const towardPlayer = playerCenterX >= rCenterX ? 1 : -1;
-              // 70% bias toward player, 30% random — never stop
-              r.wanderDir = Math.random() < 0.7 ? towardPlayer : (Math.random() < 0.5 ? 1 : -1);
+              // If the player is right next to us, prefer walking AWAY so we
+              // actually change location instead of camping the player.
+              const playerClose = Math.abs(playerCenterX - rCenterX) < 40;
+              if (playerClose) {
+                r.wanderDir = Math.random() < 0.7 ? -towardPlayer : towardPlayer;
+              } else {
+                // 70% bias toward player, 30% random — never stop
+                r.wanderDir = Math.random() < 0.7 ? towardPlayer : (Math.random() < 0.5 ? 1 : -1);
+              }
             }
+
 
             // Consider climbing if a ladder is right here AND it gets us closer.
             // L1 + L2: monkeys NEVER climb ladders/vines — only L3 SS monkeys do.
