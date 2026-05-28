@@ -1972,8 +1972,10 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
 
   if (s.carrying) {
     const p = s.player;
-    const cx = p.x + p.w / 2;
-    const cy = p.y - 6;
+    // Position can at the front shoulder (overlapping/in-front of caveman)
+    const shoulderOffset = 6 * p.facing;
+    const cx = p.x + p.w / 2 + shoulderOffset;
+    const cy = p.y + 8; // shoulder height
     const glow = s.carrying === 'green'
       ? 'rgba(116,224,127,0.45)'
       : 'rgba(176,120,230,0.45)';
