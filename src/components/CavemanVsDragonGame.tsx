@@ -365,6 +365,7 @@ const CavemanVsDragonGame = () => {
     robotsInitialized: false,
     score: 0,
     lives: 3,
+    lastLifeMilestone: 0,
     round: 1,
     state: 'intro' as string,
     dkFrame: 0,
@@ -425,6 +426,18 @@ const CavemanVsDragonGame = () => {
   // True when the 7-tap preview wants the full kidnap cinematic; false when
   // we're coming off a real L4 win (where L4 already showed the kidnap).
   const savedAnimFullRef = useRef<boolean>(false);
+
+  const awardScore = useCallback((points: number) => {
+    const g = gameRef.current;
+    g.score += points;
+    const newMilestone = Math.floor(g.score / 100000);
+    if (newMilestone > g.lastLifeMilestone) {
+      g.lives += newMilestone - g.lastLifeMilestone;
+      g.lastLifeMilestone = newMilestone;
+      setLives(g.lives);
+    }
+    setScore(g.score);
+  }, []);
 
   const resetPlayer = useCallback(() => {
     const g = gameRef.current;
@@ -554,7 +567,7 @@ const CavemanVsDragonGame = () => {
 
   const resetGame = useCallback(() => {
     const g = gameRef.current;
-    g.score = 0; g.lives = 3; g.round = 1;
+    g.score = 0; g.lives = 3; g.lastLifeMilestone = 0; g.round = 1;
     setScore(0); setLives(3);
     setGameState('playing');
     justSubmittedLocalDateRef.current = null;
@@ -571,7 +584,7 @@ const CavemanVsDragonGame = () => {
   const startInLevel2Test = useCallback(() => {
     if (!LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2) return;
     const g = gameRef.current;
-    g.score = 0; g.lives = 3; g.round = 2;
+    g.score = 0; g.lives = 3; g.lastLifeMilestone = 0; g.round = 2;
     setScore(0); setLives(3);
     setGameState('playing');
     recordRound();
@@ -583,7 +596,7 @@ const CavemanVsDragonGame = () => {
   const startInLevel3Test = useCallback(() => {
     if (!LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2) return;
     const g = gameRef.current;
-    g.score = 0; g.lives = 3; g.round = 3;
+    g.score = 0; g.lives = 3; g.lastLifeMilestone = 0; g.round = 3;
     setScore(0); setLives(3);
     setGameState('playing');
     recordRound();
@@ -594,7 +607,7 @@ const CavemanVsDragonGame = () => {
   const startInLevel3Iter4Test = useCallback(() => {
     if (!LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2) return;
     const g = gameRef.current;
-    g.score = 0; g.lives = 3; g.round = 15;
+    g.score = 0; g.lives = 3; g.lastLifeMilestone = 0; g.round = 15;
     setScore(0); setLives(3);
     setGameState('playing');
     recordRound();
@@ -605,7 +618,7 @@ const CavemanVsDragonGame = () => {
   const startInLevel4Test = useCallback(() => {
     if (!LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2) return;
     const g = gameRef.current;
-    g.score = 0; g.lives = 3; g.round = 4;
+    g.score = 0; g.lives = 3; g.lastLifeMilestone = 0; g.round = 4;
     setScore(0); setLives(3);
     setGameState('playing');
     recordRound();
@@ -616,7 +629,7 @@ const CavemanVsDragonGame = () => {
   const startInLevel4Iter2Test = useCallback(() => {
     if (!LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2) return;
     const g = gameRef.current;
-    g.score = 0; g.lives = 3; g.round = 8;
+    g.score = 0; g.lives = 3; g.lastLifeMilestone = 0; g.round = 8;
     setScore(0); setLives(3);
     setGameState('playing');
     recordRound();
@@ -627,7 +640,7 @@ const CavemanVsDragonGame = () => {
   const startInLevel4Iter3Test = useCallback(() => {
     if (!LEVEL2_PARAMS.TEST_SKIP_TO_LEVEL2) return;
     const g = gameRef.current;
-    g.score = 0; g.lives = 3; g.round = 12;
+    g.score = 0; g.lives = 3; g.lastLifeMilestone = 0; g.round = 12;
     setScore(0); setLives(3);
     setGameState('playing');
     recordRound();
@@ -927,7 +940,7 @@ const CavemanVsDragonGame = () => {
               // Level 1 iteration. round 4 = L4 iter 1; startNextLevel bumps
               // it to round 5 = L1 iter 2 and shows the "Level" intro.
               const g = gameRef.current;
-              g.score = 0; g.lives = 3; g.round = 4;
+              g.score = 0; g.lives = 3; g.lastLifeMilestone = 0; g.round = 4;
               setScore(0); setLives(3);
               savedAnimReturnRef.current = 'next';
               savedAnimKeyRef.current += 1;
@@ -1157,9 +1170,8 @@ const CavemanVsDragonGame = () => {
           if (result.scoreEvents && result.scoreEvents.length) {
             const iter = getLevelIteration(g.round);
             for (const ev of result.scoreEvents) {
-              g.score += scoreFor(ev, iter);
+              awardScore(scoreFor(ev, iter));
             }
-            setScore(g.score);
           }
           if (result.died) {
             g.lives -= 1;
@@ -1744,7 +1756,7 @@ const CavemanVsDragonGame = () => {
             g.seedPlanted = true; // triggers vine-grow animation
             playWaterSproutSound();
             playVineGrowSound();
-            g.score += scoreFor('waterGreen', getLevelIteration(g.round)); setScore(g.score);
+            awardScore(scoreFor('waterGreen', getLevelIteration(g.round)));
           }
 
         }
@@ -1761,7 +1773,7 @@ const CavemanVsDragonGame = () => {
           const paulX = 175, paulY = 64;
           if (rectsOverlap(p, { x: paulX, y: paulY, w: 40, h: 48 })) {
             g.state = 'win'; setGameState('win');
-            g.score += scoreFor('completeLevel', getLevelIteration(g.round)); setScore(g.score); playWinSound(); playPrincessSavedSound();
+            awardScore(scoreFor('completeLevel', getLevelIteration(g.round))); playWinSound(); playPrincessSavedSound();
             wa.active = true;
             wa.timer = 0;
             wa.gorillaY = 76;
@@ -1846,7 +1858,7 @@ const CavemanVsDragonGame = () => {
               const passedLeft  = a.vx < 0 && a.x + a.w < pl.x - 2;
               if (passedRight || passedLeft) {
                 a._scored = true;
-                g.score += scoreFor('jumpApple', getLevelIteration(g.round)); setScore(g.score);
+                awardScore(scoreFor('jumpApple', getLevelIteration(g.round)));
 
               }
             }
@@ -1883,7 +1895,7 @@ const CavemanVsDragonGame = () => {
                   playVineGrowSound();
                   l2Ref.current.carryingCan = null;
                   const action: ScoreAction = wateringColor === 'green' ? 'waterGreen' : 'waterPurple';
-                  g.score += scoreFor(action, getLevelIteration(g.round)); setScore(g.score);
+                  awardScore(scoreFor(action, getLevelIteration(g.round)));
                 }
               }
 
@@ -1904,7 +1916,7 @@ const CavemanVsDragonGame = () => {
           if (l2Ref.current.carryingRock) {
             if (trySealVolcano(l2Ref.current, pl.x + pl.w / 2, pl.y + pl.h)) {
               playWinSound();
-              g.score += scoreFor('coverVolcano', getLevelIteration(g.round)); setScore(g.score);
+              awardScore(scoreFor('coverVolcano', getLevelIteration(g.round)));
 
               // L3: queue iter*2 respawns split between SS + MPS rows.
               if (isLevel3Round(g.round)) {
@@ -1925,7 +1937,7 @@ const CavemanVsDragonGame = () => {
             const paulX = 175, paulY = 64;
             if (rectsOverlap(pl, { x: paulX, y: paulY, w: 40, h: 48 })) {
               g.state = 'win'; setGameState('win');
-              g.score += scoreFor('completeLevel', getLevelIteration(g.round)); setScore(g.score);
+              awardScore(scoreFor('completeLevel', getLevelIteration(g.round)));
               playWinSound(); playPrincessSavedSound();
               wa.active = true;
               wa.timer = 0;
@@ -2271,7 +2283,7 @@ const CavemanVsDragonGame = () => {
             p.y + p.h < b.y + 4 // player's feet are above the barrel's top
           ) {
             b.jumpedOver = true;
-            g.score += scoreFor('jumpRock', getLevelIteration(g.round)); setScore(g.score);
+            awardScore(scoreFor('jumpRock', getLevelIteration(g.round)));
           }
         }
 
@@ -2663,7 +2675,7 @@ const CavemanVsDragonGame = () => {
               const perKill = scoreFor('killMonkey', getLevelIteration(g.round));
               const scoreGain = perKill * killCount;
               g.comboKills = (g.comboKills || 0) + killCount;
-              g.score += scoreGain; setScore(g.score);
+              awardScore(scoreGain);
 
               playRobotKillSound();
               p.vy = -4;

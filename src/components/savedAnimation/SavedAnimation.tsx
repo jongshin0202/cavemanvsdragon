@@ -223,11 +223,11 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
   }
 
   let pX = princessX, pY = princessY;
-  const princessHandoffMs = 220;
-  const showStandingPrincess = t < T.DRAGON_REACH + princessHandoffMs;
-  const showHeldPrincess = princessHeldByDragon && t < T.CARRY_END;
-  const showPrincess = showStandingPrincess || showHeldPrincess;
-  if (princessHeldByDragon) {
+  const showStandingPrincess = t < T.DRAGON_REACH;
+  const heldPrincessVisible = princessHeldByDragon && t < T.CARRY_END;
+  const showHeldPrincess = t >= T.DRAGON_HOVER_END && t < T.CARRY_END;
+  const showPrincess = showStandingPrincess || heldPrincessVisible;
+  if (heldPrincessVisible) {
     pX = dragonX + dragonW / 2 - princessW / 2;
     pY = dragonY + dragonH - 24;
   }
@@ -306,7 +306,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
 
         {/* HELP! bubble to the LEFT of the princess's mouth while carried.
             0.5s after grab → show 1s → hide 0.5s → repeat until off-screen. */}
-        {showHeldPrincess && (() => {
+        {heldPrincessVisible && (() => {
           const since = t - T.DRAGON_REACH;
           if (since < 500) return null;
           if ((since - 500) % 1500 >= 1000) return null;
@@ -358,9 +358,29 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
           <div style={{ position: 'absolute', left: pct(cavemanX, 'x'), top: pct(cavemanY, 'y'), width: sizePct(cavemanW, 'x'), height: sizePct(cavemanH, 'y'), ...cavemanBg }} />
         )}
 
-        {showDragon && (
-          <div style={{ position: 'absolute', left: pct(dragonX, 'x'), top: pct(dragonY, 'y'), width: sizePct(dragonW, 'x'), height: sizePct(dragonH, 'y'), zIndex: 4, ...dragonBg }} />
-        )}
+        {showDragon && (() => {
+          // Wing flap overlay matching Level 4: green ellipses oscillating with frame.
+          const flap = Math.sin(dragonFrame * (Math.PI * 2 / DRAGON_FRAMES)) * 0.9;
+          const cx = 50, cy = 45; // % within dragon box
+          const wingLen = 30, wingH = 14; // % within dragon box
+          return (
+            <div style={{ position: 'absolute', left: pct(dragonX, 'x'), top: pct(dragonY, 'y'), width: sizePct(dragonW, 'x'), height: sizePct(dragonH, 'y'), zIndex: 4 }}>
+              <svg
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none' }}
+              >
+                <g transform={`translate(${cx - 10} ${cy}) rotate(${(-0.4 + flap) * 180 / Math.PI})`}>
+                  <ellipse cx={-wingLen / 2} cy={0} rx={wingLen / 2} ry={wingH / 2} fill="#2e5a2a" stroke="#1a3a18" strokeWidth={1.2} />
+                </g>
+                <g transform={`translate(${cx + 10} ${cy}) rotate(${(0.4 - flap) * 180 / Math.PI})`}>
+                  <ellipse cx={wingLen / 2} cy={0} rx={wingLen / 2} ry={wingH / 2} fill="#2e5a2a" stroke="#1a3a18" strokeWidth={1.2} />
+                </g>
+              </svg>
+              <div style={{ position: 'absolute', inset: 0, ...dragonBg }} />
+            </div>
+          );
+        })()}
 
         {showStandingPrincess && (
           <div
@@ -395,6 +415,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
               backgroundRepeat: 'no-repeat',
               imageRendering: 'pixelated',
               transform: 'scaleX(-1) rotate(8deg)',
+              opacity: heldPrincessVisible ? 1 : 0,
               zIndex: 3,
             }}
           />
