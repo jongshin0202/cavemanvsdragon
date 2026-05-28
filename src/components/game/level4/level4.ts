@@ -479,7 +479,6 @@ export function initLevel4(iter: number): L4State {
     state: 'intro', downedTimer: 0, dyingTimer: 0, hits: 0,
     frame: 0, frameTimer: 0,
     fireTimer: 0, fireCooldown: FIRE_COOLDOWN,
-    holes: [],
   };
 
   // Monkeys via L1-style distribution.
