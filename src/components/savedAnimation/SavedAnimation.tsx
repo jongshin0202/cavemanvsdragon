@@ -262,7 +262,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
       <div className="relative bg-black" style={{ aspectRatio: `${CW} / ${CH}`, height: '100%' }}>
 
 
-        {showPrincess && (
+        {showPrincess && !princessHeldByDragon && (
           <div
             style={{
               position: 'absolute',
@@ -270,12 +270,13 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
               top: pct(pY, 'y'),
               width: sizePct(princessW, 'x'),
               height: sizePct(princessH, 'y'),
-              backgroundImage: `url(${princessHeldByDragon ? princessScaredUrl : princessSpriteUrl})`,
-              backgroundSize: princessHeldByDragon ? '100% 100%' : '500% 100%',
+              backgroundImage: `url(${princessSpriteUrl})`,
+              backgroundSize: '500% 100%',
               backgroundPosition: '0% 0%',
               backgroundRepeat: 'no-repeat',
               imageRendering: 'pixelated',
-              transform: princessHeldByDragon ? 'scaleX(-1) rotate(8deg)' : 'scaleX(-1)',
+              transform: 'scaleX(-1)',
+              zIndex: 1,
             }}
           />
         )}
@@ -372,7 +373,26 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
         )}
 
         {showDragon && (
-          <div style={{ position: 'absolute', left: pct(dragonX, 'x'), top: pct(dragonY, 'y'), width: sizePct(dragonW, 'x'), height: sizePct(dragonH, 'y'), ...dragonBg }} />
+          <div style={{ position: 'absolute', left: pct(dragonX, 'x'), top: pct(dragonY, 'y'), width: sizePct(dragonW, 'x'), height: sizePct(dragonH, 'y'), zIndex: 2, ...dragonBg }} />
+        )}
+
+        {showPrincess && princessHeldByDragon && (
+          <div
+            style={{
+              position: 'absolute',
+              left: pct(pX, 'x'),
+              top: pct(pY, 'y'),
+              width: sizePct(princessW, 'x'),
+              height: sizePct(princessH, 'y'),
+              backgroundImage: `url(${princessScaredUrl})`,
+              backgroundSize: '100% 100%',
+              backgroundPosition: '0% 0%',
+              backgroundRepeat: 'no-repeat',
+              imageRendering: 'pixelated',
+              transform: 'scaleX(-1) rotate(8deg)',
+              zIndex: 3,
+            }}
+          />
         )}
 
         {showSadText && (
