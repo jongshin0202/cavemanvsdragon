@@ -3270,7 +3270,7 @@ const CavemanVsDragonGame = () => {
           if (isGlobal) {
             const e = globalScoresRef.current[i];
             const isMine = e && e.id === justSubmittedGlobalIdRef.current;
-            ctx.fillStyle = isMine ? '#00FF00' : '#FFFFFF';
+            ctx.fillStyle = isMine ? '#FFD700' : '#FFFFFF';
             ctx.fillText(`${i + 1}.`, colRank, y);
             if (e) {
               ctx.fillText((e.name || '---').slice(0, 10), colName, y);
@@ -3287,7 +3287,7 @@ const CavemanVsDragonGame = () => {
           } else {
             const e = scoresRef.current[i];
             const isMine = e && e.date === justSubmittedLocalDateRef.current;
-            ctx.fillStyle = isMine ? '#00FF00' : '#FFFFFF';
+            ctx.fillStyle = isMine ? '#FFD700' : '#FFFFFF';
             ctx.fillText(`${i + 1}.`, colRank, y);
             if (e) {
               const display = (e.name && e.name.trim()) || e.initials;
