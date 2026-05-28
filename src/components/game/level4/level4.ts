@@ -1717,7 +1717,6 @@ function tickCans(s: L4State) {
       playVineGrowSound();
       s.scoreEvents.push('waterPurple');
       s.carrying = null;
-      s.sproutD.phase = 'withering';
       if (s.dragon.hits < s.diff.hitsToKill) respawnMonkeyWave(s);
     }
   }
