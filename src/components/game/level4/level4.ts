@@ -360,6 +360,7 @@ export interface L4State {
   princessY: number;
   helpTimer: number;
   showHelp: boolean;
+  holes: L4Hole[];
   scoreEvents: ScoreAction[];
 }
 
