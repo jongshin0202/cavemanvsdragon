@@ -1536,8 +1536,6 @@ function tickPlayer(s: L4State, input: L4Input) {
         s.sproutE.growProgress = Math.min(1, s.sproutE.growProgress + s.eGrowChunk);
         if (s.sproutE.growProgress >= 1) { s.sproutE.phase = 'alive'; }
         s.carrying = null;
-        // Re-seed D
-        s.sproutD.phase = 'withering';
         if (s.dragon.hits < s.diff.hitsToKill) respawnMonkeyWave(s);
       } else {
         playJumpSound();
@@ -1719,7 +1717,6 @@ function tickCans(s: L4State) {
       playVineGrowSound();
       s.scoreEvents.push('waterPurple');
       s.carrying = null;
-      s.sproutD.phase = 'withering';
       if (s.dragon.hits < s.diff.hitsToKill) respawnMonkeyWave(s);
     }
   }
@@ -1972,8 +1969,10 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
 
   if (s.carrying) {
     const p = s.player;
-    const cx = p.x + p.w / 2;
-    const cy = p.y - 6;
+    // Position can at the front shoulder (overlapping/in-front of caveman)
+    const shoulderOffset = 6 * p.facing;
+    const cx = p.x + p.w / 2 + shoulderOffset;
+    const cy = p.y + 8; // shoulder height
     const glow = s.carrying === 'green'
       ? 'rgba(116,224,127,0.45)'
       : 'rgba(176,120,230,0.45)';
@@ -2185,6 +2184,16 @@ function drawSprout(ctx: CanvasRenderingContext2D, sp: Sprout) {
     ctx.fillStyle = leaf;
     ctx.fillRect(lx + 3, y - 2, 2, 2);
     ctx.fillRect(lx + 9, y + 1, 2, 2);
+  }
+  // L2-style sparkle droplets while actively growing.
+  if (sp.phase === 'growing' && sp.growProgress < 1) {
+    const t = (typeof performance !== 'undefined' ? performance.now() : Date.now()) * 0.06;
+    for (let i = 0; i < 5; i++) {
+      const dx = sp.x + Math.cos(t * 0.18 + i * 1.3) * 7;
+      const dy = top - 4 + ((t * 0.6 + i * 5) % 18);
+      ctx.fillStyle = ['#4FC3F7', '#B3E5FC', '#81D4FA', '#FFFFFF', '#4FC3F7'][i];
+      ctx.fillRect(dx, dy, 2, 2);
+    }
   }
 }
 
