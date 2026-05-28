@@ -55,6 +55,14 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
 
   const DONE = full ? T_FULL.DONE : T_SHORT.DONE;
 
+  // Preload scared princess sprite so it doesn't flash blank on first use.
+  useEffect(() => {
+    if (!full) return;
+    const img = new Image();
+    img.src = princessScaredUrl;
+  }, [full]);
+
+
   useEffect(() => {
     let raf = 0;
     const tick = (now: number) => {
