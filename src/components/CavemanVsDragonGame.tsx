@@ -427,6 +427,18 @@ const CavemanVsDragonGame = () => {
   // we're coming off a real L4 win (where L4 already showed the kidnap).
   const savedAnimFullRef = useRef<boolean>(false);
 
+  const awardScore = useCallback((points: number) => {
+    const g = gameRef.current;
+    g.score += points;
+    const newMilestone = Math.floor(g.score / 100000);
+    if (newMilestone > g.lastLifeMilestone) {
+      g.lives += newMilestone - g.lastLifeMilestone;
+      g.lastLifeMilestone = newMilestone;
+      setLives(g.lives);
+    }
+    setScore(g.score);
+  }, []);
+
   const resetPlayer = useCallback(() => {
     const g = gameRef.current;
     g.player = { x: 80, y: 400, w: 16, h: 24, vy: 0, onGround: false, climbing: false, facing: 1, jumping: false, walkFrame: 0, walkTimer: 0, jumpFrame: 0, jumpTimer: 0, climbFrame: 0, climbTimer: 0, duckTimer: 0 };
