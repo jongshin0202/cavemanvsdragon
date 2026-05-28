@@ -1769,6 +1769,11 @@ function tickCollisions(s: L4State) {
         d.downedTimer = Math.round(3 * 60);
         // Purple can only spawns on the killing blow — not on intermediate bonks.
         s.scoreEvents.push('bonkDragon');
+        // Non-killing bonk: if the green sprout is up, kill it and respawn monkeys.
+        if (s.sproutD.phase === 'growing' || s.sproutD.phase === 'alive') {
+          s.sproutD.phase = 'withering';
+          respawnMonkeyWave(s);
+        }
       }
 
       // bounce caveman off dragon's head
