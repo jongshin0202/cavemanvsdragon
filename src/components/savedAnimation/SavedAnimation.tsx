@@ -259,8 +259,8 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
               top: pct(pY, 'y'),
               width: sizePct(princessW, 'x'),
               height: sizePct(princessH, 'y'),
-              backgroundImage: `url(${princessSpriteUrl})`,
-              backgroundSize: '500% 100%',
+              backgroundImage: `url(${princessHeldByDragon ? princessScaredUrl : princessSpriteUrl})`,
+              backgroundSize: princessHeldByDragon ? '100% 100%' : '500% 100%',
               backgroundPosition: '0% 0%',
               backgroundRepeat: 'no-repeat',
               imageRendering: 'pixelated',
@@ -290,18 +290,19 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
         )}
 
 
-        {/* HELP! text bubble next to princess while she is being carried.
-            1s after grab → show 2s → hide 1s → repeat until off-screen. */}
+        {/* HELP! bubble to the LEFT of the princess's mouth while carried.
+            0.5s after grab → show 1s → hide 0.5s → repeat until off-screen. */}
         {showPrincess && princessHeldByDragon && (() => {
           const since = t - T.DRAGON_REACH;
-          if (since < 1000) return null;
-          if ((since - 1000) % 3000 >= 2000) return null;
+          if (since < 500) return null;
+          if ((since - 500) % 1500 >= 1000) return null;
           return (
             <div
               className="absolute font-caveman"
               style={{
-                left: pct(pX + princessW + 2, 'x'),
-                top: pct(pY - 4, 'y'),
+                left: pct(pX - 2, 'x'),
+                top: pct(pY + princessH * 0.35, 'y'),
+                transform: 'translateX(-100%)',
                 color: '#fff',
                 background: '#000',
                 padding: '2px 6px',
@@ -314,6 +315,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
             </div>
           );
         })()}
+
 
 
 
