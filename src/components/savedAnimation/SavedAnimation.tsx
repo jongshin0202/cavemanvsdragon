@@ -317,7 +317,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
                 color: '#fff',
                 background: '#000',
                 padding: '2px 6px',
-                fontSize: 'min(3.2vh, 1.7vw)',
+                fontSize: 'min(6.4vh, 3.4vw)',
                 letterSpacing: '0.08em',
                 whiteSpace: 'nowrap',
               }}
