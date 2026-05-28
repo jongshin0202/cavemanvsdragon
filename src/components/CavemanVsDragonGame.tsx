@@ -547,6 +547,8 @@ const CavemanVsDragonGame = () => {
     g.score = 0; g.lives = 3; g.round = 1;
     setScore(0); setLives(3);
     setGameState('playing');
+    justSubmittedLocalDateRef.current = null;
+    justSubmittedGlobalIdRef.current = null;
     // Anonymous usage stats: count this as a launch (round 1 implicit).
     recordRound();
     recordLaunchAndMaybeFlush().catch(() => { /* logged in module */ });
