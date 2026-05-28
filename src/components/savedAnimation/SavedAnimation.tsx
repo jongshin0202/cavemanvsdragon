@@ -358,9 +358,29 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
           <div style={{ position: 'absolute', left: pct(cavemanX, 'x'), top: pct(cavemanY, 'y'), width: sizePct(cavemanW, 'x'), height: sizePct(cavemanH, 'y'), ...cavemanBg }} />
         )}
 
-        {showDragon && (
-          <div style={{ position: 'absolute', left: pct(dragonX, 'x'), top: pct(dragonY, 'y'), width: sizePct(dragonW, 'x'), height: sizePct(dragonH, 'y'), zIndex: 4, ...dragonBg }} />
-        )}
+        {showDragon && (() => {
+          // Wing flap overlay matching Level 4: green ellipses oscillating with frame.
+          const flap = Math.sin(dragonFrame * (Math.PI * 2 / DRAGON_FRAMES)) * 0.9;
+          const cx = 50, cy = 45; // % within dragon box
+          const wingLen = 30, wingH = 14; // % within dragon box
+          return (
+            <div style={{ position: 'absolute', left: pct(dragonX, 'x'), top: pct(dragonY, 'y'), width: sizePct(dragonW, 'x'), height: sizePct(dragonH, 'y'), zIndex: 4 }}>
+              <svg
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none' }}
+              >
+                <g transform={`translate(${cx - 10} ${cy}) rotate(${(-0.4 + flap) * 180 / Math.PI})`}>
+                  <ellipse cx={-wingLen / 2} cy={0} rx={wingLen / 2} ry={wingH / 2} fill="#2e5a2a" stroke="#1a3a18" strokeWidth={1.2} />
+                </g>
+                <g transform={`translate(${cx + 10} ${cy}) rotate(${(0.4 - flap) * 180 / Math.PI})`}>
+                  <ellipse cx={wingLen / 2} cy={0} rx={wingLen / 2} ry={wingH / 2} fill="#2e5a2a" stroke="#1a3a18" strokeWidth={1.2} />
+                </g>
+              </svg>
+              <div style={{ position: 'absolute', inset: 0, ...dragonBg }} />
+            </div>
+          );
+        })()}
 
         {showStandingPrincess && (
           <div
