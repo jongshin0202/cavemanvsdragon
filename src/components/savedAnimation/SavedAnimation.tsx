@@ -276,10 +276,25 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
               backgroundRepeat: 'no-repeat',
               imageRendering: 'pixelated',
               transform: princessHeldByDragon ? 'scaleX(-1) rotate(8deg)' : 'scaleX(-1)',
-              transition: 'transform 0.2s',
             }}
           />
         )}
+
+        {showCongrats && (
+          <div
+            className="absolute left-1/2 -translate-x-1/2 text-center font-caveman"
+            style={{
+              top: '5%', width: '94%',
+              color: 'hsl(var(--accent))',
+              fontSize: 'min(6vh, 3.2vw)',
+              textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
+              lineHeight: 1.2,
+            }}
+          >
+            CONGRATULATIONS! YOU SAVED THE PRINCESS!
+          </div>
+        )}
+
 
         {showThanks && (
           <div
