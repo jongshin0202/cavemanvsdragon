@@ -1150,12 +1150,12 @@ const CavemanVsDragonGame = () => {
             g.state = 'savedAnim';
             savedAnimReturnRef.current = 'next';
             savedAnimFullRef.current = true;
-            // Wait 1s after caveman touches princess before starting the cinematic.
-            window.setTimeout(() => {
-              savedAnimKeyRef.current += 1;
-              setGameState('savedAnim');
-            }, 1000);
+            // L4 already waits 2s after the princess touch before reporting won,
+            // so jump straight into the cinematic now.
+            savedAnimKeyRef.current += 1;
+            setGameState('savedAnim');
           }
+
 
           if ((s4 as any)._pendingGameOver !== undefined && (s4 as any)._pendingGameOver > 0) {
             (s4 as any)._pendingGameOver -= 1;
