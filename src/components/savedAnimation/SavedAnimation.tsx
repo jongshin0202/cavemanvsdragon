@@ -269,6 +269,26 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
           />
         )}
 
+        {showThanks && (
+          <div
+            className="absolute text-center font-caveman"
+            style={{
+              left: pct(princessX + princessW / 2, 'x'),
+              top: pct(princessY - 28, 'y'),
+              transform: 'translateX(-50%)',
+              color: '#000',
+              background: 'rgba(255,255,255,0.92)',
+              padding: '3px 8px',
+              borderRadius: 6,
+              fontSize: 'min(2.8vh, 1.5vw)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Thank you, my hero!
+          </div>
+        )}
+
+
         {/* HELP! text bubble next to princess while she is being carried.
             1s after grab → show 2s → hide 1s → repeat until off-screen. */}
         {showPrincess && princessHeldByDragon && (() => {
