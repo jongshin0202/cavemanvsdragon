@@ -264,6 +264,9 @@ interface VolcanoFireball {
   x: number; y: number;
   radius: number;
   landed: boolean;
+  /** Once bezier arc completes, switch to free-fall using these velocities. */
+  falling?: boolean;
+  fvx?: number; fvy?: number;
 }
 
 interface Can {
