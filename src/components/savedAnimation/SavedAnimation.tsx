@@ -53,6 +53,8 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
   const lastFlapRef = useRef<number>(0);
   const helpPlayedRef = useRef<boolean>(false);
   const doneRef = useRef<boolean>(false);
+  const isMobile = useIsMobile();
+  const fs = (vh: number, vw: number) => `min(${vh * (isMobile ? 1 : 0.8)}vh, ${vw}vw)`;
 
   const DONE = full ? T_FULL.DONE : T_SHORT.DONE;
 
