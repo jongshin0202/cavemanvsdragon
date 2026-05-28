@@ -224,6 +224,8 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
   const showAnotherDragon = t >= T.ANOTHER_DRAGON_START && t < T.ANOTHER_DRAGON_END;
   const showSadText = t >= T.SAD_TEXT_APPEAR && t < T.CAVEMAN_EXIT_END;
   const showSaveLine = t >= T.BLANK1_END && t < T.SAVE_LINE_END;
+  const showThanks = t >= T.CAVEMAN_WALK_END && t < T.CONGRATS_END;
+
 
   const cavemanBg: React.CSSProperties = {
     backgroundImage: `url(${cavemanWalkUrl})`,
