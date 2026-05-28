@@ -55,6 +55,14 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
 
   const DONE = full ? T_FULL.DONE : T_SHORT.DONE;
 
+  // Preload scared princess sprite so it doesn't flash blank on first use.
+  useEffect(() => {
+    if (!full) return;
+    const img = new Image();
+    img.src = princessScaredUrl;
+  }, [full]);
+
+
   useEffect(() => {
     let raf = 0;
     const tick = (now: number) => {
@@ -228,10 +236,13 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
   const showThanks = t >= T.CAVEMAN_WALK_END && t < T.CONGRATS_END;
 
 
+  const showCongrats = t < T.CONGRATS_END;
+
   const cavemanBg: React.CSSProperties = {
     backgroundImage: `url(${cavemanWalkUrl})`,
     backgroundSize: `${WALK_FRAMES * 100}% 100%`,
     backgroundPosition: `${(walkFrame / (WALK_FRAMES - 1)) * 100}% 0%`,
+
     backgroundRepeat: 'no-repeat',
     imageRendering: 'pixelated',
   };
@@ -265,10 +276,25 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
               backgroundRepeat: 'no-repeat',
               imageRendering: 'pixelated',
               transform: princessHeldByDragon ? 'scaleX(-1) rotate(8deg)' : 'scaleX(-1)',
-              transition: 'transform 0.2s',
             }}
           />
         )}
+
+        {showCongrats && (
+          <div
+            className="absolute left-1/2 -translate-x-1/2 text-center font-caveman"
+            style={{
+              top: '5%', width: '94%',
+              color: 'hsl(var(--accent))',
+              fontSize: 'min(6vh, 3.2vw)',
+              textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
+              lineHeight: 1.2,
+            }}
+          >
+            CONGRATULATIONS! YOU SAVED THE PRINCESS!
+          </div>
+        )}
+
 
         {showThanks && (
           <div
