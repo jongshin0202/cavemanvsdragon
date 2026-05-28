@@ -1718,6 +1718,8 @@ function tickPlayer(s: L4State, input: L4Input) {
       if (p.x + p.w < plat.x1 || p.x > plat.x2) continue;
       const py = platY(plat, p.x + p.w / 2);
       const wasAbove = (p.y + p.h - p.vy) <= py + 1;
+      // Skip platform if a volcano-rock hole opens under the player's feet.
+      if (isHoleAtL4Platform(s, i, p.x + p.w / 2)) continue;
       if (wasAbove && p.y + p.h >= py && p.y + p.h <= py + 14 && p.vy >= 0) {
         p.y = py - p.h;
         p.vy = 0;
