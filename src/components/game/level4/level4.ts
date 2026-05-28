@@ -2185,6 +2185,16 @@ function drawSprout(ctx: CanvasRenderingContext2D, sp: Sprout) {
     ctx.fillRect(lx + 3, y - 2, 2, 2);
     ctx.fillRect(lx + 9, y + 1, 2, 2);
   }
+  // L2-style sparkle droplets while actively growing.
+  if (sp.phase === 'growing' && sp.growProgress < 1) {
+    const t = (typeof performance !== 'undefined' ? performance.now() : Date.now()) * 0.06;
+    for (let i = 0; i < 5; i++) {
+      const dx = sp.x + Math.cos(t * 0.18 + i * 1.3) * 7;
+      const dy = top - 4 + ((t * 0.6 + i * 5) % 18);
+      ctx.fillStyle = ['#4FC3F7', '#B3E5FC', '#81D4FA', '#FFFFFF', '#4FC3F7'][i];
+      ctx.fillRect(dx, dy, 2, 2);
+    }
+  }
 }
 
 function drawCan(ctx: CanvasRenderingContext2D, sprites: L4Sprites, c: Can) {
