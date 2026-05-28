@@ -567,7 +567,7 @@ const CavemanVsDragonGame = () => {
 
   const resetGame = useCallback(() => {
     const g = gameRef.current;
-    g.score = 0; g.lives = 3; g.round = 1;
+    g.score = 0; g.lives = 3; g.lastLifeMilestone = 0; g.round = 1;
     setScore(0); setLives(3);
     setGameState('playing');
     justSubmittedLocalDateRef.current = null;
