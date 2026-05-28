@@ -220,12 +220,14 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
   }
 
   let pX = princessX, pY = princessY;
-  let showPrincess = t < T.DRAGON_REACH || princessHeldByDragon;
+  const princessHandoffMs = 220;
+  const showStandingPrincess = t < T.DRAGON_REACH + princessHandoffMs;
+  const showHeldPrincess = princessHeldByDragon && t < T.CARRY_END;
+  const showPrincess = showStandingPrincess || showHeldPrincess;
   if (princessHeldByDragon) {
     pX = dragonX + dragonW / 2 - princessW / 2;
     pY = dragonY + dragonH - 24;
   }
-  if (t >= T.CARRY_END) showPrincess = false;
 
   const walkFrame = cavemanWalking ? Math.floor(t / 120) % WALK_FRAMES : 0;
   const dragonFrame = Math.floor(t / 100) % DRAGON_FRAMES;
@@ -301,7 +303,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
 
         {/* HELP! bubble to the LEFT of the princess's mouth while carried.
             0.5s after grab → show 1s → hide 0.5s → repeat until off-screen. */}
-        {showPrincess && princessHeldByDragon && (() => {
+        {showHeldPrincess && (() => {
           const since = t - T.DRAGON_REACH;
           if (since < 500) return null;
           if ((since - 500) % 1500 >= 1000) return null;
@@ -357,7 +359,26 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
           <div style={{ position: 'absolute', left: pct(dragonX, 'x'), top: pct(dragonY, 'y'), width: sizePct(dragonW, 'x'), height: sizePct(dragonH, 'y'), zIndex: 4, ...dragonBg }} />
         )}
 
-        {showPrincess && (
+        {showStandingPrincess && (
+          <div
+            style={{
+              position: 'absolute',
+              left: pct(princessX, 'x'),
+              top: pct(princessY, 'y'),
+              width: sizePct(princessW, 'x'),
+              height: sizePct(princessH, 'y'),
+              backgroundImage: `url(${princessSpriteUrl})`,
+              backgroundSize: '500% 100%',
+              backgroundPosition: '0% 0%',
+              backgroundRepeat: 'no-repeat',
+              imageRendering: 'pixelated',
+              transform: 'scaleX(-1)',
+              zIndex: 2,
+            }}
+          />
+        )}
+
+        {showHeldPrincess && (
           <div
             style={{
               position: 'absolute',
@@ -365,12 +386,12 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
               top: pct(pY, 'y'),
               width: sizePct(princessW, 'x'),
               height: sizePct(princessH, 'y'),
-              backgroundImage: `url(${princessHeldByDragon ? princessScaredUrl : princessSpriteUrl})`,
-              backgroundSize: princessHeldByDragon ? '100% 100%' : '500% 100%',
+              backgroundImage: `url(${princessScaredUrl})`,
+              backgroundSize: '100% 100%',
               backgroundPosition: '0% 0%',
               backgroundRepeat: 'no-repeat',
               imageRendering: 'pixelated',
-              transform: princessHeldByDragon ? 'scaleX(-1) rotate(8deg)' : 'scaleX(-1)',
+              transform: 'scaleX(-1) rotate(8deg)',
               zIndex: 3,
             }}
           />
