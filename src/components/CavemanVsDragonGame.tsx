@@ -244,6 +244,8 @@ const CavemanVsDragonGame = () => {
   // this flag once, so we don't race the server commit and overwrite the
   // freshly-inserted row with a stale fetch.
   const justSubmittedSkipProbe = useRef<boolean>(false);
+  const justSubmittedLocalDateRef = useRef<string | null>(null);
+  const justSubmittedGlobalIdRef = useRef<string | null>(null);
   const [nameInput, setNameInput] = useState<string>('');
   const [nameError, setNameError] = useState<string>('');
   const [pendingScore, setPendingScore] = useState(0);
