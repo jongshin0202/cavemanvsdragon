@@ -236,10 +236,13 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
   const showThanks = t >= T.CAVEMAN_WALK_END && t < T.CONGRATS_END;
 
 
+  const showCongrats = t < T.CONGRATS_END;
+
   const cavemanBg: React.CSSProperties = {
     backgroundImage: `url(${cavemanWalkUrl})`,
     backgroundSize: `${WALK_FRAMES * 100}% 100%`,
     backgroundPosition: `${(walkFrame / (WALK_FRAMES - 1)) * 100}% 0%`,
+
     backgroundRepeat: 'no-repeat',
     imageRendering: 'pixelated',
   };
