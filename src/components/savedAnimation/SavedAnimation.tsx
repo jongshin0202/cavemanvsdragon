@@ -224,6 +224,8 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
   const showAnotherDragon = t >= T.ANOTHER_DRAGON_START && t < T.ANOTHER_DRAGON_END;
   const showSadText = t >= T.SAD_TEXT_APPEAR && t < T.CAVEMAN_EXIT_END;
   const showSaveLine = t >= T.BLANK1_END && t < T.SAVE_LINE_END;
+  const showThanks = t >= T.CAVEMAN_WALK_END && t < T.CONGRATS_END;
+
 
   const cavemanBg: React.CSSProperties = {
     backgroundImage: `url(${cavemanWalkUrl})`,
@@ -266,6 +268,26 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
             }}
           />
         )}
+
+        {showThanks && (
+          <div
+            className="absolute text-center font-caveman"
+            style={{
+              left: pct(princessX + princessW / 2, 'x'),
+              top: pct(princessY - 28, 'y'),
+              transform: 'translateX(-50%)',
+              color: '#000',
+              background: 'rgba(255,255,255,0.92)',
+              padding: '3px 8px',
+              borderRadius: 6,
+              fontSize: 'min(2.8vh, 1.5vw)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Thank you, my hero!
+          </div>
+        )}
+
 
         {/* HELP! text bubble next to princess while she is being carried.
             1s after grab → show 2s → hide 1s → repeat until off-screen. */}

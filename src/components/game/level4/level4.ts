@@ -1887,31 +1887,17 @@ function loseLife(s: L4State) {
 }
 
 // ── Ending ──────────────────────────────────────────────────
+// Caveman touches princess → wait 2 seconds → mark won so the
+// SavedAnimation cinematic plays. No on-canvas overlays.
 function tickEnding(s: L4State) {
   const e = s.ending;
   e.timer++;
-  switch (e.phase) {
-    case 'hug':
-      // "Thank you, my hero!" for 2 seconds
-      if (e.timer >= 120) { e.phase = 'pause'; e.timer = 0; }
-      break;
-    case 'pause':
-      // "But the happiness didn't last long..." for 2 seconds
-      if (e.timer >= 120) { e.phase = 'kidnap'; e.timer = 0; e.newDragonX = -DRAGON_W; }
-      break;
-    case 'kidnap':
-      e.newDragonX += 3;
-      if (e.newDragonX > s.princessX) s.princessX = e.newDragonX + 6;
-      if (e.newDragonX > CANVAS_W + 40) { e.phase = 'follow'; e.timer = 0; }
-      break;
-    case 'follow':
-      s.player.x += 2;
-      if (s.player.x > CANVAS_W + 20) { e.phase = 'done'; if (!s.won) { s.won = true; s.scoreEvents.push('completeLevel4'); } }
-      break;
-    case 'done':
-      break;
+  if (e.phase !== 'done' && e.timer >= 120) {
+    e.phase = 'done';
+    if (!s.won) { s.won = true; s.scoreEvents.push('completeLevel4'); }
   }
 }
+
 
 // ── Render ──────────────────────────────────────────────────
 export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites: L4Sprites) {
@@ -2127,32 +2113,8 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
 
   // (dragon-hits HUD removed)
 
-  // Ending overlay
-  if (s.ending.active) {
-    const e = s.ending;
-    if (e.phase === 'hug') {
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      ctx.fillRect(140, 60, 180, 36);
-      ctx.fillStyle = '#000';
-      ctx.font = '14px sans-serif';
-      ctx.fillText('Thank you, my hero!', 158, 84);
-    } else if (e.phase === 'pause') {
-      ctx.fillStyle = 'rgba(0,0,0,0.85)';
-      ctx.fillRect(60, 60, 340, 36);
-      ctx.fillStyle = '#fff';
-      ctx.font = '13px sans-serif';
-      ctx.fillText("But the happiness didn't last long...", 78, 84);
-    }
-    if (e.phase === 'kidnap') {
-      const img = sprites.dragonAngry;
-      if (img.complete) {
-        const fw = img.width / 5;
-        ctx.drawImage(img, 0, 0, fw, img.height, e.newDragonX, s.princessY - 4, DRAGON_W, DRAGON_H);
-      } else {
-        ctx.fillStyle = '#700'; ctx.fillRect(e.newDragonX, s.princessY, DRAGON_W, DRAGON_H);
-      }
-    }
-  }
+  // Ending overlay removed — SavedAnimation handles all post-win storytelling.
+
 
   ctx.restore();
 }
