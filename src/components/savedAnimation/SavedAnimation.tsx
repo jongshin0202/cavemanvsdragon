@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import cavemanWalkUrl from '@/assets/caveman-walk.png';
 import princessSpriteUrl from '@/assets/princess-sprite.png';
 import princessScaredUrl from '@/assets/princess-scared.png';
