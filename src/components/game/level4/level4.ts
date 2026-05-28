@@ -1551,8 +1551,6 @@ function tickPlayer(s: L4State, input: L4Input) {
       const cx = p.x + p.w / 2;
       if (Math.abs(cx - E_X) < 22) {
         if (s.sproutE.phase === 'seed') { s.sproutE.phase = 'growing'; s.sproutE.growProgress = 0; }
-        s.sproutE.growProgress = Math.min(1, s.sproutE.growProgress + s.eGrowChunk);
-        if (s.sproutE.growProgress >= 1) { s.sproutE.phase = 'alive'; }
         s.carrying = null;
         if (s.dragon.hits < s.diff.hitsToKill) respawnMonkeyWave(s);
       } else {
@@ -1729,8 +1727,6 @@ function tickCans(s: L4State) {
     const cx = p.x + p.w / 2;
     if (Math.abs(cx - E_X) < 22) {
       if (s.sproutE.phase === 'seed') { s.sproutE.phase = 'growing'; s.sproutE.growProgress = 0; }
-      s.sproutE.growProgress = Math.min(1, s.sproutE.growProgress + s.eGrowChunk);
-      if (s.sproutE.growProgress >= 1) s.sproutE.phase = 'alive';
       playWaterSproutSound();
       playVineGrowSound();
       s.scoreEvents.push('waterPurple');
