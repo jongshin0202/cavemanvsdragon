@@ -48,6 +48,9 @@ import team2goLogoUrl from '@/assets/team2go-logo.png';
 import dedicationMobileUrl from '@/assets/dedication-mobile.png';
 import dedicationPcUrl from '@/assets/dedication-pc.png';
 import SavedAnimation from './savedAnimation/SavedAnimation';
+import { Capacitor } from '@capacitor/core';
+
+const isNativeApp = Capacitor.isNativePlatform();
 
 const ROBOT_WALK_FRAMES = 5;
 
