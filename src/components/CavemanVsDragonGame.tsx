@@ -3924,7 +3924,7 @@ const CavemanVsDragonGame = () => {
       {/* Portrait: original bottom controls bar. Controls — only on touch devices (mobile/tablet).
           Hidden during intro/attract screens or when a hardware gamepad is detected. */}
       {controlsVisible && !isLandscape && (
-      <div className="w-full shrink-0 overflow-hidden px-2 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] touch-none">
+      <div className={`w-full shrink-0 overflow-hidden px-2 pt-2 touch-none ${isNativeApp ? 'pb-0 -mt-2' : 'pb-[calc(env(safe-area-inset-bottom)+0.5rem)]'}`}>
         <div className="grid h-[152px] w-full grid-cols-[minmax(0,1fr)_3rem_minmax(7.5rem,38vw)] items-stretch gap-2">
           {dpadEl}
           {rButtonEl}
