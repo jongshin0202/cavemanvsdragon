@@ -3567,8 +3567,79 @@ const CavemanVsDragonGame = () => {
     onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
   });
 
+  const controlsVisible = isTouchDevice && !gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls');
+  const useLandscapeLayout = controlsVisible && isLandscape;
+
+  const dpadEl = (
+    <div
+      ref={padRef}
+      className="flex h-full min-w-0 touch-none flex-col gap-1"
+      {...padHandlers}
+    >
+      <div
+        data-padkey="ArrowUp"
+        style={{ flexGrow: 0.95, flexBasis: 0, width: '74%', pointerEvents: 'none' }}
+        className={`self-center ${activePadKeys.includes('ArrowUp') ? 'bg-red-500' : 'bg-blue-500'} rounded-lg text-white text-3xl flex items-center justify-center font-bold transition-colors select-none`}
+      >↑</div>
+      <div style={{ flexGrow: 1.1, flexBasis: 0 }} className="w-full flex items-stretch gap-1 min-w-0">
+        <div
+          data-padkey="ArrowLeft"
+          style={{ pointerEvents: 'none' }}
+          className={`flex-1 ${activePadKeys.includes('ArrowLeft') ? 'bg-red-500' : 'bg-blue-500'} rounded-lg text-white text-3xl flex items-center justify-end pr-4 font-bold transition-colors select-none`}
+        >←</div>
+        <div
+          data-padkey="ArrowRight"
+          style={{ pointerEvents: 'none' }}
+          className={`flex-1 ${activePadKeys.includes('ArrowRight') ? 'bg-red-500' : 'bg-blue-500'} rounded-lg text-white text-3xl flex items-center justify-start pl-4 font-bold transition-colors select-none`}
+        >→</div>
+      </div>
+      <div
+        data-padkey="ArrowDown"
+        style={{ flexGrow: 0.95, flexBasis: 0, width: '74%', pointerEvents: 'none' }}
+        className={`self-center ${activePadKeys.includes('ArrowDown') ? 'bg-red-500' : 'bg-blue-500'} rounded-lg text-white text-3xl flex items-center justify-center font-bold transition-colors select-none`}
+      >↓</div>
+    </div>
+  );
+
+  const rButtonEl = (gameState === 'gameover' || gameState === 'leaderboard' || gameState === 'globalLeaderboard') ? (
+    <button
+      className="w-12 h-12 self-center rounded-full bg-accent text-accent-foreground text-sm font-bold active:scale-95 shrink-0"
+      onPointerDown={(e) => {
+        e.preventDefault();
+        ensureVibrateUnlocked();
+        pulseHaptic(45);
+        const consumed = anyInputHandlerRef.current?.('r', 'pad');
+        if (!consumed) resetGame();
+      }}
+      onTouchStart={(e) => {
+        e.preventDefault();
+        ensureVibrateUnlocked();
+        pulseHaptic(45);
+        const consumed = anyInputHandlerRef.current?.('r', 'pad');
+        if (!consumed) resetGame();
+      }}
+    >R</button>
+  ) : (
+    <div className="w-12 h-12 self-center shrink-0" aria-hidden="true" />
+  );
+
+  const jumpButtonEl = (
+    <button
+      className="h-full w-full min-w-0 rounded-full bg-primary text-primary-foreground text-2xl font-bold active:scale-95"
+      {...tapHandlers(' ', 45)}
+    >{jumpLabel}</button>
+  );
+
   return (
-    <div className="flex h-[100dvh] min-h-[100dvh] w-full flex-col overflow-hidden select-none bg-background">
+    <div className={`flex h-[100dvh] min-h-[100dvh] w-full overflow-hidden select-none bg-background ${useLandscapeLayout ? 'flex-row' : 'flex-col'}`}>
+      {/* Landscape: D-pad on left */}
+      {useLandscapeLayout && (
+        <div className="h-full shrink-0 py-2 pl-[calc(env(safe-area-inset-left)+0.5rem)] pr-2 touch-none flex items-center">
+          <div className="h-[min(80vh,260px)] w-[min(40vw,200px)]">{dpadEl}</div>
+        </div>
+      )}
+
+
       {/* Game area — fills all remaining space above controls */}
       <div className="relative flex min-h-0 w-full flex-1 items-center justify-center bg-black">
         <canvas
