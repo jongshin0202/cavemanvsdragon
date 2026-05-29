@@ -244,11 +244,14 @@ const CavemanVsDragonGame = () => {
   // D-pad moves to the left of the canvas and JUMP/R move to the right.
   const [isLandscape, setIsLandscape] = useState<boolean>(false);
   useEffect(() => {
-    const mql = window.matchMedia('(orientation: landscape)');
-    const update = () => setIsLandscape(mql.matches);
+    const update = () => setIsLandscape(window.innerWidth > window.innerHeight);
     update();
-    mql.addEventListener('change', update);
-    return () => mql.removeEventListener('change', update);
+    window.addEventListener('resize', update);
+    window.addEventListener('orientationchange', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('orientationchange', update);
+    };
   }, []);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const keysRef = useRef<Set<string>>(new Set());
