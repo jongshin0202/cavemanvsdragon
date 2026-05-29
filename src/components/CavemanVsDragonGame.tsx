@@ -3410,7 +3410,7 @@ const CavemanVsDragonGame = () => {
         send('ArrowRight', right);
         send(' ', jump);
         send('r', start, true);
-        if (up || down || left || right || jump || start) markGamepadActive();
+        markGamepadActive();
         break; // first connected gamepad wins
       }
       if (!anyConnected) {
