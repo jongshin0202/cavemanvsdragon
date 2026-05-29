@@ -237,6 +237,16 @@ const CavemanVsDragonGame = () => {
     mql.addEventListener('change', update);
     return () => mql.removeEventListener('change', update);
   }, []);
+  // Landscape orientation — on touch devices, when held horizontally, the
+  // D-pad moves to the left of the canvas and JUMP/R move to the right.
+  const [isLandscape, setIsLandscape] = useState<boolean>(false);
+  useEffect(() => {
+    const mql = window.matchMedia('(orientation: landscape)');
+    const update = () => setIsLandscape(mql.matches);
+    update();
+    mql.addEventListener('change', update);
+    return () => mql.removeEventListener('change', update);
+  }, []);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const keysRef = useRef<Set<string>>(new Set());
   const [score, setScore] = useState(0);
