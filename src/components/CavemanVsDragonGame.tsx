@@ -3410,7 +3410,7 @@ const CavemanVsDragonGame = () => {
         send('ArrowRight', right);
         send(' ', jump);
         send('r', start, true);
-        if (up || down || left || right || jump || start) markGamepadActive();
+        markGamepadActive();
         break; // first connected gamepad wins
       }
       if (!anyConnected) {
@@ -3570,7 +3570,7 @@ const CavemanVsDragonGame = () => {
     onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
   });
 
-  const controlsVisible = isTouchDevice && !gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls');
+  const controlsVisible = isTouchDevice && !(gamepadActive && isLandscape) && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls');
   const useLandscapeLayout = controlsVisible && isLandscape;
 
   const dpadEl = (
