@@ -3570,7 +3570,7 @@ const CavemanVsDragonGame = () => {
     onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
   });
 
-  const controlsVisible = isTouchDevice && !gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls');
+  const controlsVisible = isTouchDevice && !(gamepadActive && isLandscape) && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls');
   const useLandscapeLayout = controlsVisible && isLandscape;
 
   const dpadEl = (
