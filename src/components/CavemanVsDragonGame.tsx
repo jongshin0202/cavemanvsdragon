@@ -48,6 +48,9 @@ import team2goLogoUrl from '@/assets/team2go-logo.png';
 import dedicationMobileUrl from '@/assets/dedication-mobile.png';
 import dedicationPcUrl from '@/assets/dedication-pc.png';
 import SavedAnimation from './savedAnimation/SavedAnimation';
+import { Capacitor } from '@capacitor/core';
+
+const isNativeApp = Capacitor.isNativePlatform();
 
 const ROBOT_WALK_FRAMES = 5;
 
@@ -3642,11 +3645,24 @@ const CavemanVsDragonGame = () => {
 
       {/* Game area — fills all remaining space above controls */}
       <div className="relative flex min-h-0 w-full flex-1 items-center justify-center bg-black">
+        {/* Title shown in the black space above the canvas (portrait/extra vertical room).
+            Hidden by overlays (intro/attract/etc.) which paint over with z-20. */}
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 z-0 flex justify-center pt-2 font-caveman"
+          style={{
+            fontSize: 'clamp(1rem, 4.5vw, 2rem)',
+            color: 'hsl(var(--accent))',
+            textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
+            letterSpacing: '0.06em',
+          }}
+        >
+          Caveman Vs Dragon
+        </div>
         <canvas
           ref={canvasRef}
           width={CANVAS_W}
           height={CANVAS_H}
-          className="block border-b-2 border-primary max-h-full max-w-full h-auto w-auto"
+          className="block max-h-full max-w-full h-auto w-auto"
           style={{
             imageRendering: 'pixelated',
             aspectRatio: `${CANVAS_W} / ${CANVAS_H}`,
@@ -3908,7 +3924,7 @@ const CavemanVsDragonGame = () => {
       {/* Portrait: original bottom controls bar. Controls — only on touch devices (mobile/tablet).
           Hidden during intro/attract screens or when a hardware gamepad is detected. */}
       {controlsVisible && !isLandscape && (
-      <div className="w-full shrink-0 overflow-hidden px-2 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] touch-none">
+      <div className={`w-full shrink-0 overflow-hidden px-2 pt-2 touch-none ${isNativeApp ? 'pb-0 -mt-2' : 'pb-[calc(env(safe-area-inset-bottom)+0.5rem)]'}`}>
         <div className="grid h-[152px] w-full grid-cols-[minmax(0,1fr)_3rem_minmax(7.5rem,38vw)] items-stretch gap-2">
           {dpadEl}
           {rButtonEl}
