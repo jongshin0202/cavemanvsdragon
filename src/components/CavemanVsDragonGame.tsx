@@ -2348,7 +2348,7 @@ const CavemanVsDragonGame = () => {
             r.vy = 0;
             r.onGround = true;
             r.climbing = false;
-            if ((r as any).wanderDir === undefined) (r as any).wanderDir = r.direction || 1;
+            if ((r as any).wanderDir === undefined) commitMonkeyDirection(r, r.direction || 1);
             r.direction = (r as any).wanderDir;
             r.vx = r.direction * r.speed;
             r.x += r.vx;
@@ -2516,7 +2516,6 @@ const CavemanVsDragonGame = () => {
               if (Math.abs(dx) > 0.5) {
                 r.x += Math.max(-maxStep, Math.min(maxStep, dx));
                 r.direction = dx > 0 ? 1 : -1;
-                r.wanderDir = r.direction;
                 r.vx = r.direction * r.speed;
               } else {
                 r.x = ladderX;
@@ -2625,9 +2624,7 @@ const CavemanVsDragonGame = () => {
           // the walking animation always matches actual displacement.
           if ((r as any)._stillFrames > 4) {
             const recoverDir = ((r as any).wanderDir || r.direction || 1) * -1;
-            (r as any).wanderDir = recoverDir;
-            r.direction = recoverDir;
-            (r as any).wanderTimer = 20 + Math.floor(Math.random() * 30);
+            commitMonkeyDirection(r, recoverDir);
             if (r.climbing) {
               r.vy = recoverDir * Math.max(r.speed, 0.6);
               r.y += r.vy;
@@ -2649,9 +2646,7 @@ const CavemanVsDragonGame = () => {
             const net = Math.abs(r.x - anchor.x) + Math.abs(r.y - anchor.y);
             if (net < 6 && !r.climbing) {
               const inward = (r.x + r.w / 2) > CANVAS_W / 2 ? -1 : 1;
-              (r as any).wanderDir = inward;
-              r.direction = inward;
-              (r as any).wanderTimer = 40 + Math.floor(Math.random() * 30);
+              commitMonkeyDirection(r, inward);
               r.vx = inward * Math.max(r.speed, 0.8);
               r.x = Math.max(0, Math.min(CANVAS_W - r.w, r.x + inward * 4));
             }
