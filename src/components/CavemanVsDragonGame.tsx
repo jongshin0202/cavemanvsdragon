@@ -2428,13 +2428,15 @@ const CavemanVsDragonGame = () => {
           } else {
             // Wander timer: pick a new random direction occasionally,
             // biased toward player so movement is gradual + natural.
-            if (r.wanderTimer === undefined) r.wanderTimer = 0;
-            if (r.wanderDir === undefined) r.wanderDir = r.direction || 1;
-            r.wanderTimer--;
+            if (r.wanderDir === undefined) commitMonkeyDirection(r, r.direction || 1);
+            r.wanderTimer = (r.wanderTimer ?? 0) - 1;
+            (r as any)._dirLockFrames = Math.max(0, ((r as any)._dirLockFrames ?? 0) - 1);
+            (r as any)._currentDirectionRun = ((r as any)._currentDirectionRun ?? 0) + 1;
+            const canPickNewDirection = (r as any)._dirLockFrames <= 0;
             // L3 SS monkey: actively seek a grown sprout vine near the player,
             // then climb down into the sprout / moving-platform section.
             const isSsSeek = isLevel3Round(g.round) && (r as any)._ssL3 && rPlatIdx === 4;
-            if (isSsSeek && r.wanderTimer <= 0) {
+            if (isSsSeek && r.wanderTimer <= 0 && canPickNewDirection) {
               const playerOnSproutPlatform = playerFeetY <= PLATFORMS[4].y + 24;
               // If player is on platform 4 on the OPPOSITE side of the hole,
               // monkey can't cross the hole — head toward nearest screen edge
@@ -2448,8 +2450,7 @@ const CavemanVsDragonGame = () => {
               );
               if (crossHole) {
                 // Walk toward the closer screen edge → wrap to player's side.
-                r.wanderDir = monkeyOnLeft ? -1 : 1;
-                r.wanderTimer = 40 + Math.floor(Math.random() * 40);
+                commitMonkeyDirection(r, monkeyOnLeft ? -1 : 1, randomMonkeyMoveFrames((r as any)._lastDirectionRun));
               } else {
                 const targetLi = playerOnSproutPlatform ? -1 : findSproutSectionVineTargetRandom(g.round, rCenterX, playerCenterX, true);
                 if (targetLi >= 0) {
