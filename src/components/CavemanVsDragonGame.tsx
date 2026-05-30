@@ -2642,6 +2642,27 @@ const CavemanVsDragonGame = () => {
             (r as any)._stillFrames = 0;
           }
 
+          // Oscillation guard: if net displacement over the last ~30 frames is
+          // tiny, the monkey is trapped (e.g. bouncing between a wall and an
+          // edge). Force it to walk inward toward open canvas.
+          const anchor = (r as any)._anchor as { x: number; y: number; t: number } | undefined;
+          const now = (r as any)._anchorTick = ((r as any)._anchorTick ?? 0) + 1;
+          if (!anchor) {
+            (r as any)._anchor = { x: r.x, y: r.y, t: now };
+          } else if (now - anchor.t >= 30) {
+            const net = Math.abs(r.x - anchor.x) + Math.abs(r.y - anchor.y);
+            if (net < 6 && !r.climbing) {
+              const inward = (r.x + r.w / 2) > CANVAS_W / 2 ? -1 : 1;
+              (r as any).wanderDir = inward;
+              r.direction = inward;
+              (r as any).wanderTimer = 40 + Math.floor(Math.random() * 30);
+              r.vx = inward * Math.max(r.speed, 0.8);
+              r.x = Math.max(0, Math.min(CANVAS_W - r.w, r.x + inward * 4));
+            }
+            (r as any)._anchor = { x: r.x, y: r.y, t: now };
+          }
+
+
           // Stricter fall cull for L3 — any monkey that passes the bottom row
           // without finding ground is removed (prevents stuck-off-screen).
           if (isLevel3Round(g.round) && r.y > 460 && !r.onGround && !r.climbing) {
