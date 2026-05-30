@@ -206,6 +206,26 @@ function randomCooldownFrames(): number {
   return Math.round(min + Math.random() * (max - min));
 }
 
+function getJumpableAppleY(target: { x: number; y: number; w: number; h: number }): number {
+  const centerX = target.x + target.w / 2;
+  const feetY = target.y + target.h;
+  let bestSurfaceY = Infinity;
+
+  for (const mp of getMovingPlatforms()) {
+    if (centerX >= mp.x - 4 && centerX <= mp.x + mp.w + 4 && mp.y >= feetY - 8) {
+      bestSurfaceY = Math.min(bestSurfaceY, mp.y);
+    }
+  }
+  for (const plat of PLATFORMS) {
+    if (centerX < plat.x1 - 4 || centerX > plat.x2 + 4) continue;
+    const py = getPlatformY(plat, centerX);
+    if (py >= feetY - 8) bestSurfaceY = Math.min(bestSurfaceY, py);
+  }
+
+  const surfaceY = Number.isFinite(bestSurfaceY) ? bestSurfaceY : feetY;
+  return surfaceY - 19;
+}
+
 export function getJacketAt(s: L2State, idx: number): 'green' | 'purple' | null {
   const arr: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
   return arr[idx] ?? null;
