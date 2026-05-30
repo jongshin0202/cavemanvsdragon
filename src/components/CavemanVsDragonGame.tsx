@@ -3648,19 +3648,21 @@ const CavemanVsDragonGame = () => {
 
       {/* Game area — fills all remaining space above controls */}
       <div className="relative flex min-h-0 w-full flex-1 items-center justify-center bg-black">
-        {/* Title shown in the black space above the canvas (portrait/extra vertical room).
+        {/* Title shown only in the native APK build (black space above the canvas).
             Hidden by overlays (intro/attract/etc.) which paint over with z-20. */}
-        <div
-          className="pointer-events-none absolute inset-x-0 top-0 z-0 flex justify-center pt-2 font-caveman"
-          style={{
-            fontSize: 'clamp(1rem, 4.5vw, 2rem)',
-            color: 'hsl(var(--accent))',
-            textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
-            letterSpacing: '0.06em',
-          }}
-        >
-          Caveman Vs Dragon
-        </div>
+        {isNativeApp && (
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 z-0 flex justify-center pt-2 font-caveman"
+            style={{
+              fontSize: 'clamp(1rem, 4.5vw, 2rem)',
+              color: 'hsl(var(--accent))',
+              textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
+              letterSpacing: '0.06em',
+            }}
+          >
+            Caveman Vs Dragon
+          </div>
+        )}
         <canvas
           ref={canvasRef}
           width={CANVAS_W}
