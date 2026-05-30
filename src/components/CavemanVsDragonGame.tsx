@@ -2455,27 +2455,25 @@ const CavemanVsDragonGame = () => {
                 const targetLi = playerOnSproutPlatform ? -1 : findSproutSectionVineTargetRandom(g.round, rCenterX, playerCenterX, true);
                 if (targetLi >= 0) {
                   const targetX = LADDERS[targetLi].x + 7;
-                  r.wanderDir = targetX > rCenterX ? 1 : -1;
-                  r.wanderTimer = 30 + Math.floor(Math.random() * 30);
+                  commitMonkeyDirection(r, targetX > rCenterX ? 1 : -1, randomMonkeyMoveFrames((r as any)._lastDirectionRun));
                 } else {
                   const fallbackLi = playerOnSproutPlatform ? -1 : findSproutSectionVineTargetRandom(g.round, rCenterX, playerCenterX, false);
                   if (fallbackLi >= 0) {
                     const targetX = LADDERS[fallbackLi].x + 7;
-                    r.wanderDir = targetX > rCenterX ? 1 : -1;
-                    r.wanderTimer = 30 + Math.floor(Math.random() * 30);
+                    commitMonkeyDirection(r, targetX > rCenterX ? 1 : -1, randomMonkeyMoveFrames((r as any)._lastDirectionRun));
                   } else {
-                    r.wanderTimer = 30 + Math.floor(Math.random() * 60);
                     // Add random jitter so movement doesn't look patterned.
                     const toward = playerCenterX >= rCenterX ? 1 : -1;
-                    r.wanderDir = Math.random() < 0.75 ? toward : -toward;
+                    commitMonkeyDirection(r, Math.random() < 0.75 ? toward : -toward, randomMonkeyMoveFrames((r as any)._lastDirectionRun));
                   }
                 }
               }
-            } else if (!isSsSeek && r.wanderTimer <= 0) {
-              r.wanderTimer = 30 + Math.floor(Math.random() * 60); // 0.7-2s at 45fps
+            } else if (!isSsSeek && r.wanderTimer <= 0 && canPickNewDirection) {
               const towardPlayer = playerCenterX >= rCenterX ? 1 : -1;
               // 70% bias toward player, 30% random — never stop
-              r.wanderDir = Math.random() < 0.7 ? towardPlayer : (Math.random() < 0.5 ? 1 : -1);
+              commitMonkeyDirection(r, Math.random() < 0.7 ? towardPlayer : (Math.random() < 0.5 ? 1 : -1));
+            } else if (r.wanderTimer <= 0) {
+              r.wanderTimer = Math.max(1, (r as any)._dirLockFrames ?? MIN_MONKEY_DIRECTION_FRAMES);
             }
 
 
