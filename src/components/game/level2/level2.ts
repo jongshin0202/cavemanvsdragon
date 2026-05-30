@@ -360,7 +360,7 @@ export function tickApples(
     const heightTier: 'middle' = 'middle';
     const aw = 7;
     const ah = 7;
-    const ay = (r.y + r.h) - 19; // bottom = platY - 12 (jumpable)
+    let ay = (r.y + r.h) - 19; // bottom = platY - 12 (jumpable)
     // SS (sprout-section, L3) apples travel purely horizontally — no up/down arc.
     // Iter 1 baseline = 20% of normal apple speed; +10% per L3 iter from there.
     let appleVx = dir * diff.appleSpeed;
@@ -371,6 +371,7 @@ export function tickApples(
       if (l3iter === 1) mul *= 1.3 * 1.3 * 1.5 * 1.5;
       const ssSpeed = LEVEL2_PARAMS.APPLE_SPEED * mul;
       appleVx = dir * ssSpeed;
+      if (target) ay = getJumpableAppleY(target);
     }
     s.apples.push({
       x: ax, y: ay, w: aw, h: ah,
