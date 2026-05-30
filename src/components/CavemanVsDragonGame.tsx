@@ -197,6 +197,22 @@ const randomMonkeyMoveFrames = (previous?: number): number => {
   }
   return next;
 };
+const commitMonkeyDirection = (
+  r: Robot & { wanderTimer?: number; wanderDir?: number },
+  dir: number,
+  frames?: number,
+): void => {
+  const nextDir = dir >= 0 ? 1 : -1;
+  const runFrames = frames ?? randomMonkeyMoveFrames((r as any)._lastDirectionRun);
+  if (r.wanderDir !== undefined && r.wanderDir !== nextDir) {
+    (r as any)._lastDirectionRun = (r as any)._currentDirectionRun ?? 0;
+    (r as any)._currentDirectionRun = 0;
+  }
+  r.wanderDir = nextDir;
+  r.direction = nextDir;
+  r.wanderTimer = runFrames;
+  (r as any)._dirLockFrames = Math.max(MIN_MONKEY_DIRECTION_FRAMES, runFrames);
+};
 
 type GameState =
   | 'intro'
