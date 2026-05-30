@@ -184,72 +184,9 @@ const getRequiredItemZones = (s: L2State): { x: number; y: number; w: number; h:
   return zones;
 };
 
-const keepMonkeyAwayFromRequiredItems = (r: Robot & { wanderDir?: number }, s: L2State): void => {
-  const rcx = r.x + r.w / 2;
-  const rFeet = r.y + r.h;
-  // Collect every required item that's currently pushing this monkey.
-  // We aggregate so a monkey sandwiched between items on both sides doesn't
-  // oscillate (left-push + right-push net to zero → 2-step stutter).
-  let leftPush = 0;   // items to the LEFT of monkey want to push it RIGHT
-  let rightPush = 0;  // items to the RIGHT of monkey want to push it LEFT
-  let nearestLeftDist = Infinity;
-  let nearestRightDist = Infinity;
-  let anyVertical = false;
-  let verticalDir = 0;
-  for (const item of getRequiredItemZones(s)) {
-    const icx = item.x + item.w / 2;
-    const iFeet = item.y + item.h;
-    const sameLevel = Math.abs(rFeet - iFeet) < 24;
-    const tooClose = sameLevel && Math.abs(rcx - icx) < REQUIRED_ITEM_CLEARANCE;
-    const overlapping = rectsOverlap(r, {
-      x: item.x - 12,
-      y: item.y - 18,
-      w: item.w + 24,
-      h: item.h + 28,
-    });
-    if (!tooClose && !overlapping) continue;
-
-    if (icx < rcx) {
-      leftPush++;
-      nearestLeftDist = Math.min(nearestLeftDist, rcx - icx);
-    } else {
-      rightPush++;
-      nearestRightDist = Math.min(nearestRightDist, icx - rcx);
-    }
-    if (r.climbing) {
-      anyVertical = true;
-      verticalDir = rFeet <= iFeet ? -1 : 1;
-    }
-  }
-
-  if (leftPush === 0 && rightPush === 0) return;
-
-  // Sandwiched: pick the side with the farther item so the monkey escapes
-  // toward whichever direction gives it more room, and give it a real shove
-  // so it clears the clearance zone instead of stuttering at the boundary.
-  let dir: number;
-  let shove: number;
-  if (leftPush > 0 && rightPush > 0) {
-    dir = nearestLeftDist >= nearestRightDist ? -1 : 1;
-    shove = Math.max(r.speed, 1.2) * 2; // strong escape
-  } else if (leftPush > 0) {
-    dir = 1;
-    shove = Math.max(r.speed, 0.45);
-  } else {
-    dir = -1;
-    shove = Math.max(r.speed, 0.45);
-  }
-
-  r.wanderDir = dir;
-  r.direction = dir;
-  (r as any).wanderTimer = Math.max((r as any).wanderTimer ?? 0, 40);
-  if (r.climbing && anyVertical) {
-    r.vy = verticalDir * Math.max(r.speed, 0.45);
-    r.y += r.vy;
-  } else {
-    r.vx = dir * shove;
-    r.x = Math.max(0, Math.min(CANVAS_W - r.w, r.x + r.vx));
-  }
+const keepMonkeyAwayFromRequiredItems = (_r: Robot & { wanderDir?: number }, _s: L2State): void => {
+  // Monkeys pass freely through rocks, watering cans, and sprouts/seeds
+  // (no collision/avoidance). Intentionally a no-op.
 };
 
 type GameState =
