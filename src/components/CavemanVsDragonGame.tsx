@@ -244,8 +244,17 @@ const CavemanVsDragonGame = () => {
   // Landscape orientation — on touch devices, when held horizontally, the
   // D-pad moves to the left of the canvas and JUMP/R move to the right.
   const [isLandscape, setIsLandscape] = useState<boolean>(false);
+  // Tablet detection — touch devices whose shorter side is ≥ 600 CSS px are
+  // treated as tablets. On the native APK build these get a 4:3 game area
+  // and NO on-screen controls (they typically have keyboards/gamepads or
+  // enough screen to play with touch directly on the canvas).
+  const [isTablet, setIsTablet] = useState<boolean>(false);
   useEffect(() => {
-    const update = () => setIsLandscape(window.innerWidth > window.innerHeight);
+    const update = () => {
+      setIsLandscape(window.innerWidth > window.innerHeight);
+      const shortSide = Math.min(window.innerWidth, window.innerHeight);
+      setIsTablet(shortSide >= 600);
+    };
     update();
     window.addEventListener('resize', update);
     window.addEventListener('orientationchange', update);
@@ -3587,7 +3596,8 @@ const CavemanVsDragonGame = () => {
     onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
   });
 
-  const controlsVisible = isTouchDevice && !(gamepadActive && isLandscape) && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls');
+  // On the native APK, tablets play without on-screen controls. Phones keep them.
+  const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !(gamepadActive && isLandscape) && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls');
   const useLandscapeLayout = controlsVisible && isLandscape;
 
   const dpadEl = (
@@ -3662,34 +3672,38 @@ const CavemanVsDragonGame = () => {
 
       {/* Game area — fills all remaining space above controls */}
       <div className="relative flex min-h-0 w-full flex-1 items-center justify-center bg-black">
-        {/* Title shown only in the native APK build (black space above the canvas).
-            Hidden by overlays (intro/attract/etc.) which paint over with z-20. */}
-        {isNativeApp && (
-          <div
-            className="pointer-events-none absolute inset-x-0 top-0 z-0 flex justify-center pt-2 font-caveman"
+        {/* On native APK, constrain the game area to the device's natural
+            aspect (16:9 phones, 4:3 tablets) so the canvas fills the screen
+            instead of leaving large black bars. In the browser the canvas
+            sizes naturally from its 512x480 backing store. */}
+        <div
+          className="relative flex h-full w-full items-center justify-center"
+          style={
+            isNativeApp
+              ? {
+                  aspectRatio: isLandscape
+                    ? (isTablet ? '4 / 3' : '16 / 9')
+                    : (isTablet ? '3 / 4' : '9 / 16'),
+                  maxHeight: '100%',
+                  maxWidth: '100%',
+                }
+              : undefined
+          }
+        >
+          <canvas
+            ref={canvasRef}
+            width={CANVAS_W}
+            height={CANVAS_H}
+            className="block max-h-full max-w-full h-auto w-auto"
             style={{
-              fontSize: 'clamp(1rem, 4.5vw, 2rem)',
-              color: 'hsl(var(--accent))',
-              textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
-              letterSpacing: '0.06em',
+              imageRendering: 'pixelated',
+              aspectRatio: `${CANVAS_W} / ${CANVAS_H}`,
+              height: '100%',
+              width: 'auto',
             }}
-          >
-            Caveman Vs Dragon
-          </div>
-        )}
-        <canvas
-          ref={canvasRef}
-          width={CANVAS_W}
-          height={CANVAS_H}
-          className="block max-h-full max-w-full h-auto w-auto"
-          style={{
-            imageRendering: 'pixelated',
-            aspectRatio: `${CANVAS_W} / ${CANVAS_H}`,
-            height: '100%',
-            width: 'auto',
-          }}
-          tabIndex={0}
-        />
+            tabIndex={0}
+          />
+        </div>
 
         {/* Hidden text input — surfaces the OS soft keyboard during name entry.
             Always mounted so focus() called inside a user-gesture handler can
