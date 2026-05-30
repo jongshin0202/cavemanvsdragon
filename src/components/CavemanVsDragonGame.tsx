@@ -3596,7 +3596,8 @@ const CavemanVsDragonGame = () => {
     onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
   });
 
-  const controlsVisible = isTouchDevice && !(gamepadActive && isLandscape) && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls');
+  // On the native APK, tablets play without on-screen controls. Phones keep them.
+  const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !(gamepadActive && isLandscape) && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls');
   const useLandscapeLayout = controlsVisible && isLandscape;
 
   const dpadEl = (
