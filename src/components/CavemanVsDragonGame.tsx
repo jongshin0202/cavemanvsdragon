@@ -244,8 +244,17 @@ const CavemanVsDragonGame = () => {
   // Landscape orientation — on touch devices, when held horizontally, the
   // D-pad moves to the left of the canvas and JUMP/R move to the right.
   const [isLandscape, setIsLandscape] = useState<boolean>(false);
+  // Tablet detection — touch devices whose shorter side is ≥ 600 CSS px are
+  // treated as tablets. On the native APK build these get a 4:3 game area
+  // and NO on-screen controls (they typically have keyboards/gamepads or
+  // enough screen to play with touch directly on the canvas).
+  const [isTablet, setIsTablet] = useState<boolean>(false);
   useEffect(() => {
-    const update = () => setIsLandscape(window.innerWidth > window.innerHeight);
+    const update = () => {
+      setIsLandscape(window.innerWidth > window.innerHeight);
+      const shortSide = Math.min(window.innerWidth, window.innerHeight);
+      setIsTablet(shortSide >= 600);
+    };
     update();
     window.addEventListener('resize', update);
     window.addEventListener('orientationchange', update);
