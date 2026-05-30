@@ -189,6 +189,15 @@ const keepMonkeyAwayFromRequiredItems = (_r: Robot & { wanderDir?: number }, _s:
   // (no collision/avoidance). Intentionally a no-op.
 };
 
+const MIN_MONKEY_DIRECTION_FRAMES = 30;
+const randomMonkeyMoveFrames = (previous?: number): number => {
+  let next = MIN_MONKEY_DIRECTION_FRAMES + Math.floor(Math.random() * 76);
+  if (typeof previous === 'number' && Math.abs(next - previous) < 10) {
+    next += 14 + Math.floor(Math.random() * 23);
+  }
+  return next;
+};
+
 type GameState =
   | 'intro'
   | 'playing'
