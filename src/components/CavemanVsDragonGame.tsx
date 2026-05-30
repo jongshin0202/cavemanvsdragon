@@ -2352,8 +2352,8 @@ const CavemanVsDragonGame = () => {
             r.direction = (r as any).wanderDir;
             r.vx = r.direction * r.speed;
             r.x += r.vx;
-            if (r.x <= minX) { r.x = minX; (r as any).wanderDir = 1; r.direction = 1; }
-            else if (r.x >= maxX) { r.x = maxX; (r as any).wanderDir = -1; r.direction = -1; }
+            if (r.x <= minX) { r.x = minX; commitMonkeyDirection(r, 1); }
+            else if (r.x >= maxX) { r.x = maxX; commitMonkeyDirection(r, -1); }
             (r as any)._lastMpX = mpsRide.x;
           } else if (r.climbing) {
             r.vx = 0;
@@ -2404,9 +2404,7 @@ const CavemanVsDragonGame = () => {
                   r.climbing = false;
                   r.targetLadder = null;
                   r.onGround = true;
-                  r.wanderDir = playerCenterX >= (r.x + r.w / 2) ? 1 : -1;
-                  r.direction = r.wanderDir;
-                  r.wanderTimer = 0;
+                  commitMonkeyDirection(r, playerCenterX >= (r.x + r.w / 2) ? 1 : -1);
                 } else {
                   r.y = l.yTop - r.h;
                   r.vy = 0; r.climbing = false; r.targetLadder = null;
