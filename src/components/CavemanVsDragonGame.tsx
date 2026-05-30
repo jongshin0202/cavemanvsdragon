@@ -187,6 +187,15 @@ const getRequiredItemZones = (s: L2State): { x: number; y: number; w: number; h:
 const keepMonkeyAwayFromRequiredItems = (r: Robot & { wanderDir?: number }, s: L2State): void => {
   const rcx = r.x + r.w / 2;
   const rFeet = r.y + r.h;
+  // Collect every required item that's currently pushing this monkey.
+  // We aggregate so a monkey sandwiched between items on both sides doesn't
+  // oscillate (left-push + right-push net to zero → 2-step stutter).
+  let leftPush = 0;   // items to the LEFT of monkey want to push it RIGHT
+  let rightPush = 0;  // items to the RIGHT of monkey want to push it LEFT
+  let nearestLeftDist = Infinity;
+  let nearestRightDist = Infinity;
+  let anyVertical = false;
+  let verticalDir = 0;
   for (const item of getRequiredItemZones(s)) {
     const icx = item.x + item.w / 2;
     const iFeet = item.y + item.h;
@@ -200,16 +209,46 @@ const keepMonkeyAwayFromRequiredItems = (r: Robot & { wanderDir?: number }, s: L
     });
     if (!tooClose && !overlapping) continue;
 
-    const dir = rcx <= icx ? -1 : 1;
-    r.wanderDir = dir;
-    r.direction = dir;
-    if (r.climbing) {
-      r.vy = rFeet <= iFeet ? -Math.max(r.speed, 0.45) : Math.max(r.speed, 0.45);
-      r.y += r.vy;
+    if (icx < rcx) {
+      leftPush++;
+      nearestLeftDist = Math.min(nearestLeftDist, rcx - icx);
     } else {
-      r.vx = dir * Math.max(r.speed, 0.45);
-      r.x += r.vx;
+      rightPush++;
+      nearestRightDist = Math.min(nearestRightDist, icx - rcx);
     }
+    if (r.climbing) {
+      anyVertical = true;
+      verticalDir = rFeet <= iFeet ? -1 : 1;
+    }
+  }
+
+  if (leftPush === 0 && rightPush === 0) return;
+
+  // Sandwiched: pick the side with the farther item so the monkey escapes
+  // toward whichever direction gives it more room, and give it a real shove
+  // so it clears the clearance zone instead of stuttering at the boundary.
+  let dir: number;
+  let shove: number;
+  if (leftPush > 0 && rightPush > 0) {
+    dir = nearestLeftDist >= nearestRightDist ? -1 : 1;
+    shove = Math.max(r.speed, 1.2) * 2; // strong escape
+  } else if (leftPush > 0) {
+    dir = 1;
+    shove = Math.max(r.speed, 0.45);
+  } else {
+    dir = -1;
+    shove = Math.max(r.speed, 0.45);
+  }
+
+  r.wanderDir = dir;
+  r.direction = dir;
+  (r as any).wanderTimer = Math.max((r as any).wanderTimer ?? 0, 40);
+  if (r.climbing && anyVertical) {
+    r.vy = verticalDir * Math.max(r.speed, 0.45);
+    r.y += r.vy;
+  } else {
+    r.vx = dir * shove;
+    r.x = Math.max(0, Math.min(CANVAS_W - r.w, r.x + r.vx));
   }
 };
 
