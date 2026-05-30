@@ -2540,12 +2540,10 @@ const CavemanVsDragonGame = () => {
                 const nextCenter = r.x + r.w / 2;
                 if (r.vx > 0 && nextCenter >= SPROUT_DROP_X1 - 4 && nextCenter < SPROUT_DROP_X2) {
                   r.x = SPROUT_DROP_X1 - r.w - 2;
-                  r.wanderDir = isSsCommit ? -1 : -1;
-                  r.direction = -1;
+                  commitMonkeyDirection(r, -1);
                 } else if (r.vx < 0 && nextCenter <= SPROUT_DROP_X2 + 4 && nextCenter > SPROUT_DROP_X1) {
                   r.x = SPROUT_DROP_X2 + 2;
-                  r.wanderDir = isSsCommit ? 1 : 1;
-                  r.direction = 1;
+                  commitMonkeyDirection(r, 1);
                 }
               }
               // L3 MPS monkey edge-bounce: if currently riding a moving
@@ -2561,8 +2559,8 @@ const CavemanVsDragonGame = () => {
                   }
                 }
                 if (curMp) {
-                  if (r.x <= curMp.x + 1) { r.x = curMp.x + 1; r.wanderDir = 1; r.direction = 1; r.vx = r.speed; }
-                  else if (r.x + r.w >= curMp.x + curMp.w - 1) { r.x = curMp.x + curMp.w - r.w - 1; r.wanderDir = -1; r.direction = -1; r.vx = -r.speed; }
+                  if (r.x <= curMp.x + 1) { r.x = curMp.x + 1; commitMonkeyDirection(r, 1); r.vx = r.speed; }
+                  else if (r.x + r.w >= curMp.x + curMp.w - 1) { r.x = curMp.x + curMp.w - r.w - 1; commitMonkeyDirection(r, -1); r.vx = -r.speed; }
                 }
               }
               r.vy += GRAVITY;
@@ -2609,8 +2607,8 @@ const CavemanVsDragonGame = () => {
               // Bounce off walls / platform edges so it keeps moving
               const curPlat = PLATFORMS[rPlatIdx];
               if (!isSsMonkey && curPlat && curPlat.x2 - curPlat.x1 > 0) {
-                if (r.x <= curPlat.x1 + 2) { r.wanderDir = 1; r.direction = 1; r.vx = r.speed; r.x = curPlat.x1 + 2; }
-                else if (r.x + r.w >= curPlat.x2 - 2) { r.wanderDir = -1; r.direction = -1; r.vx = -r.speed; r.x = curPlat.x2 - r.w - 2; }
+                if (r.x <= curPlat.x1 + 2) { commitMonkeyDirection(r, 1); r.vx = r.speed; r.x = curPlat.x1 + 2; }
+                else if (r.x + r.w >= curPlat.x2 - 2) { commitMonkeyDirection(r, -1); r.vx = -r.speed; r.x = curPlat.x2 - r.w - 2; }
               }
               if (!isSsMonkey) r.x = Math.max(0, Math.min(CANVAS_W - r.w, r.x));
             }
