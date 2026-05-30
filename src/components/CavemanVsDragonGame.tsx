@@ -2482,7 +2482,7 @@ const CavemanVsDragonGame = () => {
             // L1 + L2: monkeys NEVER climb ladders/vines — only L3 SS monkeys do.
             let climbChoice: { ladderIdx: number; climbVy: number; score: number } | null = null;
             const continueScore = scoreToPlayer(rCenterX + r.wanderDir * r.speed * 30, rFeetY);
-            const monkeyCanClimb = isLevel3Round(g.round) && !!(r as any)._ssL3;
+            const monkeyCanClimb = isLevel3Round(g.round) && !!(r as any)._ssL3 && ((r as any)._noClimbFrames ?? 0) <= 0;
             for (let li = 0; monkeyCanClimb && li < LADDERS.length; li++) {
               if (!isLevel2Round(g.round) && li === getTopVineIdx() && !g.topVineUnlocked) continue;
               if (!isLadderUsable(g.round, li)) continue;
