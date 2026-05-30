@@ -2405,6 +2405,7 @@ const CavemanVsDragonGame = () => {
                   r.targetLadder = null;
                   r.onGround = true;
                   commitMonkeyDirection(r, playerCenterX >= (r.x + r.w / 2) ? 1 : -1);
+                  (r as any)._noClimbFrames = 45 + Math.floor(Math.random() * 45);
                 } else {
                   r.y = l.yTop - r.h;
                   r.vy = 0; r.climbing = false; r.targetLadder = null;
@@ -2429,6 +2430,7 @@ const CavemanVsDragonGame = () => {
             if (r.wanderDir === undefined) commitMonkeyDirection(r, r.direction || 1);
             r.wanderTimer = (r.wanderTimer ?? 0) - 1;
             (r as any)._dirLockFrames = Math.max(0, ((r as any)._dirLockFrames ?? 0) - 1);
+            (r as any)._noClimbFrames = Math.max(0, ((r as any)._noClimbFrames ?? 0) - 1);
             (r as any)._currentDirectionRun = ((r as any)._currentDirectionRun ?? 0) + 1;
             const canPickNewDirection = (r as any)._dirLockFrames <= 0;
             // L3 SS monkey: actively seek a grown sprout vine near the player,
