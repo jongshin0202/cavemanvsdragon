@@ -206,6 +206,26 @@ function randomCooldownFrames(): number {
   return Math.round(min + Math.random() * (max - min));
 }
 
+function getJumpableAppleY(target: { x: number; y: number; w: number; h: number }): number {
+  const centerX = target.x + target.w / 2;
+  const feetY = target.y + target.h;
+  let bestSurfaceY = Infinity;
+
+  for (const mp of getMovingPlatforms()) {
+    if (centerX >= mp.x - 4 && centerX <= mp.x + mp.w + 4 && mp.y >= feetY - 8) {
+      bestSurfaceY = Math.min(bestSurfaceY, mp.y);
+    }
+  }
+  for (const plat of PLATFORMS) {
+    if (centerX < plat.x1 - 4 || centerX > plat.x2 + 4) continue;
+    const py = getPlatformY(plat, centerX);
+    if (py >= feetY - 8) bestSurfaceY = Math.min(bestSurfaceY, py);
+  }
+
+  const surfaceY = Number.isFinite(bestSurfaceY) ? bestSurfaceY : feetY;
+  return surfaceY - 19;
+}
+
 export function getJacketAt(s: L2State, idx: number): 'green' | 'purple' | null {
   const arr: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
   return arr[idx] ?? null;
@@ -340,7 +360,7 @@ export function tickApples(
     const heightTier: 'middle' = 'middle';
     const aw = 7;
     const ah = 7;
-    const ay = (r.y + r.h) - 19; // bottom = platY - 12 (jumpable)
+    let ay = (r.y + r.h) - 19; // bottom = platY - 12 (jumpable)
     // SS (sprout-section, L3) apples travel purely horizontally — no up/down arc.
     // Iter 1 baseline = 20% of normal apple speed; +10% per L3 iter from there.
     let appleVx = dir * diff.appleSpeed;
@@ -351,6 +371,7 @@ export function tickApples(
       if (l3iter === 1) mul *= 1.3 * 1.3 * 1.5 * 1.5;
       const ssSpeed = LEVEL2_PARAMS.APPLE_SPEED * mul;
       appleVx = dir * ssSpeed;
+      if (target) ay = getJumpableAppleY(target);
     }
     s.apples.push({
       x: ax, y: ay, w: aw, h: ah,
