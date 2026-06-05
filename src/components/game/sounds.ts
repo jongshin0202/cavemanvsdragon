@@ -682,3 +682,49 @@ export function playFireBreathSound() {
   crack.start(t0); crack.stop(t0 + dur);
 }
 
+
+// Cartoon "boink" — a quick rising-then-falling pop when caveman bonks a head.
+export function playBoinkSound() {
+  const ctx = getCtx();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.type = 'sine';
+  const t0 = ctx.currentTime;
+  osc.frequency.setValueAtTime(220, t0);
+  osc.frequency.exponentialRampToValueAtTime(880, t0 + 0.07);
+  osc.frequency.exponentialRampToValueAtTime(180, t0 + 0.22);
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.exponentialRampToValueAtTime(0.28, t0 + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.25);
+  osc.start(t0);
+  osc.stop(t0 + 0.27);
+}
+
+// Wobbly "dizzy" — warbling tone while the dragon is seeing stars.
+export function playDizzySound(durationSec = 2.5) {
+  const ctx = getCtx();
+  const t0 = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const lfo = ctx.createOscillator();
+  const lfoGain = ctx.createGain();
+  const gain = ctx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(520, t0);
+  lfo.type = 'sine';
+  lfo.frequency.setValueAtTime(7, t0);
+  lfoGain.gain.setValueAtTime(180, t0);
+  lfo.connect(lfoGain);
+  lfoGain.connect(osc.frequency);
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.exponentialRampToValueAtTime(0.14, t0 + 0.08);
+  gain.gain.setValueAtTime(0.14, t0 + durationSec - 0.25);
+  gain.gain.exponentialRampToValueAtTime(0.001, t0 + durationSec);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(t0);
+  lfo.start(t0);
+  osc.stop(t0 + durationSec + 0.05);
+  lfo.stop(t0 + durationSec + 0.05);
+}
