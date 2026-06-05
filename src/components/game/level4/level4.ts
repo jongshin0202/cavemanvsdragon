@@ -27,7 +27,7 @@
 
 import { CANVAS_W, CANVAS_H, getRoundDifficulty } from '../constants';
 import { LEVEL4_PARAMS, getLevel4Difficulty, type Level4Difficulty } from './params';
-import { playWingFlapSound, playJumpSound, playRobotKillSound, playHitSound, playBarrelRollSound, playFireBreathSound, playDragonRoarSound, playWaterSproutSound, playVineGrowSound, playKeyGrabSound } from '../sounds';
+import { playWingFlapSound, playJumpSound, playRobotKillSound, playHitSound, playBarrelRollSound, playFireBreathSound, playDragonRoarSound, playWaterSproutSound, playVineGrowSound, playKeyGrabSound, playGenieAppearSound, playBoinkSound, playDizzySound } from '../sounds';
 import type { ScoreAction } from '../scoring';
 
 
@@ -1216,6 +1216,7 @@ function spawnCan(s: L4State, color: 'green' | 'purple') {
   const x = pl.x1 + 14 + Math.random() * Math.max(8, pl.x2 - pl.x1 - 32);
   const can: Can = { x, y: platY(pl, x) - 14, color, picked: false };
   if (color === 'green') s.greenCan = can; else s.purpleCan = can;
+  playGenieAppearSound();
 }
 
 /** Dragon spits a can: it arcs from the dragon's mouth and lands on a
@@ -1242,6 +1243,7 @@ function spawnCanFromDragon(s: L4State, color: 'green' | 'purple') {
     riderOffset: tx - pl.x1,
   };
   if (color === 'green') s.greenCan = can; else s.purpleCan = can;
+  playGenieAppearSound();
 }
 
 function respawnMonkeyWave(s: L4State) {
@@ -1852,6 +1854,9 @@ function tickCollisions(s: L4State) {
       } else {
         d.state = 'downed';
         d.downedTimer = Math.round(3 * 60);
+        // Boink on contact, then a wobbly dizzy tone for the duration of the stun.
+        playBoinkSound();
+        playDizzySound(d.downedTimer / 60);
         // Purple can only spawns on the killing blow — not on intermediate bonks.
         s.scoreEvents.push('bonkDragon');
         // Non-killing bonk: if the green sprout is up, kill it and respawn monkeys.
