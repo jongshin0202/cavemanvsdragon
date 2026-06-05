@@ -517,6 +517,7 @@ function spawnGreenCan(s: L2State): void {
   const p = pickRandomPlatformPos(s);
   s.greenCan = { x: p.x, y: p.y, w: 22, h: 18, color: 'green', collected: false };
   s.greenCanSpawned = true;
+  playGenieAppearSound();
 }
 
 function spawnPurpleCan(s: L2State): void {
@@ -524,6 +525,7 @@ function spawnPurpleCan(s: L2State): void {
   const p = pickRandomPlatformPos(s);
   s.purpleCan = { x: p.x, y: p.y, w: 22, h: 18, color: 'purple', collected: false };
   s.purpleCanSpawned = true;
+  playGenieAppearSound();
 }
 
 /** Player picks up a watering can if standing on it. Returns the color
