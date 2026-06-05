@@ -36,7 +36,7 @@
 
 export const LEVEL2_PARAMS = {
   // ─── TEST / DEBUG ────────────────────────────────────────────
-  TEST_SKIP_TO_LEVEL2: true,
+  TEST_SKIP_TO_LEVEL2: false,
   DOUBLE_TAP_MAX_GAP_MS: 400,
 
   // ─── MONKEYS (baseline; iteration ramp via getLevel2Difficulty) ─
