@@ -27,7 +27,7 @@
 
 import { CANVAS_W, CANVAS_H, getRoundDifficulty } from '../constants';
 import { LEVEL4_PARAMS, getLevel4Difficulty, type Level4Difficulty } from './params';
-import { playWingFlapSound, playJumpSound, playRobotKillSound, playHitSound, playBarrelRollSound, playFireBreathSound, playDragonRoarSound, playWaterSproutSound, playVineGrowSound, playKeyGrabSound, playGenieAppearSound } from '../sounds';
+import { playWingFlapSound, playJumpSound, playRobotKillSound, playHitSound, playBarrelRollSound, playFireBreathSound, playDragonRoarSound, playWaterSproutSound, playVineGrowSound, playKeyGrabSound, playGenieAppearSound, playBoinkSound, playDizzySound } from '../sounds';
 import type { ScoreAction } from '../scoring';
 
 
