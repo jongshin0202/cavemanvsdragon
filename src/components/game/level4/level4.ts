@@ -1243,6 +1243,7 @@ function spawnCanFromDragon(s: L4State, color: 'green' | 'purple') {
     riderOffset: tx - pl.x1,
   };
   if (color === 'green') s.greenCan = can; else s.purpleCan = can;
+  playGenieAppearSound();
 }
 
 function respawnMonkeyWave(s: L4State) {
