@@ -3597,7 +3597,9 @@ const CavemanVsDragonGame = () => {
   });
 
   // On the native APK, tablets play without on-screen controls. Phones keep them.
-  const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !(gamepadActive && isLandscape) && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls');
+  // Hide on-screen controls whenever a hardware gamepad / bluetooth controller
+  // is connected (any orientation), or on tablets in the native APK build.
+  const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls');
   const useLandscapeLayout = controlsVisible && isLandscape;
 
   const dpadEl = (
