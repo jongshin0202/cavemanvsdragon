@@ -244,10 +244,15 @@ export function onMonkeyKilled(s: L2State, idx: number): void {
   const al: boolean[] = (s as any)._hasAppleAlive || [];
   cd.splice(idx, 1);
   al.splice(idx, 1);
-  // Re-key in-flight apples whose owner index shifted, or orphan them.
-  for (const a of s.apples) {
-    if (a.ownerId === idx) a.ownerId = -1;
-    else if (a.ownerId > idx) a.ownerId--;
+  // Remove in-flight apples thrown by the killed monkey — no monkey, no apple.
+  // Re-key remaining apples whose owner index shifted down.
+  for (let i = s.apples.length - 1; i >= 0; i--) {
+    const a = s.apples[i] as any;
+    if (a.ownerId === idx) {
+      s.apples.splice(i, 1);
+    } else if (a.ownerId > idx) {
+      a.ownerId--;
+    }
   }
   // Once the green-kill target is met AND no green-jacket monkeys remain
   // alive, spawn the green watering can on a random platform.
