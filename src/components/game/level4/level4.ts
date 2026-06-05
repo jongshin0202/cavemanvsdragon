@@ -1854,6 +1854,9 @@ function tickCollisions(s: L4State) {
       } else {
         d.state = 'downed';
         d.downedTimer = Math.round(3 * 60);
+        // Boink on contact, then a wobbly dizzy tone for the duration of the stun.
+        playBoinkSound();
+        playDizzySound(d.downedTimer / 60);
         // Purple can only spawns on the killing blow — not on intermediate bonks.
         s.scoreEvents.push('bonkDragon');
         // Non-killing bonk: if the green sprout is up, kill it and respawn monkeys.
