@@ -703,28 +703,33 @@ export function playBoinkSound() {
 }
 
 // Wobbly "dizzy" — warbling tone while the dragon is seeing stars.
+// Cartoon "seeing stars" dizzy — repeated short tweet-tweet bird chirps
+// (classic Looney-Tunes stunned effect), looped for the stun duration.
 export function playDizzySound(durationSec = 2.5) {
   const ctx = getCtx();
   const t0 = ctx.currentTime;
-  const osc = ctx.createOscillator();
-  const lfo = ctx.createOscillator();
-  const lfoGain = ctx.createGain();
-  const gain = ctx.createGain();
-  osc.type = 'triangle';
-  osc.frequency.setValueAtTime(520, t0);
-  lfo.type = 'sine';
-  lfo.frequency.setValueAtTime(7, t0);
-  lfoGain.gain.setValueAtTime(180, t0);
-  lfo.connect(lfoGain);
-  lfoGain.connect(osc.frequency);
-  gain.gain.setValueAtTime(0.0001, t0);
-  gain.gain.exponentialRampToValueAtTime(0.14, t0 + 0.08);
-  gain.gain.setValueAtTime(0.14, t0 + durationSec - 0.25);
-  gain.gain.exponentialRampToValueAtTime(0.001, t0 + durationSec);
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-  osc.start(t0);
-  lfo.start(t0);
-  osc.stop(t0 + durationSec + 0.05);
-  lfo.stop(t0 + durationSec + 0.05);
+  const chirpEvery = 0.28; // spacing between chirps
+  const chirpDur = 0.11;
+  // Alternate two short upward whistles, panned-ish via slight pitch variation.
+  const pattern = [2200, 2600, 1900, 2400, 2100, 2500];
+  let i = 0;
+  for (let t = 0; t < durationSec - chirpDur; t += chirpEvery) {
+    const start = t0 + t;
+    const baseFreq = pattern[i % pattern.length];
+    i++;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(baseFreq, start);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.35, start + chirpDur * 0.55);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.9, start + chirpDur);
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(0.12, start + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + chirpDur);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(start);
+    osc.stop(start + chirpDur + 0.02);
+  }
 }
+
