@@ -3664,6 +3664,14 @@ const CavemanVsDragonGame = () => {
     >{jumpLabel}</button>
   );
 
+  // Landscape (APK only): big red rectangle JUMP button on the right side.
+  const jumpButtonLandscapeEl = (
+    <button
+      className="h-full w-full min-w-0 rounded-2xl bg-red-600 text-white text-3xl font-extrabold tracking-wider active:scale-95 active:bg-red-700 shadow-lg"
+      {...tapHandlers(' ', 45)}
+    >{jumpLabel}</button>
+  );
+
   return (
     <div className={`flex h-[100dvh] min-h-[100dvh] w-full overflow-hidden select-none bg-background ${useLandscapeLayout ? 'flex-row' : 'flex-col'}`}>
       {/* Landscape: D-pad on left */}
