@@ -3600,7 +3600,9 @@ const CavemanVsDragonGame = () => {
   // Hide on-screen controls whenever a hardware gamepad / bluetooth controller
   // is connected (any orientation), or on tablets in the native APK build.
   const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls');
-  const useLandscapeLayout = controlsVisible && isLandscape;
+  // Landscape side-mounted controls are an APK-only layout. In the browser
+  // we always render the portrait bottom bar, regardless of window aspect.
+  const useLandscapeLayout = controlsVisible && isLandscape && isNativeApp;
 
   const dpadEl = (
     <div
