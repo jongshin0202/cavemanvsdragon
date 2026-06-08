@@ -3600,7 +3600,9 @@ const CavemanVsDragonGame = () => {
   // Hide on-screen controls whenever a hardware gamepad / bluetooth controller
   // is connected (any orientation), or on tablets in the native APK build.
   const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls');
-  const useLandscapeLayout = controlsVisible && isLandscape;
+  // Landscape side-mounted controls are an APK-only layout. In the browser
+  // we always render the portrait bottom bar, regardless of window aspect.
+  const useLandscapeLayout = controlsVisible && isLandscape && isNativeApp;
 
   const dpadEl = (
     <div
@@ -3658,6 +3660,14 @@ const CavemanVsDragonGame = () => {
   const jumpButtonEl = (
     <button
       className="h-full w-full min-w-0 rounded-full bg-primary text-primary-foreground text-2xl font-bold active:scale-95"
+      {...tapHandlers(' ', 45)}
+    >{jumpLabel}</button>
+  );
+
+  // Landscape (APK only): big red rectangle JUMP button on the right side.
+  const jumpButtonLandscapeEl = (
+    <button
+      className="h-full w-full min-w-0 rounded-2xl bg-red-600 text-white text-3xl font-extrabold tracking-wider active:scale-95 active:bg-red-700 shadow-lg"
       {...tapHandlers(' ', 45)}
     >{jumpLabel}</button>
   );
@@ -3946,12 +3956,15 @@ const CavemanVsDragonGame = () => {
         )}
       </div>
 
-      {/* Landscape: JUMP + R column on the right of the canvas */}
+      {/* Landscape (APK only): big red JUMP rectangle on the right of the canvas.
+          R button stacks above only when relevant (game over / leaderboard). */}
       {useLandscapeLayout && (
-        <div className="h-full shrink-0 py-2 pr-[calc(env(safe-area-inset-right)+0.5rem)] pl-2 touch-none flex flex-col items-center justify-center gap-3">
-          {rButtonEl}
-          <div className="h-[min(40vh,140px)] w-[min(30vw,140px)]">
-            {jumpButtonEl}
+        <div className="h-full shrink-0 py-2 pr-[calc(env(safe-area-inset-right)+0.5rem)] pl-2 touch-none flex flex-col items-stretch justify-center gap-2 w-[min(36vw,180px)]">
+          {(gameState === 'gameover' || gameState === 'leaderboard' || gameState === 'globalLeaderboard') && (
+            <div className="self-center">{rButtonEl}</div>
+          )}
+          <div className="flex-1 min-h-0">
+            {jumpButtonLandscapeEl}
           </div>
         </div>
       )}
