@@ -364,7 +364,6 @@ export function tickApples(
   hostRobots: { x: number; y: number; w: number; h: number; direction: number }[],
   target?: { x: number; y: number; w: number; h: number },
 ): void {
-  const jackets: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
   const cd: number[] = (s as any)._appleCooldowns || [];
   const alive: boolean[] = (s as any)._hasAppleAlive || [];
   const diff = getLevel2Difficulty(s.round);
