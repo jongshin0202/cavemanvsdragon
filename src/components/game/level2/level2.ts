@@ -53,6 +53,7 @@ export interface L2Sprites {
 const MONKEY_PLAT_INDICES = [1, 2, 3, 4];
 const MONKEY_DRAW_W = 33;
 const MONKEY_DRAW_H = 33;
+const APPLE_THROW_EDGE_MARGIN = 10;
 
 function getMonkeyVisualBounds(r: { x: number; y: number; w: number; h: number }) {
   return {
@@ -67,6 +68,19 @@ function isMonkeyFullyOnScreen(r: { x: number; y: number; w: number; h: number }
   if (!r) return false;
   const b = getMonkeyVisualBounds(r);
   return b.x >= 0 && b.x + b.w <= CANVAS_W && b.y >= 0 && b.y + b.h <= CANVAS_H;
+}
+
+function isValidAppleThrower(
+  s: L2State,
+  r: ({ x: number; y: number; w: number; h: number } & Record<string, any>) | undefined,
+): boolean {
+  if (!r) return false;
+  // Apple throwers must be visibly inside the screen, with extra edge padding
+  // so a projectile can never appear from the left/right border first.
+  const b = getMonkeyVisualBounds(r);
+  return b.x >= APPLE_THROW_EDGE_MARGIN &&
+    b.x + b.w <= CANVAS_W - APPLE_THROW_EDGE_MARGIN &&
+    b.y >= 0 && b.y + b.h <= CANVAS_H;
 }
 
 function removeMonkeyAppleState(s: L2State, idx: number): 'green' | 'purple' | null {
@@ -377,15 +391,13 @@ export function tickApples(
   } else {
   // Throw new apples
   for (let i = 0; i < hostRobots.length; i++) {
-    // L2 iter 1: only colored (jacketed) monkeys throw (handled by applesEnabled=false above).
-    // L2 iter 2+: every monkey throws. L3: every monkey throws.
+    // L2 iter 1: apples are disabled. Later L2/L3 throws require a visible monkey.
     // (applesEnabled gating above already disables all throws on L2 iter 1.)
     if (alive[i]) continue;            // one apple at a time per monkey
     if (cd[i] > 0) { cd[i]--; continue; }
     const r = hostRobots[i];
-    // Never throw from off-screen or partially visible monkeys — the full
-    // monkey hitbox must be visible at the exact spawn frame.
-    if (!isMonkeyFullyOnScreen(r)) continue;
+    // Never throw from off-screen/edge monkeys.
+    if (!isValidAppleThrower(s, r as any)) continue;
 
     const isSs = !!(hostRobots[i] as any)._ssL3;
     const targetCenterX = target ? target.x + target.w / 2 : null;
@@ -409,9 +421,11 @@ export function tickApples(
       if (l3iter === 1) mul *= 1.3 * 1.3 * 1.5 * 1.5;
       const ssSpeed = LEVEL2_PARAMS.APPLE_SPEED * mul;
       appleVx = dir * ssSpeed;
-      if (target) ay = getJumpableAppleY(target);
+      // Keep the apple at the monkey's hand height. Do NOT move it to the
+      // player's platform height — that made apples appear on lower rows with
+      // no monkey there.
     }
-    if (ax < 0 || ax + aw > CANVAS_W) continue;
+    if (ax < APPLE_THROW_EDGE_MARGIN || ax + aw > CANVAS_W - APPLE_THROW_EDGE_MARGIN) continue;
     s.apples.push({
       x: ax, y: ay, w: aw, h: ah,
       vx: appleVx,
@@ -428,7 +442,7 @@ export function tickApples(
     const owner = a.ownerId >= 0 && a.ownerId < hostRobots.length ? hostRobots[a.ownerId] : undefined;
     // No owner currently fully on-screen means no valid thrower; remove it so
     // apples can never appear to come from an empty screen edge/platform.
-    if (!isMonkeyFullyOnScreen(owner)) {
+    if (!isValidAppleThrower(s, owner as any)) {
       if (a.ownerId >= 0 && a.ownerId < alive.length) {
         alive[a.ownerId] = false;
         cd[a.ownerId] = randomCooldownFrames();
@@ -459,9 +473,14 @@ export function appleHitsPlayer(
   s: L2State,
   p: { x: number; y: number; w: number; h: number },
   prevP?: { x: number; y: number; w: number; h: number },
+  hostRobots?: { x: number; y: number; w: number; h: number; direction?: number }[],
 ): number {
   for (let i = 0; i < s.apples.length; i++) {
     const a = s.apples[i] as any;
+    const owner = hostRobots && a.ownerId >= 0 && a.ownerId < hostRobots.length
+      ? hostRobots[a.ownerId]
+      : undefined;
+    if (hostRobots && !isValidAppleThrower(s, owner as any)) continue;
     // Swept AABB along both apple and player travel this frame to prevent
     // tunneling when the player is walking/riding a moving platform.
     const vx = a.vx ?? 0;
@@ -1130,7 +1149,7 @@ export function renderLevel2(
     const owner = hostRobots && a.ownerId >= 0 && a.ownerId < hostRobots.length
       ? hostRobots[a.ownerId]
       : undefined;
-    if (!isMonkeyFullyOnScreen(owner)) continue;
+    if (!isValidAppleThrower(s, owner as any)) continue;
     const cx = a.x + a.w / 2;
     // For HIGH throws the hitbox is a tall streak (so jumping can't clear
     // it), but the player should still SEE a normal apple — drawn at the

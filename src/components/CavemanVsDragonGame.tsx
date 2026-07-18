@@ -1897,7 +1897,7 @@ const CavemanVsDragonGame = () => {
               const prevHitbox = ducked
                 ? { x: applePrevHitbox.x, y: applePrevHitbox.y + Math.floor(applePrevHitbox.h * 0.55), w: applePrevHitbox.w, h: Math.ceil(applePrevHitbox.h * 0.45) }
                 : applePrevHitbox;
-              const hit = appleHitsPlayer(l2Ref.current, hitbox, prevHitbox);
+              const hit = appleHitsPlayer(l2Ref.current, hitbox, prevHitbox, g.robots);
               if (hit >= 0) {
                 g.lives--; setLives(g.lives);
                 g.invulnTimer = 120;
