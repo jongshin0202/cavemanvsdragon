@@ -189,9 +189,13 @@ const keepMonkeyAwayFromRequiredItems = (_r: Robot & { wanderDir?: number }, _s:
   // (no collision/avoidance). Intentionally a no-op.
 };
 
-const MIN_MONKEY_DIRECTION_FRAMES = 30;
+const MIN_MONKEY_DIRECTION_FRAMES = 90;
+// Minimum distance (px) a monkey MUST travel in a chosen direction before it
+// is allowed to reverse (unless it hits a wall/edge). ~3 inches of committed
+// motion — prevents left/right/left/right stuttering in place.
+const MIN_MONKEY_DIRECTION_DISTANCE = 80;
 const randomMonkeyMoveFrames = (previous?: number): number => {
-  let next = MIN_MONKEY_DIRECTION_FRAMES + Math.floor(Math.random() * 76);
+  let next = MIN_MONKEY_DIRECTION_FRAMES + Math.floor(Math.random() * 60);
   if (typeof previous === 'number' && Math.abs(next - previous) < 10) {
     next += 14 + Math.floor(Math.random() * 23);
   }
@@ -212,6 +216,7 @@ const commitMonkeyDirection = (
   r.direction = nextDir;
   r.wanderTimer = runFrames;
   (r as any)._dirLockFrames = Math.max(MIN_MONKEY_DIRECTION_FRAMES, runFrames);
+  (r as any)._dirStartX = r.x;
 };
 
 type GameState =
@@ -2441,7 +2446,10 @@ const CavemanVsDragonGame = () => {
             (r as any)._dirLockFrames = Math.max(0, ((r as any)._dirLockFrames ?? 0) - 1);
             (r as any)._noClimbFrames = Math.max(0, ((r as any)._noClimbFrames ?? 0) - 1);
             (r as any)._currentDirectionRun = ((r as any)._currentDirectionRun ?? 0) + 1;
-            const canPickNewDirection = (r as any)._dirLockFrames <= 0;
+            const startX = (r as any)._dirStartX ?? r.x;
+            const traveled = Math.abs(r.x - startX);
+            const committedByDistance = traveled < MIN_MONKEY_DIRECTION_DISTANCE;
+            const canPickNewDirection = (r as any)._dirLockFrames <= 0 && !committedByDistance;
             // L3 SS monkey: actively seek a grown sprout vine near the player,
             // then climb down into the sprout / moving-platform section.
             const isSsSeek = isLevel3Round(g.round) && (r as any)._ssL3 && rPlatIdx === 4;
@@ -2458,7 +2466,6 @@ const CavemanVsDragonGame = () => {
                 (monkeyOnLeft && playerOnRight) || (monkeyOnRight && playerOnLeft)
               );
               if (crossHole) {
-                // Walk toward the closer screen edge → wrap to player's side.
                 commitMonkeyDirection(r, monkeyOnLeft ? -1 : 1, randomMonkeyMoveFrames((r as any)._lastDirectionRun));
               } else {
                 const targetLi = playerOnSproutPlatform ? -1 : findSproutSectionVineTargetRandom(g.round, rCenterX, playerCenterX, true);
@@ -2471,16 +2478,15 @@ const CavemanVsDragonGame = () => {
                     const targetX = LADDERS[fallbackLi].x + 7;
                     commitMonkeyDirection(r, targetX > rCenterX ? 1 : -1, randomMonkeyMoveFrames((r as any)._lastDirectionRun));
                   } else {
-                    // Add random jitter so movement doesn't look patterned.
-                    const toward = playerCenterX >= rCenterX ? 1 : -1;
-                    commitMonkeyDirection(r, Math.random() < 0.75 ? toward : -toward, randomMonkeyMoveFrames((r as any)._lastDirectionRun));
+                    // Always chase player — no random reversal that stalls motion.
+                    commitMonkeyDirection(r, playerCenterX >= rCenterX ? 1 : -1, randomMonkeyMoveFrames((r as any)._lastDirectionRun));
                   }
                 }
               }
             } else if (!isSsSeek && r.wanderTimer <= 0 && canPickNewDirection) {
+              // Always commit toward the player for a full min-distance run.
               const towardPlayer = playerCenterX >= rCenterX ? 1 : -1;
-              // 70% bias toward player, 30% random — never stop
-              commitMonkeyDirection(r, Math.random() < 0.7 ? towardPlayer : (Math.random() < 0.5 ? 1 : -1));
+              commitMonkeyDirection(r, towardPlayer);
             } else if (r.wanderTimer <= 0) {
               r.wanderTimer = Math.max(1, (r as any)._dirLockFrames ?? MIN_MONKEY_DIRECTION_FRAMES);
             }
@@ -2634,21 +2640,22 @@ const CavemanVsDragonGame = () => {
           // even a few frames, force a direction flip and apply movement now so
           // the walking animation always matches actual displacement.
           if ((r as any)._stillFrames > 4) {
-            const recoverDir = ((r as any).wanderDir || r.direction || 1) * -1;
-            commitMonkeyDirection(r, recoverDir);
+            const rCX = r.x + r.w / 2;
+            const towardPlayer = (p.x + p.w / 2) >= rCX ? 1 : -1;
+            commitMonkeyDirection(r, towardPlayer);
             if (r.climbing) {
-              r.vy = recoverDir * Math.max(r.speed, 0.6);
+              r.vy = towardPlayer * Math.max(r.speed, 0.6);
               r.y += r.vy;
             } else {
-              r.vx = recoverDir * Math.max(r.speed, 0.6);
+              r.vx = towardPlayer * Math.max(r.speed, 0.6);
               r.x = Math.max(0, Math.min(CANVAS_W - r.w, r.x + r.vx));
             }
             (r as any)._stillFrames = 0;
           }
 
           // Oscillation guard: if net displacement over the last ~30 frames is
-          // tiny, the monkey is trapped (e.g. bouncing between a wall and an
-          // edge). Force it to walk inward toward open canvas.
+          // tiny, force a shove toward the player so the monkey commits to a
+          // real direction of travel.
           const anchor = (r as any)._anchor as { x: number; y: number; t: number } | undefined;
           const now = (r as any)._anchorTick = ((r as any)._anchorTick ?? 0) + 1;
           if (!anchor) {
@@ -2656,10 +2663,10 @@ const CavemanVsDragonGame = () => {
           } else if (now - anchor.t >= 30) {
             const net = Math.abs(r.x - anchor.x) + Math.abs(r.y - anchor.y);
             if (net < 6 && !r.climbing) {
-              const inward = (r.x + r.w / 2) > CANVAS_W / 2 ? -1 : 1;
-              commitMonkeyDirection(r, inward);
-              r.vx = inward * Math.max(r.speed, 0.8);
-              r.x = Math.max(0, Math.min(CANVAS_W - r.w, r.x + inward * 4));
+              const towardPlayer = (p.x + p.w / 2) >= (r.x + r.w / 2) ? 1 : -1;
+              commitMonkeyDirection(r, towardPlayer);
+              r.vx = towardPlayer * Math.max(r.speed, 0.8);
+              r.x = Math.max(0, Math.min(CANVAS_W - r.w, r.x + towardPlayer * 4));
             }
             (r as any)._anchor = { x: r.x, y: r.y, t: now };
           }
