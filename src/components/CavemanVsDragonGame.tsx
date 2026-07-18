@@ -2446,7 +2446,10 @@ const CavemanVsDragonGame = () => {
             (r as any)._dirLockFrames = Math.max(0, ((r as any)._dirLockFrames ?? 0) - 1);
             (r as any)._noClimbFrames = Math.max(0, ((r as any)._noClimbFrames ?? 0) - 1);
             (r as any)._currentDirectionRun = ((r as any)._currentDirectionRun ?? 0) + 1;
-            const canPickNewDirection = (r as any)._dirLockFrames <= 0;
+            const startX = (r as any)._dirStartX ?? r.x;
+            const traveled = Math.abs(r.x - startX);
+            const committedByDistance = traveled < MIN_MONKEY_DIRECTION_DISTANCE;
+            const canPickNewDirection = (r as any)._dirLockFrames <= 0 && !committedByDistance;
             // L3 SS monkey: actively seek a grown sprout vine near the player,
             // then climb down into the sprout / moving-platform section.
             const isSsSeek = isLevel3Round(g.round) && (r as any)._ssL3 && rPlatIdx === 4;
@@ -2463,7 +2466,6 @@ const CavemanVsDragonGame = () => {
                 (monkeyOnLeft && playerOnRight) || (monkeyOnRight && playerOnLeft)
               );
               if (crossHole) {
-                // Walk toward the closer screen edge → wrap to player's side.
                 commitMonkeyDirection(r, monkeyOnLeft ? -1 : 1, randomMonkeyMoveFrames((r as any)._lastDirectionRun));
               } else {
                 const targetLi = playerOnSproutPlatform ? -1 : findSproutSectionVineTargetRandom(g.round, rCenterX, playerCenterX, true);
@@ -2476,16 +2478,15 @@ const CavemanVsDragonGame = () => {
                     const targetX = LADDERS[fallbackLi].x + 7;
                     commitMonkeyDirection(r, targetX > rCenterX ? 1 : -1, randomMonkeyMoveFrames((r as any)._lastDirectionRun));
                   } else {
-                    // Add random jitter so movement doesn't look patterned.
-                    const toward = playerCenterX >= rCenterX ? 1 : -1;
-                    commitMonkeyDirection(r, Math.random() < 0.75 ? toward : -toward, randomMonkeyMoveFrames((r as any)._lastDirectionRun));
+                    // Always chase player — no random reversal that stalls motion.
+                    commitMonkeyDirection(r, playerCenterX >= rCenterX ? 1 : -1, randomMonkeyMoveFrames((r as any)._lastDirectionRun));
                   }
                 }
               }
             } else if (!isSsSeek && r.wanderTimer <= 0 && canPickNewDirection) {
+              // Always commit toward the player for a full min-distance run.
               const towardPlayer = playerCenterX >= rCenterX ? 1 : -1;
-              // 70% bias toward player, 30% random — never stop
-              commitMonkeyDirection(r, Math.random() < 0.7 ? towardPlayer : (Math.random() < 0.5 ? 1 : -1));
+              commitMonkeyDirection(r, towardPlayer);
             } else if (r.wanderTimer <= 0) {
               r.wanderTimer = Math.max(1, (r as any)._dirLockFrames ?? MIN_MONKEY_DIRECTION_FRAMES);
             }
