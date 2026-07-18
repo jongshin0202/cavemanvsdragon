@@ -51,6 +51,44 @@ export interface L2Sprites {
 }
 
 const MONKEY_PLAT_INDICES = [1, 2, 3, 4];
+const MONKEY_DRAW_W = 33;
+const MONKEY_DRAW_H = 33;
+
+function getMonkeyVisualBounds(r: { x: number; y: number; w: number; h: number }) {
+  return {
+    x: r.x + r.w / 2 - MONKEY_DRAW_W / 2,
+    y: r.y + r.h - MONKEY_DRAW_H,
+    w: MONKEY_DRAW_W,
+    h: MONKEY_DRAW_H,
+  };
+}
+
+function isMonkeyFullyOnScreen(r: { x: number; y: number; w: number; h: number } | undefined): boolean {
+  if (!r) return false;
+  const b = getMonkeyVisualBounds(r);
+  return b.x >= 0 && b.x + b.w <= CANVAS_W && b.y >= 0 && b.y + b.h <= CANVAS_H;
+}
+
+function removeMonkeyAppleState(s: L2State, idx: number): 'green' | 'purple' | null {
+  const arr: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
+  const jacket = arr[idx] ?? null;
+  arr.splice(idx, 1);
+  const cd: number[] = (s as any)._appleCooldowns || [];
+  const al: boolean[] = (s as any)._hasAppleAlive || [];
+  cd.splice(idx, 1);
+  al.splice(idx, 1);
+  // Remove in-flight apples thrown by this monkey and re-key remaining apples
+  // so an apple can never survive under a different visible monkey's index.
+  for (let i = s.apples.length - 1; i >= 0; i--) {
+    const a = s.apples[i] as any;
+    if (a.ownerId === idx) {
+      s.apples.splice(i, 1);
+    } else if (a.ownerId > idx) {
+      a.ownerId--;
+    }
+  }
+  return jacket;
+}
 
 /** Re-initialize for a new L2 round. `round` here is the L2 ITERATION number
  *  (1, 2, 3, …) — host computes via getLevelIteration() before calling. */
@@ -239,21 +277,7 @@ export function onMonkeyKilled(s: L2State, idx: number): void {
   const jacket = arr[idx];
   if (jacket === 'green') s.greenJacketsKilled++;
   else if (jacket === 'purple') s.purpleJacketsKilled++;
-  arr.splice(idx, 1);
-  const cd: number[] = (s as any)._appleCooldowns || [];
-  const al: boolean[] = (s as any)._hasAppleAlive || [];
-  cd.splice(idx, 1);
-  al.splice(idx, 1);
-  // Remove in-flight apples thrown by the killed monkey — no monkey, no apple.
-  // Re-key remaining apples whose owner index shifted down.
-  for (let i = s.apples.length - 1; i >= 0; i--) {
-    const a = s.apples[i] as any;
-    if (a.ownerId === idx) {
-      s.apples.splice(i, 1);
-    } else if (a.ownerId > idx) {
-      a.ownerId--;
-    }
-  }
+  removeMonkeyAppleState(s, idx);
   // Once the green-kill target is met AND no green-jacket monkeys remain
   // alive, spawn the green watering can on a random platform.
   const diff = getLevel2Difficulty(s.round);
@@ -263,6 +287,11 @@ export function onMonkeyKilled(s: L2State, idx: number): void {
       greensAlive === 0) {
     spawnGreenCan(s);
   }
+}
+
+/** Called when a monkey leaves the playable area without being killed. */
+export function removeMonkeyWithoutKill(s: L2State, idx: number): void {
+  removeMonkeyAppleState(s, idx);
 }
 
 /** Returns the jacket color a newly-spawned monkey should wear given
@@ -335,11 +364,6 @@ export function tickApples(
   hostRobots: { x: number; y: number; w: number; h: number; direction: number }[],
   target?: { x: number; y: number; w: number; h: number },
 ): void {
-  const isMonkeyFullyOnScreen = (r: { x: number; y: number; w: number; h: number } | undefined): boolean => {
-    if (!r) return false;
-    return r.x >= 0 && r.x + r.w <= CANVAS_W && r.y >= 0 && r.y + r.h <= CANVAS_H;
-  };
-  const jackets: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
   const cd: number[] = (s as any)._appleCooldowns || [];
   const alive: boolean[] = (s as any)._hasAppleAlive || [];
   const diff = getLevel2Difficulty(s.round);
@@ -387,6 +411,7 @@ export function tickApples(
       appleVx = dir * ssSpeed;
       if (target) ay = getJumpableAppleY(target);
     }
+    if (ax < 0 || ax + aw > CANVAS_W) continue;
     s.apples.push({
       x: ax, y: ay, w: aw, h: ah,
       vx: appleVx,
@@ -1102,6 +1127,10 @@ export function renderLevel2(
 
   // ── Apples thrown by colored monkeys
   for (const a of s.apples as any[]) {
+    const owner = hostRobots && a.ownerId >= 0 && a.ownerId < hostRobots.length
+      ? hostRobots[a.ownerId]
+      : undefined;
+    if (!isMonkeyFullyOnScreen(owner)) continue;
     const cx = a.x + a.w / 2;
     // For HIGH throws the hitbox is a tall streak (so jumping can't clear
     // it), but the player should still SEE a normal apple — drawn at the
