@@ -393,7 +393,7 @@ export function tickApples(
   // Throw new apples
   for (let i = 0; i < hostRobots.length; i++) {
     // L2 iter 1: only colored (jacketed) monkeys throw (handled by applesEnabled=false above).
-    // L2 iter 2+: every monkey throws. L3: every monkey throws.
+    // L2 iter 2+: every monkey throws. L3: ONLY sprout-section monkeys throw.
     // (applesEnabled gating above already disables all throws on L2 iter 1.)
     if (alive[i]) continue;            // one apple at a time per monkey
     if (cd[i] > 0) { cd[i]--; continue; }
