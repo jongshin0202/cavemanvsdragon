@@ -1127,6 +1127,10 @@ export function renderLevel2(
 
   // ── Apples thrown by colored monkeys
   for (const a of s.apples as any[]) {
+    const owner = hostRobots && a.ownerId >= 0 && a.ownerId < hostRobots.length
+      ? hostRobots[a.ownerId]
+      : undefined;
+    if (!isMonkeyFullyOnScreen(owner)) continue;
     const cx = a.x + a.w / 2;
     // For HIGH throws the hitbox is a tall streak (so jumping can't clear
     // it), but the player should still SEE a normal apple — drawn at the
