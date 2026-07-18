@@ -75,9 +75,8 @@ function isValidAppleThrower(
   r: ({ x: number; y: number; w: number; h: number } & Record<string, any>) | undefined,
 ): boolean {
   if (!r) return false;
-  // Level 3 apples are ONLY thrown by sprout-section monkeys. Moving-platform
-  // monkeys must never create apples from the lower platform rows.
-  if (!!(s as any)._isL3 && !r._ssL3) return false;
+  // Apple throwers must be visibly inside the screen, with extra edge padding
+  // so a projectile can never appear from the left/right border first.
   const b = getMonkeyVisualBounds(r);
   return b.x >= APPLE_THROW_EDGE_MARGIN &&
     b.x + b.w <= CANVAS_W - APPLE_THROW_EDGE_MARGIN &&
@@ -398,8 +397,7 @@ export function tickApples(
     if (alive[i]) continue;            // one apple at a time per monkey
     if (cd[i] > 0) { cd[i]--; continue; }
     const r = hostRobots[i];
-    // Never throw from off-screen/edge monkeys. In Level 3 this also rejects
-    // moving-platform monkeys, so apples cannot originate from lower rows.
+    // Never throw from off-screen/edge monkeys.
     if (!isValidAppleThrower(s, r as any)) continue;
 
     const isSs = !!(hostRobots[i] as any)._ssL3;
@@ -424,7 +422,9 @@ export function tickApples(
       if (l3iter === 1) mul *= 1.3 * 1.3 * 1.5 * 1.5;
       const ssSpeed = LEVEL2_PARAMS.APPLE_SPEED * mul;
       appleVx = dir * ssSpeed;
-      if (target) ay = getJumpableAppleY(target);
+      // Keep the apple at the monkey's hand height. Do NOT move it to the
+      // player's platform height — that made apples appear on lower rows with
+      // no monkey there.
     }
     if (ax < APPLE_THROW_EDGE_MARGIN || ax + aw > CANVAS_W - APPLE_THROW_EDGE_MARGIN) continue;
     s.apples.push({
