@@ -355,6 +355,9 @@ export function tickApples(
     if (alive[i]) continue;            // one apple at a time per monkey
     if (cd[i] > 0) { cd[i]--; continue; }
     const r = hostRobots[i];
+    // Never throw from off-screen — monkey must be fully on-screen first.
+    if (r.x + r.w <= 0 || r.x >= CANVAS_W) continue;
+
     const isSs = !!(hostRobots[i] as any)._ssL3;
     const targetCenterX = target ? target.x + target.w / 2 : null;
     const dir = isSs && targetCenterX !== null
