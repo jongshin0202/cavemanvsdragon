@@ -174,6 +174,30 @@ const findMonkeyRidePlatform = (r: MpsRobot): MovingPlatformRide | null => {
   return best;
 };
 
+const MPS_MONKEY_CLIMB_REACH_Y = 44;
+const findMpsMonkeyClimbTarget = (
+  round: number,
+  rCenterX: number,
+  rFeetY: number,
+  playerCenterX: number,
+): number => {
+  let bestIdx = -1;
+  let bestScore = Infinity;
+  for (let li = 0; li < LADDERS.length; li++) {
+    if (li === GREEN_TOP_LADDER_IDX || li === PURPLE_TOP_LADDER_IDX) continue;
+    if (!isLadderUsable(round, li)) continue;
+    const l = LADDERS[li];
+    const visibleBot = getVisibleSproutBottomY(li);
+    if (rFeetY < visibleBot - 6) continue;
+    const yGap = Math.abs(rFeetY - visibleBot);
+    if (yGap > MPS_MONKEY_CLIMB_REACH_Y) continue;
+    const ladderCenterX = l.x + 7;
+    const score = yGap * 2 + Math.abs(ladderCenterX - rCenterX) * 0.75 + Math.abs(ladderCenterX - playerCenterX);
+    if (score < bestScore) { bestScore = score; bestIdx = li; }
+  }
+  return bestIdx;
+};
+
 const REQUIRED_ITEM_CLEARANCE = 38;
 
 const getRequiredItemZones = (s: L2State): { x: number; y: number; w: number; h: number }[] => {
