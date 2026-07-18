@@ -2640,21 +2640,22 @@ const CavemanVsDragonGame = () => {
           // even a few frames, force a direction flip and apply movement now so
           // the walking animation always matches actual displacement.
           if ((r as any)._stillFrames > 4) {
-            const recoverDir = ((r as any).wanderDir || r.direction || 1) * -1;
-            commitMonkeyDirection(r, recoverDir);
+            const rCX = r.x + r.w / 2;
+            const towardPlayer = (p.x + p.w / 2) >= rCX ? 1 : -1;
+            commitMonkeyDirection(r, towardPlayer);
             if (r.climbing) {
-              r.vy = recoverDir * Math.max(r.speed, 0.6);
+              r.vy = towardPlayer * Math.max(r.speed, 0.6);
               r.y += r.vy;
             } else {
-              r.vx = recoverDir * Math.max(r.speed, 0.6);
+              r.vx = towardPlayer * Math.max(r.speed, 0.6);
               r.x = Math.max(0, Math.min(CANVAS_W - r.w, r.x + r.vx));
             }
             (r as any)._stillFrames = 0;
           }
 
           // Oscillation guard: if net displacement over the last ~30 frames is
-          // tiny, the monkey is trapped (e.g. bouncing between a wall and an
-          // edge). Force it to walk inward toward open canvas.
+          // tiny, force a shove toward the player so the monkey commits to a
+          // real direction of travel.
           const anchor = (r as any)._anchor as { x: number; y: number; t: number } | undefined;
           const now = (r as any)._anchorTick = ((r as any)._anchorTick ?? 0) + 1;
           if (!anchor) {
@@ -2662,10 +2663,10 @@ const CavemanVsDragonGame = () => {
           } else if (now - anchor.t >= 30) {
             const net = Math.abs(r.x - anchor.x) + Math.abs(r.y - anchor.y);
             if (net < 6 && !r.climbing) {
-              const inward = (r.x + r.w / 2) > CANVAS_W / 2 ? -1 : 1;
-              commitMonkeyDirection(r, inward);
-              r.vx = inward * Math.max(r.speed, 0.8);
-              r.x = Math.max(0, Math.min(CANVAS_W - r.w, r.x + inward * 4));
+              const towardPlayer = (p.x + p.w / 2) >= (r.x + r.w / 2) ? 1 : -1;
+              commitMonkeyDirection(r, towardPlayer);
+              r.vx = towardPlayer * Math.max(r.speed, 0.8);
+              r.x = Math.max(0, Math.min(CANVAS_W - r.w, r.x + towardPlayer * 4));
             }
             (r as any)._anchor = { x: r.x, y: r.y, t: now };
           }
