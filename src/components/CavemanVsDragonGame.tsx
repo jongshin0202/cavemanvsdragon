@@ -189,9 +189,13 @@ const keepMonkeyAwayFromRequiredItems = (_r: Robot & { wanderDir?: number }, _s:
   // (no collision/avoidance). Intentionally a no-op.
 };
 
-const MIN_MONKEY_DIRECTION_FRAMES = 30;
+const MIN_MONKEY_DIRECTION_FRAMES = 90;
+// Minimum distance (px) a monkey MUST travel in a chosen direction before it
+// is allowed to reverse (unless it hits a wall/edge). ~3 inches of committed
+// motion — prevents left/right/left/right stuttering in place.
+const MIN_MONKEY_DIRECTION_DISTANCE = 80;
 const randomMonkeyMoveFrames = (previous?: number): number => {
-  let next = MIN_MONKEY_DIRECTION_FRAMES + Math.floor(Math.random() * 76);
+  let next = MIN_MONKEY_DIRECTION_FRAMES + Math.floor(Math.random() * 60);
   if (typeof previous === 'number' && Math.abs(next - previous) < 10) {
     next += 14 + Math.floor(Math.random() * 23);
   }
@@ -212,6 +216,7 @@ const commitMonkeyDirection = (
   r.direction = nextDir;
   r.wanderTimer = runFrames;
   (r as any)._dirLockFrames = Math.max(MIN_MONKEY_DIRECTION_FRAMES, runFrames);
+  (r as any)._dirStartX = r.x;
 };
 
 type GameState =
