@@ -174,6 +174,30 @@ const findMonkeyRidePlatform = (r: MpsRobot): MovingPlatformRide | null => {
   return best;
 };
 
+const MPS_MONKEY_CLIMB_REACH_Y = 44;
+const findMpsMonkeyClimbTarget = (
+  round: number,
+  rCenterX: number,
+  rFeetY: number,
+  playerCenterX: number,
+): number => {
+  let bestIdx = -1;
+  let bestScore = Infinity;
+  for (let li = 0; li < LADDERS.length; li++) {
+    if (li === GREEN_TOP_LADDER_IDX || li === PURPLE_TOP_LADDER_IDX) continue;
+    if (!isLadderUsable(round, li)) continue;
+    const l = LADDERS[li];
+    const visibleBot = getVisibleSproutBottomY(li);
+    if (rFeetY < visibleBot - 6) continue;
+    const yGap = Math.abs(rFeetY - visibleBot);
+    if (yGap > MPS_MONKEY_CLIMB_REACH_Y) continue;
+    const ladderCenterX = l.x + 7;
+    const score = yGap * 2 + Math.abs(ladderCenterX - rCenterX) * 0.75 + Math.abs(ladderCenterX - playerCenterX);
+    if (score < bestScore) { bestScore = score; bestIdx = li; }
+  }
+  return bestIdx;
+};
+
 const REQUIRED_ITEM_CLEARANCE = 38;
 
 const getRequiredItemZones = (s: L2State): { x: number; y: number; w: number; h: number }[] => {
@@ -2348,7 +2372,7 @@ const CavemanVsDragonGame = () => {
 
           // L3 MPS monkey: locked to its assigned moving platform — never falls off,
           // wanders left/right within the MP's bounds and is carried with it.
-          const mpsRide = isLevel3Round(g.round) && (r as any)._mpsL3
+          const mpsRide = isLevel3Round(g.round) && (r as any)._mpsL3 && !(r as any)._leftMps && !r.climbing
             ? findMonkeyRidePlatform(r as MpsRobot)
             : null;
           if (mpsRide) {
@@ -2361,6 +2385,32 @@ const CavemanVsDragonGame = () => {
             r.y = mpsRide.y - r.h;
             r.vy = 0;
             r.onGround = true;
+            const shouldClimbTowardPlayer = playerFeetY < r.y + r.h - 24 && ((r as any)._noClimbFrames ?? 0) <= 0;
+            const climbTarget = shouldClimbTowardPlayer
+              ? findMpsMonkeyClimbTarget(g.round, r.x + r.w / 2, r.y + r.h, playerCenterX)
+              : -1;
+            if (climbTarget >= 0) {
+              const ladderX = LADDERS[climbTarget].x + (16 - r.w) / 2;
+              const dx = ladderX - r.x;
+              const step = Math.max(r.speed, 0.7);
+              r.direction = dx >= 0 ? 1 : -1;
+              r.vx = r.direction * r.speed;
+              if (Math.abs(dx) <= step + 0.5) {
+                r.x = ladderX;
+                r.vx = 0;
+                r.vy = -Math.max(r.speed, 0.7);
+                r.climbing = true;
+                r.targetLadder = climbTarget;
+                r.onGround = false;
+                (r as any)._leftMps = true;
+                (r as any)._rideMp = undefined;
+                (r as any)._lastMpX = undefined;
+              } else {
+                r.x += Math.max(-step, Math.min(step, dx));
+              }
+              (r as any)._lastMpX = mpsRide.x;
+              continue;
+            }
             r.climbing = false;
             if ((r as any).wanderDir === undefined) commitMonkeyDirection(r, r.direction || 1);
             r.direction = (r as any).wanderDir;
