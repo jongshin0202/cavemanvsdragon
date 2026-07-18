@@ -335,6 +335,10 @@ export function tickApples(
   hostRobots: { x: number; y: number; w: number; h: number; direction: number }[],
   target?: { x: number; y: number; w: number; h: number },
 ): void {
+  const isMonkeyFullyOnScreen = (r: { x: number; y: number; w: number; h: number } | undefined): boolean => {
+    if (!r) return false;
+    return r.x >= 0 && r.x + r.w <= CANVAS_W && r.y >= 0 && r.y + r.h <= CANVAS_H;
+  };
   const jackets: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
   const cd: number[] = (s as any)._appleCooldowns || [];
   const alive: boolean[] = (s as any)._hasAppleAlive || [];
@@ -355,8 +359,9 @@ export function tickApples(
     if (alive[i]) continue;            // one apple at a time per monkey
     if (cd[i] > 0) { cd[i]--; continue; }
     const r = hostRobots[i];
-    // Never throw from off-screen — monkey must be fully on-screen first.
-    if (r.x + r.w <= 0 || r.x >= CANVAS_W) continue;
+    // Never throw from off-screen or partially visible monkeys — the full
+    // monkey hitbox must be visible at the exact spawn frame.
+    if (!isMonkeyFullyOnScreen(r)) continue;
 
     const isSs = !!(hostRobots[i] as any)._ssL3;
     const targetCenterX = target ? target.x + target.w / 2 : null;
@@ -395,6 +400,17 @@ export function tickApples(
   // Update apples: travel horizontally; remove when off-screen; refresh cooldown.
   for (let i = s.apples.length - 1; i >= 0; i--) {
     const a = s.apples[i] as any;
+    const owner = a.ownerId >= 0 && a.ownerId < hostRobots.length ? hostRobots[a.ownerId] : undefined;
+    // No owner currently fully on-screen means no valid thrower; remove it so
+    // apples can never appear to come from an empty screen edge/platform.
+    if (!isMonkeyFullyOnScreen(owner)) {
+      if (a.ownerId >= 0 && a.ownerId < alive.length) {
+        alive[a.ownerId] = false;
+        cd[a.ownerId] = randomCooldownFrames();
+      }
+      s.apples.splice(i, 1);
+      continue;
+    }
     a.x += a.vx;
     if (a._drop) {
       a.vy = (a.vy ?? 0) + 0.18;
