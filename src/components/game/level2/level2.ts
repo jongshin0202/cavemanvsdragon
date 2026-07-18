@@ -51,6 +51,58 @@ export interface L2Sprites {
 }
 
 const MONKEY_PLAT_INDICES = [1, 2, 3, 4];
+const MONKEY_DRAW_W = 33;
+const MONKEY_DRAW_H = 33;
+const APPLE_THROW_EDGE_MARGIN = 10;
+
+function getMonkeyVisualBounds(r: { x: number; y: number; w: number; h: number }) {
+  return {
+    x: r.x + r.w / 2 - MONKEY_DRAW_W / 2,
+    y: r.y + r.h - MONKEY_DRAW_H,
+    w: MONKEY_DRAW_W,
+    h: MONKEY_DRAW_H,
+  };
+}
+
+function isMonkeyFullyOnScreen(r: { x: number; y: number; w: number; h: number } | undefined): boolean {
+  if (!r) return false;
+  const b = getMonkeyVisualBounds(r);
+  return b.x >= 0 && b.x + b.w <= CANVAS_W && b.y >= 0 && b.y + b.h <= CANVAS_H;
+}
+
+function isValidAppleThrower(
+  s: L2State,
+  r: ({ x: number; y: number; w: number; h: number } & Record<string, any>) | undefined,
+): boolean {
+  if (!r) return false;
+  // Apple throwers must be visibly inside the screen, with extra edge padding
+  // so a projectile can never appear from the left/right border first.
+  const b = getMonkeyVisualBounds(r);
+  return b.x >= APPLE_THROW_EDGE_MARGIN &&
+    b.x + b.w <= CANVAS_W - APPLE_THROW_EDGE_MARGIN &&
+    b.y >= 0 && b.y + b.h <= CANVAS_H;
+}
+
+function removeMonkeyAppleState(s: L2State, idx: number): 'green' | 'purple' | null {
+  const arr: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
+  const jacket = arr[idx] ?? null;
+  arr.splice(idx, 1);
+  const cd: number[] = (s as any)._appleCooldowns || [];
+  const al: boolean[] = (s as any)._hasAppleAlive || [];
+  cd.splice(idx, 1);
+  al.splice(idx, 1);
+  // Remove in-flight apples thrown by this monkey and re-key remaining apples
+  // so an apple can never survive under a different visible monkey's index.
+  for (let i = s.apples.length - 1; i >= 0; i--) {
+    const a = s.apples[i] as any;
+    if (a.ownerId === idx) {
+      s.apples.splice(i, 1);
+    } else if (a.ownerId > idx) {
+      a.ownerId--;
+    }
+  }
+  return jacket;
+}
 
 /** Re-initialize for a new L2 round. `round` here is the L2 ITERATION number
  *  (1, 2, 3, …) — host computes via getLevelIteration() before calling. */
@@ -239,21 +291,7 @@ export function onMonkeyKilled(s: L2State, idx: number): void {
   const jacket = arr[idx];
   if (jacket === 'green') s.greenJacketsKilled++;
   else if (jacket === 'purple') s.purpleJacketsKilled++;
-  arr.splice(idx, 1);
-  const cd: number[] = (s as any)._appleCooldowns || [];
-  const al: boolean[] = (s as any)._hasAppleAlive || [];
-  cd.splice(idx, 1);
-  al.splice(idx, 1);
-  // Remove in-flight apples thrown by the killed monkey — no monkey, no apple.
-  // Re-key remaining apples whose owner index shifted down.
-  for (let i = s.apples.length - 1; i >= 0; i--) {
-    const a = s.apples[i] as any;
-    if (a.ownerId === idx) {
-      s.apples.splice(i, 1);
-    } else if (a.ownerId > idx) {
-      a.ownerId--;
-    }
-  }
+  removeMonkeyAppleState(s, idx);
   // Once the green-kill target is met AND no green-jacket monkeys remain
   // alive, spawn the green watering can on a random platform.
   const diff = getLevel2Difficulty(s.round);
@@ -263,6 +301,11 @@ export function onMonkeyKilled(s: L2State, idx: number): void {
       greensAlive === 0) {
     spawnGreenCan(s);
   }
+}
+
+/** Called when a monkey leaves the playable area without being killed. */
+export function removeMonkeyWithoutKill(s: L2State, idx: number): void {
+  removeMonkeyAppleState(s, idx);
 }
 
 /** Returns the jacket color a newly-spawned monkey should wear given
@@ -335,7 +378,6 @@ export function tickApples(
   hostRobots: { x: number; y: number; w: number; h: number; direction: number }[],
   target?: { x: number; y: number; w: number; h: number },
 ): void {
-  const jackets: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
   const cd: number[] = (s as any)._appleCooldowns || [];
   const alive: boolean[] = (s as any)._hasAppleAlive || [];
   const diff = getLevel2Difficulty(s.round);
@@ -349,12 +391,14 @@ export function tickApples(
   } else {
   // Throw new apples
   for (let i = 0; i < hostRobots.length; i++) {
-    // L2 iter 1: only colored (jacketed) monkeys throw (handled by applesEnabled=false above).
-    // L2 iter 2+: every monkey throws. L3: every monkey throws.
+    // L2 iter 1: apples are disabled. Later L2/L3 throws require a visible monkey.
     // (applesEnabled gating above already disables all throws on L2 iter 1.)
     if (alive[i]) continue;            // one apple at a time per monkey
     if (cd[i] > 0) { cd[i]--; continue; }
     const r = hostRobots[i];
+    // Never throw from off-screen/edge monkeys.
+    if (!isValidAppleThrower(s, r as any)) continue;
+
     const isSs = !!(hostRobots[i] as any)._ssL3;
     const targetCenterX = target ? target.x + target.w / 2 : null;
     const dir = isSs && targetCenterX !== null
@@ -377,8 +421,11 @@ export function tickApples(
       if (l3iter === 1) mul *= 1.3 * 1.3 * 1.5 * 1.5;
       const ssSpeed = LEVEL2_PARAMS.APPLE_SPEED * mul;
       appleVx = dir * ssSpeed;
-      if (target) ay = getJumpableAppleY(target);
+      // Keep the apple at the monkey's hand height. Do NOT move it to the
+      // player's platform height — that made apples appear on lower rows with
+      // no monkey there.
     }
+    if (ax < APPLE_THROW_EDGE_MARGIN || ax + aw > CANVAS_W - APPLE_THROW_EDGE_MARGIN) continue;
     s.apples.push({
       x: ax, y: ay, w: aw, h: ah,
       vx: appleVx,
@@ -392,6 +439,17 @@ export function tickApples(
   // Update apples: travel horizontally; remove when off-screen; refresh cooldown.
   for (let i = s.apples.length - 1; i >= 0; i--) {
     const a = s.apples[i] as any;
+    const owner = a.ownerId >= 0 && a.ownerId < hostRobots.length ? hostRobots[a.ownerId] : undefined;
+    // No owner currently fully on-screen means no valid thrower; remove it so
+    // apples can never appear to come from an empty screen edge/platform.
+    if (!isValidAppleThrower(s, owner as any)) {
+      if (a.ownerId >= 0 && a.ownerId < alive.length) {
+        alive[a.ownerId] = false;
+        cd[a.ownerId] = randomCooldownFrames();
+      }
+      s.apples.splice(i, 1);
+      continue;
+    }
     a.x += a.vx;
     if (a._drop) {
       a.vy = (a.vy ?? 0) + 0.18;
@@ -415,9 +473,14 @@ export function appleHitsPlayer(
   s: L2State,
   p: { x: number; y: number; w: number; h: number },
   prevP?: { x: number; y: number; w: number; h: number },
+  hostRobots?: { x: number; y: number; w: number; h: number; direction?: number }[],
 ): number {
   for (let i = 0; i < s.apples.length; i++) {
     const a = s.apples[i] as any;
+    const owner = hostRobots && a.ownerId >= 0 && a.ownerId < hostRobots.length
+      ? hostRobots[a.ownerId]
+      : undefined;
+    if (hostRobots && !isValidAppleThrower(s, owner as any)) continue;
     // Swept AABB along both apple and player travel this frame to prevent
     // tunneling when the player is walking/riding a moving platform.
     const vx = a.vx ?? 0;
@@ -1083,6 +1146,10 @@ export function renderLevel2(
 
   // ── Apples thrown by colored monkeys
   for (const a of s.apples as any[]) {
+    const owner = hostRobots && a.ownerId >= 0 && a.ownerId < hostRobots.length
+      ? hostRobots[a.ownerId]
+      : undefined;
+    if (!isValidAppleThrower(s, owner as any)) continue;
     const cx = a.x + a.w / 2;
     // For HIGH throws the hitbox is a tall streak (so jumping can't clear
     // it), but the player should still SEE a normal apple — drawn at the

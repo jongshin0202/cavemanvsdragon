@@ -15,7 +15,7 @@ import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal
 import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/deviceStats';
 import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
 import { LEVEL2_PARAMS, getLevel2Difficulty } from './game/level2/params';
-import { initLevel2, updateLevel2, renderLevel2, spawnLevel2Robots, fireballHitsPlayer, tryPickupCan, tryPickupRock, trySealVolcano, maybeSpawnVolcanoRock, onMonkeyKilled, newSpawnJacket, pushJacket, isHoleAtPlatform, tickApples, appleHitsPlayer, notifyVolcanoSealedL3, type L2Sprites } from './game/level2/level2';
+import { initLevel2, updateLevel2, renderLevel2, spawnLevel2Robots, fireballHitsPlayer, tryPickupCan, tryPickupRock, trySealVolcano, maybeSpawnVolcanoRock, onMonkeyKilled, removeMonkeyWithoutKill, newSpawnJacket, pushJacket, isHoleAtPlatform, tickApples, appleHitsPlayer, notifyVolcanoSealedL3, type L2Sprites } from './game/level2/level2';
 import { makeEmptyL2State, type L2State } from './game/level2/types';
 import { applyLevel2Layout, restoreLevel1Layout, isLadderUsableL2, markSproutUsed, markSproutInUse, tickSprouts, getSprouts, waterTopSprout, isTopSproutGrown, GREEN_TOP_LADDER_IDX, PURPLE_TOP_LADDER_IDX, enableLevel1SproutMechanic } from './game/level2/layout';
 import { buildLevel3MovingPlatforms, clearLevel3MovingPlatforms, tickMovingPlatforms, renderMovingPlatforms, landOnMovingPlatform, getMovingPlatforms } from './game/level3/movingPlatforms';
@@ -174,6 +174,30 @@ const findMonkeyRidePlatform = (r: MpsRobot): MovingPlatformRide | null => {
   return best;
 };
 
+const MPS_MONKEY_CLIMB_REACH_Y = 44;
+const findMpsMonkeyClimbTarget = (
+  round: number,
+  rCenterX: number,
+  rFeetY: number,
+  playerCenterX: number,
+): number => {
+  let bestIdx = -1;
+  let bestScore = Infinity;
+  for (let li = 0; li < LADDERS.length; li++) {
+    if (li === GREEN_TOP_LADDER_IDX || li === PURPLE_TOP_LADDER_IDX) continue;
+    if (!isLadderUsable(round, li)) continue;
+    const l = LADDERS[li];
+    const visibleBot = getVisibleSproutBottomY(li);
+    if (rFeetY < visibleBot - 6) continue;
+    const yGap = Math.abs(rFeetY - visibleBot);
+    if (yGap > MPS_MONKEY_CLIMB_REACH_Y) continue;
+    const ladderCenterX = l.x + 7;
+    const score = yGap * 2 + Math.abs(ladderCenterX - rCenterX) * 0.75 + Math.abs(ladderCenterX - playerCenterX);
+    if (score < bestScore) { bestScore = score; bestIdx = li; }
+  }
+  return bestIdx;
+};
+
 const REQUIRED_ITEM_CLEARANCE = 38;
 
 const getRequiredItemZones = (s: L2State): { x: number; y: number; w: number; h: number }[] => {
@@ -189,9 +213,13 @@ const keepMonkeyAwayFromRequiredItems = (_r: Robot & { wanderDir?: number }, _s:
   // (no collision/avoidance). Intentionally a no-op.
 };
 
-const MIN_MONKEY_DIRECTION_FRAMES = 30;
+const MIN_MONKEY_DIRECTION_FRAMES = 90;
+// Minimum distance (px) a monkey MUST travel in a chosen direction before it
+// is allowed to reverse (unless it hits a wall/edge). ~3 inches of committed
+// motion — prevents left/right/left/right stuttering in place.
+const MIN_MONKEY_DIRECTION_DISTANCE = 80;
 const randomMonkeyMoveFrames = (previous?: number): number => {
-  let next = MIN_MONKEY_DIRECTION_FRAMES + Math.floor(Math.random() * 76);
+  let next = MIN_MONKEY_DIRECTION_FRAMES + Math.floor(Math.random() * 60);
   if (typeof previous === 'number' && Math.abs(next - previous) < 10) {
     next += 14 + Math.floor(Math.random() * 23);
   }
@@ -212,6 +240,7 @@ const commitMonkeyDirection = (
   r.direction = nextDir;
   r.wanderTimer = runFrames;
   (r as any)._dirLockFrames = Math.max(MIN_MONKEY_DIRECTION_FRAMES, runFrames);
+  (r as any)._dirStartX = r.x;
 };
 
 type GameState =
@@ -1892,7 +1921,7 @@ const CavemanVsDragonGame = () => {
               const prevHitbox = ducked
                 ? { x: applePrevHitbox.x, y: applePrevHitbox.y + Math.floor(applePrevHitbox.h * 0.55), w: applePrevHitbox.w, h: Math.ceil(applePrevHitbox.h * 0.45) }
                 : applePrevHitbox;
-              const hit = appleHitsPlayer(l2Ref.current, hitbox, prevHitbox);
+              const hit = appleHitsPlayer(l2Ref.current, hitbox, prevHitbox, g.robots);
               if (hit >= 0) {
                 g.lives--; setLives(g.lives);
                 g.invulnTimer = 120;
@@ -2343,7 +2372,7 @@ const CavemanVsDragonGame = () => {
 
           // L3 MPS monkey: locked to its assigned moving platform — never falls off,
           // wanders left/right within the MP's bounds and is carried with it.
-          const mpsRide = isLevel3Round(g.round) && (r as any)._mpsL3
+          const mpsRide = isLevel3Round(g.round) && (r as any)._mpsL3 && !(r as any)._leftMps && !r.climbing
             ? findMonkeyRidePlatform(r as MpsRobot)
             : null;
           if (mpsRide) {
@@ -2356,6 +2385,32 @@ const CavemanVsDragonGame = () => {
             r.y = mpsRide.y - r.h;
             r.vy = 0;
             r.onGround = true;
+            const shouldClimbTowardPlayer = playerFeetY < r.y + r.h - 24 && ((r as any)._noClimbFrames ?? 0) <= 0;
+            const climbTarget = shouldClimbTowardPlayer
+              ? findMpsMonkeyClimbTarget(g.round, r.x + r.w / 2, r.y + r.h, playerCenterX)
+              : -1;
+            if (climbTarget >= 0) {
+              const ladderX = LADDERS[climbTarget].x + (16 - r.w) / 2;
+              const dx = ladderX - r.x;
+              const step = Math.max(r.speed, 0.7);
+              r.direction = dx >= 0 ? 1 : -1;
+              r.vx = r.direction * r.speed;
+              if (Math.abs(dx) <= step + 0.5) {
+                r.x = ladderX;
+                r.vx = 0;
+                r.vy = -Math.max(r.speed, 0.7);
+                r.climbing = true;
+                r.targetLadder = climbTarget;
+                r.onGround = false;
+                (r as any)._leftMps = true;
+                (r as any)._rideMp = undefined;
+                (r as any)._lastMpX = undefined;
+              } else {
+                r.x += Math.max(-step, Math.min(step, dx));
+              }
+              (r as any)._lastMpX = mpsRide.x;
+              continue;
+            }
             r.climbing = false;
             if ((r as any).wanderDir === undefined) commitMonkeyDirection(r, r.direction || 1);
             r.direction = (r as any).wanderDir;
@@ -2441,7 +2496,10 @@ const CavemanVsDragonGame = () => {
             (r as any)._dirLockFrames = Math.max(0, ((r as any)._dirLockFrames ?? 0) - 1);
             (r as any)._noClimbFrames = Math.max(0, ((r as any)._noClimbFrames ?? 0) - 1);
             (r as any)._currentDirectionRun = ((r as any)._currentDirectionRun ?? 0) + 1;
-            const canPickNewDirection = (r as any)._dirLockFrames <= 0;
+            const startX = (r as any)._dirStartX ?? r.x;
+            const traveled = Math.abs(r.x - startX);
+            const committedByDistance = traveled < MIN_MONKEY_DIRECTION_DISTANCE;
+            const canPickNewDirection = (r as any)._dirLockFrames <= 0 && !committedByDistance;
             // L3 SS monkey: actively seek a grown sprout vine near the player,
             // then climb down into the sprout / moving-platform section.
             const isSsSeek = isLevel3Round(g.round) && (r as any)._ssL3 && rPlatIdx === 4;
@@ -2458,7 +2516,6 @@ const CavemanVsDragonGame = () => {
                 (monkeyOnLeft && playerOnRight) || (monkeyOnRight && playerOnLeft)
               );
               if (crossHole) {
-                // Walk toward the closer screen edge → wrap to player's side.
                 commitMonkeyDirection(r, monkeyOnLeft ? -1 : 1, randomMonkeyMoveFrames((r as any)._lastDirectionRun));
               } else {
                 const targetLi = playerOnSproutPlatform ? -1 : findSproutSectionVineTargetRandom(g.round, rCenterX, playerCenterX, true);
@@ -2471,16 +2528,15 @@ const CavemanVsDragonGame = () => {
                     const targetX = LADDERS[fallbackLi].x + 7;
                     commitMonkeyDirection(r, targetX > rCenterX ? 1 : -1, randomMonkeyMoveFrames((r as any)._lastDirectionRun));
                   } else {
-                    // Add random jitter so movement doesn't look patterned.
-                    const toward = playerCenterX >= rCenterX ? 1 : -1;
-                    commitMonkeyDirection(r, Math.random() < 0.75 ? toward : -toward, randomMonkeyMoveFrames((r as any)._lastDirectionRun));
+                    // Always chase player — no random reversal that stalls motion.
+                    commitMonkeyDirection(r, playerCenterX >= rCenterX ? 1 : -1, randomMonkeyMoveFrames((r as any)._lastDirectionRun));
                   }
                 }
               }
             } else if (!isSsSeek && r.wanderTimer <= 0 && canPickNewDirection) {
+              // Always commit toward the player for a full min-distance run.
               const towardPlayer = playerCenterX >= rCenterX ? 1 : -1;
-              // 70% bias toward player, 30% random — never stop
-              commitMonkeyDirection(r, Math.random() < 0.7 ? towardPlayer : (Math.random() < 0.5 ? 1 : -1));
+              commitMonkeyDirection(r, towardPlayer);
             } else if (r.wanderTimer <= 0) {
               r.wanderTimer = Math.max(1, (r as any)._dirLockFrames ?? MIN_MONKEY_DIRECTION_FRAMES);
             }
@@ -2634,21 +2690,22 @@ const CavemanVsDragonGame = () => {
           // even a few frames, force a direction flip and apply movement now so
           // the walking animation always matches actual displacement.
           if ((r as any)._stillFrames > 4) {
-            const recoverDir = ((r as any).wanderDir || r.direction || 1) * -1;
-            commitMonkeyDirection(r, recoverDir);
+            const rCX = r.x + r.w / 2;
+            const towardPlayer = (p.x + p.w / 2) >= rCX ? 1 : -1;
+            commitMonkeyDirection(r, towardPlayer);
             if (r.climbing) {
-              r.vy = recoverDir * Math.max(r.speed, 0.6);
+              r.vy = towardPlayer * Math.max(r.speed, 0.6);
               r.y += r.vy;
             } else {
-              r.vx = recoverDir * Math.max(r.speed, 0.6);
+              r.vx = towardPlayer * Math.max(r.speed, 0.6);
               r.x = Math.max(0, Math.min(CANVAS_W - r.w, r.x + r.vx));
             }
             (r as any)._stillFrames = 0;
           }
 
           // Oscillation guard: if net displacement over the last ~30 frames is
-          // tiny, the monkey is trapped (e.g. bouncing between a wall and an
-          // edge). Force it to walk inward toward open canvas.
+          // tiny, force a shove toward the player so the monkey commits to a
+          // real direction of travel.
           const anchor = (r as any)._anchor as { x: number; y: number; t: number } | undefined;
           const now = (r as any)._anchorTick = ((r as any)._anchorTick ?? 0) + 1;
           if (!anchor) {
@@ -2656,10 +2713,10 @@ const CavemanVsDragonGame = () => {
           } else if (now - anchor.t >= 30) {
             const net = Math.abs(r.x - anchor.x) + Math.abs(r.y - anchor.y);
             if (net < 6 && !r.climbing) {
-              const inward = (r.x + r.w / 2) > CANVAS_W / 2 ? -1 : 1;
-              commitMonkeyDirection(r, inward);
-              r.vx = inward * Math.max(r.speed, 0.8);
-              r.x = Math.max(0, Math.min(CANVAS_W - r.w, r.x + inward * 4));
+              const towardPlayer = (p.x + p.w / 2) >= (r.x + r.w / 2) ? 1 : -1;
+              commitMonkeyDirection(r, towardPlayer);
+              r.vx = towardPlayer * Math.max(r.speed, 0.8);
+              r.x = Math.max(0, Math.min(CANVAS_W - r.w, r.x + towardPlayer * 4));
             }
             (r as any)._anchor = { x: r.x, y: r.y, t: now };
           }
@@ -2668,9 +2725,13 @@ const CavemanVsDragonGame = () => {
           // Stricter fall cull for L3 — any monkey that passes the bottom row
           // without finding ground is removed (prevents stuck-off-screen).
           if (isLevel3Round(g.round) && r.y > 460 && !r.onGround && !r.climbing) {
+            if (isLevel2Round(g.round)) removeMonkeyWithoutKill(l2Ref.current, i);
             g.robots.splice(i, 1); continue;
           }
-          if (r.y > CANVAS_H + 20) { g.robots.splice(i, 1); continue; }
+          if (r.y > CANVAS_H + 20) {
+            if (isLevel2Round(g.round)) removeMonkeyWithoutKill(l2Ref.current, i);
+            g.robots.splice(i, 1); continue;
+          }
 
           const rPlatY = findPlatformIndex(r.y + r.h, r.x + r.w / 2);
           const pPlatY = findPlatformIndex(p.y + p.h, p.x + p.w / 2);
