@@ -1063,14 +1063,14 @@ const CavemanVsDragonGame = () => {
       }
 
       if (gs === 'gameover') {
-        if (qualifiesForTop(g.score)) {
+        const qLocal = qualifiesForTop(g.score);
+        const qGlobal = qualifiesForGlobal(g.score, globalScores);
+        if (qLocal || qGlobal) {
           // Promote to high-score prompt; swallow this input so a second press is required to advance
           setPendingScore(g.score);
           setPendingLevel(g.round);
-          // Decide now whether this also makes the global top, so we know
-          // which leaderboard to display after name entry. Use the latest
-          // global list we have cached.
-          justSubmittedGlobal.current = qualifiesForGlobal(g.score, globalScores);
+          justSubmittedGlobal.current = qGlobal;
+          submittingScoreRef.current = false;
           continueArmedAtRef.current = now + 1000;
           setGameState('highscorePrompt');
           return true;
