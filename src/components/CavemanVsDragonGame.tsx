@@ -603,7 +603,8 @@ const CavemanVsDragonGame = () => {
       g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed, rollPhase: 0 });
       playBarrelRollSound();
     }
-    if (isLevel3Round(g.round)) playLevel3Music();
+    if (isLevel4Round(g.round)) playLevel4Music();
+    else if (isLevel3Round(g.round)) playLevel3Music();
     else if (isLevel2Round(g.round)) playLevel2Music();
     else if (isLevel1Round(g.round)) playLevel1Music();
     else stopAllMusic();
