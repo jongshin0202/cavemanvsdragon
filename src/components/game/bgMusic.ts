@@ -84,6 +84,7 @@ function startCrossfade(t: Track) {
 
 function watch(t: Track) {
   if (t.watchTimer) clearInterval(t.watchTimer);
+  if (t.crossfadeSec <= 0) return; // native loop, no watcher needed
   t.watchTimer = window.setInterval(() => {
     if (!t.playing || !t.active) return;
     const el = t.active;
@@ -100,12 +101,13 @@ function watch(t: Track) {
 function play(key: string) {
   for (const k of Object.keys(tracks)) if (k !== key) stop(k);
   const t = tracks[key];
-  if (!t.a) t.a = makeAudio(t.url);
-  if (!t.b) t.b = makeAudio(t.url);
+  const useNativeLoop = t.crossfadeSec <= 0;
+  if (!t.a) t.a = makeAudio(t.url, useNativeLoop);
+  if (!t.b && !useNativeLoop) t.b = makeAudio(t.url, false);
   clearTimers(t);
   // Reset both
   try { t.a.pause(); t.a.currentTime = 0; t.a.volume = VOL; } catch { /* ignore */ }
-  try { t.b.pause(); t.b.currentTime = 0; t.b.volume = 0; } catch { /* ignore */ }
+  if (t.b) { try { t.b.pause(); t.b.currentTime = 0; t.b.volume = 0; } catch { /* ignore */ } }
   t.active = t.a;
   t.playing = true;
   try { void t.a.play().catch(() => {}); } catch { /* ignore */ }
