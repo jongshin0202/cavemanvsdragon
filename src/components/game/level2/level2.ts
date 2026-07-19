@@ -522,14 +522,13 @@ export function appleHitsPlayer(
   s: L2State,
   p: { x: number; y: number; w: number; h: number },
   prevP?: { x: number; y: number; w: number; h: number },
-  hostRobots?: { x: number; y: number; w: number; h: number; direction?: number }[],
+  hostRobots?: AppleThrower[],
 ): number {
+  const jackets: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
   for (let i = 0; i < s.apples.length; i++) {
     const a = s.apples[i] as any;
-    const owner = hostRobots && a.ownerId >= 0 && a.ownerId < hostRobots.length
-      ? hostRobots[a.ownerId]
-      : undefined;
-    if (hostRobots && !isValidAppleThrower(s, owner as any)) continue;
+    const found = findAppleOwner(a, hostRobots);
+    if (hostRobots && (!found || !isJacketedThrower(jackets[found.ownerIndex]) || !isValidAppleThrower(s, found.owner))) continue;
     // Swept AABB along both apple and player travel this frame to prevent
     // tunneling when the player is walking/riding a moving platform.
     const vx = a.vx ?? 0;
@@ -1194,11 +1193,10 @@ export function renderLevel2(
   }
 
   // ── Apples thrown by colored monkeys
+  const appleJackets: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
   for (const a of s.apples as any[]) {
-    const owner = hostRobots && a.ownerId >= 0 && a.ownerId < hostRobots.length
-      ? hostRobots[a.ownerId]
-      : undefined;
-    if (!isValidAppleThrower(s, owner as any)) continue;
+    const found = findAppleOwner(a, hostRobots as AppleThrower[] | undefined);
+    if (!found || !isJacketedThrower(appleJackets[found.ownerIndex]) || !isValidAppleThrower(s, found.owner)) continue;
     const cx = a.x + a.w / 2;
     // For HIGH throws the hitbox is a tall streak (so jumping can't clear
     // it), but the player should still SEE a normal apple — drawn at the
