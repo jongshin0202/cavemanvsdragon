@@ -89,7 +89,7 @@ function watch(t: Track) {
     if (!isFinite(dur) || dur <= 0) return;
     const remaining = dur - el.currentTime;
     // Trigger crossfade once we're inside the tail window and no fade in progress.
-    if (remaining <= CROSSFADE_SEC + 0.05 && !t.fadeTimer) {
+    if (remaining <= t.crossfadeSec + 0.05 && !t.fadeTimer) {
       startCrossfade(t);
     }
   }, 100);
