@@ -421,7 +421,7 @@ export function tickApples(
   hostRobots: AppleThrower[],
   target?: { x: number; y: number; w: number; h: number },
 ): void {
-  (s as any)._lastHostRobots = hostRobots;
+  (s as any)._lastHostRobots = hostRobots.slice();
   const cd: number[] = (s as any)._appleCooldowns || [];
   const alive: boolean[] = (s as any)._hasAppleAlive || [];
   const jackets: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
