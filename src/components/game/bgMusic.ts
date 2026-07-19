@@ -10,11 +10,13 @@ import music4Asset from '@/assets/Gamemusic4.mp3.asset.json';
 const VOL = 0.333;
 // Default length of the tail/head crossfade in seconds.
 const DEFAULT_CROSSFADE_SEC = 1.5;
-// Per-track overrides. Level 2 and 3 use a longer, gentler crossfade so the
-// loop seam is masked by the overlap and feels continuous.
+// Per-track overrides. Level 2 and 3 use browser-native gapless loop
+// (crossfadeSec = 0 → nativeLoop) because a manual crossfade between two
+// different musical sections in those tracks sounds like overlap. Native
+// loop restarts the same file seamlessly at the end.
 const CROSSFADE_OVERRIDES: Record<string, number> = {
-  level2: 4.0,
-  level3: 4.0,
+  level2: 0,
+  level3: 0,
 };
 // Fade tick interval (ms).
 const FADE_TICK_MS = 30;
