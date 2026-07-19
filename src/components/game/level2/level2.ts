@@ -412,11 +412,12 @@ export function pushJacket(s: L2State, jacket: 'green' | 'purple' | null): void 
  *  in-flight apples; removes off-screen apples and refreshes cooldowns. */
 export function tickApples(
   s: L2State,
-  hostRobots: { x: number; y: number; w: number; h: number; direction: number }[],
+  hostRobots: AppleThrower[],
   target?: { x: number; y: number; w: number; h: number },
 ): void {
   const cd: number[] = (s as any)._appleCooldowns || [];
   const alive: boolean[] = (s as any)._hasAppleAlive || [];
+  const jackets: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
   const diff = getLevel2Difficulty(s.round);
   // L3: jacketed sprout-section monkeys throw apples from iter 1.
   const applesEnabled = diff.applesEnabled || !!(s as any)._isL3;
@@ -430,10 +431,17 @@ export function tickApples(
   for (let i = 0; i < hostRobots.length; i++) {
     // L2 iter 1: apples are disabled. Later L2/L3 throws require a visible monkey.
     // (applesEnabled gating above already disables all throws on L2 iter 1.)
+    if (!isJacketedThrower(jackets[i])) {
+      alive[i] = false;
+      if (!Number.isFinite(cd[i])) cd[i] = randomCooldownFrames();
+      continue;
+    }
     if (alive[i]) continue;            // one apple at a time per monkey
+    if (!Number.isFinite(cd[i])) cd[i] = randomCooldownFrames();
     if (cd[i] > 0) { cd[i]--; continue; }
     const r = hostRobots[i];
-    // Never throw from off-screen/edge monkeys.
+    // Never throw from off-screen/edge monkeys. Level 3 especially must never
+    // create apples from screen edges, stale indexes, or invisible monkeys.
     if (!isValidAppleThrower(s, r as any)) continue;
 
     const isSs = !!(hostRobots[i] as any)._ssL3;
@@ -468,6 +476,7 @@ export function tickApples(
       x: ax, y: ay, w: aw, h: ah,
       vx: appleVx,
       ownerId: i,
+      ownerUid: ensureAppleThrowerId(r),
       _mid: true,
     } as any);
 
@@ -477,13 +486,15 @@ export function tickApples(
   // Update apples: travel horizontally; remove when off-screen; refresh cooldown.
   for (let i = s.apples.length - 1; i >= 0; i--) {
     const a = s.apples[i] as any;
-    const owner = a.ownerId >= 0 && a.ownerId < hostRobots.length ? hostRobots[a.ownerId] : undefined;
-    // No owner currently fully on-screen means no valid thrower; remove it so
-    // apples can never appear to come from an empty screen edge/platform.
-    if (!isValidAppleThrower(s, owner as any)) {
-      if (a.ownerId >= 0 && a.ownerId < alive.length) {
-        alive[a.ownerId] = false;
-        cd[a.ownerId] = randomCooldownFrames();
+    const found = findAppleOwner(a, hostRobots);
+    const owner = found?.owner;
+    const ownerIndex = found?.ownerIndex ?? -1;
+    // No same live owner, no jacket, or owner not fully on-screen means no
+    // valid thrower; remove it so apples can never appear from empty space.
+    if (!found || !isJacketedThrower(jackets[ownerIndex]) || !isValidAppleThrower(s, owner)) {
+      if (ownerIndex >= 0 && ownerIndex < alive.length) {
+        alive[ownerIndex] = false;
+        cd[ownerIndex] = randomCooldownFrames();
       }
       s.apples.splice(i, 1);
       continue;
