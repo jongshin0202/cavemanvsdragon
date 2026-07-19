@@ -21,6 +21,7 @@ export interface L2Apple {
   h: number;
   vx: number;        // horizontal velocity
   ownerId: number;   // index into monkeys[] of throwing monkey
+  ownerUid?: number; // permanent thrower identity; prevents stale index ownership
 }
 
 export interface L2Fireball {
