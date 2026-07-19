@@ -506,9 +506,9 @@ export function tickApples(
     }
     if (a.x + a.w < -8 || a.x > CANVAS_W + 8 || a.y > CANVAS_H + 8) {
       // Apple safely passed — release thrower's cooldown.
-      if (a.ownerId >= 0 && a.ownerId < alive.length) {
-        alive[a.ownerId] = false;
-        cd[a.ownerId] = randomCooldownFrames();
+      if (ownerIndex >= 0 && ownerIndex < alive.length) {
+        alive[ownerIndex] = false;
+        cd[ownerIndex] = randomCooldownFrames();
       }
       s.apples.splice(i, 1);
     }
