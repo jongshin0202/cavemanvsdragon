@@ -1703,12 +1703,24 @@ const CavemanVsDragonGame = () => {
                 if (!hasOtherGrown) markSproutInUse(nearestLadderIdx);
               }
             } else {
-              // Default: horizontal dismount at any height.
-              const midY = (climbingLadder.yTop + climbingLadder.yBot) / 2;
-              const snapTop = feetY <= midY;
-              p.y = (snapTop ? climbingLadder.yTop : climbingLadder.yBot) - p.h;
-              p.climbing = false;
-              if (sproutMechanicActive(g.round) && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
+              // L3 top ladders (green→volcano, purple→dragon side): ignore
+              // left/right entirely so the player can't "walk off" the vine
+              // into midair. Only up/down operates on these vines.
+              const isL3TopLadder = isLevel3Round(g.round)
+                && (nearestLadderIdx === GREEN_TOP_LADDER_IDX
+                    || nearestLadderIdx === PURPLE_TOP_LADDER_IDX);
+              if (isL3TopLadder) {
+                p.vy = 0;
+                // Keep the player pinned to the ladder centerline.
+                p.x = climbingLadder.x + 7 - p.w / 2;
+              } else {
+                // Default: horizontal dismount at any height.
+                const midY = (climbingLadder.yTop + climbingLadder.yBot) / 2;
+                const snapTop = feetY <= midY;
+                p.y = (snapTop ? climbingLadder.yTop : climbingLadder.yBot) - p.h;
+                p.climbing = false;
+                if (sproutMechanicActive(g.round) && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
+              }
             }
           } else {
             p.vy = 0;
