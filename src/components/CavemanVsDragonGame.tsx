@@ -1450,6 +1450,25 @@ const CavemanVsDragonGame = () => {
             nearestLadderDist = dist;
           }
         }
+        // Sticky selection: if the player is already climbing a ladder that's
+        // still in range, KEEP it as nearest. This prevents a co-located
+        // second ladder (e.g. L3 mid-vine sharing the same x as the top
+        // green/purple vine) from silently stealing the climb near the seam
+        // and dropping the player into midair on a left/right press.
+        if (p.climbing) {
+          const stickyIdx = (p as any).climbLadderIdx as number | undefined;
+          if (typeof stickyIdx === 'number' && stickyIdx >= 0 && stickyIdx < LADDERS.length
+              && isLadderUsable(g.round, stickyIdx)) {
+            const sl = LADDERS[stickyIdx];
+            const slCX = sl.x + 7;
+            const slDist = Math.abs(playerCX - slCX);
+            if (slDist < LADDER_SNAP && p.y + p.h > sl.yTop - 8 && p.y + p.h <= sl.yBot + 16) {
+              nearestLadder = sl;
+              nearestLadderIdx = stickyIdx;
+              nearestLadderDist = slDist;
+            }
+          }
+        }
 
         const padKeys = activePadKeysRef.current;
         const rawLeft = keys.has('ArrowLeft') || padKeys.includes('ArrowLeft');
