@@ -54,6 +54,10 @@ const MONKEY_PLAT_INDICES = [1, 2, 3, 4];
 const MONKEY_DRAW_W = 33;
 const MONKEY_DRAW_H = 33;
 const APPLE_THROW_EDGE_MARGIN = 10;
+const APPLE_THROWER_ID_PROP = '_appleThrowerId';
+let nextAppleThrowerId = 1;
+
+type AppleThrower = { x: number; y: number; w: number; h: number; direction: number } & Record<string, any>;
 
 function getMonkeyVisualBounds(r: { x: number; y: number; w: number; h: number }) {
   return {
@@ -72,7 +76,7 @@ function isMonkeyFullyOnScreen(r: { x: number; y: number; w: number; h: number }
 
 function isValidAppleThrower(
   s: L2State,
-  r: ({ x: number; y: number; w: number; h: number } & Record<string, any>) | undefined,
+  r: AppleThrower | undefined,
 ): boolean {
   if (!r) return false;
   // Apple throwers must be visibly inside the screen, with extra edge padding
@@ -81,6 +85,39 @@ function isValidAppleThrower(
   return b.x >= APPLE_THROW_EDGE_MARGIN &&
     b.x + b.w <= CANVAS_W - APPLE_THROW_EDGE_MARGIN &&
     b.y >= 0 && b.y + b.h <= CANVAS_H;
+}
+
+function ensureAppleThrowerId(r: AppleThrower): number {
+  if (!Number.isFinite(r[APPLE_THROWER_ID_PROP])) {
+    r[APPLE_THROWER_ID_PROP] = nextAppleThrowerId++;
+  }
+  return r[APPLE_THROWER_ID_PROP];
+}
+
+function isJacketedThrower(jacket: unknown): jacket is 'green' | 'purple' {
+  return jacket === 'green' || jacket === 'purple';
+}
+
+function findAppleOwner(
+  a: any,
+  hostRobots?: AppleThrower[],
+): { owner: AppleThrower; ownerIndex: number } | null {
+  if (!hostRobots || hostRobots.length === 0) return null;
+  if (Number.isFinite(a.ownerUid)) {
+    for (let i = 0; i < hostRobots.length; i++) {
+      if (hostRobots[i]?.[APPLE_THROWER_ID_PROP] === a.ownerUid) {
+        return { owner: hostRobots[i], ownerIndex: i };
+      }
+    }
+    return null;
+  }
+  if (a.ownerId >= 0 && a.ownerId < hostRobots.length) {
+    const owner = hostRobots[a.ownerId];
+    if (!owner) return null;
+    a.ownerUid = ensureAppleThrowerId(owner);
+    return { owner, ownerIndex: a.ownerId };
+  }
+  return null;
 }
 
 function removeMonkeyAppleState(s: L2State, idx: number): 'green' | 'purple' | null {
