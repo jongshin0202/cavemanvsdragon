@@ -50,6 +50,8 @@ export const playLevel2Music = () => play('level2');
 export const stopLevel2Music = () => stop('level2');
 export const playLevel3Music = () => play('level3');
 export const stopLevel3Music = () => stop('level3');
+export const playLevel4Music = () => play('level4');
+export const stopLevel4Music = () => stop('level4');
 
 export function stopAllMusic() {
   for (const k of Object.keys(tracks)) stop(k);
