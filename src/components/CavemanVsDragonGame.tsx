@@ -316,6 +316,10 @@ const CavemanVsDragonGame = () => {
   const justSubmittedSkipProbe = useRef<boolean>(false);
   const justSubmittedLocalDateRef = useRef<string | null>(null);
   const justSubmittedGlobalIdRef = useRef<string | null>(null);
+  // Prevents re-entry into submitHighScore when the user mashes Enter while
+  // the async cloud insert is still in flight (was producing duplicate
+  // global rows).
+  const submittingScoreRef = useRef<boolean>(false);
   const [nameInput, setNameInput] = useState<string>('');
   const [nameError, setNameError] = useState<string>('');
   const [pendingScore, setPendingScore] = useState(0);
