@@ -198,9 +198,11 @@ export function isHoleAtL4Platform(s: L4State, platformIdx: number, x: number): 
 const PRINCESS_W = 40, PRINCESS_H = 48;
 const PLAYER_DRAW_W = 42, PLAYER_DRAW_H = 48;
 const MONKEY_DRAW_W = 33, MONKEY_DRAW_H = 33;
+const APPLE_THROW_EDGE_MARGIN = 10;
 const DRAGON_W = 64, DRAGON_H = 64;
 const DRAGON_FRAMES = 5;
 const ROBOT_FRAMES = 5;
+let nextMonkeyUid = 1;
 
 // ── Types ────────────────────────────────────────────────────
 type SproutPhase = 'seed' | 'growing' | 'alive' | 'withering';
@@ -281,6 +283,7 @@ const FIRE_H = 28;
 
 interface Monkey {
   alive: boolean;
+  uid: number;
   x: number; y: number;
   platIdx: number;
   vx: number;
