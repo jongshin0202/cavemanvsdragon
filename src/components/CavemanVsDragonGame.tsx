@@ -316,6 +316,10 @@ const CavemanVsDragonGame = () => {
   const justSubmittedSkipProbe = useRef<boolean>(false);
   const justSubmittedLocalDateRef = useRef<string | null>(null);
   const justSubmittedGlobalIdRef = useRef<string | null>(null);
+  // Prevents re-entry into submitHighScore when the user mashes Enter while
+  // the async cloud insert is still in flight (was producing duplicate
+  // global rows).
+  const submittingScoreRef = useRef<boolean>(false);
   const [nameInput, setNameInput] = useState<string>('');
   const [nameError, setNameError] = useState<string>('');
   const [pendingScore, setPendingScore] = useState(0);
@@ -738,12 +742,17 @@ const CavemanVsDragonGame = () => {
   // Submit a high score: writes to LOCAL always, and to GLOBAL if it qualifies
   // for the global top 20. Then routes to the appropriate post-game view.
   const submitHighScore = useCallback(async () => {
+    // Guard against re-entry from mashed Enter presses while the cloud
+    // insert is still pending. Without this, each Enter added another row
+    // to the global leaderboard (and could dupe the local row too).
+    if (submittingScoreRef.current) return;
     const raw = nameInputRef.current;
     const v = validateName(raw);
     if (!v.ok) {
       setNameError(v.error || 'INVALID NAME');
       return;
     }
+    submittingScoreRef.current = true;
     const cleanName = raw.trim().slice(0, NAME_MAX_LENGTH);
     const entry: LeaderboardEntry = {
       name: cleanName,
@@ -1054,14 +1063,14 @@ const CavemanVsDragonGame = () => {
       }
 
       if (gs === 'gameover') {
-        if (qualifiesForTop(g.score)) {
+        const qLocal = qualifiesForTop(g.score);
+        const qGlobal = qualifiesForGlobal(g.score, globalScores);
+        if (qLocal || qGlobal) {
           // Promote to high-score prompt; swallow this input so a second press is required to advance
           setPendingScore(g.score);
           setPendingLevel(g.round);
-          // Decide now whether this also makes the global top, so we know
-          // which leaderboard to display after name entry. Use the latest
-          // global list we have cached.
-          justSubmittedGlobal.current = qualifiesForGlobal(g.score, globalScores);
+          justSubmittedGlobal.current = qGlobal;
+          submittingScoreRef.current = false;
           continueArmedAtRef.current = now + 1000;
           setGameState('highscorePrompt');
           return true;
@@ -1448,6 +1457,25 @@ const CavemanVsDragonGame = () => {
             nearestLadder = l;
             nearestLadderIdx = li;
             nearestLadderDist = dist;
+          }
+        }
+        // Sticky selection: if the player is already climbing a ladder that's
+        // still in range, KEEP it as nearest. This prevents a co-located
+        // second ladder (e.g. L3 mid-vine sharing the same x as the top
+        // green/purple vine) from silently stealing the climb near the seam
+        // and dropping the player into midair on a left/right press.
+        if (p.climbing) {
+          const stickyIdx = (p as any).climbLadderIdx as number | undefined;
+          if (typeof stickyIdx === 'number' && stickyIdx >= 0 && stickyIdx < LADDERS.length
+              && isLadderUsable(g.round, stickyIdx)) {
+            const sl = LADDERS[stickyIdx];
+            const slCX = sl.x + 7;
+            const slDist = Math.abs(playerCX - slCX);
+            if (slDist < LADDER_SNAP && p.y + p.h > sl.yTop - 8 && p.y + p.h <= sl.yBot + 16) {
+              nearestLadder = sl;
+              nearestLadderIdx = stickyIdx;
+              nearestLadderDist = slDist;
+            }
           }
         }
 
