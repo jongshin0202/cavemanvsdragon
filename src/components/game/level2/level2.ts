@@ -1059,7 +1059,7 @@ export function renderLevel2(
   ctx: CanvasRenderingContext2D,
   s: L2State,
   sprites: L2Sprites,
-  hostRobots?: { x: number; y: number; w: number; h: number; direction: number }[],
+  hostRobots?: AppleThrower[],
 ): void {
   // ── Volcano on the FAR RIGHT of the top platform (right of the gap)
   const topPlat = PLATFORMS[PLATFORMS.length - 1];
