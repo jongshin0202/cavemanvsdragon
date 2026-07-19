@@ -10,7 +10,7 @@ import { scoreFor, type ScoreAction } from './game/scoring';
 
 import heartUrl from '@/assets/heart.png';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarTracked, playPrincessHelpSound, isDragonRoaringNow, unlockAudio } from './game/sounds';
-import { playLevel1Music, stopLevel1Music, playLevel2Music, stopLevel2Music, stopAllMusic } from './game/bgMusic';
+import { playLevel1Music, stopLevel1Music, playLevel2Music, stopLevel2Music, playLevel3Music, stopLevel3Music, stopAllMusic } from './game/bgMusic';
 
 // True for Level 1 rounds (rounds 1, 5, 9, 13, …) — not L2/L3/L4.
 const isLevel1Round = (round: number): boolean =>
@@ -603,8 +603,9 @@ const CavemanVsDragonGame = () => {
       g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed, rollPhase: 0 });
       playBarrelRollSound();
     }
-    if (isLevel1Round(g.round)) playLevel1Music();
+    if (isLevel3Round(g.round)) playLevel3Music();
     else if (isLevel2Round(g.round)) playLevel2Music();
+    else if (isLevel1Round(g.round)) playLevel1Music();
     else stopAllMusic();
     setGameState('playing');
   }, [resetPlayer]);
@@ -2006,7 +2007,7 @@ const CavemanVsDragonGame = () => {
             const paulX = 175, paulY = 64;
             if (rectsOverlap(pl, { x: paulX, y: paulY, w: 40, h: 48 })) {
               g.state = 'win'; setGameState('win');
-              stopLevel2Music();
+              stopLevel2Music(); stopLevel3Music();
               awardScore(scoreFor('completeLevel', getLevelIteration(g.round)));
               playWinSound(); playPrincessSavedSound();
               wa.active = true;
