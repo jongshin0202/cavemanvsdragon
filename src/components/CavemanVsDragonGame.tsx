@@ -1442,8 +1442,13 @@ const CavemanVsDragonGame = () => {
         const applePrevHitbox = { x: p.x, y: p.y, w: p.w, h: p.h };
         const playerPrevFrame = { x: p.x, y: p.y, w: p.w, h: p.h, vy: p.vy, onGround: p.onGround };
         (g as any)._playerPrevFrame = playerPrevFrame;
-        // Wider snap: find nearest ladder within LADDER_SNAP pixels
+        // Lenient ladder detection: any horizontal overlap between the
+        // player's hitbox and the ladder counts as "on the ladder", and any
+        // vertical overlap with the ladder span counts as being within reach.
         const playerCX = p.x + p.w / 2;
+        const LADDER_HALF_W = 7;
+        // Overlap-based horizontal tolerance (any pixel overlap).
+        const OVERLAP_SNAP = p.w / 2 + LADDER_HALF_W; // = 15 for a 16-wide player
         let nearestLadder: (typeof LADDERS)[number] | null = null;
         let nearestLadderIdx = -1;
         let nearestLadderDist = Infinity;
@@ -1453,7 +1458,10 @@ const CavemanVsDragonGame = () => {
           const l = LADDERS[li];
           const ladderCX = l.x + 7;
           const dist = Math.abs(playerCX - ladderCX);
-          if (dist < LADDER_SNAP && p.y + p.h > l.yTop - 8 && p.y + p.h <= l.yBot + 16 && dist < nearestLadderDist) {
+          // Vertical overlap: any part of the player intersects the ladder span
+          // (with a small tolerance to allow mounting from just above/below).
+          const vOverlap = p.y + p.h > l.yTop - 8 && p.y <= l.yBot + 16;
+          if (dist < LADDER_SNAP && vOverlap && dist < nearestLadderDist) {
             nearestLadder = l;
             nearestLadderIdx = li;
             nearestLadderDist = dist;
@@ -1471,7 +1479,8 @@ const CavemanVsDragonGame = () => {
             const sl = LADDERS[stickyIdx];
             const slCX = sl.x + 7;
             const slDist = Math.abs(playerCX - slCX);
-            if (slDist < LADDER_SNAP && p.y + p.h > sl.yTop - 8 && p.y + p.h <= sl.yBot + 16) {
+            const slVOverlap = p.y + p.h > sl.yTop - 8 && p.y <= sl.yBot + 16;
+            if (slDist < LADDER_SNAP && slVOverlap) {
               nearestLadder = sl;
               nearestLadderIdx = stickyIdx;
               nearestLadderDist = slDist;
@@ -1513,11 +1522,10 @@ const CavemanVsDragonGame = () => {
         const jumpJustPressed = jumpPressed && !(g as any)._jumpHeldLastFrame;
         (g as any)._jumpHeldLastFrame = jumpPressed;
 
-        // To start climbing, the player must be CLOSELY aligned with the ladder
-        // (no large horizontal snap that would look like teleporting). Once
-        // climbing, the wider LADDER_SNAP keeps them stuck to the vine.
-        const MOUNT_SNAP = 12;
-        const canMountHere = !!nearestLadder && nearestLadderDist <= MOUNT_SNAP;
+        // Lenient mount: any pixel of horizontal overlap between the player
+        // and the ladder is enough to start climbing when Up/Down is pressed.
+        const canMountHere = !!nearestLadder && nearestLadderDist <= OVERLAP_SNAP;
+
 
         if (wantUp && nearestLadder && !jumpPressed && (p.climbing || canMountHere)) {
           p.climbing = true;
