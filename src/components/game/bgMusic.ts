@@ -10,11 +10,13 @@ import music4Asset from '@/assets/Gamemusic4.mp3.asset.json';
 const VOL = 0.333;
 // Default length of the tail/head crossfade in seconds.
 const DEFAULT_CROSSFADE_SEC = 1.5;
-// Per-track overrides. Level 2 and 3 use a longer, gentler crossfade so the
-// loop seam is masked by the overlap and feels continuous.
+// Per-track overrides. Level 2 and 3 use browser-native gapless loop
+// (crossfadeSec = 0 → nativeLoop) because a manual crossfade between two
+// different musical sections in those tracks sounds like overlap. Native
+// loop restarts the same file seamlessly at the end.
 const CROSSFADE_OVERRIDES: Record<string, number> = {
-  level2: 4.0,
-  level3: 4.0,
+  level2: 0,
+  level3: 0,
 };
 // Fade tick interval (ms).
 const FADE_TICK_MS = 30;
@@ -38,9 +40,9 @@ const tracks: Record<string, Track> = {
 };
 
 
-function makeAudio(url: string): HTMLAudioElement {
+function makeAudio(url: string, nativeLoop = false): HTMLAudioElement {
   const el = new Audio(url);
-  el.loop = false; // manual crossfade loop
+  el.loop = nativeLoop; // browser gapless loop when true
   el.preload = 'auto';
   el.volume = 0;
   return el;
@@ -82,6 +84,7 @@ function startCrossfade(t: Track) {
 
 function watch(t: Track) {
   if (t.watchTimer) clearInterval(t.watchTimer);
+  if (t.crossfadeSec <= 0) return; // native loop, no watcher needed
   t.watchTimer = window.setInterval(() => {
     if (!t.playing || !t.active) return;
     const el = t.active;
@@ -98,12 +101,13 @@ function watch(t: Track) {
 function play(key: string) {
   for (const k of Object.keys(tracks)) if (k !== key) stop(k);
   const t = tracks[key];
-  if (!t.a) t.a = makeAudio(t.url);
-  if (!t.b) t.b = makeAudio(t.url);
+  const useNativeLoop = t.crossfadeSec <= 0;
+  if (!t.a) t.a = makeAudio(t.url, useNativeLoop);
+  if (!t.b && !useNativeLoop) t.b = makeAudio(t.url, false);
   clearTimers(t);
   // Reset both
   try { t.a.pause(); t.a.currentTime = 0; t.a.volume = VOL; } catch { /* ignore */ }
-  try { t.b.pause(); t.b.currentTime = 0; t.b.volume = 0; } catch { /* ignore */ }
+  if (t.b) { try { t.b.pause(); t.b.currentTime = 0; t.b.volume = 0; } catch { /* ignore */ } }
   t.active = t.a;
   t.playing = true;
   try { void t.a.play().catch(() => {}); } catch { /* ignore */ }
