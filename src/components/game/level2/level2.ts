@@ -68,6 +68,14 @@ function getMonkeyVisualBounds(r: { x: number; y: number; w: number; h: number }
   };
 }
 
+function getAppleOriginFromMonkey(r: AppleThrower, dir: number) {
+  const b = getMonkeyVisualBounds(r);
+  return {
+    x: dir >= 0 ? b.x + b.w - 7 : b.x,
+    y: b.y + Math.round(b.h * 0.48),
+  };
+}
+
 function isMonkeyFullyOnScreen(r: { x: number; y: number; w: number; h: number } | undefined): boolean {
   if (!r) return false;
   const b = getMonkeyVisualBounds(r);
@@ -103,19 +111,13 @@ function findAppleOwner(
   hostRobots?: AppleThrower[],
 ): { owner: AppleThrower; ownerIndex: number } | null {
   if (!hostRobots || hostRobots.length === 0) return null;
-  if (Number.isFinite(a.ownerUid)) {
-    for (let i = 0; i < hostRobots.length; i++) {
-      if (hostRobots[i]?.[APPLE_THROWER_ID_PROP] === a.ownerUid) {
-        return { owner: hostRobots[i], ownerIndex: i };
-      }
+  // Strict mode: apples must have a permanent owner id. Never fall back to
+  // array indexes, because removed/respawned monkeys can reuse those indexes.
+  if (!Number.isFinite(a.ownerUid)) return null;
+  for (let i = 0; i < hostRobots.length; i++) {
+    if (hostRobots[i]?.[APPLE_THROWER_ID_PROP] === a.ownerUid) {
+      return { owner: hostRobots[i], ownerIndex: i };
     }
-    return null;
-  }
-  if (a.ownerId >= 0 && a.ownerId < hostRobots.length) {
-    const owner = hostRobots[a.ownerId];
-    if (!owner) return null;
-    a.ownerUid = ensureAppleThrowerId(owner);
-    return { owner, ownerIndex: a.ownerId };
   }
   return null;
 }
@@ -123,6 +125,10 @@ function findAppleOwner(
 function removeMonkeyAppleState(s: L2State, idx: number): 'green' | 'purple' | null {
   const arr: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
   const jacket = arr[idx] ?? null;
+  const lastHostRobots: AppleThrower[] = (s as any)._lastHostRobots || [];
+  const removedUid = Number.isFinite(lastHostRobots[idx]?.[APPLE_THROWER_ID_PROP])
+    ? lastHostRobots[idx][APPLE_THROWER_ID_PROP]
+    : undefined;
   arr.splice(idx, 1);
   const cd: number[] = (s as any)._appleCooldowns || [];
   const al: boolean[] = (s as any)._hasAppleAlive || [];
@@ -132,7 +138,7 @@ function removeMonkeyAppleState(s: L2State, idx: number): 'green' | 'purple' | n
   // so an apple can never survive under a different visible monkey's index.
   for (let i = s.apples.length - 1; i >= 0; i--) {
     const a = s.apples[i] as any;
-    if (a.ownerId === idx) {
+    if ((Number.isFinite(removedUid) && a.ownerUid === removedUid) || a.ownerId === idx || !Number.isFinite(a.ownerUid)) {
       s.apples.splice(i, 1);
     } else if (a.ownerId > idx) {
       a.ownerId--;
@@ -415,6 +421,7 @@ export function tickApples(
   hostRobots: AppleThrower[],
   target?: { x: number; y: number; w: number; h: number },
 ): void {
+  (s as any)._lastHostRobots = hostRobots;
   const cd: number[] = (s as any)._appleCooldowns || [];
   const alive: boolean[] = (s as any)._hasAppleAlive || [];
   const jackets: ('green' | 'purple' | null)[] = (s as any)._jackets || [];
@@ -449,17 +456,14 @@ export function tickApples(
     const dir = isSs && targetCenterX !== null
       ? (targetCenterX >= r.x + r.w / 2 ? 1 : -1)
       : (r.direction >= 0 ? 1 : -1);
-    const ax = r.x + r.w / 2 + dir * 8;
+    const origin = getAppleOriginFromMonkey(r, dir);
     // Apples are now thrown ONLY at jumpable mid height. Low and high
     // throws (and the ducking mechanic) have been removed from the game.
     const heightTier: 'middle' = 'middle';
     const aw = 7;
     const ah = 7;
-    // Aim the apple at the player's jumpable height (relative to whatever
-    // surface the player is standing on). This guarantees every apple is
-    // reachable by a normal jump regardless of which platform the monkey
-    // is on. Fall back to monkey-hand height only if no target is given.
-    let ay = target ? getJumpableAppleY(target) : (r.y + r.h) - 19;
+    // Spawn from the monkey sprite itself — never from screen edges or empty air.
+    let ay = origin.y;
     // SS (sprout-section, L3) apples travel purely horizontally — no up/down arc.
     // Iter 1 baseline = 20% of normal apple speed; +10% per L3 iter from there.
     let appleVx = dir * diff.appleSpeed;
@@ -471,9 +475,9 @@ export function tickApples(
       const ssSpeed = LEVEL2_PARAMS.APPLE_SPEED * mul;
       appleVx = dir * ssSpeed;
     }
-    if (ax < APPLE_THROW_EDGE_MARGIN || ax + aw > CANVAS_W - APPLE_THROW_EDGE_MARGIN) continue;
+    if (origin.x < APPLE_THROW_EDGE_MARGIN || origin.x + aw > CANVAS_W - APPLE_THROW_EDGE_MARGIN) continue;
     s.apples.push({
-      x: ax, y: ay, w: aw, h: ah,
+      x: origin.x, y: ay, w: aw, h: ah,
       vx: appleVx,
       ownerId: i,
       ownerUid: ensureAppleThrowerId(r),

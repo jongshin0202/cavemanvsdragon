@@ -291,7 +291,7 @@ interface Monkey {
   collisionCooldown?: number;
 }
 
-interface MonkeyFireball { x: number; y: number; vx: number; vy: number; r: number; age: number; jumpedOver?: boolean }
+interface MonkeyFireball { x: number; y: number; vx: number; vy: number; r: number; age: number; ownerId: number; jumpedOver?: boolean }
 interface VolcanoFireball {
   startX: number; startY: number;
   endX: number; endY: number;
