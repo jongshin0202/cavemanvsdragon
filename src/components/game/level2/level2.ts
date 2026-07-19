@@ -410,7 +410,11 @@ export function tickApples(
     const heightTier: 'middle' = 'middle';
     const aw = 7;
     const ah = 7;
-    let ay = (r.y + r.h) - 19; // bottom = platY - 12 (jumpable)
+    // Aim the apple at the player's jumpable height (relative to whatever
+    // surface the player is standing on). This guarantees every apple is
+    // reachable by a normal jump regardless of which platform the monkey
+    // is on. Fall back to monkey-hand height only if no target is given.
+    let ay = target ? getJumpableAppleY(target) : (r.y + r.h) - 19;
     // SS (sprout-section, L3) apples travel purely horizontally — no up/down arc.
     // Iter 1 baseline = 20% of normal apple speed; +10% per L3 iter from there.
     let appleVx = dir * diff.appleSpeed;
@@ -421,9 +425,6 @@ export function tickApples(
       if (l3iter === 1) mul *= 1.3 * 1.3 * 1.5 * 1.5;
       const ssSpeed = LEVEL2_PARAMS.APPLE_SPEED * mul;
       appleVx = dir * ssSpeed;
-      // Keep the apple at the monkey's hand height. Do NOT move it to the
-      // player's platform height — that made apples appear on lower rows with
-      // no monkey there.
     }
     if (ax < APPLE_THROW_EDGE_MARGIN || ax + aw > CANVAS_W - APPLE_THROW_EDGE_MARGIN) continue;
     s.apples.push({
