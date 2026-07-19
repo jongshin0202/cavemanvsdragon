@@ -10,7 +10,7 @@ import { scoreFor, type ScoreAction } from './game/scoring';
 
 import heartUrl from '@/assets/heart.png';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarTracked, playPrincessHelpSound, isDragonRoaringNow, unlockAudio } from './game/sounds';
-import { playLevel1Music, stopLevel1Music, playLevel2Music, stopLevel2Music, playLevel3Music, stopLevel3Music, stopAllMusic } from './game/bgMusic';
+import { playLevel1Music, stopLevel1Music, playLevel2Music, stopLevel2Music, playLevel3Music, stopLevel3Music, playLevel4Music, stopLevel4Music, stopAllMusic } from './game/bgMusic';
 
 // True for Level 1 rounds (rounds 1, 5, 9, 13, …) — not L2/L3/L4.
 const isLevel1Round = (round: number): boolean =>
