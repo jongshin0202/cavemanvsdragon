@@ -316,6 +316,10 @@ const CavemanVsDragonGame = () => {
   const justSubmittedSkipProbe = useRef<boolean>(false);
   const justSubmittedLocalDateRef = useRef<string | null>(null);
   const justSubmittedGlobalIdRef = useRef<string | null>(null);
+  // Prevents re-entry into submitHighScore when the user mashes Enter while
+  // the async cloud insert is still in flight (was producing duplicate
+  // global rows).
+  const submittingScoreRef = useRef<boolean>(false);
   const [nameInput, setNameInput] = useState<string>('');
   const [nameError, setNameError] = useState<string>('');
   const [pendingScore, setPendingScore] = useState(0);
@@ -555,6 +559,7 @@ const CavemanVsDragonGame = () => {
     // L4: fully self-contained. Init L4 state and skip all L1/L2/L3 setup.
     if (isLevel4Round(g.round)) {
       l4Ref.current = initLevel4(getLevelIteration(g.round));
+      playLevel4Music();
       setGameState('playing');
       return;
     }
@@ -737,12 +742,17 @@ const CavemanVsDragonGame = () => {
   // Submit a high score: writes to LOCAL always, and to GLOBAL if it qualifies
   // for the global top 20. Then routes to the appropriate post-game view.
   const submitHighScore = useCallback(async () => {
+    // Guard against re-entry from mashed Enter presses while the cloud
+    // insert is still pending. Without this, each Enter added another row
+    // to the global leaderboard (and could dupe the local row too).
+    if (submittingScoreRef.current) return;
     const raw = nameInputRef.current;
     const v = validateName(raw);
     if (!v.ok) {
       setNameError(v.error || 'INVALID NAME');
       return;
     }
+    submittingScoreRef.current = true;
     const cleanName = raw.trim().slice(0, NAME_MAX_LENGTH);
     const entry: LeaderboardEntry = {
       name: cleanName,
@@ -1053,14 +1063,14 @@ const CavemanVsDragonGame = () => {
       }
 
       if (gs === 'gameover') {
-        if (qualifiesForTop(g.score)) {
+        const qLocal = qualifiesForTop(g.score);
+        const qGlobal = qualifiesForGlobal(g.score, globalScores);
+        if (qLocal || qGlobal) {
           // Promote to high-score prompt; swallow this input so a second press is required to advance
           setPendingScore(g.score);
           setPendingLevel(g.round);
-          // Decide now whether this also makes the global top, so we know
-          // which leaderboard to display after name entry. Use the latest
-          // global list we have cached.
-          justSubmittedGlobal.current = qualifiesForGlobal(g.score, globalScores);
+          justSubmittedGlobal.current = qGlobal;
+          submittingScoreRef.current = false;
           continueArmedAtRef.current = now + 1000;
           setGameState('highscorePrompt');
           return true;
@@ -1432,8 +1442,13 @@ const CavemanVsDragonGame = () => {
         const applePrevHitbox = { x: p.x, y: p.y, w: p.w, h: p.h };
         const playerPrevFrame = { x: p.x, y: p.y, w: p.w, h: p.h, vy: p.vy, onGround: p.onGround };
         (g as any)._playerPrevFrame = playerPrevFrame;
-        // Wider snap: find nearest ladder within LADDER_SNAP pixels
+        // Lenient ladder detection: any horizontal overlap between the
+        // player's hitbox and the ladder counts as "on the ladder", and any
+        // vertical overlap with the ladder span counts as being within reach.
         const playerCX = p.x + p.w / 2;
+        const LADDER_HALF_W = 7;
+        // Overlap-based horizontal tolerance (any pixel overlap).
+        const OVERLAP_SNAP = p.w / 2 + LADDER_HALF_W; // = 15 for a 16-wide player
         let nearestLadder: (typeof LADDERS)[number] | null = null;
         let nearestLadderIdx = -1;
         let nearestLadderDist = Infinity;
@@ -1443,10 +1458,33 @@ const CavemanVsDragonGame = () => {
           const l = LADDERS[li];
           const ladderCX = l.x + 7;
           const dist = Math.abs(playerCX - ladderCX);
-          if (dist < LADDER_SNAP && p.y + p.h > l.yTop - 8 && p.y + p.h <= l.yBot + 16 && dist < nearestLadderDist) {
+          // Vertical overlap: any part of the player intersects the ladder span
+          // (with a small tolerance to allow mounting from just above/below).
+          const vOverlap = p.y + p.h > l.yTop - 8 && p.y <= l.yBot + 16;
+          if (dist < LADDER_SNAP && vOverlap && dist < nearestLadderDist) {
             nearestLadder = l;
             nearestLadderIdx = li;
             nearestLadderDist = dist;
+          }
+        }
+        // Sticky selection: if the player is already climbing a ladder that's
+        // still in range, KEEP it as nearest. This prevents a co-located
+        // second ladder (e.g. L3 mid-vine sharing the same x as the top
+        // green/purple vine) from silently stealing the climb near the seam
+        // and dropping the player into midair on a left/right press.
+        if (p.climbing) {
+          const stickyIdx = (p as any).climbLadderIdx as number | undefined;
+          if (typeof stickyIdx === 'number' && stickyIdx >= 0 && stickyIdx < LADDERS.length
+              && isLadderUsable(g.round, stickyIdx)) {
+            const sl = LADDERS[stickyIdx];
+            const slCX = sl.x + 7;
+            const slDist = Math.abs(playerCX - slCX);
+            const slVOverlap = p.y + p.h > sl.yTop - 8 && p.y <= sl.yBot + 16;
+            if (slDist < LADDER_SNAP && slVOverlap) {
+              nearestLadder = sl;
+              nearestLadderIdx = stickyIdx;
+              nearestLadderDist = slDist;
+            }
           }
         }
 
@@ -1484,11 +1522,10 @@ const CavemanVsDragonGame = () => {
         const jumpJustPressed = jumpPressed && !(g as any)._jumpHeldLastFrame;
         (g as any)._jumpHeldLastFrame = jumpPressed;
 
-        // To start climbing, the player must be CLOSELY aligned with the ladder
-        // (no large horizontal snap that would look like teleporting). Once
-        // climbing, the wider LADDER_SNAP keeps them stuck to the vine.
-        const MOUNT_SNAP = 12;
-        const canMountHere = !!nearestLadder && nearestLadderDist <= MOUNT_SNAP;
+        // Lenient mount: any pixel of horizontal overlap between the player
+        // and the ladder is enough to start climbing when Up/Down is pressed.
+        const canMountHere = !!nearestLadder && nearestLadderDist <= OVERLAP_SNAP;
+
 
         if (wantUp && nearestLadder && !jumpPressed && (p.climbing || canMountHere)) {
           p.climbing = true;
@@ -1702,12 +1739,24 @@ const CavemanVsDragonGame = () => {
                 if (!hasOtherGrown) markSproutInUse(nearestLadderIdx);
               }
             } else {
-              // Default: horizontal dismount at any height.
-              const midY = (climbingLadder.yTop + climbingLadder.yBot) / 2;
-              const snapTop = feetY <= midY;
-              p.y = (snapTop ? climbingLadder.yTop : climbingLadder.yBot) - p.h;
-              p.climbing = false;
-              if (sproutMechanicActive(g.round) && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
+              // L3 top ladders (green→volcano, purple→dragon side): ignore
+              // left/right entirely so the player can't "walk off" the vine
+              // into midair. Only up/down operates on these vines.
+              const isL3TopLadder = isLevel3Round(g.round)
+                && (nearestLadderIdx === GREEN_TOP_LADDER_IDX
+                    || nearestLadderIdx === PURPLE_TOP_LADDER_IDX);
+              if (isL3TopLadder) {
+                p.vy = 0;
+                // Keep the player pinned to the ladder centerline.
+                p.x = climbingLadder.x + 7 - p.w / 2;
+              } else {
+                // Default: horizontal dismount at any height.
+                const midY = (climbingLadder.yTop + climbingLadder.yBot) / 2;
+                const snapTop = feetY <= midY;
+                p.y = (snapTop ? climbingLadder.yTop : climbingLadder.yBot) - p.h;
+                p.climbing = false;
+                if (sproutMechanicActive(g.round) && nearestLadderIdx >= 0) markSproutUsed(nearestLadderIdx);
+              }
             }
           } else {
             p.vy = 0;
@@ -3825,7 +3874,7 @@ const CavemanVsDragonGame = () => {
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();
-              submitHighScore();
+              if (gameState === 'enterName') submitHighScore();
             }
           }}
           autoFocus={gameState === 'enterName'}
