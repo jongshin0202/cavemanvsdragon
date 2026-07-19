@@ -1358,6 +1358,11 @@ const CavemanVsDragonGame = () => {
             playGameOverSound();
           } else {
             resetPlayer();
+            // Restart current level's background music from the beginning on respawn.
+            if (isLevel4Round(g.round)) playLevel4Music();
+            else if (isLevel3Round(g.round)) playLevel3Music();
+            else if (isLevel2Round(g.round)) playLevel2Music();
+            else if (isLevel1Round(g.round)) playLevel1Music();
             // L3 has no static ground — rebuild the moving platforms so a
             // platform is guaranteed near spawn, and place the player on
             // top of the leftmost row-0 platform so they don't fall into
