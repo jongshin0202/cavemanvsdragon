@@ -1238,6 +1238,12 @@ const CavemanVsDragonGame = () => {
         const pendingGO = (s4 as any)._pendingGameOver as number | undefined;
         if (pendingGO === undefined || pendingGO > 0) {
           const result = updateLevel4(s4, input);
+          // Detect L4 respawn (dying transitioned from true to false) and
+          // restart the level 4 music from the beginning.
+          if (l4PrevDyingRef.current && !s4.dying && g.lives > 0 && !s4.ending.active) {
+            playLevel4Music();
+          }
+          l4PrevDyingRef.current = s4.dying;
           if (s4.ending.active) stopLevel4Music();
           if (result.scoreEvents && result.scoreEvents.length) {
             const iter = getLevelIteration(g.round);
