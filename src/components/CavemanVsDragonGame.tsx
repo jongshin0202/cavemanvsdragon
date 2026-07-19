@@ -468,6 +468,7 @@ const CavemanVsDragonGame = () => {
   const l2Ref = useRef<L2State>(makeEmptyL2State());
   // ── Level 4 state (Popeye-style boss fight; fully self-contained) ──
   const l4Ref = useRef<L4State | null>(null);
+  const l4PrevDyingRef = useRef<boolean>(false);
   const l4SpritesRef = useRef<L4Sprites | null>(null);
   const heartImgRef = useRef<HTMLImageElement | null>(null);
   // Tracks the last intro-tap time so we can detect a double-tap shortcut
@@ -1237,6 +1238,12 @@ const CavemanVsDragonGame = () => {
         const pendingGO = (s4 as any)._pendingGameOver as number | undefined;
         if (pendingGO === undefined || pendingGO > 0) {
           const result = updateLevel4(s4, input);
+          // Detect L4 respawn (dying transitioned from true to false) and
+          // restart the level 4 music from the beginning.
+          if (l4PrevDyingRef.current && !s4.dying && g.lives > 0 && !s4.ending.active) {
+            playLevel4Music();
+          }
+          l4PrevDyingRef.current = s4.dying;
           if (s4.ending.active) stopLevel4Music();
           if (result.scoreEvents && result.scoreEvents.length) {
             const iter = getLevelIteration(g.round);
@@ -1357,6 +1364,11 @@ const CavemanVsDragonGame = () => {
             playGameOverSound();
           } else {
             resetPlayer();
+            // Restart current level's background music from the beginning on respawn.
+            if (isLevel4Round(g.round)) playLevel4Music();
+            else if (isLevel3Round(g.round)) playLevel3Music();
+            else if (isLevel2Round(g.round)) playLevel2Music();
+            else if (isLevel1Round(g.round)) playLevel1Music();
             // L3 has no static ground — rebuild the moving platforms so a
             // platform is guaranteed near spawn, and place the player on
             // top of the leftmost row-0 platform so they don't fall into
