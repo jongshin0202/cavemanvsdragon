@@ -3826,7 +3826,7 @@ const CavemanVsDragonGame = () => {
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();
-              submitHighScore();
+              if (gameState === 'enterName') submitHighScore();
             }
           }}
           autoFocus={gameState === 'enterName'}
