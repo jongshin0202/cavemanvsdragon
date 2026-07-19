@@ -10,7 +10,7 @@ import { scoreFor, type ScoreAction } from './game/scoring';
 
 import heartUrl from '@/assets/heart.png';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarTracked, playPrincessHelpSound, isDragonRoaringNow, unlockAudio } from './game/sounds';
-import { playLevel1Music, stopLevel1Music, playLevel2Music, stopLevel2Music, playLevel3Music, stopLevel3Music, stopAllMusic } from './game/bgMusic';
+import { playLevel1Music, stopLevel1Music, playLevel2Music, stopLevel2Music, playLevel3Music, stopLevel3Music, playLevel4Music, stopLevel4Music, stopAllMusic } from './game/bgMusic';
 
 // True for Level 1 rounds (rounds 1, 5, 9, 13, …) — not L2/L3/L4.
 const isLevel1Round = (round: number): boolean =>
@@ -603,7 +603,8 @@ const CavemanVsDragonGame = () => {
       g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed, rollPhase: 0 });
       playBarrelRollSound();
     }
-    if (isLevel3Round(g.round)) playLevel3Music();
+    if (isLevel4Round(g.round)) playLevel4Music();
+    else if (isLevel3Round(g.round)) playLevel3Music();
     else if (isLevel2Round(g.round)) playLevel2Music();
     else if (isLevel1Round(g.round)) playLevel1Music();
     else stopAllMusic();
@@ -1236,6 +1237,7 @@ const CavemanVsDragonGame = () => {
         const pendingGO = (s4 as any)._pendingGameOver as number | undefined;
         if (pendingGO === undefined || pendingGO > 0) {
           const result = updateLevel4(s4, input);
+          if (s4.ending.active) stopLevel4Music();
           if (result.scoreEvents && result.scoreEvents.length) {
             const iter = getLevelIteration(g.round);
             for (const ev of result.scoreEvents) {
