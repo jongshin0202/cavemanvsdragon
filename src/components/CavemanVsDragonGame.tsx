@@ -555,6 +555,7 @@ const CavemanVsDragonGame = () => {
     // L4: fully self-contained. Init L4 state and skip all L1/L2/L3 setup.
     if (isLevel4Round(g.round)) {
       l4Ref.current = initLevel4(getLevelIteration(g.round));
+      playLevel4Music();
       setGameState('playing');
       return;
     }
