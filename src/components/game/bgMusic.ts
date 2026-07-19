@@ -64,9 +64,10 @@ function startCrossfade(t: Track) {
 
   const startAt = performance.now();
   if (t.fadeTimer) clearInterval(t.fadeTimer);
+  const cf = t.crossfadeSec;
   t.fadeTimer = window.setInterval(() => {
     const elapsed = (performance.now() - startAt) / 1000;
-    const p = Math.min(1, elapsed / CROSSFADE_SEC);
+    const p = Math.min(1, elapsed / cf);
     // Equal-power crossfade
     const outV = Math.cos((p * Math.PI) / 2) * VOL;
     const inV = Math.sin((p * Math.PI) / 2) * VOL;
