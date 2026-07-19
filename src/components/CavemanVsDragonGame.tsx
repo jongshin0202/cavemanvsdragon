@@ -742,12 +742,17 @@ const CavemanVsDragonGame = () => {
   // Submit a high score: writes to LOCAL always, and to GLOBAL if it qualifies
   // for the global top 20. Then routes to the appropriate post-game view.
   const submitHighScore = useCallback(async () => {
+    // Guard against re-entry from mashed Enter presses while the cloud
+    // insert is still pending. Without this, each Enter added another row
+    // to the global leaderboard (and could dupe the local row too).
+    if (submittingScoreRef.current) return;
     const raw = nameInputRef.current;
     const v = validateName(raw);
     if (!v.ok) {
       setNameError(v.error || 'INVALID NAME');
       return;
     }
+    submittingScoreRef.current = true;
     const cleanName = raw.trim().slice(0, NAME_MAX_LENGTH);
     const entry: LeaderboardEntry = {
       name: cleanName,
