@@ -1237,6 +1237,7 @@ const CavemanVsDragonGame = () => {
         const pendingGO = (s4 as any)._pendingGameOver as number | undefined;
         if (pendingGO === undefined || pendingGO > 0) {
           const result = updateLevel4(s4, input);
+          if (s4.ending.active) stopLevel4Music();
           if (result.scoreEvents && result.scoreEvents.length) {
             const iter = getLevelIteration(g.round);
             for (const ev of result.scoreEvents) {
