@@ -8,11 +8,16 @@ import music3Asset from '@/assets/Gamemusic3.mp3.asset.json';
 import music4Asset from '@/assets/Gamemusic4.mp3.asset.json';
 
 const VOL = 0.333;
-// Length of the tail/head crossfade in seconds. Long enough to mask a
-// non-matching seam, short enough to preserve the track's feel.
-const CROSSFADE_SEC = 1.5;
+// Default length of the tail/head crossfade in seconds.
+const DEFAULT_CROSSFADE_SEC = 1.5;
+// Per-track overrides. Level 2 and 3 use a longer, gentler crossfade so the
+// loop seam is masked by the overlap and feels continuous.
+const CROSSFADE_OVERRIDES: Record<string, number> = {
+  level2: 4.0,
+  level3: 4.0,
+};
 // Fade tick interval (ms).
-const FADE_TICK_MS = 40;
+const FADE_TICK_MS = 30;
 
 type Track = {
   url: string;
@@ -22,14 +27,16 @@ type Track = {
   playing: boolean;
   fadeTimer?: number;
   watchTimer?: number;
+  crossfadeSec: number;
 };
 
 const tracks: Record<string, Track> = {
-  level1: { url: music1Asset.url, playing: false },
-  level2: { url: music2Asset.url, playing: false },
-  level3: { url: music3Asset.url, playing: false },
-  level4: { url: music4Asset.url, playing: false },
+  level1: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },
+  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2 },
+  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3 },
+  level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },
 };
+
 
 function makeAudio(url: string): HTMLAudioElement {
   const el = new Audio(url);
