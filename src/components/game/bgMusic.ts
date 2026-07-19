@@ -1,47 +1,117 @@
 // Background music for gameplay. Each level has its own looped track.
 // Volume is 1/3 of the game's sound-effect level.
+// Uses a dual-audio crossfade at the loop boundary so the end blends
+// smoothly into the beginning and feels continuous.
 import music1Asset from '@/assets/Gamemusic1.mp3.asset.json';
 import music2Asset from '@/assets/Gamemusic2.mp3.asset.json';
 import music3Asset from '@/assets/Gamemusic3.mp3.asset.json';
 import music4Asset from '@/assets/Gamemusic4.mp3.asset.json';
 
 const VOL = 0.333;
+// Length of the tail/head crossfade in seconds. Long enough to mask a
+// non-matching seam, short enough to preserve the track's feel.
+const CROSSFADE_SEC = 1.5;
+// Fade tick interval (ms).
+const FADE_TICK_MS = 40;
 
-type Track = { url: string; audio: HTMLAudioElement | null };
-const tracks: Record<string, Track> = {
-  level1: { url: music1Asset.url, audio: null },
-  level2: { url: music2Asset.url, audio: null },
-  level3: { url: music3Asset.url, audio: null },
-  level4: { url: music4Asset.url, audio: null },
+type Track = {
+  url: string;
+  a?: HTMLAudioElement;
+  b?: HTMLAudioElement;
+  active?: HTMLAudioElement;
+  playing: boolean;
+  fadeTimer?: number;
+  watchTimer?: number;
 };
 
-function getAudio(key: string): HTMLAudioElement {
-  const t = tracks[key];
-  if (!t.audio) {
-    t.audio = new Audio(t.url);
-    t.audio.loop = true;
-    t.audio.preload = 'auto';
-    t.audio.volume = VOL;
-  }
-  return t.audio;
+const tracks: Record<string, Track> = {
+  level1: { url: music1Asset.url, playing: false },
+  level2: { url: music2Asset.url, playing: false },
+  level3: { url: music3Asset.url, playing: false },
+  level4: { url: music4Asset.url, playing: false },
+};
+
+function makeAudio(url: string): HTMLAudioElement {
+  const el = new Audio(url);
+  el.loop = false; // manual crossfade loop
+  el.preload = 'auto';
+  el.volume = 0;
+  return el;
+}
+
+function clearTimers(t: Track) {
+  if (t.fadeTimer) { clearInterval(t.fadeTimer); t.fadeTimer = undefined; }
+  if (t.watchTimer) { clearInterval(t.watchTimer); t.watchTimer = undefined; }
+}
+
+function startCrossfade(t: Track) {
+  const from = t.active;
+  const next = from === t.a ? t.b! : t.a!;
+  if (!from || !next) return;
+  try {
+    next.currentTime = 0;
+    next.volume = 0;
+    void next.play().catch(() => {});
+  } catch { /* ignore */ }
+  t.active = next;
+
+  const startAt = performance.now();
+  if (t.fadeTimer) clearInterval(t.fadeTimer);
+  t.fadeTimer = window.setInterval(() => {
+    const elapsed = (performance.now() - startAt) / 1000;
+    const p = Math.min(1, elapsed / CROSSFADE_SEC);
+    // Equal-power crossfade
+    const outV = Math.cos((p * Math.PI) / 2) * VOL;
+    const inV = Math.sin((p * Math.PI) / 2) * VOL;
+    try { from.volume = Math.max(0, outV); } catch { /* ignore */ }
+    try { next.volume = Math.max(0, inV); } catch { /* ignore */ }
+    if (p >= 1) {
+      try { from.pause(); from.currentTime = 0; } catch { /* ignore */ }
+      if (t.fadeTimer) { clearInterval(t.fadeTimer); t.fadeTimer = undefined; }
+    }
+  }, FADE_TICK_MS);
+}
+
+function watch(t: Track) {
+  if (t.watchTimer) clearInterval(t.watchTimer);
+  t.watchTimer = window.setInterval(() => {
+    if (!t.playing || !t.active) return;
+    const el = t.active;
+    const dur = el.duration;
+    if (!isFinite(dur) || dur <= 0) return;
+    const remaining = dur - el.currentTime;
+    // Trigger crossfade once we're inside the tail window and no fade in progress.
+    if (remaining <= CROSSFADE_SEC + 0.05 && !t.fadeTimer) {
+      startCrossfade(t);
+    }
+  }, 100);
 }
 
 function play(key: string) {
   for (const k of Object.keys(tracks)) if (k !== key) stop(k);
-  const a = getAudio(key);
-  try {
-    a.currentTime = 0;
-    void a.play().catch(() => {});
-  } catch { /* ignore */ }
+  const t = tracks[key];
+  if (!t.a) t.a = makeAudio(t.url);
+  if (!t.b) t.b = makeAudio(t.url);
+  clearTimers(t);
+  // Reset both
+  try { t.a.pause(); t.a.currentTime = 0; t.a.volume = VOL; } catch { /* ignore */ }
+  try { t.b.pause(); t.b.currentTime = 0; t.b.volume = 0; } catch { /* ignore */ }
+  t.active = t.a;
+  t.playing = true;
+  try { void t.a.play().catch(() => {}); } catch { /* ignore */ }
+  watch(t);
 }
 
 function stop(key: string) {
   const t = tracks[key];
-  if (!t.audio) return;
-  try {
-    t.audio.pause();
-    t.audio.currentTime = 0;
-  } catch { /* ignore */ }
+  if (!t) return;
+  t.playing = false;
+  clearTimers(t);
+  for (const el of [t.a, t.b]) {
+    if (!el) continue;
+    try { el.pause(); el.currentTime = 0; el.volume = 0; } catch { /* ignore */ }
+  }
+  t.active = undefined;
 }
 
 export const playLevel1Music = () => play('level1');
