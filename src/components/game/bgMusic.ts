@@ -40,9 +40,9 @@ const tracks: Record<string, Track> = {
 };
 
 
-function makeAudio(url: string): HTMLAudioElement {
+function makeAudio(url: string, nativeLoop = false): HTMLAudioElement {
   const el = new Audio(url);
-  el.loop = false; // manual crossfade loop
+  el.loop = nativeLoop; // browser gapless loop when true
   el.preload = 'auto';
   el.volume = 0;
   return el;
