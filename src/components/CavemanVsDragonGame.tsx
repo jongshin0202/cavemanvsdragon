@@ -468,6 +468,7 @@ const CavemanVsDragonGame = () => {
   const l2Ref = useRef<L2State>(makeEmptyL2State());
   // ── Level 4 state (Popeye-style boss fight; fully self-contained) ──
   const l4Ref = useRef<L4State | null>(null);
+  const l4PrevDyingRef = useRef<boolean>(false);
   const l4SpritesRef = useRef<L4Sprites | null>(null);
   const heartImgRef = useRef<HTMLImageElement | null>(null);
   // Tracks the last intro-tap time so we can detect a double-tap shortcut
