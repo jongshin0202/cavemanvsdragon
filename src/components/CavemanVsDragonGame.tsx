@@ -10,6 +10,11 @@ import { scoreFor, type ScoreAction } from './game/scoring';
 
 import heartUrl from '@/assets/heart.png';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarTracked, playPrincessHelpSound, isDragonRoaringNow, unlockAudio } from './game/sounds';
+import { playLevel1Music, stopLevel1Music } from './game/bgMusic';
+
+// True for Level 1 rounds (rounds 1, 5, 9, 13, …) — not L2/L3/L4.
+const isLevel1Round = (round: number): boolean =>
+  !isLevel2Round(round) && !isLevel3Round(round) && !isLevel4Round(round);
 import { loadScores, qualifiesForTop, insertScore, clearLocalScores, formatDate, entryDisplayName, MAX_ENTRIES, type LeaderboardEntry } from './game/leaderboard';
 import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal, type GlobalEntry } from './game/globalLeaderboard';
 import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/deviceStats';
@@ -598,6 +603,7 @@ const CavemanVsDragonGame = () => {
       g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed, rollPhase: 0 });
       playBarrelRollSound();
     }
+    if (isLevel1Round(g.round)) playLevel1Music(); else stopLevel1Music();
     setGameState('playing');
   }, [resetPlayer]);
 
@@ -1828,6 +1834,7 @@ const CavemanVsDragonGame = () => {
           const paulX = 175, paulY = 64;
           if (rectsOverlap(p, { x: paulX, y: paulY, w: 40, h: 48 })) {
             g.state = 'win'; setGameState('win');
+            stopLevel1Music();
             awardScore(scoreFor('completeLevel', getLevelIteration(g.round))); playWinSound(); playPrincessSavedSound();
             wa.active = true;
             wa.timer = 0;
