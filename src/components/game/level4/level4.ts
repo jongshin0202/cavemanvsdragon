@@ -434,12 +434,39 @@ function makeMonkey(platIdx: number): Monkey {
   const mx = plat.x1 + 16 + Math.random() * Math.max(8, w - 40);
   return {
     alive: true,
+    uid: nextMonkeyUid++,
     x: mx,
     y: platY(plat, mx) - 16,
     platIdx,
     vx: (Math.random() < 0.5 ? -1 : 1) * 0.55,
     facing: 1,
     walkFrame: 0, walkTimer: 0,
+  };
+}
+
+function getMonkeyVisualBoundsL4(m: Monkey) {
+  const cx = m.x + 7;
+  const feetY = m.y + 16;
+  return { x: cx - MONKEY_DRAW_W / 2, y: feetY - MONKEY_DRAW_H, w: MONKEY_DRAW_W, h: MONKEY_DRAW_H };
+}
+
+function isValidAppleThrowerL4(m: Monkey | undefined): m is Monkey {
+  if (!m || !m.alive) return false;
+  const b = getMonkeyVisualBoundsL4(m);
+  return b.x >= APPLE_THROW_EDGE_MARGIN &&
+    b.x + b.w <= CANVAS_W - APPLE_THROW_EDGE_MARGIN &&
+    b.y >= 0 && b.y + b.h <= CANVAS_H;
+}
+
+function findAppleOwnerL4(s: L4State, fb: MonkeyFireball): Monkey | null {
+  return s.monkeys.find(m => m.uid === fb.ownerId && isValidAppleThrowerL4(m)) ?? null;
+}
+
+function getAppleOriginFromMonkeyL4(m: Monkey, dir: number) {
+  const b = getMonkeyVisualBoundsL4(m);
+  return {
+    x: dir >= 0 ? b.x + b.w - 7 : b.x,
+    y: b.y + Math.round(b.h * 0.48),
   };
 }
 
