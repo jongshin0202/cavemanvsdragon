@@ -10,6 +10,11 @@ import { scoreFor, type ScoreAction } from './game/scoring';
 
 import heartUrl from '@/assets/heart.png';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarTracked, playPrincessHelpSound, isDragonRoaringNow, unlockAudio } from './game/sounds';
+import { playLevel1Music, stopLevel1Music, playLevel2Music, stopLevel2Music, playLevel3Music, stopLevel3Music, playLevel4Music, stopLevel4Music, stopAllMusic } from './game/bgMusic';
+
+// True for Level 1 rounds (rounds 1, 5, 9, 13, …) — not L2/L3/L4.
+const isLevel1Round = (round: number): boolean =>
+  !isLevel2Round(round) && !isLevel3Round(round) && !isLevel4Round(round);
 import { loadScores, qualifiesForTop, insertScore, clearLocalScores, formatDate, entryDisplayName, MAX_ENTRIES, type LeaderboardEntry } from './game/leaderboard';
 import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal, type GlobalEntry } from './game/globalLeaderboard';
 import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/deviceStats';
@@ -463,6 +468,7 @@ const CavemanVsDragonGame = () => {
   const l2Ref = useRef<L2State>(makeEmptyL2State());
   // ── Level 4 state (Popeye-style boss fight; fully self-contained) ──
   const l4Ref = useRef<L4State | null>(null);
+  const l4PrevDyingRef = useRef<boolean>(false);
   const l4SpritesRef = useRef<L4Sprites | null>(null);
   const heartImgRef = useRef<HTMLImageElement | null>(null);
   // Tracks the last intro-tap time so we can detect a double-tap shortcut
@@ -598,6 +604,11 @@ const CavemanVsDragonGame = () => {
       g.barrels.push({ x: 140, y: 88, w: 14, h: 14, vx: speed, vy: 0, onLadder: false, falling: false, targetLadder: null, speed, rollPhase: 0 });
       playBarrelRollSound();
     }
+    if (isLevel4Round(g.round)) playLevel4Music();
+    else if (isLevel3Round(g.round)) playLevel3Music();
+    else if (isLevel2Round(g.round)) playLevel2Music();
+    else if (isLevel1Round(g.round)) playLevel1Music();
+    else stopAllMusic();
     setGameState('playing');
   }, [resetPlayer]);
 
@@ -842,6 +853,11 @@ const CavemanVsDragonGame = () => {
 
   const gameStateRef = useRef<GameState>('intro');
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
+
+  // Stop gameplay music whenever we're not actively in gameplay.
+  useEffect(() => {
+    if (gameState !== 'playing') stopAllMusic();
+  }, [gameState]);
 
   // Auto-return to intro screen after 5s of inactivity on terminal screens
   // (gameover without high score, or after viewing the leaderboard post-game).
@@ -1222,6 +1238,13 @@ const CavemanVsDragonGame = () => {
         const pendingGO = (s4 as any)._pendingGameOver as number | undefined;
         if (pendingGO === undefined || pendingGO > 0) {
           const result = updateLevel4(s4, input);
+          // Detect L4 respawn (dying transitioned from true to false) and
+          // restart the level 4 music from the beginning.
+          if (l4PrevDyingRef.current && !s4.dying && g.lives > 0 && !s4.ending.active) {
+            playLevel4Music();
+          }
+          l4PrevDyingRef.current = s4.dying;
+          if (s4.ending.active) stopLevel4Music();
           if (result.scoreEvents && result.scoreEvents.length) {
             const iter = getLevelIteration(g.round);
             for (const ev of result.scoreEvents) {
@@ -1341,6 +1364,11 @@ const CavemanVsDragonGame = () => {
             playGameOverSound();
           } else {
             resetPlayer();
+            // Restart current level's background music from the beginning on respawn.
+            if (isLevel4Round(g.round)) playLevel4Music();
+            else if (isLevel3Round(g.round)) playLevel3Music();
+            else if (isLevel2Round(g.round)) playLevel2Music();
+            else if (isLevel1Round(g.round)) playLevel1Music();
             // L3 has no static ground — rebuild the moving platforms so a
             // platform is guaranteed near spawn, and place the player on
             // top of the leftmost row-0 platform so they don't fall into
@@ -1828,6 +1856,7 @@ const CavemanVsDragonGame = () => {
           const paulX = 175, paulY = 64;
           if (rectsOverlap(p, { x: paulX, y: paulY, w: 40, h: 48 })) {
             g.state = 'win'; setGameState('win');
+            stopLevel1Music();
             awardScore(scoreFor('completeLevel', getLevelIteration(g.round))); playWinSound(); playPrincessSavedSound();
             wa.active = true;
             wa.timer = 0;
@@ -1992,6 +2021,7 @@ const CavemanVsDragonGame = () => {
             const paulX = 175, paulY = 64;
             if (rectsOverlap(pl, { x: paulX, y: paulY, w: 40, h: 48 })) {
               g.state = 'win'; setGameState('win');
+              stopLevel2Music(); stopLevel3Music();
               awardScore(scoreFor('completeLevel', getLevelIteration(g.round)));
               playWinSound(); playPrincessSavedSound();
               wa.active = true;
