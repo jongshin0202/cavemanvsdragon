@@ -849,6 +849,11 @@ const CavemanVsDragonGame = () => {
   const gameStateRef = useRef<GameState>('intro');
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
 
+  // Stop L1 background music whenever we're not actively in gameplay.
+  useEffect(() => {
+    if (gameState !== 'playing') stopLevel1Music();
+  }, [gameState]);
+
   // Auto-return to intro screen after 5s of inactivity on terminal screens
   // (gameover without high score, or after viewing the leaderboard post-game).
   useEffect(() => {
