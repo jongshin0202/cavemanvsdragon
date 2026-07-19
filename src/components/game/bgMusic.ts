@@ -3,6 +3,7 @@
 import music1Asset from '@/assets/Gamemusic1.mp3.asset.json';
 import music2Asset from '@/assets/Gamemusic2.mp3.asset.json';
 import music3Asset from '@/assets/Gamemusic3.mp3.asset.json';
+import music4Asset from '@/assets/Gamemusic4.mp3.asset.json';
 
 const VOL = 0.333;
 
@@ -11,6 +12,7 @@ const tracks: Record<string, Track> = {
   level1: { url: music1Asset.url, audio: null },
   level2: { url: music2Asset.url, audio: null },
   level3: { url: music3Asset.url, audio: null },
+  level4: { url: music4Asset.url, audio: null },
 };
 
 function getAudio(key: string): HTMLAudioElement {
