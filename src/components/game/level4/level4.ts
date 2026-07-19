@@ -1087,13 +1087,14 @@ function tickMonkeys(s: L4State) {
 //   - speed (px/frame) = baseline 2.2 * 1.1^steps
 function tickMonkeyFireballs(s: L4State) {
   // Move existing
+  s.monkeyFireballs = s.monkeyFireballs.filter(fb => !!findAppleOwnerL4(s, fb));
   for (const fb of s.monkeyFireballs) {
     fb.x += fb.vx;
     fb.y += fb.vy;
     fb.age++;
   }
   s.monkeyFireballs = s.monkeyFireballs.filter(
-    fb => fb.age < 600 && fb.x > -30 && fb.x < CANVAS_W + 30 && fb.y > -30 && fb.y < CANVAS_H + 30,
+    fb => !!findAppleOwnerL4(s, fb) && fb.age < 600 && fb.x > -30 && fb.x < CANVAS_W + 30 && fb.y > -30 && fb.y < CANVAS_H + 30,
   );
   // Horizontal-only fireballs for L4 iter 1-3; aimed anywhere from iter 4+.
   if (s.iter < 1) return;
@@ -1101,29 +1102,31 @@ function tickMonkeyFireballs(s: L4State) {
   const maxFireballs = 1 + Math.floor(steps / 3);
   if (s.monkeyFireballs.length >= maxFireballs) return;
   if (s.monkeyFireballTimer > 0) { s.monkeyFireballTimer--; return; }
-  const alive = s.monkeys.filter(m => m.alive);
+  const alive = s.monkeys.filter(m => isValidAppleThrowerL4(m));
   if (!alive.length) { s.monkeyFireballTimer = 60; return; }
   const m = alive[Math.floor(Math.random() * alive.length)];
   const p = s.player;
-  const sx = m.x + 7;
-  const sy = m.y + 4;
   const speed = 2.2 * Math.pow(1.1, steps);
   let vx: number, vy: number;
   if (s.iter <= 3) {
     // Horizontal only: face the player and shoot straight
-    const dir = p.x + p.w / 2 < sx ? -1 : 1;
+    const dir = p.x + p.w / 2 < m.x + 7 ? -1 : 1;
+    const origin = getAppleOriginFromMonkeyL4(m, dir);
     vx = dir * speed;
     vy = 0;
+    s.monkeyFireballs.push({ x: origin.x, y: origin.y, vx, vy, r: 5, age: 0, ownerId: m.uid });
   } else {
     // Aimed at player
+    const dir = p.x + p.w / 2 < m.x + 7 ? -1 : 1;
+    const origin = getAppleOriginFromMonkeyL4(m, dir);
     const tx = p.x + p.w / 2;
     const ty = p.y + p.h / 2;
-    const dx = tx - sx, dy = ty - sy;
+    const dx = tx - origin.x, dy = ty - origin.y;
     const L = Math.hypot(dx, dy) || 1;
     vx = (dx / L) * speed;
     vy = (dy / L) * speed;
+    s.monkeyFireballs.push({ x: origin.x, y: origin.y, vx, vy, r: 5, age: 0, ownerId: m.uid });
   }
-  s.monkeyFireballs.push({ x: sx, y: sy, vx, vy, r: 5, age: 0 });
   const intervalSec = 5.95 * Math.pow(0.9, steps);
   s.monkeyFireballTimer = Math.round(intervalSec * 60 * (0.5 + Math.random()));
 }
@@ -1279,6 +1282,7 @@ function spawnCanFromDragon(s: L4State, color: 'green' | 'purple') {
 function respawnMonkeyWave(s: L4State) {
   const dist = buildMonkeyDistribution(s.iter);
   s.monkeys = [];
+  s.monkeyFireballs = [];
   for (let i = 0; i < dist.length; i++) {
     for (let k = 0; k < dist[i]; k++) s.monkeys.push(makeMonkey(MONKEY_PLAT_ANCHORS[i]));
   }
@@ -1919,6 +1923,7 @@ function tickCollisions(s: L4State) {
   // Monkey fireballs vs player
   if (s.invuln <= 0) {
     for (const fb of s.monkeyFireballs) {
+      if (!findAppleOwnerL4(s, fb)) continue;
       const dx = (p.x + p.w / 2) - fb.x;
       const dy = (p.y + p.h / 2) - fb.y;
       if (dx * dx + dy * dy < (fb.r + 8) * (fb.r + 8)) {
@@ -1983,6 +1988,7 @@ function tickCollisions(s: L4State) {
   }
   // Jumping over monkey "apples" (fireballs)
   for (const fb of s.monkeyFireballs) {
+    if (!findAppleOwnerL4(s, fb)) continue;
     if (fb.jumpedOver) continue;
     const horizOverlap = p.x + p.w > fb.x - fb.r && p.x < fb.x + fb.r;
     if (!p.onGround && horizOverlap && (p.y + p.h) < fb.y - fb.r + 2) {
@@ -2213,6 +2219,7 @@ export function renderLevel4(ctx: CanvasRenderingContext2D, s: L4State, sprites:
 
   // Monkey-thrown apples (same look as Level 2 apples)
   for (const fb of s.monkeyFireballs) {
+    if (!findAppleOwnerL4(s, fb)) continue;
     const cx = fb.x;
     const cy = fb.y;
     const drawH = 7;
