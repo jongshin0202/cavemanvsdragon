@@ -3022,6 +3022,17 @@ const CavemanVsDragonGame = () => {
               playRobotKillSound();
               p.vy = -4;
               const wasMps = !!(r as any)._mpsL3;
+              // L3: if we just stomped a monkey riding a moving platform,
+              // snap the player onto that same platform so the tiny bounce
+              // (vy = -4) can't cause them to miss the mover on descent and
+              // fall off-screen to a fatal death.
+              if (isLevel3Round(g.round) && wasMps) {
+                const ride = findMonkeyRidePlatform(r as MpsRobot);
+                if (ride) {
+                  p.x = Math.max(ride.x + 1, Math.min(ride.x + ride.w - p.w - 1, p.x));
+                  p.y = ride.y - p.h;
+                }
+              }
               // Splice in descending index order so indices remain valid.
               groupIdxs.sort((a, b) => b - a);
               for (const ki of groupIdxs) {
