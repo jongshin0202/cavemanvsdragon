@@ -5,6 +5,7 @@ import princessSpriteUrl from '@/assets/princess-sprite.png';
 import princessScaredUrl from '@/assets/princess-scared.png';
 import dragonAngryUrl from '@/assets/dragon-angry.png';
 import { playWingFlapSound, playPrincessHelpSound } from '../game/sounds';
+import { playEndingMusic, stopEndingMusic } from '../game/bgMusic';
 
 const CW = 512;
 const CH = 480;
