@@ -2556,10 +2556,20 @@ const CavemanVsDragonGame = () => {
                   r.y = l.yTop - r.h + climbSpeed;
                   r.vy = climbSpeed;
                   (r as any)._l3BottomStall = 0;
+                  (r as any)._forceTop = false;
                 } else if (atBot) {
                   const bottomStall = ((r as any)._l3BottomStall ?? 0) + 1;
                   (r as any)._l3BottomStall = bottomStall;
                   r.y = visibleBot - r.h - climbSpeed * (bottomStall > 1 ? 2 : 1);
+                  r.vy = -climbSpeed;
+                  // Every 3rd time reaching bottom, force a full climb to top
+                  // before descending again.
+                  if (bottomStall === 1) {
+                    const bc = ((r as any)._bottomCycles ?? 0) + 1;
+                    (r as any)._bottomCycles = bc;
+                    if (bc % 3 === 0) (r as any)._forceTop = true;
+                  }
+                } else if ((r as any)._forceTop) {
                   r.vy = -climbSpeed;
                 } else if (Math.abs(r.vy) < 0.1 || (r as any)._climbReDecide <= 0) {
                   const chaseDir = playerFeetY < monkeyMidY ? -1 : 1;
@@ -2588,11 +2598,20 @@ const CavemanVsDragonGame = () => {
                   r.y = sproutTop - r.h + climbSpeed;
                   r.vy = playerOnTop ? -climbSpeed : climbSpeed;
                   if (r.vy < 0) r.vy = climbSpeed;
+                  (r as any)._forceTop = false;
                 }
                 else if (atBot) {
                   const bottomStall = ((r as any)._l3BottomStall ?? 0) + 1;
                   (r as any)._l3BottomStall = bottomStall;
                   r.y = visibleBot - r.h - climbSpeed * (bottomStall > 1 ? 2 : 1);
+                  r.vy = -climbSpeed;
+                  if (bottomStall === 1) {
+                    const bc = ((r as any)._bottomCycles ?? 0) + 1;
+                    (r as any)._bottomCycles = bc;
+                    if (bc % 3 === 0) (r as any)._forceTop = true;
+                  }
+                }
+                else if ((r as any)._forceTop) {
                   r.vy = -climbSpeed;
                 }
                 else if ((r as any)._climbReDecide <= 0) {
