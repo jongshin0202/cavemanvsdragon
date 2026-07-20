@@ -2608,6 +2608,22 @@ const CavemanVsDragonGame = () => {
           } else {
             // Wander timer: pick a new random direction occasionally,
             // biased toward player so movement is gradual + natural.
+            if (isLevel3Round(g.round) && (r as any)._mpsL3) {
+              const rescueLi = findMpsMonkeyClimbTarget(g.round, r.x + r.w / 2, r.y + r.h, playerCenterX);
+              if (rescueLi >= 0) {
+                const l = LADDERS[rescueLi];
+                r.x = l.x + (16 - r.w) / 2;
+                r.vx = 0;
+                r.vy = -Math.max(r.speed, 0.7);
+                r.climbing = true;
+                r.targetLadder = rescueLi;
+                r.onGround = false;
+                (r as any)._leftMps = true;
+                (r as any)._rideMp = undefined;
+                (r as any)._lastMpX = undefined;
+                continue;
+              }
+            }
             if (r.wanderDir === undefined) commitMonkeyDirection(r, r.direction || 1);
             r.wanderTimer = (r.wanderTimer ?? 0) - 1;
             (r as any)._dirLockFrames = Math.max(0, ((r as any)._dirLockFrames ?? 0) - 1);
