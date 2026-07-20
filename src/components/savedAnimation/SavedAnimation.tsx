@@ -85,6 +85,10 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
 
       if (full) {
         if (elapsed >= T_FULL.DRAGON_APPEAR && elapsed < T_FULL.CARRY_END) {
+          if (!endingMusicStoppedRef.current) {
+            endingMusicStoppedRef.current = true;
+            stopEndingMusic();
+          }
           if (now - lastFlapRef.current > 600) {
             lastFlapRef.current = now;
             playWingFlapSound();
