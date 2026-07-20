@@ -70,7 +70,6 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
   // arrives (wing-flap sound takes over).
   const endingMusicStoppedRef = useRef(false);
   useEffect(() => {
-    if (!full) return;
     endingMusicStoppedRef.current = false;
     playEndingMusic();
     return () => { stopEndingMusic(); };
