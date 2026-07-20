@@ -3028,9 +3028,18 @@ const CavemanVsDragonGame = () => {
               // fall off-screen to a fatal death.
               if (isLevel3Round(g.round) && wasMps) {
                 const ride = findMonkeyRidePlatform(r as MpsRobot);
+                // Only snap if the monkey was actually ON that platform
+                // (feet near surface) AND the player is directly above it.
+                // Otherwise we'd teleport the player across the screen.
                 if (ride) {
-                  p.x = Math.max(ride.x + 1, Math.min(ride.x + ride.w - p.w - 1, p.x));
-                  p.y = ride.y - p.h;
+                  const monkeyOnRide = Math.abs((r.y + r.h) - ride.y) <= 6;
+                  const playerOverRide =
+                    p.x + p.w > ride.x && p.x < ride.x + ride.w &&
+                    p.y + p.h <= ride.y + 4;
+                  if (monkeyOnRide && playerOverRide) {
+                    p.x = Math.max(ride.x + 1, Math.min(ride.x + ride.w - p.w - 1, p.x));
+                    p.y = ride.y - p.h;
+                  }
                 }
               }
               // Splice in descending index order so indices remain valid.
