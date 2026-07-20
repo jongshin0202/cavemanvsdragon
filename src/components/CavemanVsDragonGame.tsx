@@ -865,8 +865,10 @@ const CavemanVsDragonGame = () => {
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
 
   // Stop gameplay music whenever we're not actively in gameplay.
+  // Keep music control inside SavedAnimation while the ending cinematic runs;
+  // otherwise this parent effect immediately stops the ending track after it starts.
   useEffect(() => {
-    if (gameState !== 'playing') stopAllMusic();
+    if (gameState !== 'playing' && gameState !== 'savedAnim') stopAllMusic();
   }, [gameState]);
 
   // Auto-return to intro screen after 5s of inactivity on terminal screens
