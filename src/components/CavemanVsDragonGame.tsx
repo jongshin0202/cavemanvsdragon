@@ -1455,6 +1455,16 @@ const CavemanVsDragonGame = () => {
         let nearestLadder: (typeof LADDERS)[number] | null = null;
         let nearestLadderIdx = -1;
         let nearestLadderDist = Infinity;
+        let nearestLadderScore = Infinity;
+        // Peek input direction so selection can prefer the ladder that
+        // actually extends in the pressed direction. At seams (e.g. L3 P5,
+        // where a mid-vine's yTop and the top-vine's yBot both meet the
+        // player's feet), this stops a co-located wrong-direction ladder
+        // from stealing the mount and dismounting the player mid-press.
+        const _padKeys0 = activePadKeysRef.current;
+        const _rawUp0 = keys.has('ArrowUp') || _padKeys0.includes('ArrowUp');
+        const _rawDown0 = keys.has('ArrowDown') || _padKeys0.includes('ArrowDown');
+        const feetY = p.y + p.h;
         for (let li = 0; li < LADDERS.length; li++) {
           if (!isLevel2Round(g.round) && li === getTopVineIdx() && !g.topVineUnlocked) continue;
           if (!isLadderUsable(g.round, li)) continue;
@@ -1464,10 +1474,21 @@ const CavemanVsDragonGame = () => {
           // Vertical overlap: any part of the player intersects the ladder span
           // (with a small tolerance to allow mounting from just above/below).
           const vOverlap = p.y + p.h > l.yTop - 8 && p.y <= l.yBot + 16;
-          if (dist < LADDER_SNAP && vOverlap && dist < nearestLadderDist) {
+          if (dist >= LADDER_SNAP || !vOverlap) continue;
+          // Directional preference: if pressing Up, wrong-direction ladders
+          // (whose top is at/below the player's feet) get a big penalty so
+          // the actual upward vine wins even when slightly farther.
+          let score = dist;
+          if (_rawUp0 && !_rawDown0) {
+            if (l.yTop >= feetY - 4) score += 1000;
+          } else if (_rawDown0 && !_rawUp0) {
+            if (l.yBot <= feetY + 4) score += 1000;
+          }
+          if (score < nearestLadderScore) {
             nearestLadder = l;
             nearestLadderIdx = li;
             nearestLadderDist = dist;
+            nearestLadderScore = score;
           }
         }
         // Sticky selection: if the player is already climbing a ladder that's
