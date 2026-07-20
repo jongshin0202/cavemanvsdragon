@@ -2741,6 +2741,13 @@ const CavemanVsDragonGame = () => {
                   if (r.x + r.w > mp.x && r.x < mp.x + mp.w) {
                     if (r.y + r.h >= mp.y && r.y + r.h <= mp.y + 12 && r.vy >= 0) {
                       r.y = mp.y - r.h; r.vy = 0; r.onGround = true;
+                      // MPS monkey landed back on a moving platform — clear
+                      // the "left MPS" flag so it can ride/climb the vine again
+                      // instead of getting stuck at the bottom forever.
+                      if ((r as any)._mpsL3) {
+                        (r as any)._leftMps = false;
+                        (r as any)._rideMp = mp;
+                      }
                       r.x += dxs[mi] || 0;
                       landed = true;
                       break;
