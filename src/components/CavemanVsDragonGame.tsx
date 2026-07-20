@@ -2556,10 +2556,20 @@ const CavemanVsDragonGame = () => {
                   r.y = l.yTop - r.h + climbSpeed;
                   r.vy = climbSpeed;
                   (r as any)._l3BottomStall = 0;
+                  (r as any)._forceTop = false;
                 } else if (atBot) {
                   const bottomStall = ((r as any)._l3BottomStall ?? 0) + 1;
                   (r as any)._l3BottomStall = bottomStall;
                   r.y = visibleBot - r.h - climbSpeed * (bottomStall > 1 ? 2 : 1);
+                  r.vy = -climbSpeed;
+                  // Every 3rd time reaching bottom, force a full climb to top
+                  // before descending again.
+                  if (bottomStall === 1) {
+                    const bc = ((r as any)._bottomCycles ?? 0) + 1;
+                    (r as any)._bottomCycles = bc;
+                    if (bc % 3 === 0) (r as any)._forceTop = true;
+                  }
+                } else if ((r as any)._forceTop) {
                   r.vy = -climbSpeed;
                 } else if (Math.abs(r.vy) < 0.1 || (r as any)._climbReDecide <= 0) {
                   const chaseDir = playerFeetY < monkeyMidY ? -1 : 1;
@@ -2588,11 +2598,20 @@ const CavemanVsDragonGame = () => {
                   r.y = sproutTop - r.h + climbSpeed;
                   r.vy = playerOnTop ? -climbSpeed : climbSpeed;
                   if (r.vy < 0) r.vy = climbSpeed;
+                  (r as any)._forceTop = false;
                 }
                 else if (atBot) {
                   const bottomStall = ((r as any)._l3BottomStall ?? 0) + 1;
                   (r as any)._l3BottomStall = bottomStall;
                   r.y = visibleBot - r.h - climbSpeed * (bottomStall > 1 ? 2 : 1);
+                  r.vy = -climbSpeed;
+                  if (bottomStall === 1) {
+                    const bc = ((r as any)._bottomCycles ?? 0) + 1;
+                    (r as any)._bottomCycles = bc;
+                    if (bc % 3 === 0) (r as any)._forceTop = true;
+                  }
+                }
+                else if ((r as any)._forceTop) {
                   r.vy = -climbSpeed;
                 }
                 else if ((r as any)._climbReDecide <= 0) {
@@ -2973,15 +2992,18 @@ const CavemanVsDragonGame = () => {
             // Must be airborne (jumping or falling) — standing on a platform
             // above a climbing monkey should NOT count as a stomp.
             const descendingIntoHead = !p.onGround && (prevP.vy > 0 || p.vy > 0 || feet > prevFeet) && prevFeet <= r.y + r.h * 0.75;
-            // If the player is airborne and clearly descending from above the
-            // monkey's head, always count it as a stomp — even for climbing
-            // monkeys mid-ladder. This handles the case where the player jumps
-            // from the top of a ladder platform and lands on a monkey whose
-            // head has just risen above the platform edge.
-            const climbingBlocksKill = r.climbing && !climbingAboveTopSprout && !descendingIntoHead;
+            // Climbing monkey whose head is above the top sprout platform:
+            // if the player's feet are at/above the monkey's head area, treat
+            // as a stomp regardless of onGround state. This handles jumping
+            // from the top platform and landing on a monkey mid-climb whose
+            // head has cleared the platform edge — even if the player has
+            // already settled onto the platform in the same frame.
+            const feetOnHead = feet <= r.y + r.h * 0.75;
+            const climbingHeadKill = climbingAboveTopSprout && feetOnHead;
+            const climbingBlocksKill = r.climbing && !climbingAboveTopSprout && !descendingIntoHead && !climbingHeadKill;
             const stompHeadLimit = (climbingAboveTopSprout || descendingIntoHead) ? r.y + r.h + 4 : r.y + r.h * 0.6;
             const isStomp =
-              descendingIntoHead &&
+              (descendingIntoHead || climbingHeadKill) &&
               (p.y + p.h <= stompHeadLimit) &&
               !climbingBlocksKill;
             if (isStomp) {
@@ -3003,6 +3025,26 @@ const CavemanVsDragonGame = () => {
               playRobotKillSound();
               p.vy = -4;
               const wasMps = !!(r as any)._mpsL3;
+              // L3: if we just stomped a monkey riding a moving platform,
+              // snap the player onto that same platform so the tiny bounce
+              // (vy = -4) can't cause them to miss the mover on descent and
+              // fall off-screen to a fatal death.
+              if (isLevel3Round(g.round) && wasMps) {
+                const ride = findMonkeyRidePlatform(r as MpsRobot);
+                // Only snap if the monkey was actually ON that platform
+                // (feet near surface) AND the player is directly above it.
+                // Otherwise we'd teleport the player across the screen.
+                if (ride) {
+                  const monkeyOnRide = Math.abs((r.y + r.h) - ride.y) <= 6;
+                  const playerOverRide =
+                    p.x + p.w > ride.x && p.x < ride.x + ride.w &&
+                    p.y + p.h <= ride.y + 4;
+                  if (monkeyOnRide && playerOverRide) {
+                    p.x = Math.max(ride.x + 1, Math.min(ride.x + ride.w - p.w - 1, p.x));
+                    p.y = ride.y - p.h;
+                  }
+                }
+              }
               // Splice in descending index order so indices remain valid.
               groupIdxs.sort((a, b) => b - a);
               for (const ki of groupIdxs) {
