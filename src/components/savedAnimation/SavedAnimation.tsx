@@ -66,6 +66,16 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
     img.src = princessScaredUrl;
   }, [full]);
 
+  // Ending music: starts with the full cinematic, stops when the dragon
+  // arrives (wing-flap sound takes over).
+  const endingMusicStoppedRef = useRef(false);
+  useEffect(() => {
+    if (!full) return;
+    endingMusicStoppedRef.current = false;
+    playEndingMusic();
+    return () => { stopEndingMusic(); };
+  }, [full]);
+
 
   useEffect(() => {
     let raf = 0;
