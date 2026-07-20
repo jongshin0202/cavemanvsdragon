@@ -2505,10 +2505,36 @@ const CavemanVsDragonGame = () => {
             if (r.targetLadder !== null) {
               const l = LADDERS[r.targetLadder];
               const isSsMonkey = isLevel3Round(g.round) && (r as any)._ssL3;
+              const isMpsMonkey = isLevel3Round(g.round) && (r as any)._mpsL3;
+              const isL3MidSprout = isLevel3Round(g.round)
+                && r.targetLadder !== GREEN_TOP_LADDER_IDX
+                && r.targetLadder !== PURPLE_TOP_LADDER_IDX;
               const visibleBot = getVisibleSproutBottomY(r.targetLadder);
               // Keep this sprout alive while the monkey is on it.
               if (r.targetLadder !== GREEN_TOP_LADDER_IDX && r.targetLadder !== PURPLE_TOP_LADDER_IDX) {
                 markSproutInUse(r.targetLadder);
+              }
+              // MPS monkeys should never idle at the bottom/top of a Level 3
+              // sprout. Keep them latched to the vine and continuously climb
+              // up/down, biased toward the player's vertical position with
+              // small random re-decisions so they feel alive instead of stuck.
+              if (isMpsMonkey && isL3MidSprout) {
+                const atTop = r.y + r.h <= l.yTop + 2;
+                const atBot = r.y + r.h >= visibleBot - 2;
+                const monkeyMidY = r.y + r.h / 2;
+                (r as any)._climbReDecide = ((r as any)._climbReDecide ?? 0) - 1;
+                if (atTop) {
+                  r.y = l.yTop - r.h;
+                  r.vy = Math.max(r.speed, 0.7);
+                } else if (atBot) {
+                  r.y = visibleBot - r.h;
+                  r.vy = -Math.max(r.speed, 0.7);
+                } else if (Math.abs(r.vy) < 0.1 || (r as any)._climbReDecide <= 0) {
+                  const chaseDir = playerFeetY < monkeyMidY ? -1 : 1;
+                  const randomDir = Math.random() < 0.25 ? -chaseDir : chaseDir;
+                  r.vy = randomDir * Math.max(r.speed, 0.7);
+                  (r as any)._climbReDecide = 24 + Math.floor(Math.random() * 36);
+                }
               }
               // SS monkey: use sprouts to chase the player, not to idle-loop.
               // If the player is above/on the sprout platform, climb up and
@@ -2543,7 +2569,12 @@ const CavemanVsDragonGame = () => {
                 r.y = visibleBot - r.h;
               }
               if (r.vy < 0 && r.y + r.h <= l.yTop + 2) {
-                if (isSsMonkey) {
+                if (isMpsMonkey && isL3MidSprout) {
+                  r.y = l.yTop - r.h;
+                  r.vy = Math.max(r.speed, 0.7);
+                  r.climbing = true;
+                  r.onGround = false;
+                } else if (isSsMonkey) {
                   r.y = l.yTop - r.h;
                   r.vy = 0;
                   r.climbing = false;
@@ -2557,7 +2588,12 @@ const CavemanVsDragonGame = () => {
                   r.onGround = true;
                 }
               } else if (r.vy > 0 && r.y + r.h >= visibleBot) {
-                if (isSsMonkey) {
+                if (isMpsMonkey && isL3MidSprout) {
+                  r.y = visibleBot - r.h;
+                  r.vy = -Math.max(r.speed, 0.7);
+                  r.climbing = true;
+                  r.onGround = false;
+                } else if (isSsMonkey) {
                   r.y = visibleBot - r.h;
                   r.vy = -r.speed;
                   r.onGround = false;
