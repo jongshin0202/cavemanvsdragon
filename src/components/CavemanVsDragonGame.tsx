@@ -2992,15 +2992,18 @@ const CavemanVsDragonGame = () => {
             // Must be airborne (jumping or falling) — standing on a platform
             // above a climbing monkey should NOT count as a stomp.
             const descendingIntoHead = !p.onGround && (prevP.vy > 0 || p.vy > 0 || feet > prevFeet) && prevFeet <= r.y + r.h * 0.75;
-            // If the player is airborne and clearly descending from above the
-            // monkey's head, always count it as a stomp — even for climbing
-            // monkeys mid-ladder. This handles the case where the player jumps
-            // from the top of a ladder platform and lands on a monkey whose
-            // head has just risen above the platform edge.
-            const climbingBlocksKill = r.climbing && !climbingAboveTopSprout && !descendingIntoHead;
+            // Climbing monkey whose head is above the top sprout platform:
+            // if the player's feet are at/above the monkey's head area, treat
+            // as a stomp regardless of onGround state. This handles jumping
+            // from the top platform and landing on a monkey mid-climb whose
+            // head has cleared the platform edge — even if the player has
+            // already settled onto the platform in the same frame.
+            const feetOnHead = feet <= r.y + r.h * 0.75;
+            const climbingHeadKill = climbingAboveTopSprout && feetOnHead;
+            const climbingBlocksKill = r.climbing && !climbingAboveTopSprout && !descendingIntoHead && !climbingHeadKill;
             const stompHeadLimit = (climbingAboveTopSprout || descendingIntoHead) ? r.y + r.h + 4 : r.y + r.h * 0.6;
             const isStomp =
-              descendingIntoHead &&
+              (descendingIntoHead || climbingHeadKill) &&
               (p.y + p.h <= stompHeadLimit) &&
               !climbingBlocksKill;
             if (isStomp) {
