@@ -180,6 +180,7 @@ const findMonkeyRidePlatform = (r: MpsRobot): MovingPlatformRide | null => {
 };
 
 const MPS_MONKEY_CLIMB_REACH_Y = 44;
+const L3_MONKEY_CLIMB_MIN_SPEED = 0.75;
 const findMpsMonkeyClimbTarget = (
   round: number,
   rCenterX: number,
@@ -865,8 +866,10 @@ const CavemanVsDragonGame = () => {
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
 
   // Stop gameplay music whenever we're not actively in gameplay.
+  // Keep music control inside SavedAnimation while the ending cinematic runs;
+  // otherwise this parent effect immediately stops the ending track after it starts.
   useEffect(() => {
-    if (gameState !== 'playing') stopAllMusic();
+    if (gameState !== 'playing' && gameState !== 'savedAnim') stopAllMusic();
   }, [gameState]);
 
   // Auto-return to intro screen after 5s of inactivity on terminal screens
@@ -1452,6 +1455,16 @@ const CavemanVsDragonGame = () => {
         let nearestLadder: (typeof LADDERS)[number] | null = null;
         let nearestLadderIdx = -1;
         let nearestLadderDist = Infinity;
+        let nearestLadderScore = Infinity;
+        // Peek input direction so selection can prefer the ladder that
+        // actually extends in the pressed direction. At seams (e.g. L3 P5,
+        // where a mid-vine's yTop and the top-vine's yBot both meet the
+        // player's feet), this stops a co-located wrong-direction ladder
+        // from stealing the mount and dismounting the player mid-press.
+        const _padKeys0 = activePadKeysRef.current;
+        const _rawUp0 = keys.has('ArrowUp') || _padKeys0.includes('ArrowUp');
+        const _rawDown0 = keys.has('ArrowDown') || _padKeys0.includes('ArrowDown');
+        const feetY = p.y + p.h;
         for (let li = 0; li < LADDERS.length; li++) {
           if (!isLevel2Round(g.round) && li === getTopVineIdx() && !g.topVineUnlocked) continue;
           if (!isLadderUsable(g.round, li)) continue;
@@ -1461,10 +1474,21 @@ const CavemanVsDragonGame = () => {
           // Vertical overlap: any part of the player intersects the ladder span
           // (with a small tolerance to allow mounting from just above/below).
           const vOverlap = p.y + p.h > l.yTop - 8 && p.y <= l.yBot + 16;
-          if (dist < LADDER_SNAP && vOverlap && dist < nearestLadderDist) {
+          if (dist >= LADDER_SNAP || !vOverlap) continue;
+          // Directional preference: if pressing Up, wrong-direction ladders
+          // (whose top is at/below the player's feet) get a big penalty so
+          // the actual upward vine wins even when slightly farther.
+          let score = dist;
+          if (_rawUp0 && !_rawDown0) {
+            if (l.yTop >= feetY - 4) score += 1000;
+          } else if (_rawDown0 && !_rawUp0) {
+            if (l.yBot <= feetY + 4) score += 1000;
+          }
+          if (score < nearestLadderScore) {
             nearestLadder = l;
             nearestLadderIdx = li;
             nearestLadderDist = dist;
+            nearestLadderScore = score;
           }
         }
         // Sticky selection: if the player is already climbing a ladder that's
@@ -2503,10 +2527,47 @@ const CavemanVsDragonGame = () => {
             if (r.targetLadder !== null) {
               const l = LADDERS[r.targetLadder];
               const isSsMonkey = isLevel3Round(g.round) && (r as any)._ssL3;
+              const isMpsMonkey = isLevel3Round(g.round) && (r as any)._mpsL3;
+              const isL3MidSprout = isLevel3Round(g.round)
+                && r.targetLadder !== GREEN_TOP_LADDER_IDX
+                && r.targetLadder !== PURPLE_TOP_LADDER_IDX;
               const visibleBot = getVisibleSproutBottomY(r.targetLadder);
               // Keep this sprout alive while the monkey is on it.
               if (r.targetLadder !== GREEN_TOP_LADDER_IDX && r.targetLadder !== PURPLE_TOP_LADDER_IDX) {
                 markSproutInUse(r.targetLadder);
+              }
+              // MPS monkeys should never idle at the bottom/top of a Level 3
+              // sprout. Keep them latched to the vine and continuously climb
+              // up/down, biased toward the player's vertical position with
+              // small random re-decisions so they feel alive instead of stuck.
+              if ((isMpsMonkey || isSsMonkey) && isL3MidSprout) {
+                const ladderX = l.x + (16 - r.w) / 2;
+                r.x = ladderX;
+                r.onGround = false;
+              }
+
+              if (isMpsMonkey && isL3MidSprout) {
+                const climbSpeed = Math.max(r.speed, L3_MONKEY_CLIMB_MIN_SPEED);
+                const atTop = r.y + r.h <= l.yTop + 2;
+                const atBot = r.y + r.h >= visibleBot - 2;
+                const monkeyMidY = r.y + r.h / 2;
+                (r as any)._climbReDecide = ((r as any)._climbReDecide ?? 0) - 1;
+                if (atTop) {
+                  r.y = l.yTop - r.h + climbSpeed;
+                  r.vy = climbSpeed;
+                  (r as any)._l3BottomStall = 0;
+                } else if (atBot) {
+                  const bottomStall = ((r as any)._l3BottomStall ?? 0) + 1;
+                  (r as any)._l3BottomStall = bottomStall;
+                  r.y = visibleBot - r.h - climbSpeed * (bottomStall > 1 ? 2 : 1);
+                  r.vy = -climbSpeed;
+                } else if (Math.abs(r.vy) < 0.1 || (r as any)._climbReDecide <= 0) {
+                  const chaseDir = playerFeetY < monkeyMidY ? -1 : 1;
+                  const randomDir = Math.random() < 0.25 ? -chaseDir : chaseDir;
+                  r.vy = randomDir * climbSpeed;
+                  (r as any)._climbReDecide = 24 + Math.floor(Math.random() * 36);
+                  (r as any)._l3BottomStall = 0;
+                }
               }
               // SS monkey: use sprouts to chase the player, not to idle-loop.
               // If the player is above/on the sprout platform, climb up and
@@ -2522,17 +2583,28 @@ const CavemanVsDragonGame = () => {
                 (r as any)._climbReDecide = ((r as any)._climbReDecide ?? 0) - 1;
                 const atTop = r.y + r.h <= sproutTop + 2;
                 const atBot = r.y + r.h >= visibleBot - 2;
-                if (atTop) r.vy = playerOnTop ? -r.speed : r.speed;
-                else if (atBot) r.vy = -r.speed;
+                const climbSpeed = Math.max(r.speed, L3_MONKEY_CLIMB_MIN_SPEED);
+                if (atTop) {
+                  r.y = sproutTop - r.h + climbSpeed;
+                  r.vy = playerOnTop ? -climbSpeed : climbSpeed;
+                  if (r.vy < 0) r.vy = climbSpeed;
+                }
+                else if (atBot) {
+                  const bottomStall = ((r as any)._l3BottomStall ?? 0) + 1;
+                  (r as any)._l3BottomStall = bottomStall;
+                  r.y = visibleBot - r.h - climbSpeed * (bottomStall > 1 ? 2 : 1);
+                  r.vy = -climbSpeed;
+                }
                 else if ((r as any)._climbReDecide <= 0) {
                   if (playerOnTop) {
-                    r.vy = -r.speed;
+                    r.vy = -climbSpeed;
                   } else if (verticalGap > sproutLen * 0.25) {
-                    r.vy = playerFeetY < monkeyMidY ? -r.speed : r.speed;
+                    r.vy = playerFeetY < monkeyMidY ? -climbSpeed : climbSpeed;
                   } else {
-                    r.vy = Math.random() < 0.5 ? -r.speed : r.speed;
+                    r.vy = Math.random() < 0.5 ? -climbSpeed : climbSpeed;
                   }
                   (r as any)._climbReDecide = 20 + Math.floor(Math.random() * 25);
+                  (r as any)._l3BottomStall = 0;
                 }
               }
               r.y += r.vy;
@@ -2540,8 +2612,23 @@ const CavemanVsDragonGame = () => {
               if (r.y + r.h > visibleBot + 1) {
                 r.y = visibleBot - r.h;
               }
+              if ((isMpsMonkey || isSsMonkey) && isL3MidSprout) {
+                const climbSpeed = Math.max(r.speed, L3_MONKEY_CLIMB_MIN_SPEED);
+                if (r.y + r.h >= visibleBot - 1 && r.vy >= 0) {
+                  r.y = visibleBot - r.h - climbSpeed;
+                  r.vy = -climbSpeed;
+                } else if (r.y + r.h <= l.yTop + 1 && r.vy <= 0) {
+                  r.y = l.yTop - r.h + climbSpeed;
+                  r.vy = climbSpeed;
+                }
+              }
               if (r.vy < 0 && r.y + r.h <= l.yTop + 2) {
-                if (isSsMonkey) {
+                if (isMpsMonkey && isL3MidSprout) {
+                  r.y = l.yTop - r.h;
+                  r.vy = Math.max(r.speed, 0.7);
+                  r.climbing = true;
+                  r.onGround = false;
+                } else if (isSsMonkey) {
                   r.y = l.yTop - r.h;
                   r.vy = 0;
                   r.climbing = false;
@@ -2555,7 +2642,12 @@ const CavemanVsDragonGame = () => {
                   r.onGround = true;
                 }
               } else if (r.vy > 0 && r.y + r.h >= visibleBot) {
-                if (isSsMonkey) {
+                if (isMpsMonkey && isL3MidSprout) {
+                  r.y = visibleBot - r.h;
+                  r.vy = -Math.max(r.speed, 0.7);
+                  r.climbing = true;
+                  r.onGround = false;
+                } else if (isSsMonkey) {
                   r.y = visibleBot - r.h;
                   r.vy = -r.speed;
                   r.onGround = false;
@@ -2570,6 +2662,35 @@ const CavemanVsDragonGame = () => {
           } else {
             // Wander timer: pick a new random direction occasionally,
             // biased toward player so movement is gradual + natural.
+            if (isLevel3Round(g.round) && (r as any)._mpsL3) {
+                const rescueLi = findMpsMonkeyClimbTarget(g.round, r.x + r.w / 2, r.y + r.h, playerCenterX);
+              if (rescueLi >= 0) {
+                const l = LADDERS[rescueLi];
+                r.x = l.x + (16 - r.w) / 2;
+                r.vx = 0;
+                  r.vy = -Math.max(r.speed, L3_MONKEY_CLIMB_MIN_SPEED);
+                r.climbing = true;
+                r.targetLadder = rescueLi;
+                r.onGround = false;
+                (r as any)._leftMps = true;
+                (r as any)._rideMp = undefined;
+                (r as any)._lastMpX = undefined;
+                continue;
+              }
+            }
+              if (isLevel3Round(g.round) && (r as any)._ssL3) {
+                const rescueLi = findMpsMonkeyClimbTarget(g.round, r.x + r.w / 2, r.y + r.h, playerCenterX);
+                if (rescueLi >= 0) {
+                  const l = LADDERS[rescueLi];
+                  r.x = l.x + (16 - r.w) / 2;
+                  r.vx = 0;
+                  r.vy = -Math.max(r.speed, L3_MONKEY_CLIMB_MIN_SPEED);
+                  r.climbing = true;
+                  r.targetLadder = rescueLi;
+                  r.onGround = false;
+                  continue;
+                }
+              }
             if (r.wanderDir === undefined) commitMonkeyDirection(r, r.direction || 1);
             r.wanderTimer = (r.wanderTimer ?? 0) - 1;
             (r as any)._dirLockFrames = Math.max(0, ((r as any)._dirLockFrames ?? 0) - 1);
@@ -2741,6 +2862,13 @@ const CavemanVsDragonGame = () => {
                   if (r.x + r.w > mp.x && r.x < mp.x + mp.w) {
                     if (r.y + r.h >= mp.y && r.y + r.h <= mp.y + 12 && r.vy >= 0) {
                       r.y = mp.y - r.h; r.vy = 0; r.onGround = true;
+                      // MPS monkey landed back on a moving platform — clear
+                      // the "left MPS" flag so it can ride/climb the vine again
+                      // instead of getting stuck at the bottom forever.
+                      if ((r as any)._mpsL3) {
+                        (r as any)._leftMps = false;
+                        (r as any)._rideMp = mp;
+                      }
                       r.x += dxs[mi] || 0;
                       landed = true;
                       break;
@@ -2773,7 +2901,16 @@ const CavemanVsDragonGame = () => {
             const towardPlayer = (p.x + p.w / 2) >= rCX ? 1 : -1;
             commitMonkeyDirection(r, towardPlayer);
             if (r.climbing) {
-              r.vy = towardPlayer * Math.max(r.speed, 0.6);
+              const ladderIdx = r.targetLadder ?? -1;
+              const l = LADDERS[ladderIdx];
+              const speed = Math.max(r.speed, L3_MONKEY_CLIMB_MIN_SPEED);
+              let climbDir = (p.y + p.h) < (r.y + r.h / 2) ? -1 : 1;
+              if (l && isLevel3Round(g.round)) {
+                const visibleBot = getVisibleSproutBottomY(ladderIdx);
+                if (r.y + r.h >= visibleBot - 2) climbDir = -1;
+                else if (r.y + r.h <= l.yTop + 2) climbDir = 1;
+              }
+              r.vy = climbDir * speed;
               r.y += r.vy;
             } else {
               r.vx = towardPlayer * Math.max(r.speed, 0.6);
@@ -2833,9 +2970,16 @@ const CavemanVsDragonGame = () => {
             const prevP = (g as any)._playerPrevFrame || p;
             const prevFeet = prevP.y + prevP.h;
             const feet = p.y + p.h;
-            const descendingIntoHead = (prevP.vy > 0 || p.vy > 0 || feet >= prevFeet) && prevFeet <= r.y + r.h * 0.75;
-            const climbingBlocksKill = r.climbing && !climbingAboveTopSprout;
-            const stompHeadLimit = climbingAboveTopSprout ? r.y + r.h + 4 : r.y + r.h * 0.6;
+            // Must be airborne (jumping or falling) — standing on a platform
+            // above a climbing monkey should NOT count as a stomp.
+            const descendingIntoHead = !p.onGround && (prevP.vy > 0 || p.vy > 0 || feet > prevFeet) && prevFeet <= r.y + r.h * 0.75;
+            // If the player is airborne and clearly descending from above the
+            // monkey's head, always count it as a stomp — even for climbing
+            // monkeys mid-ladder. This handles the case where the player jumps
+            // from the top of a ladder platform and lands on a monkey whose
+            // head has just risen above the platform edge.
+            const climbingBlocksKill = r.climbing && !climbingAboveTopSprout && !descendingIntoHead;
+            const stompHeadLimit = (climbingAboveTopSprout || descendingIntoHead) ? r.y + r.h + 4 : r.y + r.h * 0.6;
             const isStomp =
               descendingIntoHead &&
               (p.y + p.h <= stompHeadLimit) &&

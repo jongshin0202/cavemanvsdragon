@@ -5,6 +5,7 @@ import princessSpriteUrl from '@/assets/princess-sprite.png';
 import princessScaredUrl from '@/assets/princess-scared.png';
 import dragonAngryUrl from '@/assets/dragon-angry.png';
 import { playWingFlapSound, playPrincessHelpSound } from '../game/sounds';
+import { playEndingMusic, stopEndingMusic } from '../game/bgMusic';
 
 const CW = 512;
 const CH = 480;
@@ -65,6 +66,15 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
     img.src = princessScaredUrl;
   }, [full]);
 
+  // Ending music: starts with the full cinematic, stops when the dragon
+  // arrives (wing-flap sound takes over).
+  const endingMusicStoppedRef = useRef(false);
+  useEffect(() => {
+    endingMusicStoppedRef.current = false;
+    playEndingMusic();
+    return () => { stopEndingMusic(); };
+  }, [full]);
+
 
   useEffect(() => {
     let raf = 0;
@@ -74,6 +84,10 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
 
       if (full) {
         if (elapsed >= T_FULL.DRAGON_APPEAR && elapsed < T_FULL.CARRY_END) {
+          if (!endingMusicStoppedRef.current) {
+            endingMusicStoppedRef.current = true;
+            stopEndingMusic();
+          }
           if (now - lastFlapRef.current > 600) {
             lastFlapRef.current = now;
             playWingFlapSound();
