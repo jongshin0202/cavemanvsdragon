@@ -51,8 +51,8 @@ jobs:
           import type { CapacitorConfig } from '@capacitor/cli';
 
           const config: CapacitorConfig = {
-            appId: 'com.team2go.cavemanvsdragon.soundboost2',
-            appName: 'CVD Sound Boost 2',
+            appId: 'com.team2go.cavemanvsdragon.sproutboost',
+            appName: 'CVD Sprout Boost',
             webDir: 'dist',
             android: {
               allowMixedContent: false,
@@ -555,7 +555,7 @@ jobs:
           print('All SFX now share one master mix bus')
           PY
 
-      - name: Boost sprout and vine growth SFX 50 percent
+      - name: Boost post-watering sprout and vine SFX 75 percent more
         shell: bash
         run: |
           python3 - <<'PY'
@@ -584,45 +584,66 @@ jobs:
                   block = block.replace(old, new, 1)
               s = s[:start] + block + s[end:]
 
-          # Add another 1.5x only to the sprout/growth family, on top of the
-          # global +25% SFX bus increase.
+          # v30 already applied +25% globally to all SFX.
+          # This build raises the entire post-watering growth sequence another
+          # 75% over v30, because filtered noise + sine waves translate more
+          # quietly on phone speakers than square/triangle gameplay cues.
+          #
+          # Relative to the original local values:
+          #   0.12 -> 0.315  (water/sprout noise)
+          #   0.08 -> 0.210  (sprout rising tone)
+          #   0.10 -> 0.2625 (vine organic noise)
+          #   0.07 -> 0.18375 (vine rising notes)
+          #   0.12 -> 0.315  (final bloom chime)
+
           patch_block('playWaterSproutSound', [
-              ('noiseGain.gain.setValueAtTime(0.12, ctx.currentTime);',
-               'noiseGain.gain.setValueAtTime(0.18, ctx.currentTime);',
-               'water sprout noise'),
-              ('oscGain.gain.setValueAtTime(0.08, ctx.currentTime + 0.05);',
-               'oscGain.gain.setValueAtTime(0.12, ctx.currentTime + 0.05);',
-               'water sprout tone'),
+              (
+                  'noiseGain.gain.setValueAtTime(0.12, ctx.currentTime);',
+                  'noiseGain.gain.setValueAtTime(0.315, ctx.currentTime);',
+                  'water sprout noise'
+              ),
+              (
+                  'oscGain.gain.setValueAtTime(0.08, ctx.currentTime + 0.05);',
+                  'oscGain.gain.setValueAtTime(0.210, ctx.currentTime + 0.05);',
+                  'water sprout rising tone'
+              ),
           ])
 
           patch_block('playVineGrowSound', [
-              ('noiseGain.gain.setValueAtTime(0.10, t0);',
-               'noiseGain.gain.setValueAtTime(0.15, t0);',
-               'vine noise'),
-              ('gain.gain.setValueAtTime(0.07, t);',
-               'gain.gain.setValueAtTime(0.105, t);',
-               'vine note'),
-              ('cg.gain.setValueAtTime(0.12, tc);',
-               'cg.gain.setValueAtTime(0.18, tc);',
-               'vine bloom chime'),
+              (
+                  'noiseGain.gain.setValueAtTime(0.10, t0);',
+                  'noiseGain.gain.setValueAtTime(0.2625, t0);',
+                  'vine organic noise'
+              ),
+              (
+                  'gain.gain.setValueAtTime(0.07, t);',
+                  'gain.gain.setValueAtTime(0.18375, t);',
+                  'vine rising notes'
+              ),
+              (
+                  'cg.gain.setValueAtTime(0.12, tc);',
+                  'cg.gain.setValueAtTime(0.315, tc);',
+                  'vine bloom chime'
+              ),
           ])
 
           p.write_text(s)
 
           required = [
-              'noiseGain.gain.setValueAtTime(0.18, ctx.currentTime);',
-              'oscGain.gain.setValueAtTime(0.12, ctx.currentTime + 0.05);',
-              'noiseGain.gain.setValueAtTime(0.15, t0);',
-              'gain.gain.setValueAtTime(0.105, t);',
-              'cg.gain.setValueAtTime(0.18, tc);',
+              'noiseGain.gain.setValueAtTime(0.315, ctx.currentTime);',
+              'oscGain.gain.setValueAtTime(0.210, ctx.currentTime + 0.05);',
+              'noiseGain.gain.setValueAtTime(0.2625, t0);',
+              'gain.gain.setValueAtTime(0.18375, t);',
+              'cg.gain.setValueAtTime(0.315, tc);',
           ]
           missing = [x for x in required if x not in s]
           if missing:
-              raise SystemExit(f'Sprout boost assertion failed: {missing}')
+              raise SystemExit(f'Post-watering growth boost assertion failed: {missing}')
 
-          print('All SFX: +25% vs v28')
-          print('Sprout/vine growth SFX: additional +50% vs other SFX')
-          print('Effective sprout/vine gain vs v28: 1.875x')
+          print('Music: unchanged from v30')
+          print('All non-growth SFX: unchanged from v30')
+          print('Post-watering sprout/vine sequence: +75% vs v30')
+          print('Shared SFX master gain remains 2.75x')
           PY
 
       - name: Patch Android layout and controller awareness
@@ -859,10 +880,10 @@ jobs:
       - name: Add native Android controller bridge and immersive fullscreen
         shell: bash
         run: |
-          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/soundboost2/MainActivity.java'
+          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/sproutboost/MainActivity.java'
           mkdir -p "$(dirname "$MAIN")"
           cat > "$MAIN" <<'JAVA'
-          package com.team2go.cavemanvsdragon.soundboost2;
+          package com.team2go.cavemanvsdragon.sproutboost;
 
           import android.content.Context;
           import android.graphics.Point;
