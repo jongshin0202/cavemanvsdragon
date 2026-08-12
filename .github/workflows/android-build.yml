@@ -51,7 +51,7 @@ jobs:
           import type { CapacitorConfig } from '@capacitor/cli';
 
           const config: CapacitorConfig = {
-            appId: 'com.team2go.cavemanvsdragon',
+            appId: 'com.team2go.cavemanvsdragon.test',
             appName: 'Caveman Vs Dragon',
             webDir: 'dist',
             android: {
@@ -75,10 +75,10 @@ jobs:
       - name: Add native Android controller bridge and immersive fullscreen
         shell: bash
         run: |
-          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/MainActivity.java'
+          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/test/MainActivity.java'
           mkdir -p "$(dirname "$MAIN")"
           cat > "$MAIN" <<'JAVA'
-          package com.team2go.cavemanvsdragon;
+          package com.team2go.cavemanvsdragon.test;
 
           import android.os.Build;
           import android.os.Bundle;
