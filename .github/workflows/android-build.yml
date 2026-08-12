@@ -278,9 +278,12 @@ jobs:
           s = p.read_text()
           permission = '<uses-permission android:name="android.permission.VIBRATE" />'
           if permission not in s:
-              manifest_end = s.find('>')
-              if manifest_end < 0:
+              manifest_start = s.find('<manifest')
+              if manifest_start < 0:
                   raise SystemExit('Could not find <manifest> opening tag')
+              manifest_end = s.find('>', manifest_start)
+              if manifest_end < 0:
+                  raise SystemExit('Could not find end of <manifest> opening tag')
               s = s[:manifest_end + 1] + '\n    ' + permission + s[manifest_end + 1:]
               p.write_text(s)
           print('Android VIBRATE permission present')
