@@ -51,8 +51,8 @@ jobs:
           import type { CapacitorConfig } from '@capacitor/cli';
 
           const config: CapacitorConfig = {
-            appId: 'com.team2go.cavemanvsdragon.audiotest',
-            appName: 'CVD Audio Test',
+            appId: 'com.team2go.cavemanvsdragon.musicmaster',
+            appName: 'CVD Music Master',
             webDir: 'dist',
             android: {
               allowMixedContent: false,
@@ -93,57 +93,58 @@ jobs:
             "$BASE/__l5e/assets-v1/9f6d1fe7-96b1-4f22-ac2d-43ddf020559c/Gamemusic_Ending.mp3" \
             -o public/__l5e/assets-v1/9f6d1fe7-96b1-4f22-ac2d-43ddf020559c/Gamemusic_Ending.mp3
 
-      - name: Diagnostic audio A-B test
+      - name: Master Level 2+ music for phone speakers
         shell: bash
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
+          set -euo pipefail
 
-          p = Path('src/components/game/bgMusic.ts')
-          s = p.read_text()
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
 
-          def replace_once(old: str, new: str, label: str):
-              global s
-              count = s.count(old)
-              if count != 1:
-                  raise SystemExit(f'{label}: expected 1 match, found {count}')
-              s = s.replace(old, new, 1)
+          L2='public/__l5e/assets-v1/07c06cb2-2107-41a3-9990-f3212851fe57/Gamemusic2.mp3'
+          L3='public/__l5e/assets-v1/685f4432-28cf-481b-ad6f-40d5388eb747/Gamemusic3.mp3'
+          L4='public/__l5e/assets-v1/a6f66d24-ca19-4677-97af-60cd2eda8a89/Gamemusic4.mp3'
+          ENDING='public/__l5e/assets-v1/9f6d1fe7-96b1-4f22-ac2d-43ddf020559c/Gamemusic_Ending.mp3'
 
-          # Diagnostic only: force Levels 2, 3 and 4 to use the exact same
-          # Gamemusic1 asset and the exact same HTMLAudio crossfade path as
-          # Level 1. This isolates level/game-state behavior from differences
-          # in source files, Web Audio, native looping, stereo width, and gain.
-          replace_once(
-              "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2 },",
-              "  level2: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
-              'Level 2 diagnostic route'
-          )
-          replace_once(
-              "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3 },",
-              "  level3: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
-              'Level 3 diagnostic route'
-          )
-          replace_once(
-              "  level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
-              "  level4: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
-              'Level 4 diagnostic route'
-          )
+          # Level 2: preserve composition, widen the tiny existing stereo side,
+          # add phone-relevant presence, compress/limit for much stronger
+          # perceived loudness, and retain ~0.4 dB true-peak headroom.
+          ffmpeg -y -loglevel error -i "$L2" \
+            -af "highpass=f=70,stereotools=slev=4,equalizer=f=1200:t=q:w=1:g=2,acompressor=threshold=0.12:ratio=3:attack=5:release=80:makeup=2.0,alimiter=limit=0.58:attack=5:release=50,volume=-1.3dB" \
+            -ar 44100 -ac 2 -c:a libmp3lame -b:a 192k "$L2.mastered"
+          mv "$L2.mastered" "$L2"
 
-          p.write_text(s)
+          # Level 3 is bass-heavier than Level 1, so shift more energy into
+          # the low-mid/presence range that phone speakers reproduce well.
+          ffmpeg -y -loglevel error -i "$L3" \
+            -af "highpass=f=80,stereotools=slev=4,equalizer=f=500:t=q:w=1:g=2,equalizer=f=1400:t=q:w=1:g=3,acompressor=threshold=0.12:ratio=3:attack=5:release=80:makeup=2.2,alimiter=limit=0.58:attack=5:release=50,volume=-1.3dB" \
+            -ar 44100 -ac 2 -c:a libmp3lame -b:a 192k "$L3.mastered"
+          mv "$L3.mastered" "$L3"
 
-          # Build-time assertion: all four gameplay levels must now point at
-          # music1Asset and use the same crossfade duration.
-          expected = [
-              "level1: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC }",
-              "level2: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC }",
-              "level3: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC }",
-              "level4: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC }",
-          ]
-          missing = [x for x in expected if x not in s]
-          if missing:
-              raise SystemExit(f'Diagnostic routing assertion failed: {missing}')
-          print('A-B diagnostic: Levels 1-4 all use Gamemusic1 via identical HTMLAudio crossfade')
-          PY
+          # Level 4 already has healthy stereo width, so do not widen it.
+          # Only improve presence and perceived loudness.
+          ffmpeg -y -loglevel error -i "$L4" \
+            -af "highpass=f=60,equalizer=f=1000:t=q:w=1:g=1,acompressor=threshold=0.14:ratio=2.5:attack=5:release=80:makeup=1.7,alimiter=limit=0.58:attack=5:release=50,volume=-1.3dB" \
+            -ar 44100 -ac 2 -c:a libmp3lame -b:a 192k "$L4.mastered"
+          mv "$L4.mastered" "$L4"
+
+          # Ending: modest mastering only; no stereo-width manipulation.
+          ffmpeg -y -loglevel error -i "$ENDING" \
+            -af "highpass=f=60,acompressor=threshold=0.14:ratio=2.5:attack=5:release=80:makeup=1.5,alimiter=limit=0.65:attack=5:release=50:level=false" \
+            -ar 44100 -ac 2 -c:a libmp3lame -b:a 192k "$ENDING.mastered"
+          mv "$ENDING.mastered" "$ENDING"
+
+          # Sanity check every mastered asset before the web build.
+          for f in "$L2" "$L3" "$L4" "$ENDING"; do
+            test -s "$f"
+            ffprobe -v error -select_streams a:0 \
+              -show_entries stream=codec_name,sample_rate,channels \
+              -of default=nw=1 "$f"
+          done
+
+          echo 'Level 2+ phone-speaker mastering completed successfully'
 
       - name: Patch Android layout and controller awareness
         shell: bash
@@ -379,10 +380,10 @@ jobs:
       - name: Add native Android controller bridge and immersive fullscreen
         shell: bash
         run: |
-          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/audiotest/MainActivity.java'
+          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/musicmaster/MainActivity.java'
           mkdir -p "$(dirname "$MAIN")"
           cat > "$MAIN" <<'JAVA'
-          package com.team2go.cavemanvsdragon.audiotest;
+          package com.team2go.cavemanvsdragon.musicmaster;
 
           import android.content.Context;
           import android.graphics.Point;
