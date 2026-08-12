@@ -93,7 +93,7 @@ jobs:
             "$BASE/__l5e/assets-v1/9f6d1fe7-96b1-4f22-ac2d-43ddf020559c/Gamemusic_Ending.mp3" \
             -o public/__l5e/assets-v1/9f6d1fe7-96b1-4f22-ac2d-43ddf020559c/Gamemusic_Ending.mp3
 
-      - name: Enhance Level 2 and 3 music
+      - name: Match later-level music volume to Level 1
         shell: bash
         run: |
           python3 - <<'PY'
@@ -109,21 +109,50 @@ jobs:
                   raise SystemExit(f'{label}: expected 1 match, found {count}')
               s = s.replace(old, new, 1)
 
+          # Later-level tracks sound substantially quieter through Android/WebView
+          # even though their source LUFS/RMS is similar to Level 1. Give them a
+          # much stronger playback multiplier while leaving Level 1 untouched.
           replace_once(
               "  gain?: GainNode;\n  playing: boolean;\n  crossfadeSec: number;",
-              "  gain?: GainNode;\n  widthNodes?: AudioNode[];\n  webGain?: number;\n  stereoWidth?: number;\n  playing: boolean;\n  crossfadeSec: number;",
-              'Track Web Audio tuning fields'
+              "  gain?: GainNode;\n  widthNodes?: AudioNode[];\n  volumeMul?: number;\n  stereoWidth?: number;\n  playing: boolean;\n  crossfadeSec: number;",
+              'Track audio tuning fields'
           )
 
           replace_once(
               "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2 },",
-              "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, webGain: 1.06, stereoWidth: 4 },",
-              'Level 2 music tuning'
+              "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volumeMul: 2.25, stereoWidth: 4 },",
+              'Level 2 volume tuning'
           )
           replace_once(
               "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3 },",
-              "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, webGain: 1.15, stereoWidth: 4 },",
-              'Level 3 music tuning'
+              "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volumeMul: 2.35, stereoWidth: 4 },",
+              'Level 3 volume tuning'
+          )
+          replace_once(
+              "  level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
+              "  level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volumeMul: 2.25 },",
+              'Level 4 volume tuning'
+          )
+          replace_once(
+              "  ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
+              "  ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volumeMul: 2.25 },",
+              'Ending volume tuning'
+          )
+
+          # Shared effective level for both Web Audio and HTMLAudio paths.
+          marker = "// -------- Web Audio (gapless loop) --------"
+          if marker not in s:
+              raise SystemExit('Web Audio marker not found')
+          s = s.replace(
+              marker,
+              """function trackVolume(t: Track): number {
+            // VOL is 0.333 for Level 1. Later levels get an explicit boost,
+            // capped below 1.0 to retain headroom for MP3 decode overshoot.
+            return Math.min(0.85, VOL * (t.volumeMul ?? 1));
+          }
+
+          """ + marker,
+              1
           )
 
           old_cleanup = (
@@ -158,17 +187,14 @@ jobs:
           )
           new_graph = (
               "  const gain = ctx.createGain();\n"
-              "  gain.gain.value = VOL * (t.webGain ?? 1);\n"
+              "  gain.gain.value = trackVolume(t);\n"
               "\n"
               "  const width = t.stereoWidth ?? 1;\n"
               "  if (width > 1 && t.buffer.numberOfChannels >= 2) {\n"
-              "    // Mid/side widening without delay, echo, or reverb.\n"
-              "    // A 4x side multiplier brings L2/L3 close to L1 stereo width.\n"
               "    const splitter = ctx.createChannelSplitter(2);\n"
               "    const merger = ctx.createChannelMerger(2);\n"
               "    const direct = (1 + width) / 2;\n"
               "    const cross = (1 - width) / 2;\n"
-              "\n"
               "    const ll = ctx.createGain();\n"
               "    const lr = ctx.createGain();\n"
               "    const rl = ctx.createGain();\n"
@@ -177,32 +203,43 @@ jobs:
               "    lr.gain.value = cross;\n"
               "    rl.gain.value = cross;\n"
               "    rr.gain.value = direct;\n"
-              "\n"
               "    src.connect(splitter);\n"
               "    splitter.connect(ll, 0);\n"
               "    splitter.connect(lr, 0);\n"
               "    splitter.connect(rl, 1);\n"
               "    splitter.connect(rr, 1);\n"
-              "\n"
               "    ll.connect(merger, 0, 0);\n"
               "    rl.connect(merger, 0, 0);\n"
               "    lr.connect(merger, 0, 1);\n"
               "    rr.connect(merger, 0, 1);\n"
-              "\n"
               "    merger.connect(gain).connect(ctx.destination);\n"
               "    t.widthNodes = [splitter, merger, ll, lr, rl, rr];\n"
               "  } else {\n"
               "    src.connect(gain).connect(ctx.destination);\n"
               "  }\n"
-              "\n"
               "  src.start(0);\n"
               "  t.source = src;\n"
               "  t.gain = gain;"
           )
-          replace_once(old_graph, new_graph, 'Web Audio stereo-width graph')
+          replace_once(old_graph, new_graph, 'Web Audio strong-volume graph')
+
+          # HTMLAudio path (Level 4 + ending, and Level 1 reference).
+          replace_once(
+              "    const outV = Math.cos((p * Math.PI) / 2) * VOL;\n"
+              "    const inV = Math.sin((p * Math.PI) / 2) * VOL;",
+              "    const targetVol = trackVolume(t);\n"
+              "    const outV = Math.cos((p * Math.PI) / 2) * targetVol;\n"
+              "    const inV = Math.sin((p * Math.PI) / 2) * targetVol;",
+              'Crossfade track volume'
+          )
+          replace_once(
+              "  try { t.a.pause(); t.a.currentTime = 0; t.a.volume = VOL; } catch { /* ignore */ }",
+              "  try { t.a.pause(); t.a.currentTime = 0; t.a.volume = trackVolume(t); } catch { /* ignore */ }",
+              'HTMLAudio start volume'
+          )
 
           p.write_text(s)
-          print('Level 2/3 stereo width and perceived-volume enhancement applied successfully')
+          print('Strong later-level music volume matching applied successfully')
           PY
 
       - name: Patch Android layout and controller awareness
