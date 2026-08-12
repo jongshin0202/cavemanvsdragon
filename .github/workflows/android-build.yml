@@ -137,25 +137,30 @@ jobs:
           )
 
           # In play(), route htmlNativeLoop tracks before the Web Audio branch.
-          play_anchor = """  if (t.crossfadeSec <= 0) {
-            // Gapless Web Audio path"""
-          play_replacement = """  if (t.htmlNativeLoop) {
-            if (!t.a) t.a = makeAudio(t.url);
-            clearTimers(t);
-            try {
-              t.a.pause();
-              t.a.currentTime = 0;
-              t.a.loop = true;
-              t.a.volume = VOL;
-              t.active = t.a;
-              void t.a.play().catch(() => {});
-            } catch { /* ignore */ }
-            return;
-          }
-
-          if (t.crossfadeSec <= 0) {
-            // Gapless Web Audio path"""
-          replace_once(play_anchor, play_replacement, 'HTMLAudio routing in play()')
+          # Use a single-line anchor and explicit line construction so YAML
+          # block indentation cannot change the TypeScript matcher/replacement.
+          play_replacement = "\n".join([
+              "  if (t.htmlNativeLoop) {",
+              "    if (!t.a) t.a = makeAudio(t.url);",
+              "    clearTimers(t);",
+              "    try {",
+              "      t.a.pause();",
+              "      t.a.currentTime = 0;",
+              "      t.a.loop = true;",
+              "      t.a.volume = VOL;",
+              "      t.active = t.a;",
+              "      void t.a.play().catch(() => {});",
+              "    } catch { /* ignore */ }",
+              "    return;",
+              "  }",
+              "",
+              "  if (t.crossfadeSec <= 0) {",
+          ])
+          replace_once(
+              "  if (t.crossfadeSec <= 0) {",
+              play_replacement,
+              'HTMLAudio routing in play()'
+          )
 
           # Ensure stop() clears native loop mode too.
           replace_once(
