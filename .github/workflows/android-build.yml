@@ -531,7 +531,7 @@ jobs:
           p.write_text(s)
 
           checks = [
-              'sfxBus.gain.value = 2.2;',
+              'sfxBus.gain.value = 2.75;',
               'sfxCompressor.threshold.value = -18;',
               'sfxCompressor.ratio.value = 4;',
               'sfxCompressor.connect(ctx.destination);',
