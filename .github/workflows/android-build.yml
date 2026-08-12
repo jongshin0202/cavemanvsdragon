@@ -51,8 +51,8 @@ jobs:
           import type { CapacitorConfig } from '@capacitor/cli';
 
           const config: CapacitorConfig = {
-            appId: 'com.team2go.cavemanvsdragon.musicmaster',
-            appName: 'CVD Music Master',
+            appId: 'com.team2go.cavemanvsdragon.musicfull',
+            appName: 'CVD Music Full',
             webDir: 'dist',
             android: {
               allowMixedContent: false,
@@ -145,6 +145,92 @@ jobs:
           done
 
           echo 'Level 2+ phone-speaker mastering completed successfully'
+
+      - name: Set later-level music to full in-game volume
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('src/components/game/bgMusic.ts')
+          s = p.read_text()
+
+          def replace_once(old: str, new: str, label: str):
+              global s
+              count = s.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected 1 match, found {count}')
+              s = s.replace(old, new, 1)
+
+          # Add per-track playback volume. Level 1 remains exactly as before
+          # at 0.333. Levels 2-4 and ending play at full HTML/WebAudio volume.
+          replace_once(
+              "  crossfadeSec: number;\n};",
+              "  crossfadeSec: number;\n  volume?: number;\n};",
+              'Track volume field'
+          )
+
+          replace_once(
+              "  level1: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
+              "  level1: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: VOL },",
+              'Level 1 volume'
+          )
+          replace_once(
+              "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2 },",
+              "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 1.0 },",
+              'Level 2 volume'
+          )
+          replace_once(
+              "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3 },",
+              "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 1.0 },",
+              'Level 3 volume'
+          )
+          replace_once(
+              "  level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
+              "  level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 1.0 },",
+              'Level 4 volume'
+          )
+          replace_once(
+              "  ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
+              "  ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 1.0 },",
+              'Ending volume'
+          )
+
+          # Use per-track volume in both playback engines.
+          replace_once(
+              "  gain.gain.value = VOL;",
+              "  gain.gain.value = t.volume ?? VOL;",
+              'WebAudio gain'
+          )
+          replace_once(
+              "    const outV = Math.cos((p * Math.PI) / 2) * VOL;\n    const inV = Math.sin((p * Math.PI) / 2) * VOL;",
+              "    const tv = t.volume ?? VOL;\n    const outV = Math.cos((p * Math.PI) / 2) * tv;\n    const inV = Math.sin((p * Math.PI) / 2) * tv;",
+              'Crossfade volume'
+          )
+          replace_once(
+              "  try { t.a.pause(); t.a.currentTime = 0; t.a.volume = VOL; } catch { /* ignore */ }",
+              "  try { t.a.pause(); t.a.currentTime = 0; t.a.volume = t.volume ?? VOL; } catch { /* ignore */ }",
+              'HTMLAudio start volume'
+          )
+
+          p.write_text(s)
+
+          required = [
+              "level1: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: VOL }",
+              "level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 1.0 }",
+              "level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 1.0 }",
+              "level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 1.0 }",
+              "gain.gain.value = t.volume ?? VOL;",
+              "t.a.volume = t.volume ?? VOL;",
+          ]
+          missing = [x for x in required if x not in s]
+          if missing:
+              raise SystemExit(f'Full-volume assertion failed: {missing}')
+
+          print('Level 1 playback volume: 0.333')
+          print('Levels 2-4 playback volume: 1.0')
+          print('Ending playback volume: 1.0')
+          PY
 
       - name: Patch Android layout and controller awareness
         shell: bash
@@ -380,10 +466,10 @@ jobs:
       - name: Add native Android controller bridge and immersive fullscreen
         shell: bash
         run: |
-          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/musicmaster/MainActivity.java'
+          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/musicfull/MainActivity.java'
           mkdir -p "$(dirname "$MAIN")"
           cat > "$MAIN" <<'JAVA'
-          package com.team2go.cavemanvsdragon.musicmaster;
+          package com.team2go.cavemanvsdragon.musicfull;
 
           import android.content.Context;
           import android.graphics.Point;
