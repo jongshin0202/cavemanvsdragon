@@ -51,8 +51,8 @@ jobs:
           import type { CapacitorConfig } from '@capacitor/cli';
 
           const config: CapacitorConfig = {
-            appId: 'com.team2go.cavemanvsdragon.musicenhance',
-            appName: 'Caveman Vs Dragon',
+            appId: 'com.team2go.cavemanvsdragon.audiotest',
+            appName: 'CVD Audio Test',
             webDir: 'dist',
             android: {
               allowMixedContent: false,
@@ -93,7 +93,7 @@ jobs:
             "$BASE/__l5e/assets-v1/9f6d1fe7-96b1-4f22-ac2d-43ddf020559c/Gamemusic_Ending.mp3" \
             -o public/__l5e/assets-v1/9f6d1fe7-96b1-4f22-ac2d-43ddf020559c/Gamemusic_Ending.mp3
 
-      - name: Use HTMLAudio for Level 2 and 3 music
+      - name: Diagnostic audio A-B test
         shell: bash
         run: |
           python3 - <<'PY'
@@ -109,68 +109,40 @@ jobs:
                   raise SystemExit(f'{label}: expected 1 match, found {count}')
               s = s.replace(old, new, 1)
 
-          # Force Level 2 and Level 3 onto the same HTMLAudio media path that
-          # Level 1 uses on Android. Use native loop=true instead of a crossfade
-          # so these tracks do not overlap their ending/start musical sections.
-          replace_once(
-              """type Track = {
-            url: string;
-            // HTMLAudio-based crossfade path
-            a?: HTMLAudioElement;""",
-              """type Track = {
-            url: string;
-            htmlNativeLoop?: boolean;
-            // HTMLAudio-based path
-            a?: HTMLAudioElement;""",
-              'Track HTMLAudio loop flag'
-          )
-
+          # Diagnostic only: force Levels 2, 3 and 4 to use the exact same
+          # Gamemusic1 asset and the exact same HTMLAudio crossfade path as
+          # Level 1. This isolates level/game-state behavior from differences
+          # in source files, Web Audio, native looping, stereo width, and gain.
           replace_once(
               "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2 },",
-              "  level2: { url: music2Asset.url, playing: false, crossfadeSec: 0, htmlNativeLoop: true },",
-              'Level 2 HTMLAudio routing'
+              "  level2: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
+              'Level 2 diagnostic route'
           )
           replace_once(
               "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3 },",
-              "  level3: { url: music3Asset.url, playing: false, crossfadeSec: 0, htmlNativeLoop: true },",
-              'Level 3 HTMLAudio routing'
+              "  level3: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
+              'Level 3 diagnostic route'
           )
-
-          # In play(), route htmlNativeLoop tracks before the Web Audio branch.
-          # Use a single-line anchor and explicit line construction so YAML
-          # block indentation cannot change the TypeScript matcher/replacement.
-          play_replacement = "\n".join([
-              "  if (t.htmlNativeLoop) {",
-              "    if (!t.a) t.a = makeAudio(t.url);",
-              "    clearTimers(t);",
-              "    try {",
-              "      t.a.pause();",
-              "      t.a.currentTime = 0;",
-              "      t.a.loop = true;",
-              "      t.a.volume = VOL;",
-              "      t.active = t.a;",
-              "      void t.a.play().catch(() => {});",
-              "    } catch { /* ignore */ }",
-              "    return;",
-              "  }",
-              "",
-              "  if (t.crossfadeSec <= 0) {",
-          ])
           replace_once(
-              "  if (t.crossfadeSec <= 0) {",
-              play_replacement,
-              'HTMLAudio routing in play()'
-          )
-
-          # Ensure stop() clears native loop mode too.
-          replace_once(
-              """    try { el.pause(); el.currentTime = 0; el.volume = 0; } catch { /* ignore */ }""",
-              """    try { el.pause(); el.currentTime = 0; el.loop = false; el.volume = 0; } catch { /* ignore */ }""",
-              'HTMLAudio stop reset'
+              "  level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
+              "  level4: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
+              'Level 4 diagnostic route'
           )
 
           p.write_text(s)
-          print('Level 2/3 switched from Web Audio to HTMLAudio native looping successfully')
+
+          # Build-time assertion: all four gameplay levels must now point at
+          # music1Asset and use the same crossfade duration.
+          expected = [
+              "level1: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC }",
+              "level2: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC }",
+              "level3: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC }",
+              "level4: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC }",
+          ]
+          missing = [x for x in expected if x not in s]
+          if missing:
+              raise SystemExit(f'Diagnostic routing assertion failed: {missing}')
+          print('A-B diagnostic: Levels 1-4 all use Gamemusic1 via identical HTMLAudio crossfade')
           PY
 
       - name: Patch Android layout and controller awareness
@@ -407,10 +379,10 @@ jobs:
       - name: Add native Android controller bridge and immersive fullscreen
         shell: bash
         run: |
-          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/musicenhance/MainActivity.java'
+          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/audiotest/MainActivity.java'
           mkdir -p "$(dirname "$MAIN")"
           cat > "$MAIN" <<'JAVA'
-          package com.team2go.cavemanvsdragon.musicenhance;
+          package com.team2go.cavemanvsdragon.audiotest;
 
           import android.content.Context;
           import android.graphics.Point;
