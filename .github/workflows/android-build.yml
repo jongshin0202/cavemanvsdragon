@@ -93,7 +93,7 @@ jobs:
             "$BASE/__l5e/assets-v1/9f6d1fe7-96b1-4f22-ac2d-43ddf020559c/Gamemusic_Ending.mp3" \
             -o public/__l5e/assets-v1/9f6d1fe7-96b1-4f22-ac2d-43ddf020559c/Gamemusic_Ending.mp3
 
-      - name: Match later-level music volume to Level 1
+      - name: Use HTMLAudio for Level 2 and 3 music
         shell: bash
         run: |
           python3 - <<'PY'
@@ -109,137 +109,63 @@ jobs:
                   raise SystemExit(f'{label}: expected 1 match, found {count}')
               s = s.replace(old, new, 1)
 
-          # Later-level tracks sound substantially quieter through Android/WebView
-          # even though their source LUFS/RMS is similar to Level 1. Give them a
-          # much stronger playback multiplier while leaving Level 1 untouched.
+          # Force Level 2 and Level 3 onto the same HTMLAudio media path that
+          # Level 1 uses on Android. Use native loop=true instead of a crossfade
+          # so these tracks do not overlap their ending/start musical sections.
           replace_once(
-              "  gain?: GainNode;\n  playing: boolean;\n  crossfadeSec: number;",
-              "  gain?: GainNode;\n  widthNodes?: AudioNode[];\n  volumeMul?: number;\n  stereoWidth?: number;\n  playing: boolean;\n  crossfadeSec: number;",
-              'Track audio tuning fields'
+              """type Track = {
+            url: string;
+            // HTMLAudio-based crossfade path
+            a?: HTMLAudioElement;""",
+              """type Track = {
+            url: string;
+            htmlNativeLoop?: boolean;
+            // HTMLAudio-based path
+            a?: HTMLAudioElement;""",
+              'Track HTMLAudio loop flag'
           )
 
           replace_once(
               "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2 },",
-              "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volumeMul: 2.25, stereoWidth: 4 },",
-              'Level 2 volume tuning'
+              "  level2: { url: music2Asset.url, playing: false, crossfadeSec: 0, htmlNativeLoop: true },",
+              'Level 2 HTMLAudio routing'
           )
           replace_once(
               "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3 },",
-              "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volumeMul: 2.35, stereoWidth: 4 },",
-              'Level 3 volume tuning'
-          )
-          replace_once(
-              "  level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
-              "  level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volumeMul: 2.25 },",
-              'Level 4 volume tuning'
-          )
-          replace_once(
-              "  ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
-              "  ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volumeMul: 2.25 },",
-              'Ending volume tuning'
+              "  level3: { url: music3Asset.url, playing: false, crossfadeSec: 0, htmlNativeLoop: true },",
+              'Level 3 HTMLAudio routing'
           )
 
-          # Shared effective level for both Web Audio and HTMLAudio paths.
-          marker = "// -------- Web Audio (gapless loop) --------"
-          if marker not in s:
-              raise SystemExit('Web Audio marker not found')
-          s = s.replace(
-              marker,
-              """function trackVolume(t: Track): number {
-            // VOL is 0.333 for Level 1. Later levels get an explicit boost,
-            // capped below 1.0 to retain headroom for MP3 decode overshoot.
-            return Math.min(0.85, VOL * (t.volumeMul ?? 1));
+          # In play(), route htmlNativeLoop tracks before the Web Audio branch.
+          play_anchor = """  if (t.crossfadeSec <= 0) {
+            // Gapless Web Audio path"""
+          play_replacement = """  if (t.htmlNativeLoop) {
+            if (!t.a) t.a = makeAudio(t.url);
+            clearTimers(t);
+            try {
+              t.a.pause();
+              t.a.currentTime = 0;
+              t.a.loop = true;
+              t.a.volume = VOL;
+              t.active = t.a;
+              void t.a.play().catch(() => {});
+            } catch { /* ignore */ }
+            return;
           }
 
-          """ + marker,
-              1
-          )
+          if (t.crossfadeSec <= 0) {
+            // Gapless Web Audio path"""
+          replace_once(play_anchor, play_replacement, 'HTMLAudio routing in play()')
 
-          old_cleanup = (
-              "  if (t.gain) {\n"
-              "    try { t.gain.disconnect(); } catch { /* ignore */ }\n"
-              "    t.gain = undefined;\n"
-              "  }\n"
-              "}"
-          )
-          new_cleanup = (
-              "  if (t.widthNodes) {\n"
-              "    for (const node of t.widthNodes) {\n"
-              "      try { node.disconnect(); } catch { /* ignore */ }\n"
-              "    }\n"
-              "    t.widthNodes = undefined;\n"
-              "  }\n"
-              "  if (t.gain) {\n"
-              "    try { t.gain.disconnect(); } catch { /* ignore */ }\n"
-              "    t.gain = undefined;\n"
-              "  }\n"
-              "}"
-          )
-          replace_once(old_cleanup, new_cleanup, 'Web Audio width-node cleanup')
-
-          old_graph = (
-              "  const gain = ctx.createGain();\n"
-              "  gain.gain.value = VOL;\n"
-              "  src.connect(gain).connect(ctx.destination);\n"
-              "  src.start(0);\n"
-              "  t.source = src;\n"
-              "  t.gain = gain;"
-          )
-          new_graph = (
-              "  const gain = ctx.createGain();\n"
-              "  gain.gain.value = trackVolume(t);\n"
-              "\n"
-              "  const width = t.stereoWidth ?? 1;\n"
-              "  if (width > 1 && t.buffer.numberOfChannels >= 2) {\n"
-              "    const splitter = ctx.createChannelSplitter(2);\n"
-              "    const merger = ctx.createChannelMerger(2);\n"
-              "    const direct = (1 + width) / 2;\n"
-              "    const cross = (1 - width) / 2;\n"
-              "    const ll = ctx.createGain();\n"
-              "    const lr = ctx.createGain();\n"
-              "    const rl = ctx.createGain();\n"
-              "    const rr = ctx.createGain();\n"
-              "    ll.gain.value = direct;\n"
-              "    lr.gain.value = cross;\n"
-              "    rl.gain.value = cross;\n"
-              "    rr.gain.value = direct;\n"
-              "    src.connect(splitter);\n"
-              "    splitter.connect(ll, 0);\n"
-              "    splitter.connect(lr, 0);\n"
-              "    splitter.connect(rl, 1);\n"
-              "    splitter.connect(rr, 1);\n"
-              "    ll.connect(merger, 0, 0);\n"
-              "    rl.connect(merger, 0, 0);\n"
-              "    lr.connect(merger, 0, 1);\n"
-              "    rr.connect(merger, 0, 1);\n"
-              "    merger.connect(gain).connect(ctx.destination);\n"
-              "    t.widthNodes = [splitter, merger, ll, lr, rl, rr];\n"
-              "  } else {\n"
-              "    src.connect(gain).connect(ctx.destination);\n"
-              "  }\n"
-              "  src.start(0);\n"
-              "  t.source = src;\n"
-              "  t.gain = gain;"
-          )
-          replace_once(old_graph, new_graph, 'Web Audio strong-volume graph')
-
-          # HTMLAudio path (Level 4 + ending, and Level 1 reference).
+          # Ensure stop() clears native loop mode too.
           replace_once(
-              "    const outV = Math.cos((p * Math.PI) / 2) * VOL;\n"
-              "    const inV = Math.sin((p * Math.PI) / 2) * VOL;",
-              "    const targetVol = trackVolume(t);\n"
-              "    const outV = Math.cos((p * Math.PI) / 2) * targetVol;\n"
-              "    const inV = Math.sin((p * Math.PI) / 2) * targetVol;",
-              'Crossfade track volume'
-          )
-          replace_once(
-              "  try { t.a.pause(); t.a.currentTime = 0; t.a.volume = VOL; } catch { /* ignore */ }",
-              "  try { t.a.pause(); t.a.currentTime = 0; t.a.volume = trackVolume(t); } catch { /* ignore */ }",
-              'HTMLAudio start volume'
+              """    try { el.pause(); el.currentTime = 0; el.volume = 0; } catch { /* ignore */ }""",
+              """    try { el.pause(); el.currentTime = 0; el.loop = false; el.volume = 0; } catch { /* ignore */ }""",
+              'HTMLAudio stop reset'
           )
 
           p.write_text(s)
-          print('Strong later-level music volume matching applied successfully')
+          print('Level 2/3 switched from Web Audio to HTMLAudio native looping successfully')
           PY
 
       - name: Patch Android layout and controller awareness
