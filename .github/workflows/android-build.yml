@@ -113,28 +113,28 @@ jobs:
           # perceived loudness, and retain ~0.4 dB true-peak headroom.
           ffmpeg -y -loglevel error -i "$L2" \
             -af "highpass=f=70,stereotools=slev=4,equalizer=f=1200:t=q:w=1:g=2,acompressor=threshold=0.12:ratio=3:attack=5:release=80:makeup=2.0,alimiter=limit=0.58:attack=5:release=50,volume=-1.3dB" \
-            -ar 44100 -ac 2 -c:a libmp3lame -b:a 192k "$L2.mastered"
-          mv "$L2.mastered" "$L2"
+            -ar 44100 -ac 2 -c:a libmp3lame -b:a 192k "${L2%.mp3}.mastered.mp3"
+          mv "${L2%.mp3}.mastered.mp3" "$L2"
 
           # Level 3 is bass-heavier than Level 1, so shift more energy into
           # the low-mid/presence range that phone speakers reproduce well.
           ffmpeg -y -loglevel error -i "$L3" \
             -af "highpass=f=80,stereotools=slev=4,equalizer=f=500:t=q:w=1:g=2,equalizer=f=1400:t=q:w=1:g=3,acompressor=threshold=0.12:ratio=3:attack=5:release=80:makeup=2.2,alimiter=limit=0.58:attack=5:release=50,volume=-1.3dB" \
-            -ar 44100 -ac 2 -c:a libmp3lame -b:a 192k "$L3.mastered"
-          mv "$L3.mastered" "$L3"
+            -ar 44100 -ac 2 -c:a libmp3lame -b:a 192k "${L3%.mp3}.mastered.mp3"
+          mv "${L3%.mp3}.mastered.mp3" "$L3"
 
           # Level 4 already has healthy stereo width, so do not widen it.
           # Only improve presence and perceived loudness.
           ffmpeg -y -loglevel error -i "$L4" \
             -af "highpass=f=60,equalizer=f=1000:t=q:w=1:g=1,acompressor=threshold=0.14:ratio=2.5:attack=5:release=80:makeup=1.7,alimiter=limit=0.58:attack=5:release=50,volume=-1.3dB" \
-            -ar 44100 -ac 2 -c:a libmp3lame -b:a 192k "$L4.mastered"
-          mv "$L4.mastered" "$L4"
+            -ar 44100 -ac 2 -c:a libmp3lame -b:a 192k "${L4%.mp3}.mastered.mp3"
+          mv "${L4%.mp3}.mastered.mp3" "$L4"
 
           # Ending: modest mastering only; no stereo-width manipulation.
           ffmpeg -y -loglevel error -i "$ENDING" \
             -af "highpass=f=60,acompressor=threshold=0.14:ratio=2.5:attack=5:release=80:makeup=1.5,alimiter=limit=0.65:attack=5:release=50:level=false" \
-            -ar 44100 -ac 2 -c:a libmp3lame -b:a 192k "$ENDING.mastered"
-          mv "$ENDING.mastered" "$ENDING"
+            -ar 44100 -ac 2 -c:a libmp3lame -b:a 192k "${ENDING%.mp3}.mastered.mp3"
+          mv "${ENDING%.mp3}.mastered.mp3" "$ENDING"
 
           # Sanity check every mastered asset before the web build.
           for f in "$L2" "$L3" "$L4" "$ENDING"; do
