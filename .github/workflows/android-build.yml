@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - AndroidAPK_ControlCentering
+      - AndroidAPK-lowergamescreenportrait
     paths:
       - '.github/workflows/android-build.yml'
 
@@ -51,7 +51,7 @@ jobs:
           import type { CapacitorConfig } from '@capacitor/cli';
 
           const config: CapacitorConfig = {
-            appId: 'com.team2go.cavemanvsdragon.controlcentering',
+            appId: 'com.team2go.cavemanvsdragon.lowerportrait',
             appName: 'Caveman Vs Dragon',
             webDir: 'dist',
             android: {
@@ -119,6 +119,7 @@ jobs:
           // button press, and identify iiRcade hardware for its dedicated layout.
           const [nativeHardwareController, setNativeHardwareController] = useState<boolean>(false);
           const [isIiRcadeDevice, setIsIiRcadeDevice] = useState<boolean>(false);
+          const [nativeTopCutoutInset, setNativeTopCutoutInset] = useState<number>(0);
           useEffect(() => {
             const pollNativeDevice = () => {
               try {
@@ -126,8 +127,12 @@ jobs:
                 if (!nativeBridge) return;
                 const iiRcade = Boolean(nativeBridge.isIiRcade?.());
                 const controller = Boolean(nativeBridge.hasHardwareController?.());
+                const cutoutInset = Number(nativeBridge.getTopCutoutInsetDp?.() ?? 0);
                 setIsIiRcadeDevice(iiRcade);
                 setNativeHardwareController(controller || iiRcade);
+                setNativeTopCutoutInset(
+                  Number.isFinite(cutoutInset) ? Math.max(0, Math.round(cutoutInset)) : 0
+                );
               } catch {
                 // Browser/non-native builds do not expose CvdNative.
               }
@@ -222,6 +227,22 @@ jobs:
           if count != 1:
               raise SystemExit(f'canvas width block: expected 1 match, found {count}')
 
+          # Portrait camera cutout: move only the game screen downward by the
+          # native display-cutout safe inset. The control bar is intentionally
+          # untouched, and landscape/iiRcade layouts are unaffected.
+          native_style_anchor = """                  maxHeight: '100%',
+                  maxWidth: '100%',"""
+          native_style_replacement = """                  maxHeight: '100%',
+                  maxWidth: '100%',
+                  transform: !isLandscape && nativeTopCutoutInset > 0
+                    ? `translateY(${nativeTopCutoutInset}px)`
+                    : undefined,"""
+          replace_once(
+              native_style_anchor,
+              native_style_replacement,
+              'portrait camera-cutout game offset'
+          )
+
           # APK haptics: prefer the native Android bridge because WebView's
           # navigator.vibrate() is not reliable on every device/WebView build.
           vibrate_pattern = re.compile(
@@ -263,7 +284,7 @@ jobs:
           )
 
           p.write_text(s)
-          print('Android layout/controller/native-haptics/portrait-centering patch applied successfully')
+          print('Android layout/controller/native-haptics/portrait-centering/cutout-offset patch applied successfully')
           PY
 
       - name: Build web game
@@ -300,10 +321,10 @@ jobs:
       - name: Add native Android controller bridge and immersive fullscreen
         shell: bash
         run: |
-          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/controlcentering/MainActivity.java'
+          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/lowerportrait/MainActivity.java'
           mkdir -p "$(dirname "$MAIN")"
           cat > "$MAIN" <<'JAVA'
-          package com.team2go.cavemanvsdragon.controlcentering;
+          package com.team2go.cavemanvsdragon.lowerportrait;
 
           import android.content.Context;
           import android.graphics.Point;
@@ -422,6 +443,37 @@ jobs:
                   }
               }
 
+              private int readTopCutoutInsetDp() {
+                  if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return 0;
+                  try {
+                      final WindowInsets insets =
+                          getWindow().getDecorView().getRootWindowInsets();
+                      if (insets == null) return 0;
+
+                      int insetPx = 0;
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                          insetPx = insets
+                              .getInsetsIgnoringVisibility(WindowInsets.Type.displayCutout())
+                              .top;
+                      }
+
+                      if (insets.getDisplayCutout() != null) {
+                          insetPx = Math.max(
+                              insetPx,
+                              insets.getDisplayCutout().getSafeInsetTop()
+                          );
+                      }
+
+                      if (insetPx <= 0) return 0;
+                      final float density =
+                          Math.max(1.0f, getResources().getDisplayMetrics().density);
+                      // Add a tiny visual cushion below the physical cutout.
+                      return Math.max(0, Math.round(insetPx / density) + 4);
+                  } catch (Throwable ignored) {
+                      return 0;
+                  }
+              }
+
               private void vibratePhone(int requestedMs) {
                   final int durationMs = Math.max(18, Math.min(requestedMs, 120));
                   try {
@@ -479,6 +531,11 @@ jobs:
                   @JavascriptInterface
                   public boolean hasHardwareController() {
                       return hasHardwareGameController() || iiRcadeDevice;
+                  }
+
+                  @JavascriptInterface
+                  public int getTopCutoutInsetDp() {
+                      return readTopCutoutInsetDp();
                   }
 
                   @JavascriptInterface
