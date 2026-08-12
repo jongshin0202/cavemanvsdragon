@@ -62,6 +62,37 @@ jobs:
           export default config;
           EOF
 
+            - name: Bundle game music
+        shell: bash
+        run: |
+          BASE='https://8ca556b9-b5b4-4910-80b1-d14db143f4d8.lovableproject.com'
+
+          mkdir -p public/__l5e/assets-v1/81d122e4-f5a6-4c74-b218-ad496945acb1
+          mkdir -p public/__l5e/assets-v1/07c06cb2-2107-41a3-9990-f3212851fe57
+          mkdir -p public/__l5e/assets-v1/685f4432-28cf-481b-ad6f-40d5388eb747
+          mkdir -p public/__l5e/assets-v1/a6f66d24-ca19-4677-97af-60cd2eda8a89
+          mkdir -p public/__l5e/assets-v1/9f6d1fe7-96b1-4f22-ac2d-43ddf020559c
+
+          curl -fL --retry 3 \
+            "$BASE/__l5e/assets-v1/81d122e4-f5a6-4c74-b218-ad496945acb1/Gamemusic1.mp3" \
+            -o public/__l5e/assets-v1/81d122e4-f5a6-4c74-b218-ad496945acb1/Gamemusic1.mp3
+
+          curl -fL --retry 3 \
+            "$BASE/__l5e/assets-v1/07c06cb2-2107-41a3-9990-f3212851fe57/Gamemusic2.mp3" \
+            -o public/__l5e/assets-v1/07c06cb2-2107-41a3-9990-f3212851fe57/Gamemusic2.mp3
+
+          curl -fL --retry 3 \
+            "$BASE/__l5e/assets-v1/685f4432-28cf-481b-ad6f-40d5388eb747/Gamemusic3.mp3" \
+            -o public/__l5e/assets-v1/685f4432-28cf-481b-ad6f-40d5388eb747/Gamemusic3.mp3
+
+          curl -fL --retry 3 \
+            "$BASE/__l5e/assets-v1/a6f66d24-ca19-4677-97af-60cd2eda8a89/Gamemusic4.mp3" \
+            -o public/__l5e/assets-v1/a6f66d24-ca19-4677-97af-60cd2eda8a89/Gamemusic4.mp3
+
+          curl -fL --retry 3 \
+            "$BASE/__l5e/assets-v1/9f6d1fe7-96b1-4f22-ac2d-43ddf020559c/Gamemusic_Ending.mp3" \
+            -o public/__l5e/assets-v1/9f6d1fe7-96b1-4f22-ac2d-43ddf020559c/Gamemusic_Ending.mp3
+
       - name: Build web game
         run: npm run build
 
