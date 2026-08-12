@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - AndroidAPK
+      - MainLevel2
     paths:
       - '.github/workflows/android-build.yml'
 
