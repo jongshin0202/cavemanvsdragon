@@ -51,8 +51,8 @@ jobs:
           import type { CapacitorConfig } from '@capacitor/cli';
 
           const config: CapacitorConfig = {
-            appId: 'com.team2go.cavemanvsdragon.mixbalanced',
-            appName: 'CVD Mix Balanced',
+            appId: 'com.team2go.cavemanvsdragon.allsoundbalanced',
+            appName: 'CVD All Sound Balanced',
             webDir: 'dist',
             android: {
               allowMixedContent: false,
@@ -442,6 +442,119 @@ jobs:
           print('  Other SFX: unchanged')
           PY
 
+      - name: Balance all SFX through master bus
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('src/components/game/sounds.ts')
+          s = p.read_text()
+
+          # Remove the previous one-off completion-cue boosts so every SFX is
+          # handled by the same master mix bus.
+          reversions = [
+              (
+                  'gain.gain.setValueAtTime(0.22, ctx.currentTime + i * 0.15);',
+                  'gain.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.15);',
+                  'win cue reset'
+              ),
+              (
+                  'gain.gain.setValueAtTime(0.20, ctx.currentTime + i * 0.2);',
+                  'gain.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.2);',
+                  'game-over cue reset'
+              ),
+              (
+                  'gain.gain.setValueAtTime(0.20, t);',
+                  'gain.gain.setValueAtTime(0.13, t);',
+                  'princess melody reset'
+              ),
+              (
+                  'gain.gain.setValueAtTime(0.15, chordT);',
+                  'gain.gain.setValueAtTime(0.10, chordT);',
+                  'princess chord reset'
+              ),
+              (
+                  'sparkleGain.gain.setValueAtTime(0.15, ts);',
+                  'sparkleGain.gain.setValueAtTime(0.10, ts);',
+                  'princess sparkle reset'
+              ),
+          ]
+          for old, new, label in reversions:
+              count = s.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected 1 match, found {count}')
+              s = s.replace(old, new, 1)
+
+          # Route every existing Web Audio SFX output through a shared master bus.
+          direct_count = s.count('connect(ctx.destination)')
+          if direct_count < 10:
+              raise SystemExit(f'Expected many direct SFX outputs, found only {direct_count}')
+          s = s.replace('connect(ctx.destination)', 'connect(getSfxBus())')
+
+          marker = """function getCtx(): AudioContext {
+            if (!audioCtx) audioCtx = new AudioContext();
+            return audioCtx;
+          }
+
+          """
+          if marker not in s:
+              raise SystemExit('getCtx() marker not found')
+
+          bus_code = """let sfxBus: GainNode | null = null;
+          let sfxCompressor: DynamicsCompressorNode | null = null;
+
+          function getSfxBus(): AudioNode {
+            const ctx = getCtx();
+            if (!sfxBus || !sfxCompressor) {
+              sfxBus = ctx.createGain();
+              sfxCompressor = ctx.createDynamicsCompressor();
+
+              // Raise quiet gameplay cues on Android/WebView.
+              sfxBus.gain.value = 2.2;
+
+              // Prevent strong effects from becoming painfully loud.
+              sfxCompressor.threshold.value = -18;
+              sfxCompressor.knee.value = 18;
+              sfxCompressor.ratio.value = 4;
+              sfxCompressor.attack.value = 0.003;
+              sfxCompressor.release.value = 0.18;
+
+              sfxBus.connect(sfxCompressor);
+              sfxCompressor.connect(ctx.destination);
+            }
+            return sfxBus;
+          }
+
+          """
+          s = s.replace(marker, marker + bus_code, 1)
+          p.write_text(s)
+
+          checks = [
+              'sfxBus.gain.value = 2.2;',
+              'sfxCompressor.threshold.value = -18;',
+              'sfxCompressor.ratio.value = 4;',
+              'sfxCompressor.connect(ctx.destination);',
+              'connect(getSfxBus())',
+              'gain.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.15);',
+              'gain.gain.setValueAtTime(0.13, t);',
+          ]
+          missing = [x for x in checks if x not in s]
+          if missing:
+              raise SystemExit(f'All-SFX bus assertion failed: {missing}')
+
+          remaining_direct = s.count('connect(ctx.destination)')
+          if remaining_direct != 1:
+              raise SystemExit(
+                  f'Expected exactly 1 direct destination connection (compressor), found {remaining_direct}'
+              )
+
+          print(f'Routed {direct_count} SFX outputs through shared master bus')
+          print('SFX master gain: 2.2x')
+          print('Compressor: threshold -18 dB, ratio 4:1')
+          print('All SFX now share one master mix bus')
+          PY
+
       - name: Patch Android layout and controller awareness
         shell: bash
         run: |
@@ -676,10 +789,10 @@ jobs:
       - name: Add native Android controller bridge and immersive fullscreen
         shell: bash
         run: |
-          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/mixbalanced/MainActivity.java'
+          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/allsoundbalanced/MainActivity.java'
           mkdir -p "$(dirname "$MAIN")"
           cat > "$MAIN" <<'JAVA'
-          package com.team2go.cavemanvsdragon.mixbalanced;
+          package com.team2go.cavemanvsdragon.allsoundbalanced;
 
           import android.content.Context;
           import android.graphics.Point;
