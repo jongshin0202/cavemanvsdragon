@@ -51,8 +51,8 @@ jobs:
           import type { CapacitorConfig } from '@capacitor/cli';
 
           const config: CapacitorConfig = {
-            appId: 'com.team2go.cavemanvsdragon.musicfull',
-            appName: 'CVD Music Full',
+            appId: 'com.team2go.cavemanvsdragon.musicstereo',
+            appName: 'CVD Music Stereo',
             webDir: 'dist',
             android: {
               allowMixedContent: false,
@@ -230,6 +230,93 @@ jobs:
           print('Level 1 playback volume: 0.333')
           print('Levels 2-4 playback volume: 1.0')
           print('Ending playback volume: 1.0')
+          PY
+
+      - name: Route Level 2 and 3 through HTMLAudio stereo path
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('src/components/game/bgMusic.ts')
+          s = p.read_text()
+
+          def replace_once(old: str, new: str, label: str):
+              global s
+              count = s.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected 1 match, found {count}')
+              s = s.replace(old, new, 1)
+
+          # Add an explicit HTMLAudio native-loop route. This lets Level 2/3
+          # use the same media playback family as Level 1 instead of the
+          # AudioBufferSourceNode/WebAudio route used by the base web game.
+          replace_once(
+              "  volume?: number;\n};",
+              "  volume?: number;\n  htmlNativeLoop?: boolean;\n};",
+              'HTML native loop field'
+          )
+
+          replace_once(
+              "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 1.0 },",
+              "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 1.0, htmlNativeLoop: true },",
+              'Level 2 HTMLAudio route'
+          )
+
+          replace_once(
+              "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 1.0 },",
+              "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 1.0, htmlNativeLoop: true },",
+              'Level 3 HTMLAudio route'
+          )
+
+          play_anchor = """  if (t.crossfadeSec <= 0) {
+            // Gapless Web Audio path
+            const ctx = getCtx();"""
+
+          html_loop_block = """  if (t.htmlNativeLoop) {
+            // Android/WebView stereo-preserving route: use an ordinary
+            // HTMLAudioElement, like Level 1, but loop the file natively.
+            stopWebAudio(t);
+            clearTimers(t);
+            if (!t.a) t.a = makeAudio(t.url);
+            try {
+              t.a.pause();
+              t.a.currentTime = 0;
+              t.a.loop = true;
+              t.a.volume = t.volume ?? VOL;
+              t.active = t.a;
+              void t.a.play().catch(() => {});
+            } catch { /* ignore */ }
+            return;
+          }
+
+          if (t.crossfadeSec <= 0) {
+            // Gapless Web Audio path
+            const ctx = getCtx();"""
+
+          replace_once(
+              play_anchor,
+              html_loop_block,
+              'HTMLAudio native-loop play route'
+          )
+
+          p.write_text(s)
+
+          required = [
+              "htmlNativeLoop?: boolean;",
+              "level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 1.0, htmlNativeLoop: true }",
+              "level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 1.0, htmlNativeLoop: true }",
+              "t.a.loop = true;",
+              "t.a.volume = t.volume ?? VOL;",
+          ]
+          missing = [x for x in required if x not in s]
+          if missing:
+              raise SystemExit(f'HTMLAudio stereo-route assertion failed: {missing}')
+
+          print('Level 1: HTMLAudio crossfade @ 0.333')
+          print('Level 2: HTMLAudio native loop @ 1.0')
+          print('Level 3: HTMLAudio native loop @ 1.0')
+          print('Level 4: HTMLAudio crossfade @ 1.0')
           PY
 
       - name: Patch Android layout and controller awareness
@@ -466,10 +553,10 @@ jobs:
       - name: Add native Android controller bridge and immersive fullscreen
         shell: bash
         run: |
-          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/musicfull/MainActivity.java'
+          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/musicstereo/MainActivity.java'
           mkdir -p "$(dirname "$MAIN")"
           cat > "$MAIN" <<'JAVA'
-          package com.team2go.cavemanvsdragon.musicfull;
+          package com.team2go.cavemanvsdragon.musicstereo;
 
           import android.content.Context;
           import android.graphics.Point;
