@@ -51,8 +51,8 @@ jobs:
           import type { CapacitorConfig } from '@capacitor/cli';
 
           const config: CapacitorConfig = {
-            appId: 'com.team2go.cavemanvsdragon.musicstereo',
-            appName: 'CVD Music Stereo',
+            appId: 'com.team2go.cavemanvsdragon.stereoall',
+            appName: 'CVD Stereo All',
             webDir: 'dist',
             android: {
               allowMixedContent: false,
@@ -232,7 +232,7 @@ jobs:
           print('Ending playback volume: 1.0')
           PY
 
-      - name: Route Level 2 and 3 through HTMLAudio stereo path
+      - name: Route all BGM through HTMLAudio stereo paths
         shell: bash
         run: |
           python3 - <<'PY'
@@ -248,13 +248,16 @@ jobs:
                   raise SystemExit(f'{label}: expected 1 match, found {count}')
               s = s.replace(old, new, 1)
 
-          # Add an explicit HTMLAudio native-loop route. This lets Level 2/3
-          # use the same media playback family as Level 1 instead of the
-          # AudioBufferSourceNode/WebAudio route used by the base web game.
+          # Level 1, Level 4 and Ending already use the HTMLAudio crossfade
+          # path because their crossfadeSec is > 0.
+          #
+          # Level 2 and Level 3 are the only tracks that normally enter the
+          # Web Audio AudioBufferSourceNode path. Mark those two for an
+          # explicit HTMLAudioElement native-loop route instead.
           replace_once(
               "  volume?: number;\n};",
               "  volume?: number;\n  htmlNativeLoop?: boolean;\n};",
-              'HTML native loop field'
+              'HTML native-loop field'
           )
 
           replace_once(
@@ -269,13 +272,19 @@ jobs:
               'Level 3 HTMLAudio route'
           )
 
-          play_anchor = """  if (t.crossfadeSec <= 0) {
-            // Gapless Web Audio path
-            const ctx = getCtx();"""
+          # Insert the HTMLAudio native-loop route immediately before the
+          # existing Web Audio branch. Match only the branch line itself so
+          # whitespace/comments cannot break the workflow matcher.
+          needle = "  if (t.crossfadeSec <= 0) {"
+          if s.count(needle) != 1:
+              raise SystemExit(
+                  f'WebAudio play branch: expected 1 match, found {s.count(needle)}'
+              )
 
           html_loop_block = """  if (t.htmlNativeLoop) {
-            // Android/WebView stereo-preserving route: use an ordinary
-            // HTMLAudioElement, like Level 1, but loop the file natively.
+            // Android stereo-preserving route for Level 2/3.
+            // Use ordinary HTML media playback, same playback family as
+            // Level 1/4/Ending, instead of AudioBufferSourceNode.
             stopWebAudio(t);
             clearTimers(t);
             if (!t.a) t.a = makeAudio(t.url);
@@ -290,33 +299,51 @@ jobs:
             return;
           }
 
-          if (t.crossfadeSec <= 0) {
-            // Gapless Web Audio path
-            const ctx = getCtx();"""
+          """
 
-          replace_once(
-              play_anchor,
-              html_loop_block,
-              'HTMLAudio native-loop play route'
-          )
+          s = s.replace(needle, html_loop_block + needle, 1)
 
           p.write_text(s)
 
-          required = [
-              "htmlNativeLoop?: boolean;",
-              "level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 1.0, htmlNativeLoop: true }",
-              "level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 1.0, htmlNativeLoop: true }",
-              "t.a.loop = true;",
-              "t.a.volume = t.volume ?? VOL;",
-          ]
-          missing = [x for x in required if x not in s]
-          if missing:
-              raise SystemExit(f'HTMLAudio stereo-route assertion failed: {missing}')
+          # Explicitly prove that every Android BGM track resolves to an
+          # HTMLAudio route:
+          #   L1       crossfade HTMLAudio
+          #   L2       native-loop HTMLAudio
+          #   L3       native-loop HTMLAudio
+          #   L4       crossfade HTMLAudio
+          #   Ending   crossfade HTMLAudio
+          required = {
+              'Level 1 HTMLAudio crossfade':
+                  "level1: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: VOL }",
+              'Level 2 HTMLAudio native loop':
+                  "level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 1.0, htmlNativeLoop: true }",
+              'Level 3 HTMLAudio native loop':
+                  "level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 1.0, htmlNativeLoop: true }",
+              'Level 4 HTMLAudio crossfade':
+                  "level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 1.0 }",
+              'Ending HTMLAudio crossfade':
+                  "ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 1.0 }",
+              'Native HTMLAudio loop implementation':
+                  "t.a.loop = true;",
+          }
 
-          print('Level 1: HTMLAudio crossfade @ 0.333')
-          print('Level 2: HTMLAudio native loop @ 1.0')
-          print('Level 3: HTMLAudio native loop @ 1.0')
-          print('Level 4: HTMLAudio crossfade @ 1.0')
+          missing = [label for label, fragment in required.items() if fragment not in s]
+          if missing:
+              raise SystemExit(f'All-stereo routing assertion failed: {missing}')
+
+          # No defined BGM track is allowed to reach WebAudio:
+          # only zero-crossfade tracks can enter that branch, and both
+          # zero-crossfade tracks are now intercepted by htmlNativeLoop.
+          if "level2: 0" not in s or "level3: 0" not in s:
+              raise SystemExit('Unexpected crossfade override configuration')
+
+          print('Android BGM route verification:')
+          print('  Level 1  -> HTMLAudio crossfade @ 0.333')
+          print('  Level 2  -> HTMLAudio native loop @ 1.0')
+          print('  Level 3  -> HTMLAudio native loop @ 1.0')
+          print('  Level 4  -> HTMLAudio crossfade @ 1.0')
+          print('  Ending   -> HTMLAudio crossfade @ 1.0')
+          print('  WebAudio -> unreachable by all five BGM tracks')
           PY
 
       - name: Patch Android layout and controller awareness
@@ -553,10 +580,10 @@ jobs:
       - name: Add native Android controller bridge and immersive fullscreen
         shell: bash
         run: |
-          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/musicstereo/MainActivity.java'
+          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/stereoall/MainActivity.java'
           mkdir -p "$(dirname "$MAIN")"
           cat > "$MAIN" <<'JAVA'
-          package com.team2go.cavemanvsdragon.musicstereo;
+          package com.team2go.cavemanvsdragon.stereoall;
 
           import android.content.Context;
           import android.graphics.Point;
