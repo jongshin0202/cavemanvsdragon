@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - AndroidAPK
+      - AndroidAPK-Vibrate
     paths:
       - '.github/workflows/android-build.yml'
 
@@ -51,7 +51,7 @@ jobs:
           import type { CapacitorConfig } from '@capacitor/cli';
 
           const config: CapacitorConfig = {
-            appId: 'com.team2go.cavemanvsdragon.dev',
+            appId: 'com.team2go.cavemanvsdragon.vibrate',
             appName: 'Caveman Vs Dragon',
             webDir: 'dist',
             android: {
@@ -222,8 +222,40 @@ jobs:
           if count != 1:
               raise SystemExit(f'canvas width block: expected 1 match, found {count}')
 
+          # APK haptics: prefer the native Android bridge because WebView's
+          # navigator.vibrate() is not reliable on every device/WebView build.
+          vibrate_pattern = re.compile(
+              r"  const vibrateNow = \(ms: number\) => \{\n"
+              r"    try \{\n"
+              r".*?"
+              r"    \} catch \{\}\n"
+              r"  \};",
+              re.DOTALL,
+          )
+          vibrate_replacement = """  const vibrateNow = (ms: number) => {
+            const duration = Math.max(18, Math.round(ms));
+            try {
+              const nativeBridge = (window as any).CvdNative;
+              if (nativeBridge && typeof nativeBridge.vibrate === 'function') {
+                nativeBridge.vibrate(duration);
+                return;
+              }
+            } catch {}
+            try {
+              const nav = typeof navigator !== 'undefined'
+                ? (navigator as Navigator & { vibrate?: (p: number | number[]) => boolean })
+                : null;
+              if (!nav || typeof nav.vibrate !== 'function') return;
+              nav.vibrate(0);
+              nav.vibrate(duration);
+            } catch {}
+          };"""
+          s, count = vibrate_pattern.subn(vibrate_replacement, s, count=1)
+          if count != 1:
+              raise SystemExit(f'vibrateNow block: expected 1 match, found {count}')
+
           p.write_text(s)
-          print('Android layout/controller patch applied successfully')
+          print('Android layout/controller/native-haptics patch applied successfully')
           PY
 
       - name: Build web game
@@ -236,17 +268,42 @@ jobs:
           npx cap add android
           npx cap sync android
 
+      - name: Add Android vibration permission
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('android/app/src/main/AndroidManifest.xml')
+          s = p.read_text()
+          permission = '<uses-permission android:name="android.permission.VIBRATE" />'
+          if permission not in s:
+              manifest_start = s.find('<manifest')
+              if manifest_start < 0:
+                  raise SystemExit('Could not find <manifest> opening tag')
+              manifest_end = s.find('>', manifest_start)
+              if manifest_end < 0:
+                  raise SystemExit('Could not find end of <manifest> opening tag')
+              s = s[:manifest_end + 1] + '\n    ' + permission + s[manifest_end + 1:]
+              p.write_text(s)
+          print('Android VIBRATE permission present')
+          PY
+
       - name: Add native Android controller bridge and immersive fullscreen
         shell: bash
         run: |
-          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/dev/MainActivity.java'
+          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/vibrate/MainActivity.java'
           mkdir -p "$(dirname "$MAIN")"
           cat > "$MAIN" <<'JAVA'
-          package com.team2go.cavemanvsdragon.dev;
+          package com.team2go.cavemanvsdragon.vibrate;
 
+          import android.content.Context;
           import android.graphics.Point;
           import android.os.Build;
           import android.os.Bundle;
+          import android.os.VibrationEffect;
+          import android.os.Vibrator;
+          import android.os.VibratorManager;
           import android.view.InputDevice;
           import android.view.KeyEvent;
           import android.view.View;
@@ -357,6 +414,34 @@ jobs:
                   }
               }
 
+              private void vibratePhone(int requestedMs) {
+                  final int durationMs = Math.max(18, Math.min(requestedMs, 120));
+                  try {
+                      final Vibrator vibrator;
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                          final VibratorManager manager =
+                              (VibratorManager) getSystemService(Context.VIBRATOR_MANAGER_SERVICE);
+                          vibrator = manager != null ? manager.getDefaultVibrator() : null;
+                      } else {
+                          vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                      }
+
+                      if (vibrator == null || !vibrator.hasVibrator()) return;
+
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                          vibrator.vibrate(
+                              VibrationEffect.createOneShot(
+                                  durationMs,
+                                  VibrationEffect.DEFAULT_AMPLITUDE
+                              )
+                          );
+                      } else {
+                          vibrator.vibrate(durationMs);
+                      }
+                  } catch (Throwable ignored) {
+                  }
+              }
+
               private boolean hasHardwareGameController() {
                   final int[] ids = InputDevice.getDeviceIds();
                   for (int id : ids) {
@@ -386,6 +471,11 @@ jobs:
                   @JavascriptInterface
                   public boolean hasHardwareController() {
                       return hasHardwareGameController() || iiRcadeDevice;
+                  }
+
+                  @JavascriptInterface
+                  public void vibrate(int durationMs) {
+                      vibratePhone(durationMs);
                   }
               }
 
