@@ -62,7 +62,7 @@ jobs:
           export default config;
           EOF
 
-            - name: Bundle game music
+      - name: Bundle game music
         shell: bash
         run: |
           BASE='https://8ca556b9-b5b4-4910-80b1-d14db143f4d8.lovableproject.com'
