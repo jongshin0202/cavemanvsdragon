@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - AndroidAPK-Vibrate
+      - AndroidAPK_ControlCentering
     paths:
       - '.github/workflows/android-build.yml'
 
@@ -51,7 +51,7 @@ jobs:
           import type { CapacitorConfig } from '@capacitor/cli';
 
           const config: CapacitorConfig = {
-            appId: 'com.team2go.cavemanvsdragon.vibrate',
+            appId: 'com.team2go.cavemanvsdragon.controlcentering',
             appName: 'Caveman Vs Dragon',
             webDir: 'dist',
             android: {
@@ -254,8 +254,16 @@ jobs:
           if count != 1:
               raise SystemExit(f'vibrateNow block: expected 1 match, found {count}')
 
+          # Portrait native controls: center the 152px control row vertically
+          # in the space below the game instead of letting it touch the phone bottom.
+          replace_once(
+              'className={`w-full shrink-0 overflow-hidden px-2 pt-2 touch-none ${isNativeApp ? \'pb-0 -mt-2\' : \'pb-[calc(env(safe-area-inset-bottom)+0.5rem)]\'}`}',
+              'className={`w-full shrink-0 overflow-hidden px-2 touch-none ${isNativeApp ? \'py-[clamp(24px,4vh,48px)]\' : \'pt-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]\'}`}',
+              'portrait control centering'
+          )
+
           p.write_text(s)
-          print('Android layout/controller/native-haptics patch applied successfully')
+          print('Android layout/controller/native-haptics/portrait-centering patch applied successfully')
           PY
 
       - name: Build web game
@@ -292,10 +300,10 @@ jobs:
       - name: Add native Android controller bridge and immersive fullscreen
         shell: bash
         run: |
-          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/vibrate/MainActivity.java'
+          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/controlcentering/MainActivity.java'
           mkdir -p "$(dirname "$MAIN")"
           cat > "$MAIN" <<'JAVA'
-          package com.team2go.cavemanvsdragon.vibrate;
+          package com.team2go.cavemanvsdragon.controlcentering;
 
           import android.content.Context;
           import android.graphics.Point;
