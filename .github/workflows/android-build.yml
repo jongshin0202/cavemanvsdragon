@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - AndroidAPK-lowergamescreenportrait
+      - AndroidAPK-MusicEnhance
     paths:
       - '.github/workflows/android-build.yml'
 
@@ -51,7 +51,7 @@ jobs:
           import type { CapacitorConfig } from '@capacitor/cli';
 
           const config: CapacitorConfig = {
-            appId: 'com.team2go.cavemanvsdragon.lowerportrait',
+            appId: 'com.team2go.cavemanvsdragon.musicenhance',
             appName: 'Caveman Vs Dragon',
             webDir: 'dist',
             android: {
@@ -92,6 +92,118 @@ jobs:
           curl -fL --retry 3 \
             "$BASE/__l5e/assets-v1/9f6d1fe7-96b1-4f22-ac2d-43ddf020559c/Gamemusic_Ending.mp3" \
             -o public/__l5e/assets-v1/9f6d1fe7-96b1-4f22-ac2d-43ddf020559c/Gamemusic_Ending.mp3
+
+      - name: Enhance Level 2 and 3 music
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('src/components/game/bgMusic.ts')
+          s = p.read_text()
+
+          def replace_once(old: str, new: str, label: str):
+              global s
+              count = s.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected 1 match, found {count}')
+              s = s.replace(old, new, 1)
+
+          replace_once(
+              "  gain?: GainNode;\n  playing: boolean;\n  crossfadeSec: number;",
+              "  gain?: GainNode;\n  widthNodes?: AudioNode[];\n  webGain?: number;\n  stereoWidth?: number;\n  playing: boolean;\n  crossfadeSec: number;",
+              'Track Web Audio tuning fields'
+          )
+
+          replace_once(
+              "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2 },",
+              "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, webGain: 1.06, stereoWidth: 4 },",
+              'Level 2 music tuning'
+          )
+          replace_once(
+              "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3 },",
+              "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, webGain: 1.15, stereoWidth: 4 },",
+              'Level 3 music tuning'
+          )
+
+          old_cleanup = (
+              "  if (t.gain) {\n"
+              "    try { t.gain.disconnect(); } catch { /* ignore */ }\n"
+              "    t.gain = undefined;\n"
+              "  }\n"
+              "}"
+          )
+          new_cleanup = (
+              "  if (t.widthNodes) {\n"
+              "    for (const node of t.widthNodes) {\n"
+              "      try { node.disconnect(); } catch { /* ignore */ }\n"
+              "    }\n"
+              "    t.widthNodes = undefined;\n"
+              "  }\n"
+              "  if (t.gain) {\n"
+              "    try { t.gain.disconnect(); } catch { /* ignore */ }\n"
+              "    t.gain = undefined;\n"
+              "  }\n"
+              "}"
+          )
+          replace_once(old_cleanup, new_cleanup, 'Web Audio width-node cleanup')
+
+          old_graph = (
+              "  const gain = ctx.createGain();\n"
+              "  gain.gain.value = VOL;\n"
+              "  src.connect(gain).connect(ctx.destination);\n"
+              "  src.start(0);\n"
+              "  t.source = src;\n"
+              "  t.gain = gain;"
+          )
+          new_graph = (
+              "  const gain = ctx.createGain();\n"
+              "  gain.gain.value = VOL * (t.webGain ?? 1);\n"
+              "\n"
+              "  const width = t.stereoWidth ?? 1;\n"
+              "  if (width > 1 && t.buffer.numberOfChannels >= 2) {\n"
+              "    // Mid/side widening without delay, echo, or reverb.\n"
+              "    // A 4x side multiplier brings L2/L3 close to L1 stereo width.\n"
+              "    const splitter = ctx.createChannelSplitter(2);\n"
+              "    const merger = ctx.createChannelMerger(2);\n"
+              "    const direct = (1 + width) / 2;\n"
+              "    const cross = (1 - width) / 2;\n"
+              "\n"
+              "    const ll = ctx.createGain();\n"
+              "    const lr = ctx.createGain();\n"
+              "    const rl = ctx.createGain();\n"
+              "    const rr = ctx.createGain();\n"
+              "    ll.gain.value = direct;\n"
+              "    lr.gain.value = cross;\n"
+              "    rl.gain.value = cross;\n"
+              "    rr.gain.value = direct;\n"
+              "\n"
+              "    src.connect(splitter);\n"
+              "    splitter.connect(ll, 0);\n"
+              "    splitter.connect(lr, 0);\n"
+              "    splitter.connect(rl, 1);\n"
+              "    splitter.connect(rr, 1);\n"
+              "\n"
+              "    ll.connect(merger, 0, 0);\n"
+              "    rl.connect(merger, 0, 0);\n"
+              "    lr.connect(merger, 0, 1);\n"
+              "    rr.connect(merger, 0, 1);\n"
+              "\n"
+              "    merger.connect(gain).connect(ctx.destination);\n"
+              "    t.widthNodes = [splitter, merger, ll, lr, rl, rr];\n"
+              "  } else {\n"
+              "    src.connect(gain).connect(ctx.destination);\n"
+              "  }\n"
+              "\n"
+              "  src.start(0);\n"
+              "  t.source = src;\n"
+              "  t.gain = gain;"
+          )
+          replace_once(old_graph, new_graph, 'Web Audio stereo-width graph')
+
+          p.write_text(s)
+          print('Level 2/3 stereo width and perceived-volume enhancement applied successfully')
+          PY
 
       - name: Patch Android layout and controller awareness
         shell: bash
@@ -327,10 +439,10 @@ jobs:
       - name: Add native Android controller bridge and immersive fullscreen
         shell: bash
         run: |
-          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/lowerportrait/MainActivity.java'
+          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/musicenhance/MainActivity.java'
           mkdir -p "$(dirname "$MAIN")"
           cat > "$MAIN" <<'JAVA'
-          package com.team2go.cavemanvsdragon.lowerportrait;
+          package com.team2go.cavemanvsdragon.musicenhance;
 
           import android.content.Context;
           import android.graphics.Point;
