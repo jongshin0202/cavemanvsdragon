@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - AndroidAPK-MusicEnhance
+      - AndroidAPK-MusicAndSoundOptimize
     paths:
       - '.github/workflows/android-build.yml'
 
@@ -51,8 +51,8 @@ jobs:
           import type { CapacitorConfig } from '@capacitor/cli';
 
           const config: CapacitorConfig = {
-            appId: 'com.team2go.cavemanvsdragon.stereoall',
-            appName: 'CVD Stereo All',
+            appId: 'com.team2go.cavemanvsdragon.mixbalanced',
+            appName: 'CVD Mix Balanced',
             webDir: 'dist',
             android: {
               allowMixedContent: false,
@@ -146,7 +146,7 @@ jobs:
 
           echo 'Level 2+ phone-speaker mastering completed successfully'
 
-      - name: Set later-level music to full in-game volume
+      - name: Balance all BGM to Level 1 loudness
         shell: bash
         run: |
           python3 - <<'PY'
@@ -162,41 +162,45 @@ jobs:
                   raise SystemExit(f'{label}: expected 1 match, found {count}')
               s = s.replace(old, new, 1)
 
-          # Add per-track playback volume. Level 1 remains exactly as before
-          # at 0.333. Levels 2-4 and ending play at full HTML/WebAudio volume.
+          # Keep Level 1 exactly unchanged. The later-track values compensate
+          # for the measured LUFS of the mastered files so their effective
+          # playback loudness matches Level 1 at VOL=0.333.
           replace_once(
               "  crossfadeSec: number;\n};",
               "  crossfadeSec: number;\n  volume?: number;\n};",
               'Track volume field'
           )
 
-          replace_once(
-              "  level1: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
-              "  level1: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: VOL },",
-              'Level 1 volume'
-          )
-          replace_once(
-              "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2 },",
-              "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 1.0 },",
-              'Level 2 volume'
-          )
-          replace_once(
-              "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3 },",
-              "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 1.0 },",
-              'Level 3 volume'
-          )
-          replace_once(
-              "  level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
-              "  level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 1.0 },",
-              'Level 4 volume'
-          )
-          replace_once(
-              "  ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
-              "  ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 1.0 },",
-              'Ending volume'
-          )
+          replacements = [
+              (
+                  "  level1: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
+                  "  level1: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: VOL },",
+                  'Level 1 volume'
+              ),
+              (
+                  "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2 },",
+                  "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 0.238 },",
+                  'Level 2 balanced volume'
+              ),
+              (
+                  "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3 },",
+                  "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 0.258 },",
+                  'Level 3 balanced volume'
+              ),
+              (
+                  "  level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
+                  "  level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 0.217 },",
+                  'Level 4 balanced volume'
+              ),
+              (
+                  "  ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
+                  "  ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 0.311 },",
+                  'Ending balanced volume'
+              ),
+          ]
+          for old, new, label in replacements:
+              replace_once(old, new, label)
 
-          # Use per-track volume in both playback engines.
           replace_once(
               "  gain.gain.value = VOL;",
               "  gain.gain.value = t.volume ?? VOL;",
@@ -217,19 +221,22 @@ jobs:
 
           required = [
               "level1: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: VOL }",
-              "level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 1.0 }",
-              "level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 1.0 }",
-              "level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 1.0 }",
-              "gain.gain.value = t.volume ?? VOL;",
+              "level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 0.238 }",
+              "level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 0.258 }",
+              "level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 0.217 }",
+              "ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 0.311 }",
               "t.a.volume = t.volume ?? VOL;",
           ]
           missing = [x for x in required if x not in s]
           if missing:
-              raise SystemExit(f'Full-volume assertion failed: {missing}')
+              raise SystemExit(f'Balanced-BGM assertion failed: {missing}')
 
-          print('Level 1 playback volume: 0.333')
-          print('Levels 2-4 playback volume: 1.0')
-          print('Ending playback volume: 1.0')
+          print('Balanced BGM playback volumes:')
+          print('  Level 1  = 0.333')
+          print('  Level 2  = 0.238')
+          print('  Level 3  = 0.258')
+          print('  Level 4  = 0.217')
+          print('  Ending   = 0.311')
           PY
 
       - name: Route all BGM through HTMLAudio stereo paths
@@ -261,14 +268,14 @@ jobs:
           )
 
           replace_once(
-              "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 1.0 },",
-              "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 1.0, htmlNativeLoop: true },",
+              "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 0.238 },",
+              "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 0.238, htmlNativeLoop: true },",
               'Level 2 HTMLAudio route'
           )
 
           replace_once(
-              "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 1.0 },",
-              "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 1.0, htmlNativeLoop: true },",
+              "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 0.258 },",
+              "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 0.258, htmlNativeLoop: true },",
               'Level 3 HTMLAudio route'
           )
 
@@ -316,13 +323,13 @@ jobs:
               'Level 1 HTMLAudio crossfade':
                   "level1: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: VOL }",
               'Level 2 HTMLAudio native loop':
-                  "level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 1.0, htmlNativeLoop: true }",
+                  "level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 0.238, htmlNativeLoop: true }",
               'Level 3 HTMLAudio native loop':
-                  "level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 1.0, htmlNativeLoop: true }",
+                  "level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 0.258, htmlNativeLoop: true }",
               'Level 4 HTMLAudio crossfade':
-                  "level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 1.0 }",
+                  "level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 0.217 }",
               'Ending HTMLAudio crossfade':
-                  "ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 1.0 }",
+                  "ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 0.311 }",
               'Native HTMLAudio loop implementation':
                   "t.a.loop = true;",
           }
@@ -339,11 +346,100 @@ jobs:
 
           print('Android BGM route verification:')
           print('  Level 1  -> HTMLAudio crossfade @ 0.333')
-          print('  Level 2  -> HTMLAudio native loop @ 1.0')
-          print('  Level 3  -> HTMLAudio native loop @ 1.0')
-          print('  Level 4  -> HTMLAudio crossfade @ 1.0')
-          print('  Ending   -> HTMLAudio crossfade @ 1.0')
+          print('  Level 2  -> HTMLAudio native loop @ 0.238')
+          print('  Level 3  -> HTMLAudio native loop @ 0.258')
+          print('  Level 4  -> HTMLAudio crossfade @ 0.217')
+          print('  Ending   -> HTMLAudio crossfade @ 0.311')
           print('  WebAudio -> unreachable by all five BGM tracks')
+          PY
+
+      - name: Balance completion SFX against BGM
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('src/components/game/sounds.ts')
+          s = p.read_text()
+
+          def get_block(name: str):
+              token = f'export function {name}('
+              start = s.find(token)
+              if start < 0:
+                  raise SystemExit(f'Missing sound function: {name}')
+              nxt = s.find('\nexport function ', start + len(token))
+              if nxt < 0:
+                  nxt = len(s)
+              return start, nxt, s[start:nxt]
+
+          def patch_block(name: str, replacements):
+              global s
+              start, end, block = get_block(name)
+              for old, new, label in replacements:
+                  count = block.count(old)
+                  if count != 1:
+                      raise SystemExit(f'{name}/{label}: expected 1 match, found {count}')
+                  block = block.replace(old, new, 1)
+              s = s[:start] + block + s[end:]
+
+          # All BGM is now normalized to Level 1. Leave ordinary gameplay and
+          # cinematic effects unchanged because their existing dynamics are
+          # intentional. Raise critical state cues just enough to stay clearly
+          # audible over the music.
+          patch_block('playWinSound', [
+              (
+                  'gain.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.15);',
+                  'gain.gain.setValueAtTime(0.22, ctx.currentTime + i * 0.15);',
+                  'win melody'
+              ),
+          ])
+
+          patch_block('playGameOverSound', [
+              (
+                  'gain.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.2);',
+                  'gain.gain.setValueAtTime(0.20, ctx.currentTime + i * 0.2);',
+                  'game over melody'
+              ),
+          ])
+
+          patch_block('playPrincessSavedSound', [
+              (
+                  'gain.gain.setValueAtTime(0.13, t);',
+                  'gain.gain.setValueAtTime(0.20, t);',
+                  'princess melody'
+              ),
+              (
+                  'gain.gain.setValueAtTime(0.10, chordT);',
+                  'gain.gain.setValueAtTime(0.15, chordT);',
+                  'princess chord'
+              ),
+              (
+                  'sparkleGain.gain.setValueAtTime(0.10, ts);',
+                  'sparkleGain.gain.setValueAtTime(0.15, ts);',
+                  'princess sparkle'
+              ),
+          ])
+
+          p.write_text(s)
+
+          checks = [
+              'gain.gain.setValueAtTime(0.22, ctx.currentTime + i * 0.15);',
+              'gain.gain.setValueAtTime(0.20, ctx.currentTime + i * 0.2);',
+              'gain.gain.setValueAtTime(0.20, t);',
+              'gain.gain.setValueAtTime(0.15, chordT);',
+              'sparkleGain.gain.setValueAtTime(0.15, ts);',
+          ]
+          missing = [x for x in checks if x not in s]
+          if missing:
+              raise SystemExit(f'SFX mix assertion failed: {missing}')
+
+          print('Critical SFX mix:')
+          print('  Win melody:       0.15 -> 0.22')
+          print('  Game over:        0.15 -> 0.20')
+          print('  Princess melody:  0.13 -> 0.20')
+          print('  Princess chord:   0.10 -> 0.15')
+          print('  Princess sparkle: 0.10 -> 0.15')
+          print('  Other SFX: unchanged')
           PY
 
       - name: Patch Android layout and controller awareness
@@ -580,10 +676,10 @@ jobs:
       - name: Add native Android controller bridge and immersive fullscreen
         shell: bash
         run: |
-          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/stereoall/MainActivity.java'
+          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/mixbalanced/MainActivity.java'
           mkdir -p "$(dirname "$MAIN")"
           cat > "$MAIN" <<'JAVA'
-          package com.team2go.cavemanvsdragon.stereoall;
+          package com.team2go.cavemanvsdragon.mixbalanced;
 
           import android.content.Context;
           import android.graphics.Point;
