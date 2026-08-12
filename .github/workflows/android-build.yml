@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - AndroidAPK-lowergamescreenportrait
+      - AndroidAPK-MusicEnhance
     paths:
       - '.github/workflows/android-build.yml'
 
@@ -51,8 +51,8 @@ jobs:
           import type { CapacitorConfig } from '@capacitor/cli';
 
           const config: CapacitorConfig = {
-            appId: 'com.team2go.cavemanvsdragon.lowerportrait',
-            appName: 'Caveman Vs Dragon',
+            appId: 'com.team2go.cavemanvsdragon.stereoall',
+            appName: 'CVD Stereo All',
             webDir: 'dist',
             android: {
               allowMixedContent: false,
@@ -92,6 +92,259 @@ jobs:
           curl -fL --retry 3 \
             "$BASE/__l5e/assets-v1/9f6d1fe7-96b1-4f22-ac2d-43ddf020559c/Gamemusic_Ending.mp3" \
             -o public/__l5e/assets-v1/9f6d1fe7-96b1-4f22-ac2d-43ddf020559c/Gamemusic_Ending.mp3
+
+      - name: Master Level 2+ music for phone speakers
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+
+          L2='public/__l5e/assets-v1/07c06cb2-2107-41a3-9990-f3212851fe57/Gamemusic2.mp3'
+          L3='public/__l5e/assets-v1/685f4432-28cf-481b-ad6f-40d5388eb747/Gamemusic3.mp3'
+          L4='public/__l5e/assets-v1/a6f66d24-ca19-4677-97af-60cd2eda8a89/Gamemusic4.mp3'
+          ENDING='public/__l5e/assets-v1/9f6d1fe7-96b1-4f22-ac2d-43ddf020559c/Gamemusic_Ending.mp3'
+
+          # Level 2: preserve composition, widen the tiny existing stereo side,
+          # add phone-relevant presence, compress/limit for much stronger
+          # perceived loudness, and retain ~0.4 dB true-peak headroom.
+          ffmpeg -y -loglevel error -i "$L2" \
+            -af "highpass=f=70,stereotools=slev=4,equalizer=f=1200:t=q:w=1:g=2,acompressor=threshold=0.12:ratio=3:attack=5:release=80:makeup=2.0,alimiter=limit=0.58:attack=5:release=50,volume=-1.3dB" \
+            -ar 44100 -ac 2 -c:a libmp3lame -b:a 192k "${L2%.mp3}.mastered.mp3"
+          mv "${L2%.mp3}.mastered.mp3" "$L2"
+
+          # Level 3 is bass-heavier than Level 1, so shift more energy into
+          # the low-mid/presence range that phone speakers reproduce well.
+          ffmpeg -y -loglevel error -i "$L3" \
+            -af "highpass=f=80,stereotools=slev=4,equalizer=f=500:t=q:w=1:g=2,equalizer=f=1400:t=q:w=1:g=3,acompressor=threshold=0.12:ratio=3:attack=5:release=80:makeup=2.2,alimiter=limit=0.58:attack=5:release=50,volume=-1.3dB" \
+            -ar 44100 -ac 2 -c:a libmp3lame -b:a 192k "${L3%.mp3}.mastered.mp3"
+          mv "${L3%.mp3}.mastered.mp3" "$L3"
+
+          # Level 4 already has healthy stereo width, so do not widen it.
+          # Only improve presence and perceived loudness.
+          ffmpeg -y -loglevel error -i "$L4" \
+            -af "highpass=f=60,equalizer=f=1000:t=q:w=1:g=1,acompressor=threshold=0.14:ratio=2.5:attack=5:release=80:makeup=1.7,alimiter=limit=0.58:attack=5:release=50,volume=-1.3dB" \
+            -ar 44100 -ac 2 -c:a libmp3lame -b:a 192k "${L4%.mp3}.mastered.mp3"
+          mv "${L4%.mp3}.mastered.mp3" "$L4"
+
+          # Ending: modest mastering only; no stereo-width manipulation.
+          ffmpeg -y -loglevel error -i "$ENDING" \
+            -af "highpass=f=60,acompressor=threshold=0.14:ratio=2.5:attack=5:release=80:makeup=1.5,alimiter=limit=0.65:attack=5:release=50:level=false" \
+            -ar 44100 -ac 2 -c:a libmp3lame -b:a 192k "${ENDING%.mp3}.mastered.mp3"
+          mv "${ENDING%.mp3}.mastered.mp3" "$ENDING"
+
+          # Sanity check every mastered asset before the web build.
+          for f in "$L2" "$L3" "$L4" "$ENDING"; do
+            test -s "$f"
+            ffprobe -v error -select_streams a:0 \
+              -show_entries stream=codec_name,sample_rate,channels \
+              -of default=nw=1 "$f"
+          done
+
+          echo 'Level 2+ phone-speaker mastering completed successfully'
+
+      - name: Set later-level music to full in-game volume
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('src/components/game/bgMusic.ts')
+          s = p.read_text()
+
+          def replace_once(old: str, new: str, label: str):
+              global s
+              count = s.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected 1 match, found {count}')
+              s = s.replace(old, new, 1)
+
+          # Add per-track playback volume. Level 1 remains exactly as before
+          # at 0.333. Levels 2-4 and ending play at full HTML/WebAudio volume.
+          replace_once(
+              "  crossfadeSec: number;\n};",
+              "  crossfadeSec: number;\n  volume?: number;\n};",
+              'Track volume field'
+          )
+
+          replace_once(
+              "  level1: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
+              "  level1: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: VOL },",
+              'Level 1 volume'
+          )
+          replace_once(
+              "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2 },",
+              "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 1.0 },",
+              'Level 2 volume'
+          )
+          replace_once(
+              "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3 },",
+              "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 1.0 },",
+              'Level 3 volume'
+          )
+          replace_once(
+              "  level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
+              "  level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 1.0 },",
+              'Level 4 volume'
+          )
+          replace_once(
+              "  ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
+              "  ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 1.0 },",
+              'Ending volume'
+          )
+
+          # Use per-track volume in both playback engines.
+          replace_once(
+              "  gain.gain.value = VOL;",
+              "  gain.gain.value = t.volume ?? VOL;",
+              'WebAudio gain'
+          )
+          replace_once(
+              "    const outV = Math.cos((p * Math.PI) / 2) * VOL;\n    const inV = Math.sin((p * Math.PI) / 2) * VOL;",
+              "    const tv = t.volume ?? VOL;\n    const outV = Math.cos((p * Math.PI) / 2) * tv;\n    const inV = Math.sin((p * Math.PI) / 2) * tv;",
+              'Crossfade volume'
+          )
+          replace_once(
+              "  try { t.a.pause(); t.a.currentTime = 0; t.a.volume = VOL; } catch { /* ignore */ }",
+              "  try { t.a.pause(); t.a.currentTime = 0; t.a.volume = t.volume ?? VOL; } catch { /* ignore */ }",
+              'HTMLAudio start volume'
+          )
+
+          p.write_text(s)
+
+          required = [
+              "level1: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: VOL }",
+              "level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 1.0 }",
+              "level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 1.0 }",
+              "level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 1.0 }",
+              "gain.gain.value = t.volume ?? VOL;",
+              "t.a.volume = t.volume ?? VOL;",
+          ]
+          missing = [x for x in required if x not in s]
+          if missing:
+              raise SystemExit(f'Full-volume assertion failed: {missing}')
+
+          print('Level 1 playback volume: 0.333')
+          print('Levels 2-4 playback volume: 1.0')
+          print('Ending playback volume: 1.0')
+          PY
+
+      - name: Route all BGM through HTMLAudio stereo paths
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('src/components/game/bgMusic.ts')
+          s = p.read_text()
+
+          def replace_once(old: str, new: str, label: str):
+              global s
+              count = s.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected 1 match, found {count}')
+              s = s.replace(old, new, 1)
+
+          # Level 1, Level 4 and Ending already use the HTMLAudio crossfade
+          # path because their crossfadeSec is > 0.
+          #
+          # Level 2 and Level 3 are the only tracks that normally enter the
+          # Web Audio AudioBufferSourceNode path. Mark those two for an
+          # explicit HTMLAudioElement native-loop route instead.
+          replace_once(
+              "  volume?: number;\n};",
+              "  volume?: number;\n  htmlNativeLoop?: boolean;\n};",
+              'HTML native-loop field'
+          )
+
+          replace_once(
+              "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 1.0 },",
+              "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 1.0, htmlNativeLoop: true },",
+              'Level 2 HTMLAudio route'
+          )
+
+          replace_once(
+              "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 1.0 },",
+              "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 1.0, htmlNativeLoop: true },",
+              'Level 3 HTMLAudio route'
+          )
+
+          # Insert the HTMLAudio native-loop route immediately before the
+          # existing Web Audio branch. Match only the branch line itself so
+          # whitespace/comments cannot break the workflow matcher.
+          needle = "  if (t.crossfadeSec <= 0) {"
+          if s.count(needle) != 1:
+              raise SystemExit(
+                  f'WebAudio play branch: expected 1 match, found {s.count(needle)}'
+              )
+
+          html_loop_block = """  if (t.htmlNativeLoop) {
+            // Android stereo-preserving route for Level 2/3.
+            // Use ordinary HTML media playback, same playback family as
+            // Level 1/4/Ending, instead of AudioBufferSourceNode.
+            stopWebAudio(t);
+            clearTimers(t);
+            if (!t.a) t.a = makeAudio(t.url);
+            try {
+              t.a.pause();
+              t.a.currentTime = 0;
+              t.a.loop = true;
+              t.a.volume = t.volume ?? VOL;
+              t.active = t.a;
+              void t.a.play().catch(() => {});
+            } catch { /* ignore */ }
+            return;
+          }
+
+          """
+
+          s = s.replace(needle, html_loop_block + needle, 1)
+
+          p.write_text(s)
+
+          # Explicitly prove that every Android BGM track resolves to an
+          # HTMLAudio route:
+          #   L1       crossfade HTMLAudio
+          #   L2       native-loop HTMLAudio
+          #   L3       native-loop HTMLAudio
+          #   L4       crossfade HTMLAudio
+          #   Ending   crossfade HTMLAudio
+          required = {
+              'Level 1 HTMLAudio crossfade':
+                  "level1: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: VOL }",
+              'Level 2 HTMLAudio native loop':
+                  "level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 1.0, htmlNativeLoop: true }",
+              'Level 3 HTMLAudio native loop':
+                  "level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 1.0, htmlNativeLoop: true }",
+              'Level 4 HTMLAudio crossfade':
+                  "level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 1.0 }",
+              'Ending HTMLAudio crossfade':
+                  "ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 1.0 }",
+              'Native HTMLAudio loop implementation':
+                  "t.a.loop = true;",
+          }
+
+          missing = [label for label, fragment in required.items() if fragment not in s]
+          if missing:
+              raise SystemExit(f'All-stereo routing assertion failed: {missing}')
+
+          # No defined BGM track is allowed to reach WebAudio:
+          # only zero-crossfade tracks can enter that branch, and both
+          # zero-crossfade tracks are now intercepted by htmlNativeLoop.
+          if "level2: 0" not in s or "level3: 0" not in s:
+              raise SystemExit('Unexpected crossfade override configuration')
+
+          print('Android BGM route verification:')
+          print('  Level 1  -> HTMLAudio crossfade @ 0.333')
+          print('  Level 2  -> HTMLAudio native loop @ 1.0')
+          print('  Level 3  -> HTMLAudio native loop @ 1.0')
+          print('  Level 4  -> HTMLAudio crossfade @ 1.0')
+          print('  Ending   -> HTMLAudio crossfade @ 1.0')
+          print('  WebAudio -> unreachable by all five BGM tracks')
+          PY
 
       - name: Patch Android layout and controller awareness
         shell: bash
@@ -327,10 +580,10 @@ jobs:
       - name: Add native Android controller bridge and immersive fullscreen
         shell: bash
         run: |
-          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/lowerportrait/MainActivity.java'
+          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/stereoall/MainActivity.java'
           mkdir -p "$(dirname "$MAIN")"
           cat > "$MAIN" <<'JAVA'
-          package com.team2go.cavemanvsdragon.lowerportrait;
+          package com.team2go.cavemanvsdragon.stereoall;
 
           import android.content.Context;
           import android.graphics.Point;
