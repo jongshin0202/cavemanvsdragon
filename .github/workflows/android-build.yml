@@ -51,7 +51,7 @@ jobs:
           import type { CapacitorConfig } from '@capacitor/cli';
 
           const config: CapacitorConfig = {
-            appId: 'com.team2go.cavemanvsdragon.test',
+            appId: 'com.team2go.cavemanvsdragon.dev',
             appName: 'Caveman Vs Dragon',
             webDir: 'dist',
             android: {
@@ -93,6 +93,121 @@ jobs:
             "$BASE/__l5e/assets-v1/9f6d1fe7-96b1-4f22-ac2d-43ddf020559c/Gamemusic_Ending.mp3" \
             -o public/__l5e/assets-v1/9f6d1fe7-96b1-4f22-ac2d-43ddf020559c/Gamemusic_Ending.mp3
 
+      - name: Patch Android layout and controller awareness
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('src/components/CavemanVsDragonGame.tsx')
+          s = p.read_text()
+
+          old = """  const gamepadActiveRef = useRef<boolean>(false);
+            const [gamepadActive, setGamepadActive] = useState<boolean>(false);"""
+          # Tolerate the normal two-space indentation used in the repository.
+          old = old.replace("            const [gamepadActive", "  const [gamepadActive")
+          new = """  const gamepadActiveRef = useRef<boolean>(false);
+          const [gamepadActive, setGamepadActive] = useState<boolean>(false);
+          // Native Android fallback: detect attached controllers before the first
+          // button press, and identify iiRcade hardware for its dedicated layout.
+          const [nativeHardwareController, setNativeHardwareController] = useState<boolean>(false);
+          const [isIiRcadeDevice, setIsIiRcadeDevice] = useState<boolean>(false);
+          useEffect(() => {
+            const pollNativeDevice = () => {
+              try {
+                const nativeBridge = (window as any).CvdNative;
+                if (!nativeBridge) return;
+                const iiRcade = Boolean(nativeBridge.isIiRcade?.());
+                const controller = Boolean(nativeBridge.hasHardwareController?.());
+                setIsIiRcadeDevice(iiRcade);
+                setNativeHardwareController(controller || iiRcade);
+              } catch {
+                // Browser/non-native builds do not expose CvdNative.
+              }
+            };
+            pollNativeDevice();
+            const timer = window.setInterval(pollNativeDevice, 500);
+            return () => window.clearInterval(timer);
+          }, []);
+
+          useEffect(() => {
+            // If a native controller is disconnected, clear the sticky
+            // gamepad-active flag once the Web Gamepad API also sees none.
+            if (!isNativeApp || nativeHardwareController || isIiRcadeDevice) return;
+            const pads = navigator.getGamepads?.() ?? [];
+            const anyConnected = Array.from(pads).some((pad) => !!pad?.connected);
+            if (!anyConnected && gamepadActiveRef.current) {
+              gamepadActiveRef.current = false;
+              setGamepadActive(false);
+            }
+          }, [nativeHardwareController, isIiRcadeDevice]);"""
+          if old not in s:
+              raise SystemExit('Could not find gamepad state block to patch')
+          s = s.replace(old, new, 1)
+
+          old = """  const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls');"""
+          new = """  const controllerPresent = gamepadActive || nativeHardwareController || isIiRcadeDevice;
+          const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !controllerPresent && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls');"""
+          if old not in s:
+              raise SystemExit('Could not find controlsVisible block to patch')
+          s = s.replace(old, new, 1)
+
+          old = """        <div className="h-full shrink-0 py-2 pl-[calc(env(safe-area-inset-left)+0.5rem)] pr-2 touch-none flex items-center">
+                  <div className="h-[min(80vh,260px)] w-[min(40vw,200px)]">{dpadEl}</div>
+                </div>"""
+          new = """        <div className="h-full w-[min(28vw,180px)] shrink-0 py-2 pl-[calc(env(safe-area-inset-left)+0.5rem)] pr-2 touch-none flex items-center">
+                  <div className="h-[min(80vh,260px)] w-full">{dpadEl}</div>
+                </div>"""
+          if old not in s:
+              raise SystemExit('Could not find landscape D-pad rail to patch')
+          s = s.replace(old, new, 1)
+
+          old = """      <div className="relative flex min-h-0 w-full flex-1 items-center justify-center bg-black">"""
+          new = """      <div className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center bg-black">"""
+          if old not in s:
+              raise SystemExit('Could not find center game area to patch')
+          s = s.replace(old, new, 1)
+
+          old = """                  aspectRatio: isLandscape
+                    ? (isTablet ? '4 / 3' : '16 / 9')
+                    : (isTablet ? '3 / 4' : '9 / 16'),"""
+          new = """                  aspectRatio: isIiRcadeDevice
+                    ? '5 / 4'
+                    : isLandscape
+                      ? (isTablet ? '4 / 3' : '16 / 9')
+                      : (isTablet ? '3 / 4' : '9 / 16'),"""
+          if old not in s:
+              raise SystemExit('Could not find native aspect-ratio block to patch')
+          s = s.replace(old, new, 1)
+
+          old = """            className="block max-h-full max-w-full h-auto w-auto"
+                    style={{
+                      imageRendering: 'pixelated',
+                      aspectRatio: `${CANVAS_W} / ${CANVAS_H}`,
+                      height: '100%',
+                      width: 'auto',
+                    }}"""
+          new = """            className="block max-h-full max-w-full"
+                    style={{
+                      imageRendering: 'pixelated',
+                      aspectRatio: isIiRcadeDevice ? '5 / 4' : `${CANVAS_W} / ${CANVAS_H}`,
+                      height: '100%',
+                      width: isIiRcadeDevice ? '100%' : 'auto',
+                    }}"""
+          if old not in s:
+              raise SystemExit('Could not find canvas sizing block to patch')
+          s = s.replace(old, new, 1)
+
+          old = """        <div className="h-full shrink-0 py-2 pr-[calc(env(safe-area-inset-right)+0.5rem)] pl-2 touch-none flex flex-col items-stretch justify-center gap-2 w-[min(36vw,180px)]">"""
+          new = """        <div className="h-full w-[min(28vw,180px)] shrink-0 py-2 pr-[calc(env(safe-area-inset-right)+0.5rem)] pl-2 touch-none flex flex-col items-stretch justify-center gap-2">"""
+          if old not in s:
+              raise SystemExit('Could not find landscape JUMP rail to patch')
+          s = s.replace(old, new, 1)
+
+          p.write_text(s)
+          print('Android layout/controller patch applied successfully')
+          PY
+
       - name: Build web game
         run: npm run build
 
@@ -106,42 +221,47 @@ jobs:
       - name: Add native Android controller bridge and immersive fullscreen
         shell: bash
         run: |
-          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/test/MainActivity.java'
+          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/dev/MainActivity.java'
           mkdir -p "$(dirname "$MAIN")"
           cat > "$MAIN" <<'JAVA'
-          package com.team2go.cavemanvsdragon.test;
+          package com.team2go.cavemanvsdragon.dev;
 
+          import android.graphics.Point;
           import android.os.Build;
           import android.os.Bundle;
+          import android.view.InputDevice;
           import android.view.KeyEvent;
           import android.view.View;
           import android.view.WindowInsets;
           import android.view.WindowInsetsController;
+          import android.webkit.JavascriptInterface;
           import android.webkit.WebView;
 
           import com.getcapacitor.BridgeActivity;
 
-          /**
-           * Native Android host for Caveman Vs Dragon.
-           *
-           * External controller mapping required by the game:
-           *   UP    = Android keycode 19 (KEYCODE_DPAD_UP)
-           *   DOWN  = Android keycode 20 (KEYCODE_DPAD_DOWN)
-           *   LEFT  = Android keycode 21 (KEYCODE_DPAD_LEFT)
-           *   RIGHT = Android keycode 22 (KEYCODE_DPAD_RIGHT)
-           *   JUMP  = Android keycode 96 (KEYCODE_BUTTON_A)
-           *
-           * We intercept these at the Activity level and forward standard web
-           * keydown/keyup events into the Capacitor WebView. This guarantees
-           * controller input even on controllers/WebView versions that do not
-           * expose Android gamepad keys consistently to JavaScript.
-           */
+          import java.util.Locale;
+
           public class MainActivity extends BridgeActivity {
+
+              private boolean iiRcadeDevice = false;
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
                   enterImmersiveMode();
+                  iiRcadeDevice = detectIiRcadeDevice();
+
+                  if (getBridge() != null && getBridge().getWebView() != null) {
+                      final WebView webView = getBridge().getWebView();
+                      webView.addJavascriptInterface(
+                          new CvdDeviceBridge(),
+                          "CvdNative"
+                      );
+                      // Android exposes newly added JavaScript interfaces only
+                      // after the page is reloaded. Reload once so the React app
+                      // can query controller/iiRcade state from startup onward.
+                      webView.reload();
+                  }
               }
 
               @Override
@@ -174,6 +294,80 @@ jobs:
                           View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
                           View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                       );
+                  }
+              }
+
+              private boolean detectIiRcadeDevice() {
+                  final String identity = (
+                      Build.MANUFACTURER + " " +
+                      Build.BRAND + " " +
+                      Build.MODEL + " " +
+                      Build.PRODUCT + " " +
+                      Build.DEVICE + " " +
+                      Build.HARDWARE + " " +
+                      Build.BOARD + " " +
+                      Build.DISPLAY + " " +
+                      Build.FINGERPRINT
+                  ).toLowerCase(Locale.US);
+
+                  if (identity.contains("iircade") ||
+                      identity.contains("iroro1") ||
+                      identity.contains("iroro2") ||
+                      identity.contains("iror01") ||
+                      identity.contains("iror02")) {
+                      return true;
+                  }
+
+                  // Fallback for production iiRcade hardware whose Android
+                  // build strings do not expose the brand/model explicitly.
+                  // Classic and Gold units use RK3399-class hardware with a
+                  // 1280x1024 (5:4) cabinet display.
+                  final boolean rk3399 =
+                      identity.contains("rk3399") ||
+                      identity.contains("rockchip");
+
+                  try {
+                      final Point size = new Point();
+                      getWindowManager().getDefaultDisplay().getRealSize(size);
+                      final int longSide = Math.max(size.x, size.y);
+                      final int shortSide = Math.min(size.x, size.y);
+                      final boolean cabinetResolution =
+                          longSide == 1280 && shortSide == 1024;
+                      return rk3399 && cabinetResolution;
+                  } catch (Throwable ignored) {
+                      return false;
+                  }
+              }
+
+              private boolean hasHardwareGameController() {
+                  final int[] ids = InputDevice.getDeviceIds();
+                  for (int id : ids) {
+                      final InputDevice device = InputDevice.getDevice(id);
+                      if (device == null || device.isVirtual()) continue;
+
+                      final int sources = device.getSources();
+                      final boolean gamepad =
+                          (sources & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD;
+                      final boolean joystick =
+                          (sources & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK;
+                      final boolean dpadController =
+                          (sources & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD &&
+                          device.getKeyboardType() != InputDevice.KEYBOARD_TYPE_ALPHABETIC;
+
+                      if (gamepad || joystick || dpadController) return true;
+                  }
+                  return false;
+              }
+
+              private final class CvdDeviceBridge {
+                  @JavascriptInterface
+                  public boolean isIiRcade() {
+                      return iiRcadeDevice;
+                  }
+
+                  @JavascriptInterface
+                  public boolean hasHardwareController() {
+                      return hasHardwareGameController() || iiRcadeDevice;
                   }
               }
 
@@ -282,6 +476,28 @@ jobs:
           s = re.sub(r'targetSdkVersion\s*=\s*\d+', 'targetSdkVersion = 36', s)
           p.write_text(s)
           PY
+
+      - name: Restore persistent test signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: caveman-vs-dragon-debug-keystore-v1
+
+      - name: Create persistent test signing key if needed
+        shell: bash
+        run: |
+          mkdir -p "$HOME/.android"
+          if [ ! -f "$HOME/.android/debug.keystore" ]; then
+            keytool -genkeypair \
+              -keystore "$HOME/.android/debug.keystore" \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug,O=Team2Go,C=US"
+          fi
 
       - name: Build signed debug APK
         working-directory: android
