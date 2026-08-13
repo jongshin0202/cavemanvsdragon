@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - AndroidAPK-ControllerNameEntry
+      - AndroidAPK-MobileStartPrompt1
     paths:
       - '.github/workflows/android-build.yml'
 
@@ -51,8 +51,8 @@ jobs:
           import type { CapacitorConfig } from '@capacitor/cli';
 
           const config: CapacitorConfig = {
-            appId: 'com.team2go.cavemanvsdragon.controllername1',
-            appName: 'CVD Controller Name Entry',
+            appId: 'com.team2go.cavemanvsdragon.mobilestart1',
+            appName: 'CVD Mobile Start Fix',
             webDir: 'dist',
             android: {
               allowMixedContent: false,
@@ -891,6 +891,21 @@ jobs:
                   return;
                 }
 
+                // A also starts intro/attract immediately.
+                if (key === ' ' && down) {
+                  markGamepadActive();
+                  const gs = gameStateRef.current;
+                  if (
+                    gs === 'intro' ||
+                    gs === 'attractControls' ||
+                    gs === 'attractLocalLeaderboard' ||
+                    gs === 'attractGlobalLeaderboard'
+                  ) {
+                    anyInputHandlerRef.current?.('Enter', 'keyboard');
+                    return;
+                  }
+                }
+
                 if (
                   key !== 'ArrowUp' &&
                   key !== 'ArrowDown' &&
@@ -1307,10 +1322,10 @@ jobs:
       - name: Add native Android D-pad analog A START controller bridge
         shell: bash
         run: |
-          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/controllername1/MainActivity.java'
+          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/mobilestart1/MainActivity.java'
           mkdir -p "$(dirname "$MAIN")"
           cat > "$MAIN" <<'JAVA'
-          package com.team2go.cavemanvsdragon.controllername1;
+          package com.team2go.cavemanvsdragon.mobilestart1;
 
           import android.content.Context;
           import android.graphics.Point;
@@ -1540,6 +1555,11 @@ jobs:
                   }
 
                   @JavascriptInterface
+                  public boolean hasGameController() {
+                      return hasHardwareGameController();
+                  }
+
+                  @JavascriptInterface
                   public boolean hasHardwareController() {
                       return hasHardwareGameController() || iiRcadeDevice;
                   }
@@ -1745,6 +1765,7 @@ jobs:
           grep -q 'dispatchGenericMotionEvent' "$MAIN"
           grep -q 'if (gameKey != null)' "$MAIN"
           grep -q 'webView.requestFocus()' "$MAIN"
+          grep -q 'hasGameController' "$MAIN"
           grep -q 'refreshEffectiveDirections' "$MAIN"
           grep -q 'cvd-native-controller-key' "$MAIN"
           echo 'Controller scope verified: D-pad + left stick + A + START pause'
