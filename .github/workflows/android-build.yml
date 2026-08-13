@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - AndroidAPK-MusicAndSoundOptimize2
+      - AndroidAPK-Pause
     paths:
       - '.github/workflows/android-build.yml'
 
@@ -51,8 +51,8 @@ jobs:
           import type { CapacitorConfig } from '@capacitor/cli';
 
           const config: CapacitorConfig = {
-            appId: 'com.team2go.cavemanvsdragon.sproutboost',
-            appName: 'CVD Sprout Boost',
+            appId: 'com.team2go.cavemanvsdragon.pause',
+            appName: 'CVD Pause',
             webDir: 'dist',
             android: {
               allowMixedContent: false,
@@ -646,6 +646,317 @@ jobs:
           print('Shared SFX master gain remains 2.75x')
           PY
 
+      - name: Implement true tap-to-pause with exact audio resume
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          # --- Background music: preserve exact currentTime and crossfade progress ---
+          p = Path('src/components/game/bgMusic.ts')
+          s = p.read_text()
+
+          stop_all = """export function stopAllMusic() {
+            for (const k of Object.keys(tracks)) stop(k);
+          }
+          """
+          if s.count(stop_all) != 1:
+              raise SystemExit(f'bgMusic stopAllMusic: expected 1 match, found {s.count(stop_all)}')
+
+          pause_music = r"""
+          type GamePauseMusicSnapshot = {
+            playingElements: HTMLAudioElement[];
+            active?: HTMLAudioElement;
+            fadeProgress: number | null;
+          };
+
+          const gamePauseMusicSnapshots = new Map<string, GamePauseMusicSnapshot>();
+          let gamePauseMusicActive = false;
+          let gamePauseWebAudioWasRunning = false;
+
+          export async function pauseAllMusicForGamePause() {
+            if (gamePauseMusicActive) return;
+            gamePauseMusicActive = true;
+            gamePauseMusicSnapshots.clear();
+
+            gamePauseWebAudioWasRunning = !!audioCtx && audioCtx.state === 'running';
+            if (gamePauseWebAudioWasRunning && audioCtx) {
+              try { await audioCtx.suspend(); } catch { /* ignore */ }
+            }
+
+            for (const [key, t] of Object.entries(tracks)) {
+              if (!t.playing) continue;
+              const elements = [t.a, t.b].filter((el): el is HTMLAudioElement => !!el);
+              const playingElements = elements.filter((el) => !el.paused);
+
+              let fadeProgress: number | null = null;
+              if (t.fadeTimer && t.active && t.crossfadeSec > 0 && playingElements.length > 1) {
+                const tv = t.volume ?? VOL;
+                if (tv > 0) {
+                  const ratio = Math.max(0, Math.min(1, t.active.volume / tv));
+                  fadeProgress = (2 / Math.PI) * Math.asin(ratio);
+                }
+              }
+
+              gamePauseMusicSnapshots.set(key, {
+                playingElements,
+                active: t.active,
+                fadeProgress,
+              });
+
+              clearTimers(t);
+              for (const el of playingElements) {
+                try { el.pause(); } catch { /* ignore */ }
+              }
+            }
+          }
+
+          export async function resumeAllMusicFromGamePause() {
+            if (!gamePauseMusicActive) return;
+            gamePauseMusicActive = false;
+
+            if (gamePauseWebAudioWasRunning && audioCtx?.state === 'suspended') {
+              try { await audioCtx.resume(); } catch { /* ignore */ }
+            }
+            gamePauseWebAudioWasRunning = false;
+
+            for (const [key, snapshot] of gamePauseMusicSnapshots.entries()) {
+              const t = tracks[key];
+              if (!t || !t.playing) continue;
+
+              for (const el of snapshot.playingElements) {
+                try { void el.play().catch(() => {}); } catch { /* ignore */ }
+              }
+
+              if (
+                snapshot.fadeProgress !== null &&
+                snapshot.active &&
+                t.crossfadeSec > 0 &&
+                snapshot.playingElements.length > 1
+              ) {
+                const incoming = snapshot.active;
+                const outgoing = incoming === t.a ? t.b : t.a;
+                const pStart = Math.max(0, Math.min(1, snapshot.fadeProgress));
+                const startAt = performance.now();
+                const tv = t.volume ?? VOL;
+                t.active = incoming;
+
+                t.fadeTimer = window.setInterval(() => {
+                  const elapsed = (performance.now() - startAt) / 1000;
+                  const p = Math.min(1, pStart + elapsed / t.crossfadeSec);
+                  const outV = Math.cos((p * Math.PI) / 2) * tv;
+                  const inV = Math.sin((p * Math.PI) / 2) * tv;
+
+                  try { incoming.volume = Math.max(0, inV); } catch { /* ignore */ }
+                  if (outgoing) {
+                    try { outgoing.volume = Math.max(0, outV); } catch { /* ignore */ }
+                  }
+
+                  if (p >= 1) {
+                    if (outgoing) {
+                      try {
+                        outgoing.pause();
+                        outgoing.currentTime = 0;
+                        outgoing.volume = 0;
+                      } catch { /* ignore */ }
+                    }
+                    if (t.fadeTimer) {
+                      clearInterval(t.fadeTimer);
+                      t.fadeTimer = undefined;
+                    }
+                    watch(t);
+                  }
+                }, FADE_TICK_MS);
+              } else {
+                watch(t);
+              }
+            }
+
+            gamePauseMusicSnapshots.clear();
+          }
+
+          """
+          s = s.replace(stop_all, pause_music + stop_all, 1)
+          p.write_text(s)
+
+          # --- SFX: suspend Web Audio clock so active/scheduled effects freeze in place ---
+          p = Path('src/components/game/sounds.ts')
+          s = p.read_text()
+
+          unlock = """export function unlockAudio() {
+            const ctx = getCtx();
+            if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+          }
+          """
+          if s.count(unlock) != 1:
+              raise SystemExit(f'sounds unlockAudio: expected 1 match, found {s.count(unlock)}')
+
+          sfx_pause = unlock + r"""
+
+          let gamePauseSfxWasRunning = false;
+
+          export async function pauseAllSfxForGamePause() {
+            gamePauseSfxWasRunning = !!audioCtx && audioCtx.state === 'running';
+            if (gamePauseSfxWasRunning && audioCtx) {
+              try { await audioCtx.suspend(); } catch { /* ignore */ }
+            }
+          }
+
+          export async function resumeAllSfxFromGamePause() {
+            if (!gamePauseSfxWasRunning) return;
+            gamePauseSfxWasRunning = false;
+            if (audioCtx?.state === 'suspended') {
+              try { await audioCtx.resume(); } catch { /* ignore */ }
+            }
+          }
+          """
+          s = s.replace(unlock, sfx_pause, 1)
+          p.write_text(s)
+
+          # --- Main game: tap canvas toggles true freeze + white circular II icon ---
+          p = Path('src/components/CavemanVsDragonGame.tsx')
+          s = p.read_text()
+
+          old_sound_import = "import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarTracked, playPrincessHelpSound, isDragonRoaringNow, unlockAudio } from './game/sounds';"
+          new_sound_import = "import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarTracked, playPrincessHelpSound, isDragonRoaringNow, unlockAudio, pauseAllSfxForGamePause, resumeAllSfxFromGamePause } from './game/sounds';"
+          if s.count(old_sound_import) != 1:
+              raise SystemExit(f'game sounds import: expected 1 match, found {s.count(old_sound_import)}')
+          s = s.replace(old_sound_import, new_sound_import, 1)
+
+          old_music_import = "import { playLevel1Music, stopLevel1Music, playLevel2Music, stopLevel2Music, playLevel3Music, stopLevel3Music, playLevel4Music, stopLevel4Music, stopAllMusic } from './game/bgMusic';"
+          new_music_import = "import { playLevel1Music, stopLevel1Music, playLevel2Music, stopLevel2Music, playLevel3Music, stopLevel3Music, playLevel4Music, stopLevel4Music, stopAllMusic, pauseAllMusicForGamePause, resumeAllMusicFromGamePause } from './game/bgMusic';"
+          if s.count(old_music_import) != 1:
+              raise SystemExit(f'game music import: expected 1 match, found {s.count(old_music_import)}')
+          s = s.replace(old_music_import, new_music_import, 1)
+
+          state_marker = "  const [gameState, setGameState] = useState<GameState>('intro');"
+          state_replacement = """  const [gameState, setGameState] = useState<GameState>('intro');
+            const [isPaused, setIsPaused] = useState(false);
+            const pausedRef = useRef(false);"""
+          if s.count(state_marker) != 1:
+              raise SystemExit(f'pause state marker: expected 1 match, found {s.count(state_marker)}')
+          s = s.replace(state_marker, state_replacement, 1)
+
+          game_state_ref = """  const gameStateRef = useRef<GameState>('intro');
+            useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
+          """
+          toggle_block = game_state_ref + r"""
+
+            const toggleGamePause = useCallback(() => {
+              if (gameStateRef.current !== 'playing' || levelIntroRef.current) return;
+
+              const nextPaused = !pausedRef.current;
+              pausedRef.current = nextPaused;
+              setIsPaused(nextPaused);
+
+              if (nextPaused) {
+                void pauseAllMusicForGamePause();
+                void pauseAllSfxForGamePause();
+              } else {
+                void resumeAllMusicFromGamePause();
+                void resumeAllSfxFromGamePause();
+              }
+            }, []);
+
+            useEffect(() => {
+              if (gameState === 'playing' || !pausedRef.current) return;
+              pausedRef.current = false;
+              setIsPaused(false);
+              void resumeAllMusicFromGamePause();
+              void resumeAllSfxFromGamePause();
+            }, [gameState]);
+          """
+          if s.count(game_state_ref) != 1:
+              raise SystemExit(f'gameStateRef marker: expected 1 match, found {s.count(game_state_ref)}')
+          s = s.replace(game_state_ref, toggle_block, 1)
+
+          loop_marker = """    const gameLoop = (timestamp: number) => {
+                // Fixed-timestep gate: only run one full step+render per ~16.67ms.
+          """
+          loop_replacement = """    const gameLoop = (timestamp: number) => {
+                if (pausedRef.current) {
+                  lastTime = timestamp;
+                  return;
+                }
+
+                // Fixed-timestep gate: only run one full step+render per ~16.67ms.
+          """
+          if s.count(loop_marker) != 1:
+              raise SystemExit(f'game loop marker: expected 1 match, found {s.count(loop_marker)}')
+          s = s.replace(loop_marker, loop_replacement, 1)
+
+          canvas_marker = """          <canvas
+                      ref={canvasRef}
+                      width={CANVAS_W}
+                      height={CANVAS_H}
+                      className="block max-h-full max-w-full h-auto w-auto"
+          """
+          canvas_replacement = """          <canvas
+                      ref={canvasRef}
+                      width={CANVAS_W}
+                      height={CANVAS_H}
+                      onPointerDown={(e) => {
+                        if (gameStateRef.current !== 'playing' || levelIntroRef.current) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleGamePause();
+                      }}
+                      className="block max-h-full max-w-full h-auto w-auto"
+          """
+          if s.count(canvas_marker) != 1:
+              raise SystemExit(f'canvas marker: expected 1 match, found {s.count(canvas_marker)}')
+          s = s.replace(canvas_marker, canvas_replacement, 1)
+
+          canvas_close = """            tabIndex={0}
+                    />
+                  </div>
+          """
+          pause_overlay = """            tabIndex={0}
+                    />
+
+                    {isPaused && gameState === 'playing' && (
+                      <div
+                        className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center"
+                        aria-hidden="true"
+                      >
+                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-lg">
+                          <div className="flex h-8 items-center gap-2">
+                            <span className="block h-8 w-2 rounded-sm bg-black" />
+                            <span className="block h-8 w-2 rounded-sm bg-black" />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+          """
+          if s.count(canvas_close) != 1:
+              raise SystemExit(f'canvas close marker: expected 1 match, found {s.count(canvas_close)}')
+          s = s.replace(canvas_close, pause_overlay, 1)
+
+          p.write_text(s)
+
+          bg = Path('src/components/game/bgMusic.ts').read_text()
+          sf = Path('src/components/game/sounds.ts').read_text()
+          gm = Path('src/components/CavemanVsDragonGame.tsx').read_text()
+
+          required = {
+              'BGM pause API': 'export async function pauseAllMusicForGamePause()' in bg,
+              'BGM resume API': 'export async function resumeAllMusicFromGamePause()' in bg,
+              'Crossfade preservation': 'fadeProgress = (2 / Math.PI) * Math.asin(ratio);' in bg,
+              'SFX suspend': 'await audioCtx.suspend()' in sf,
+              'SFX resume': 'await audioCtx.resume()' in sf,
+              'Pause state': 'const [isPaused, setIsPaused] = useState(false);' in gm,
+              'Simulation freeze': 'if (pausedRef.current)' in gm,
+              'Canvas toggle': 'toggleGamePause();' in gm,
+              'White round II icon': 'rounded-full bg-white' in gm and gm.count('rounded-sm bg-black') >= 2,
+          }
+          failed = [name for name, ok in required.items() if not ok]
+          if failed:
+              raise SystemExit(f'Pause assertion failed: {failed}')
+
+          print('True pause assertions passed')
+          PY
+
       - name: Patch Android layout and controller awareness
         shell: bash
         run: |
@@ -880,10 +1191,10 @@ jobs:
       - name: Add native Android controller bridge and immersive fullscreen
         shell: bash
         run: |
-          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/sproutboost/MainActivity.java'
+          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/pause/MainActivity.java'
           mkdir -p "$(dirname "$MAIN")"
           cat > "$MAIN" <<'JAVA'
-          package com.team2go.cavemanvsdragon.sproutboost;
+          package com.team2go.cavemanvsdragon.pause;
 
           import android.content.Context;
           import android.graphics.Point;
