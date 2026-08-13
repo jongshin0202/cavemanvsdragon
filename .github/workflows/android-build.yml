@@ -51,8 +51,8 @@ jobs:
           import type { CapacitorConfig } from '@capacitor/cli';
 
           const config: CapacitorConfig = {
-            appId: 'com.team2go.cavemanvsdragon.mobilestart1',
-            appName: 'CVD Mobile Start Fix 7',
+            appId: 'com.team2go.cavemanvsdragon.mobilestart8',
+            appName: 'CVD Mobile Start Fix 8',
             webDir: 'dist',
             android: {
               allowMixedContent: false,
@@ -1462,10 +1462,10 @@ jobs:
       - name: Add native Android D-pad analog A START controller bridge
         shell: bash
         run: |
-          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/mobilestart1/MainActivity.java'
+          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/mobilestart8/MainActivity.java'
           mkdir -p "$(dirname "$MAIN")"
           cat > "$MAIN" <<'JAVA'
-          package com.team2go.cavemanvsdragon.mobilestart1;
+          package com.team2go.cavemanvsdragon.mobilestart8;
 
           import android.content.Context;
           import android.graphics.Point;
@@ -1521,6 +1521,14 @@ jobs:
 
                   if (getBridge() != null && getBridge().getWebView() != null) {
                       final WebView webView = getBridge().getWebView();
+
+                      // Packaged APK assets must always come from this installed build,
+                      // never from a stale WebView HTTP/resource cache left by an
+                      // earlier test APK.
+                      webView.clearCache(true);
+                      webView.clearHistory();
+                      webView.getSettings().setCacheMode(android.webkit.WebSettings.LOAD_NO_CACHE);
+
                       webView.setFocusable(true);
                       webView.setFocusableInTouchMode(true);
                       webView.requestFocus();
@@ -1989,7 +1997,9 @@ jobs:
           grep -q 'cvd-native-app-background' "$MAIN"
           grep -q 'webView.onPause()' "$MAIN"
           grep -q 'getBridge().getWebView().onResume()' "$MAIN"
-          echo 'Controller/lifecycle scope verified: controls + unsupported-button protection + background pause'
+          grep -q 'webView.clearCache(true)' "$MAIN"
+          grep -q 'WebSettings.LOAD_NO_CACHE' "$MAIN"
+          echo 'Controller/lifecycle/cache scope verified: controls + exit protection + background pause + no stale WebView cache'
 
       - name: Set app version and Android 16 target
         shell: bash
