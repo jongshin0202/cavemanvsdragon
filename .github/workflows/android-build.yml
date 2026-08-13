@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - AndroidAPK-Pause
+      - AndroidAPK-ControllerFix1
     paths:
       - '.github/workflows/android-build.yml'
 
@@ -51,8 +51,8 @@ jobs:
           import type { CapacitorConfig } from '@capacitor/cli';
 
           const config: CapacitorConfig = {
-            appId: 'com.team2go.cavemanvsdragon.pause',
-            appName: 'CVD Pause',
+            appId: 'com.team2go.cavemanvsdragon.controllerfix1',
+            appName: 'CVD Controller Fix 1',
             webDir: 'dist',
             android: {
               allowMixedContent: false,
@@ -843,7 +843,9 @@ jobs:
           toggle_block = game_state_ref + r"""
 
             const toggleGamePause = useCallback(() => {
-              if (gameStateRef.current !== 'playing' || levelIntroRef.current) return;
+              // Controller START must respond as soon as gameplay is active.
+              // Do not wait for the opening caveman flash/invulnerability period.
+              if (gameStateRef.current !== 'playing') return;
 
               const nextPaused = !pausedRef.current;
               pausedRef.current = nextPaused;
@@ -857,6 +859,63 @@ jobs:
                 void resumeAllSfxFromGamePause();
               }
             }, []);
+
+            // Native APK controller path. This hook is intentionally declared
+            // after markGamepadActive and toggleGamePause to avoid a TDZ crash
+            // during the first React render.
+            useEffect(() => {
+              const onNativeControllerKey = (event: Event) => {
+                const detail = (event as CustomEvent<{ key?: string; down?: boolean }>).detail;
+                const key = detail?.key;
+                const down = Boolean(detail?.down);
+
+                if (key === 'Start') {
+                  markGamepadActive();
+                  if (!down) return;
+
+                  const gs = gameStateRef.current;
+                  if (
+                    gs === 'intro' ||
+                    gs === 'attractLocalLeaderboard' ||
+                    gs === 'attractGlobalLeaderboard' ||
+                    gs === 'attractControls'
+                  ) {
+                    // START is equivalent to a normal immediate start action.
+                    anyInputHandlerRef.current?.('Enter', 'keyboard');
+                    return;
+                  }
+
+                  if (gs === 'playing') {
+                    toggleGamePause();
+                  }
+                  return;
+                }
+
+                if (
+                  key !== 'ArrowUp' &&
+                  key !== 'ArrowDown' &&
+                  key !== 'ArrowLeft' &&
+                  key !== 'ArrowRight' &&
+                  key !== ' '
+                ) return;
+
+                markGamepadActive();
+                if (down) {
+                  const wasAlreadyDown = keysRef.current.has(key);
+                  keysRef.current.add(key);
+                  if (!wasAlreadyDown) {
+                    anyInputHandlerRef.current?.(key, 'pad');
+                  }
+                } else {
+                  keysRef.current.delete(key);
+                }
+              };
+
+              window.addEventListener('cvd-native-controller-key', onNativeControllerKey);
+              return () => {
+                window.removeEventListener('cvd-native-controller-key', onNativeControllerKey);
+              };
+            }, [markGamepadActive, toggleGamePause]);
 
             useEffect(() => {
               if (gameState === 'playing' || !pausedRef.current) return;
@@ -954,7 +1013,17 @@ jobs:
           if failed:
               raise SystemExit(f'Pause assertion failed: {failed}')
 
+          mark_idx = gm.find('const markGamepadActive')
+          toggle_idx = gm.find('const toggleGamePause')
+          native_listener_idx = gm.find("window.addEventListener('cvd-native-controller-key'")
+          if not (0 <= mark_idx < toggle_idx < native_listener_idx):
+              raise SystemExit(
+                  f'Controller hook initialization order invalid: '
+                  f'mark={mark_idx}, toggle={toggle_idx}, listener={native_listener_idx}'
+              )
+
           print('True pause assertions passed')
+          print('Controller hook order verified: callbacks initialize before native listener')
           PY
 
       - name: Patch Android layout and controller awareness
@@ -1157,6 +1226,53 @@ jobs:
           print('Android layout/controller/native-haptics/portrait-centering/cutout-offset patch applied successfully')
           PY
 
+      - name: Disable duplicate Web Gamepad path in native APK
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('src/components/CavemanVsDragonGame.tsx')
+          s = p.read_text()
+
+          old = (
+              "  // ============= Gamepad API polling (PC + browsers that expose it) =============\n"
+              "  // Standard mapping: 0=A (jump), 9=Start (R), 12/13/14/15 = DPAD up/down/left/right.\n"
+              "  // Left stick: axes[0] (x), axes[1] (y). Threshold 0.4.\n"
+              "  useEffect(() => {\n"
+              "    let raf = 0;"
+          )
+          new = (
+              "  // ============= Gamepad API polling (PC + browsers that expose it) =============\n"
+              "  // Native APK controller input is handled by MainActivity instead, preventing\n"
+              "  // duplicate native + Web Gamepad delivery from fighting over held state.\n"
+              "  // Browser/PC keeps the existing standard Gamepad API path.\n"
+              "  useEffect(() => {\n"
+              "    if (isNativeApp) return;\n"
+              "    let raf = 0;"
+          )
+
+          count = s.count(old)
+          if count != 1:
+              raise SystemExit(f'Native Gamepad bypass: expected 1 match, found {count}')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+
+          gm = p.read_text()
+          mark_idx = gm.find('const markGamepadActive')
+          toggle_idx = gm.find('const toggleGamePause')
+          listener_idx = gm.find("window.addEventListener('cvd-native-controller-key'")
+          if not (0 <= mark_idx < toggle_idx < listener_idx):
+              raise SystemExit(
+                  f'Runtime hook order invalid: mark={mark_idx}, '
+                  f'toggle={toggle_idx}, listener={listener_idx}'
+              )
+          if 'if (isNativeApp) return;' not in gm:
+              raise SystemExit('Native Gamepad bypass assertion failed')
+
+          print('Native controller runtime ordering and duplicate-path bypass verified')
+          PY
+
       - name: Build web game
         run: npm run build
 
@@ -1188,13 +1304,13 @@ jobs:
           print('Android VIBRATE permission present')
           PY
 
-      - name: Add native Android controller bridge and immersive fullscreen
+      - name: Add native Android D-pad analog A START controller bridge
         shell: bash
         run: |
-          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/pause/MainActivity.java'
+          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/controllerfix1/MainActivity.java'
           mkdir -p "$(dirname "$MAIN")"
           cat > "$MAIN" <<'JAVA'
-          package com.team2go.cavemanvsdragon.pause;
+          package com.team2go.cavemanvsdragon.controllerfix1;
 
           import android.content.Context;
           import android.graphics.Point;
@@ -1205,6 +1321,7 @@ jobs:
           import android.os.VibratorManager;
           import android.view.InputDevice;
           import android.view.KeyEvent;
+          import android.view.MotionEvent;
           import android.view.View;
           import android.view.WindowInsets;
           import android.view.WindowInsetsController;
@@ -1219,6 +1336,27 @@ jobs:
 
               private boolean iiRcadeDevice = false;
 
+              // External-controller state. D-pad key events and motion axes
+              // are tracked separately, then merged into one effective held
+              // state so one source cannot incorrectly release the other.
+              private boolean keyDpadUp = false;
+              private boolean keyDpadDown = false;
+              private boolean keyDpadLeft = false;
+              private boolean keyDpadRight = false;
+
+              private boolean motionUp = false;
+              private boolean motionDown = false;
+              private boolean motionLeft = false;
+              private boolean motionRight = false;
+
+              private boolean effectiveUp = false;
+              private boolean effectiveDown = false;
+              private boolean effectiveLeft = false;
+              private boolean effectiveRight = false;
+
+              private boolean controllerA = false;
+              private boolean controllerStart = false;
+
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
@@ -1227,6 +1365,9 @@ jobs:
 
                   if (getBridge() != null && getBridge().getWebView() != null) {
                       final WebView webView = getBridge().getWebView();
+                      webView.setFocusable(true);
+                      webView.setFocusableInTouchMode(true);
+                      webView.requestFocus();
                       webView.addJavascriptInterface(
                           new CvdDeviceBridge(),
                           "CvdNative"
@@ -1414,7 +1555,7 @@ jobs:
                   }
               }
 
-              private static String webKeyForAndroidKeyCode(int keyCode) {
+              private static String gameKeyForAndroidKeyCode(int keyCode) {
                   switch (keyCode) {
                       case KeyEvent.KEYCODE_DPAD_UP:    // 19
                           return "ArrowUp";
@@ -1426,71 +1567,155 @@ jobs:
                           return "ArrowRight";
                       case KeyEvent.KEYCODE_BUTTON_A:   // 96
                           return " ";
+                      case KeyEvent.KEYCODE_BUTTON_START: // 108
+                          return "Start";
                       default:
                           return null;
                   }
               }
 
-              private static String webCodeForAndroidKeyCode(int keyCode) {
-                  switch (keyCode) {
-                      case KeyEvent.KEYCODE_DPAD_UP:
-                          return "ArrowUp";
-                      case KeyEvent.KEYCODE_DPAD_DOWN:
-                          return "ArrowDown";
-                      case KeyEvent.KEYCODE_DPAD_LEFT:
-                          return "ArrowLeft";
-                      case KeyEvent.KEYCODE_DPAD_RIGHT:
-                          return "ArrowRight";
-                      case KeyEvent.KEYCODE_BUTTON_A:
-                          return "Space";
-                      default:
-                          return "";
+              private boolean isControllerInputSource(int source) {
+                  final boolean gamepad =
+                      (source & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD;
+                  final boolean joystick =
+                      (source & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK;
+                  final boolean dpad =
+                      (source & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD;
+                  return gamepad || joystick || dpad;
+              }
+
+              private void setEffectiveDirection(String key, boolean down) {
+                  boolean current;
+                  switch (key) {
+                      case "ArrowUp":    current = effectiveUp; break;
+                      case "ArrowDown":  current = effectiveDown; break;
+                      case "ArrowLeft":  current = effectiveLeft; break;
+                      case "ArrowRight": current = effectiveRight; break;
+                      default: return;
+                  }
+                  if (current == down) return;
+
+                  switch (key) {
+                      case "ArrowUp":    effectiveUp = down; break;
+                      case "ArrowDown":  effectiveDown = down; break;
+                      case "ArrowLeft":  effectiveLeft = down; break;
+                      case "ArrowRight": effectiveRight = down; break;
+                  }
+                  dispatchControllerStateToGame(key, down);
+              }
+
+              private void refreshEffectiveDirections() {
+                  setEffectiveDirection("ArrowUp",    keyDpadUp    || motionUp);
+                  setEffectiveDirection("ArrowDown",  keyDpadDown  || motionDown);
+                  setEffectiveDirection("ArrowLeft",  keyDpadLeft  || motionLeft);
+                  setEffectiveDirection("ArrowRight", keyDpadRight || motionRight);
+              }
+
+              private void setDigitalDpadState(String key, boolean down) {
+                  switch (key) {
+                      case "ArrowUp":    keyDpadUp = down; break;
+                      case "ArrowDown":  keyDpadDown = down; break;
+                      case "ArrowLeft":  keyDpadLeft = down; break;
+                      case "ArrowRight": keyDpadRight = down; break;
+                      default: return;
+                  }
+                  refreshEffectiveDirections();
+              }
+
+              private void setButtonState(String key, boolean down) {
+                  if (" ".equals(key)) {
+                      if (controllerA == down) return;
+                      controllerA = down;
+                      dispatchControllerStateToGame(" ", down);
+                      return;
+                  }
+
+                  if ("Start".equals(key)) {
+                      if (controllerStart == down) return;
+                      controllerStart = down;
+                      dispatchControllerStateToGame("Start", down);
                   }
               }
 
               @Override
               public boolean dispatchKeyEvent(KeyEvent event) {
-                  final int androidKeyCode = event.getKeyCode();
-                  final String webKey = webKeyForAndroidKeyCode(androidKeyCode);
+                  final String gameKey = gameKeyForAndroidKeyCode(event.getKeyCode());
 
-                  if (webKey != null &&
-                      (event.getAction() == KeyEvent.ACTION_DOWN || event.getAction() == KeyEvent.ACTION_UP)) {
+                  if (gameKey != null) {
                       final boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
-                      dispatchControllerKeyToGame(
-                          down ? "keydown" : "keyup",
-                          webKey,
-                          webCodeForAndroidKeyCode(androidKeyCode),
-                          androidKeyCode,
-                          event.getRepeatCount() > 0
-                      );
+                      final boolean up = event.getAction() == KeyEvent.ACTION_UP;
+                      if (!down && !up) return true;
+
+                      if (
+                          "ArrowUp".equals(gameKey) ||
+                          "ArrowDown".equals(gameKey) ||
+                          "ArrowLeft".equals(gameKey) ||
+                          "ArrowRight".equals(gameKey)
+                      ) {
+                          setDigitalDpadState(gameKey, down);
+                      } else {
+                          setButtonState(gameKey, down);
+                      }
                       return true;
                   }
 
                   return super.dispatchKeyEvent(event);
               }
 
-              private void dispatchControllerKeyToGame(
-                  String eventType,
-                  String key,
-                  String code,
-                  int androidKeyCode,
-                  boolean repeat
-              ) {
+              @Override
+              public boolean dispatchGenericMotionEvent(MotionEvent event) {
+                  if (
+                      event.getAction() == MotionEvent.ACTION_MOVE &&
+                      isControllerInputSource(event.getSource())
+                  ) {
+                      final boolean hadMotionDirection =
+                          motionUp || motionDown || motionLeft || motionRight;
+
+                      final float hatX = event.getAxisValue(MotionEvent.AXIS_HAT_X);
+                      final float hatY = event.getAxisValue(MotionEvent.AXIS_HAT_Y);
+                      final float stickX = event.getAxisValue(MotionEvent.AXIS_X);
+                      final float stickY = event.getAxisValue(MotionEvent.AXIS_Y);
+
+                      final float hatThreshold = 0.5f;
+                      final float stickThreshold = 0.42f;
+
+                      final float x =
+                          Math.abs(hatX) >= hatThreshold ? hatX : stickX;
+                      final float y =
+                          Math.abs(hatY) >= hatThreshold ? hatY : stickY;
+
+                      motionLeft  = x < -stickThreshold;
+                      motionRight = x >  stickThreshold;
+                      motionUp    = y < -stickThreshold;
+                      motionDown  = y >  stickThreshold;
+
+                      refreshEffectiveDirections();
+
+                      if (
+                          Math.abs(hatX) > 0.01f ||
+                          Math.abs(hatY) > 0.01f ||
+                          Math.abs(stickX) > 0.01f ||
+                          Math.abs(stickY) > 0.01f ||
+                          hadMotionDirection ||
+                          motionUp || motionDown || motionLeft || motionRight
+                      ) {
+                          return true;
+                      }
+                  }
+
+                  return super.dispatchGenericMotionEvent(event);
+              }
+
+              private void dispatchControllerStateToGame(String key, boolean down) {
                   if (getBridge() == null) return;
                   final WebView webView = getBridge().getWebView();
                   if (webView == null) return;
 
-                  final String escapedKey = jsString(key);
-                  final String escapedCode = jsString(code);
                   final String js =
                       "(function(){" +
-                      "var e=new KeyboardEvent('" + eventType + "',{" +
-                      "key:" + escapedKey + "," +
-                      "code:" + escapedCode + "," +
-                      "bubbles:true,cancelable:true,repeat:" + repeat + "});" +
-                      "try{Object.defineProperty(e,'keyCode',{get:function(){return " + androidKeyCode + ";}});" +
-                      "Object.defineProperty(e,'which',{get:function(){return " + androidKeyCode + ";}});}catch(_){}" +
-                      "window.dispatchEvent(e);" +
+                      "window.dispatchEvent(new CustomEvent('cvd-native-controller-key',{" +
+                      "detail:{key:" + jsString(key) + ",down:" + down + "}" +
+                      "}));" +
                       "})();";
 
                   webView.post(() -> webView.evaluateJavascript(js, null));
@@ -1506,6 +1731,23 @@ jobs:
               }
           }
           JAVA
+
+          grep -q 'KEYCODE_DPAD_UP' "$MAIN"
+          grep -q 'KEYCODE_DPAD_DOWN' "$MAIN"
+          grep -q 'KEYCODE_DPAD_LEFT' "$MAIN"
+          grep -q 'KEYCODE_DPAD_RIGHT' "$MAIN"
+          grep -q 'KEYCODE_BUTTON_A' "$MAIN"
+          grep -q 'KEYCODE_BUTTON_START' "$MAIN"
+          grep -q 'AXIS_HAT_X' "$MAIN"
+          grep -q 'AXIS_HAT_Y' "$MAIN"
+          grep -q 'MotionEvent.AXIS_X' "$MAIN"
+          grep -q 'MotionEvent.AXIS_Y' "$MAIN"
+          grep -q 'dispatchGenericMotionEvent' "$MAIN"
+          grep -q 'if (gameKey != null)' "$MAIN"
+          grep -q 'webView.requestFocus()' "$MAIN"
+          grep -q 'refreshEffectiveDirections' "$MAIN"
+          grep -q 'cvd-native-controller-key' "$MAIN"
+          echo 'Controller scope verified: D-pad + left stick + A + START pause'
 
       - name: Set app version and Android 16 target
         shell: bash
