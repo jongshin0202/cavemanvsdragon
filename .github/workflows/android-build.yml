@@ -52,7 +52,7 @@ jobs:
 
           const config: CapacitorConfig = {
             appId: 'com.team2go.cavemanvsdragon.mobilestart1',
-            appName: 'CVD Mobile Start Fix 3',
+            appName: 'CVD Mobile Start Fix 4',
             webDir: 'dist',
             android: {
               allowMixedContent: false,
@@ -1307,6 +1307,28 @@ jobs:
           p = Path('src/components/CavemanVsDragonGame.tsx')
           s = p.read_text()
 
+          # Android APK is always a mobile environment. useIsMobile() is a
+          # viewport-width hook, so a phone in landscape can incorrectly become
+          # "desktop". Force Android mobile classification for every game screen,
+          # including post-game/global leaderboards.
+          old_mobile = "  const isMobile = useIsMobile();"
+          new_mobile = "  const isMobile = true; // Android APK build: never use PC prompts"
+          if s.count(old_mobile) != 1:
+              raise SystemExit(
+                  f'Android isMobile override: expected 1 match, found {s.count(old_mobile)}'
+              )
+          s = s.replace(old_mobile, new_mobile, 1)
+
+          # The post-game/global leaderboard renderer reads isMobileRef.
+          # Force it mobile too so landscape can never display PC-only wording.
+          old_mobile_ref = "  useEffect(() => { isMobileRef.current = isMobile; }, [isMobile]);"
+          new_mobile_ref = "  useEffect(() => { isMobileRef.current = true; }, []); // Android APK build"
+          if s.count(old_mobile_ref) != 1:
+              raise SystemExit(
+                  f'Android isMobileRef override: expected 1 match, found {s.count(old_mobile_ref)}'
+              )
+          s = s.replace(old_mobile_ref, new_mobile_ref, 1)
+
           old_ui = "  const mobileStartUi = isNativeApp || isMobile;"
           new_ui = "  const mobileStartUi = true; // Android APK build"
           if s.count(old_ui) != 1:
@@ -1335,6 +1357,10 @@ jobs:
 
           check = p.read_text()
           required = {
+              'APK environment forced mobile':
+                  'const isMobile = true; // Android APK build: never use PC prompts' in check,
+              'Post-game mobile ref forced':
+                  'isMobileRef.current = true' in check,
               'APK mobile UI forced': 'const mobileStartUi = true; // Android APK build' in check,
               'APK attract timer disabled':
                   'if (mobileStartUi) return; // Android APK: remain on title until explicit input' in check,
