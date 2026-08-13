@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - AndroidAPK-ExternalController
+      - AndroidAPK-ControllerFix1
     paths:
       - '.github/workflows/android-build.yml'
 
@@ -51,8 +51,8 @@ jobs:
           import type { CapacitorConfig } from '@capacitor/cli';
 
           const config: CapacitorConfig = {
-            appId: 'com.team2go.cavemanvsdragon.externalcontroller2',
-            appName: 'CVD External Controller 2',
+            appId: 'com.team2go.cavemanvsdragon.controllerfix1',
+            appName: 'CVD Controller Fix 1',
             webDir: 'dist',
             android: {
               allowMixedContent: false,
@@ -843,7 +843,9 @@ jobs:
           toggle_block = game_state_ref + r"""
 
             const toggleGamePause = useCallback(() => {
-              if (gameStateRef.current !== 'playing' || levelIntroRef.current) return;
+              // Controller START must respond as soon as gameplay is active.
+              // Do not wait for the opening caveman flash/invulnerability period.
+              if (gameStateRef.current !== 'playing') return;
 
               const nextPaused = !pausedRef.current;
               pausedRef.current = nextPaused;
@@ -869,7 +871,23 @@ jobs:
 
                 if (key === 'Start') {
                   markGamepadActive();
-                  if (down) toggleGamePause();
+                  if (!down) return;
+
+                  const gs = gameStateRef.current;
+                  if (
+                    gs === 'intro' ||
+                    gs === 'attractLocalLeaderboard' ||
+                    gs === 'attractGlobalLeaderboard' ||
+                    gs === 'attractControls'
+                  ) {
+                    // START is equivalent to a normal immediate start action.
+                    anyInputHandlerRef.current?.('Enter', 'keyboard');
+                    return;
+                  }
+
+                  if (gs === 'playing') {
+                    toggleGamePause();
+                  }
                   return;
                 }
 
@@ -1289,10 +1307,10 @@ jobs:
       - name: Add native Android D-pad analog A START controller bridge
         shell: bash
         run: |
-          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/externalcontroller2/MainActivity.java'
+          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/controllerfix1/MainActivity.java'
           mkdir -p "$(dirname "$MAIN")"
           cat > "$MAIN" <<'JAVA'
-          package com.team2go.cavemanvsdragon.externalcontroller2;
+          package com.team2go.cavemanvsdragon.controllerfix1;
 
           import android.content.Context;
           import android.graphics.Point;
@@ -1347,6 +1365,9 @@ jobs:
 
                   if (getBridge() != null && getBridge().getWebView() != null) {
                       final WebView webView = getBridge().getWebView();
+                      webView.setFocusable(true);
+                      webView.setFocusableInTouchMode(true);
+                      webView.requestFocus();
                       webView.addJavascriptInterface(
                           new CvdDeviceBridge(),
                           "CvdNative"
@@ -1620,7 +1641,7 @@ jobs:
               public boolean dispatchKeyEvent(KeyEvent event) {
                   final String gameKey = gameKeyForAndroidKeyCode(event.getKeyCode());
 
-                  if (gameKey != null && isControllerInputSource(event.getSource())) {
+                  if (gameKey != null) {
                       final boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
                       final boolean up = event.getAction() == KeyEvent.ACTION_UP;
                       if (!down && !up) return true;
@@ -1642,7 +1663,7 @@ jobs:
               }
 
               @Override
-              public boolean onGenericMotionEvent(MotionEvent event) {
+              public boolean dispatchGenericMotionEvent(MotionEvent event) {
                   if (
                       event.getAction() == MotionEvent.ACTION_MOVE &&
                       isControllerInputSource(event.getSource())
@@ -1682,7 +1703,7 @@ jobs:
                       }
                   }
 
-                  return super.onGenericMotionEvent(event);
+                  return super.dispatchGenericMotionEvent(event);
               }
 
               private void dispatchControllerStateToGame(String key, boolean down) {
@@ -1721,6 +1742,9 @@ jobs:
           grep -q 'AXIS_HAT_Y' "$MAIN"
           grep -q 'MotionEvent.AXIS_X' "$MAIN"
           grep -q 'MotionEvent.AXIS_Y' "$MAIN"
+          grep -q 'dispatchGenericMotionEvent' "$MAIN"
+          grep -q 'if (gameKey != null)' "$MAIN"
+          grep -q 'webView.requestFocus()' "$MAIN"
           grep -q 'refreshEffectiveDirections' "$MAIN"
           grep -q 'cvd-native-controller-key' "$MAIN"
           echo 'Controller scope verified: D-pad + left stick + A + START pause'
