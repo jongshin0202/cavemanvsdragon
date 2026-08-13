@@ -52,7 +52,7 @@ jobs:
 
           const config: CapacitorConfig = {
             appId: 'com.team2go.cavemanvsdragon.mobilestart1',
-            appName: 'CVD Mobile Start Fix 6',
+            appName: 'CVD Mobile Start Fix 7',
             webDir: 'dist',
             android: {
               allowMixedContent: false,
@@ -932,6 +932,31 @@ jobs:
               };
             }, [markGamepadActive, toggleGamePause]);
 
+            // Android lifecycle safety: if the app goes to Recents/background
+            // while gameplay is active, pause gameplay + music/SFX exactly once.
+            // Returning to the app intentionally leaves it paused until the
+            // player explicitly resumes.
+            useEffect(() => {
+              const pauseForAppBackground = () => {
+                if (gameStateRef.current !== 'playing' || pausedRef.current) return;
+                void toggleGamePause();
+              };
+
+              const onVisibilityChange = () => {
+                if (document.visibilityState === 'hidden') {
+                  pauseForAppBackground();
+                }
+              };
+
+              window.addEventListener('cvd-native-app-background', pauseForAppBackground);
+              document.addEventListener('visibilitychange', onVisibilityChange);
+
+              return () => {
+                window.removeEventListener('cvd-native-app-background', pauseForAppBackground);
+                document.removeEventListener('visibilitychange', onVisibilityChange);
+              };
+            }, [toggleGamePause]);
+
             useEffect(() => {
               if (gameState === 'playing' || !pausedRef.current) return;
               pausedRef.current = false;
@@ -1023,6 +1048,8 @@ jobs:
               'Simulation freeze': 'if (pausedRef.current)' in gm,
               'Canvas toggle': 'toggleGamePause();' in gm,
               'White round II icon': 'rounded-full bg-white' in gm and gm.count('rounded-sm bg-black') >= 2,
+              'Android background pause listener':
+                  "cvd-native-app-background" in gm and "visibilitychange" in gm,
           }
           failed = [name for name, ok in required.items() if not ok]
           if failed:
@@ -1353,65 +1380,27 @@ jobs:
               )
           s = s.replace(old_attract, new_attract, 1)
 
-          # Post-game LOCAL/GLOBAL leaderboard is canvas-rendered and has
-          # its own PC start prompt. This is a separate path from the React
-          # title/attract screens. In the Android APK, make it controller/touch
-          # aware and guarantee that the R-key prompt cannot survive.
-          import re
-
-          leaderboard_marker = (
-              "if (gameStateRef.current === 'leaderboard' || "
-              "gameStateRef.current === 'globalLeaderboard') {"
+          # Android APK must never expose the PC-only R-key instruction.
+          # This runs only inside the Android Actions build, so the browser/PC
+          # source keeps its normal R-key wording.
+          r_prompt_count = (
+              s.count("Press R to Start") +
+              s.count("PRESS R TO START")
           )
-          lb_start = s.find(leaderboard_marker)
-          lb_end = s.find("  const simulateKey", lb_start)
-          if lb_start < 0 or lb_end < 0 or lb_end <= lb_start:
+          if r_prompt_count < 1:
               raise SystemExit(
-                  f'Post-game leaderboard block not found: start={lb_start}, end={lb_end}'
+                  'Android R-prompt scrub expected at least one PC prompt, found none'
               )
 
-          lb = s[lb_start:lb_end]
-          before_r = len(re.findall(r"PRESS R TO START|Press R to Start", lb))
-          if before_r == 0:
-              raise SystemExit(
-                  'Expected an R-key prompt in post-game leaderboard block, found none. '
-                  'Refusing to guess.'
-              )
+          s = s.replace("Press R to Start", "Touch Screen to Start")
+          s = s.replace("PRESS R TO START", "TOUCH SCREEN TO START")
 
-          dynamic_prompt = (
-              "gamepadActiveRef.current ? "
-              "'PRESS START TO START' : 'TOUCH SCREEN TO START'"
-          )
+          if "Press R to Start" in s or "PRESS R TO START" in s:
+              raise SystemExit('Android R-prompt scrub failed')
 
-          lb = re.sub(
-              r"isMobileRef\.current\s*\?\s*'[^']*'\s*:\s*'(?:PRESS R TO START|Press R to Start)'",
-              dynamic_prompt,
-              lb,
-          )
-
-          lb = re.sub(
-              r"'(?:PRESS R TO START|Press R to Start)'",
-              "(" + dynamic_prompt + ")",
-              lb,
-          )
-          lb = re.sub(
-              r'"(?:PRESS R TO START|Press R to Start)"',
-              "(" + dynamic_prompt + ")",
-              lb,
-          )
-
-          after_r = len(re.findall(r"PRESS R TO START|Press R to Start", lb))
-          if after_r != 0:
-              raise SystemExit(
-                  f'Post-game Android R-key prompt still present after patch: {after_r}'
-              )
-          if "PRESS START TO START" not in lb or "TOUCH SCREEN TO START" not in lb:
-              raise SystemExit('Post-game Android dynamic start prompt was not installed')
-
-          s = s[:lb_start] + lb + s[lb_end:]
           print(
-              f'Post-game leaderboard Android prompt patched: '
-              f'{before_r} R-key occurrence(s) removed'
+              f'Android PC-only R prompt scrubbed: '
+              f'{r_prompt_count} occurrence(s) removed'
           )
 
           p.write_text(s)
@@ -1425,28 +1414,16 @@ jobs:
               'APK mobile UI forced': 'const mobileStartUi = true; // Android APK build' in check,
               'APK attract timer disabled':
                   'if (mobileStartUi) return; // Android APK: remain on title until explicit input' in check,
-              'Touch prompt retained': check.count("'Touch Screen to Start'") == 2,
-              'START prompt retained': check.count("'Press START to Start'") == 2,
-              'PC prompt source retained': check.count("Press R to Start") >= 3,
+              'Touch prompt present': check.count("Touch Screen to Start") >= 2,
+              'START prompt present': check.count("Press START to Start") >= 2,
+              'PC R prompt absent from Android source':
+                  "Press R to Start" not in check and "PRESS R TO START" not in check,
           }
           failed = [name for name, ok in required.items() if not ok]
           for name, ok in required.items():
               print(('OK: ' if ok else 'FAIL: ') + name)
           if failed:
               raise SystemExit('Android APK start-screen assertion failed: ' + ', '.join(failed))
-
-          final_check = p.read_text()
-          final_lb_start = final_check.find(
-              "if (gameStateRef.current === 'leaderboard' || "
-              "gameStateRef.current === 'globalLeaderboard') {"
-          )
-          final_lb_end = final_check.find("  const simulateKey", final_lb_start)
-          final_lb = final_check[final_lb_start:final_lb_end]
-          if 'PRESS R TO START' in final_lb or 'Press R to Start' in final_lb:
-              raise SystemExit('FINAL ASSERTION FAILED: Android post-game leaderboard still contains R prompt')
-          if 'PRESS START TO START' not in final_lb or 'TOUCH SCREEN TO START' not in final_lb:
-              raise SystemExit('FINAL ASSERTION FAILED: Android post-game dynamic prompt missing')
-          print('Android post-game leaderboard prompt verified: START/touch only, no R')
 
           print('Android APK start-screen final override verified')
           PY
@@ -1559,8 +1536,28 @@ jobs:
               }
 
               @Override
+              public void onPause() {
+                  if (getBridge() != null && getBridge().getWebView() != null) {
+                      final WebView webView = getBridge().getWebView();
+
+                      webView.evaluateJavascript(
+                          "window.dispatchEvent(new Event('cvd-native-app-background'));",
+                          null
+                      );
+                      webView.onPause();
+                  }
+
+                  super.onPause();
+              }
+
+              @Override
               public void onResume() {
                   super.onResume();
+
+                  if (getBridge() != null && getBridge().getWebView() != null) {
+                      getBridge().getWebView().onResume();
+                  }
+
                   enterImmersiveMode();
               }
 
@@ -1989,7 +1986,10 @@ jobs:
           grep -q 'KEYCODE_BACK' "$MAIN"
           grep -q 'KEYCODE_ESCAPE' "$MAIN"
           grep -q 'isUnsupportedControllerButton' "$MAIN"
-          echo 'Controller scope verified: D-pad + left stick + A + START pause + unsupported-button exit protection'
+          grep -q 'cvd-native-app-background' "$MAIN"
+          grep -q 'webView.onPause()' "$MAIN"
+          grep -q 'getBridge().getWebView().onResume()' "$MAIN"
+          echo 'Controller/lifecycle scope verified: controls + unsupported-button protection + background pause'
 
       - name: Set app version and Android 16 target
         shell: bash
