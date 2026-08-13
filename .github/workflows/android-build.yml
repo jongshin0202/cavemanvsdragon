@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - AndroidAPK-ControllerFix1
+      - AndroidAPK-ControllerNameEntry
     paths:
       - '.github/workflows/android-build.yml'
 
@@ -51,8 +51,8 @@ jobs:
           import type { CapacitorConfig } from '@capacitor/cli';
 
           const config: CapacitorConfig = {
-            appId: 'com.team2go.cavemanvsdragon.controllerfix1',
-            appName: 'CVD Controller Fix 1',
+            appId: 'com.team2go.cavemanvsdragon.controllername1',
+            appName: 'CVD Controller Name Entry',
             webDir: 'dist',
             android: {
               allowMixedContent: false,
@@ -1307,10 +1307,10 @@ jobs:
       - name: Add native Android D-pad analog A START controller bridge
         shell: bash
         run: |
-          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/controllerfix1/MainActivity.java'
+          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/controllername1/MainActivity.java'
           mkdir -p "$(dirname "$MAIN")"
           cat > "$MAIN" <<'JAVA'
-          package com.team2go.cavemanvsdragon.controllerfix1;
+          package com.team2go.cavemanvsdragon.controllername1;
 
           import android.content.Context;
           import android.graphics.Point;

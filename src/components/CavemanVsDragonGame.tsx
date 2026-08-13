@@ -1054,14 +1054,22 @@ const CavemanVsDragonGame = () => {
       if (gs === 'highscorePrompt') {
         if (now < continueArmedAtRef.current) return true;
         setNameInput('');
+        nameInputRef.current = '';
         setNameError('');
-        // Focus the hidden input synchronously within the user gesture so
-        // the mobile soft keyboard reliably opens on iOS/Android.
-        try { nameFieldRef.current?.focus({ preventScroll: true } as any); } catch { nameFieldRef.current?.focus(); }
         setGameState('enterName');
-        // Re-focus after the state update / re-render in case the browser drops it.
-        setTimeout(() => nameFieldRef.current?.focus(), 0);
-        setTimeout(() => nameFieldRef.current?.focus(), 50);
+
+        // Controller/touch entry uses the in-game keyboard below. Do not
+        // force Android IME focus from a controller A press: some controller
+        // / WebView combinations treat that focus transition as a system
+        // navigation action. Keyboard users can keep the original direct
+        // typing behavior; touchscreen users can tap the name display to
+        // request the phone keyboard if they prefer it.
+        if (_source === 'keyboard') {
+          try { nameFieldRef.current?.focus({ preventScroll: true } as any); }
+          catch { nameFieldRef.current?.focus(); }
+          setTimeout(() => nameFieldRef.current?.focus(), 0);
+          setTimeout(() => nameFieldRef.current?.focus(), 50);
+        }
         return true;
       }
 
@@ -1103,6 +1111,293 @@ const CavemanVsDragonGame = () => {
     };
   }, [startNextLevel, submitHighScore, resetGame, startInLevel2Test, startInLevel3Test, startInLevel3Iter4Test, startInLevel4Test, globalScores]);
 
+
+
+  // ============= Controller + touch name-entry keyboard =============
+  // This keyboard is deliberately implemented as a DOM overlay so Android
+  // cabinet/controller users never depend on the system IME. It is shown
+  // automatically whenever the game enters `enterName`.
+  //
+  // Controller:
+  //   D-pad / left stick = move selection
+  //   A                  = choose highlighted key
+  //   START              = submit name
+  //
+  // Touch:
+  //   Tap any key directly.
+  //   Tap the displayed name to focus the existing text input and request
+  //   the phone keyboard if desired.
+  useEffect(() => {
+    if (gameState !== 'enterName') return;
+
+    const existing = document.getElementById('cvd-controller-name-keyboard');
+    existing?.remove();
+
+    const rows: string[][] = [
+      ['A','B','C','D','E','F','G','H'],
+      ['I','J','K','L','M','N','O','P'],
+      ['Q','R','S','T','U','V','W','X'],
+      ['Y','Z','0','1','2','3','4','5'],
+      ['6','7','8','9','SPACE','DEL'],
+    ];
+
+    let row = 0;
+    let col = 0;
+    let repeatDelay: number | null = null;
+    let repeatTimer: number | null = null;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'cvd-controller-name-keyboard';
+    Object.assign(overlay.style, {
+      position: 'fixed',
+      left: '0',
+      right: '0',
+      bottom: '0',
+      zIndex: '2147483646',
+      background: 'rgba(0,0,0,0.96)',
+      borderTop: '2px solid white',
+      padding: '8px max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left))',
+      boxSizing: 'border-box',
+      fontFamily: 'monospace',
+      color: 'white',
+      touchAction: 'none',
+      userSelect: 'none',
+    } as Partial<CSSStyleDeclaration>);
+
+    const title = document.createElement('div');
+    title.textContent = 'ENTER NAME';
+    Object.assign(title.style, {
+      textAlign: 'center',
+      fontWeight: 'bold',
+      fontSize: 'clamp(14px, 3vw, 22px)',
+      marginBottom: '4px',
+    } as Partial<CSSStyleDeclaration>);
+    overlay.appendChild(title);
+
+    const nameDisplay = document.createElement('button');
+    nameDisplay.type = 'button';
+    nameDisplay.setAttribute('aria-label', 'Player name. Tap to use phone keyboard.');
+    Object.assign(nameDisplay.style, {
+      display: 'block',
+      width: 'min(92vw, 560px)',
+      minHeight: '38px',
+      margin: '0 auto 6px auto',
+      padding: '4px 8px',
+      background: '#111',
+      color: 'white',
+      border: '2px solid white',
+      borderRadius: '6px',
+      fontFamily: 'monospace',
+      fontWeight: 'bold',
+      fontSize: 'clamp(18px, 4vw, 28px)',
+      textAlign: 'center',
+    } as Partial<CSSStyleDeclaration>);
+
+    const syncNameDisplay = () => {
+      const value = nameInputRef.current || '';
+      nameDisplay.textContent = value.length ? value : '_';
+    };
+    syncNameDisplay();
+
+    nameDisplay.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      try {
+        nameFieldRef.current?.focus({ preventScroll: true } as any);
+      } catch {
+        nameFieldRef.current?.focus();
+      }
+    });
+    overlay.appendChild(nameDisplay);
+
+    const instructions = document.createElement('div');
+    instructions.textContent = 'D-PAD / STICK: MOVE   A: SELECT   START: SUBMIT';
+    Object.assign(instructions.style, {
+      textAlign: 'center',
+      fontSize: 'clamp(9px, 2.2vw, 14px)',
+      marginBottom: '6px',
+      opacity: '0.9',
+    } as Partial<CSSStyleDeclaration>);
+    overlay.appendChild(instructions);
+
+    const keyboard = document.createElement('div');
+    Object.assign(keyboard.style, {
+      width: 'min(96vw, 720px)',
+      margin: '0 auto',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '4px',
+    } as Partial<CSSStyleDeclaration>);
+    overlay.appendChild(keyboard);
+
+    const buttons: HTMLButtonElement[][] = [];
+
+    const setNameValue = (next: string) => {
+      const clipped = next.slice(0, NAME_MAX_LENGTH);
+      nameInputRef.current = clipped;
+      setNameInput(clipped);
+      setNameError('');
+      syncNameDisplay();
+    };
+
+    const activate = (token: string) => {
+      const current = nameInputRef.current || '';
+      if (token === 'DEL') {
+        setNameValue(current.slice(0, -1));
+        return;
+      }
+      if (token === 'SPACE') {
+        if (current.length < NAME_MAX_LENGTH && current.length > 0 && !current.endsWith(' ')) {
+          setNameValue(current + ' ');
+        }
+        return;
+      }
+      if (current.length < NAME_MAX_LENGTH) {
+        setNameValue(current + token);
+      }
+    };
+
+    const renderSelection = () => {
+      buttons.forEach((buttonRow, r) => {
+        buttonRow.forEach((button, c) => {
+          const selected = r === row && c === col;
+          button.style.background = selected ? 'white' : '#111';
+          button.style.color = selected ? 'black' : 'white';
+          button.style.borderColor = selected ? '#ffd400' : '#777';
+          button.style.transform = selected ? 'scale(1.04)' : 'scale(1)';
+        });
+      });
+    };
+
+    rows.forEach((tokens, r) => {
+      const line = document.createElement('div');
+      Object.assign(line.style, {
+        display: 'flex',
+        gap: '4px',
+        justifyContent: 'center',
+      } as Partial<CSSStyleDeclaration>);
+
+      const buttonRow: HTMLButtonElement[] = [];
+      tokens.forEach((token, c) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = token === 'SPACE' ? 'SPACE' : token === 'DEL' ? '⌫' : token;
+        button.setAttribute('aria-label', token);
+        Object.assign(button.style, {
+          flex: token === 'SPACE' ? '2' : '1',
+          minWidth: '0',
+          minHeight: 'clamp(32px, 6.5vh, 48px)',
+          padding: '2px',
+          background: '#111',
+          color: 'white',
+          border: '2px solid #777',
+          borderRadius: '5px',
+          fontFamily: 'monospace',
+          fontWeight: 'bold',
+          fontSize: 'clamp(12px, 2.7vw, 19px)',
+          touchAction: 'none',
+        } as Partial<CSSStyleDeclaration>);
+
+        button.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          row = r;
+          col = c;
+          renderSelection();
+          activate(token);
+        });
+
+        buttonRow.push(button);
+        line.appendChild(button);
+      });
+      buttons.push(buttonRow);
+      keyboard.appendChild(line);
+    });
+
+    const move = (key: string) => {
+      if (key === 'ArrowUp') {
+        row = (row - 1 + rows.length) % rows.length;
+        col = Math.min(col, rows[row].length - 1);
+      } else if (key === 'ArrowDown') {
+        row = (row + 1) % rows.length;
+        col = Math.min(col, rows[row].length - 1);
+      } else if (key === 'ArrowLeft') {
+        col = (col - 1 + rows[row].length) % rows[row].length;
+      } else if (key === 'ArrowRight') {
+        col = (col + 1) % rows[row].length;
+      }
+      renderSelection();
+    };
+
+    const clearRepeat = () => {
+      if (repeatDelay !== null) {
+        window.clearTimeout(repeatDelay);
+        repeatDelay = null;
+      }
+      if (repeatTimer !== null) {
+        window.clearInterval(repeatTimer);
+        repeatTimer = null;
+      }
+    };
+
+    const startRepeat = (key: string) => {
+      clearRepeat();
+      repeatDelay = window.setTimeout(() => {
+        repeatDelay = null;
+        repeatTimer = window.setInterval(() => move(key), 125);
+      }, 350);
+    };
+
+    const onNativeControllerKey = (event: Event) => {
+      const detail = (event as CustomEvent<{ key?: string; down?: boolean }>).detail;
+      const key = detail?.key;
+      const down = Boolean(detail?.down);
+      if (!key) return;
+
+      if (key === 'ArrowUp' || key === 'ArrowDown' || key === 'ArrowLeft' || key === 'ArrowRight') {
+        if (down) {
+          move(key);
+          startRepeat(key);
+        } else {
+          clearRepeat();
+        }
+        return;
+      }
+
+      if (!down) return;
+
+      if (key === ' ') {
+        activate(rows[row][col]);
+        return;
+      }
+
+      if (key === 'Start') {
+        clearRepeat();
+        const value = (nameInputRef.current || '').trim();
+        if (!value) {
+          nameDisplay.textContent = 'ENTER NAME FIRST';
+          window.setTimeout(syncNameDisplay, 800);
+          return;
+        }
+        submitHighScore();
+      }
+    };
+
+    window.addEventListener('cvd-native-controller-key', onNativeControllerKey);
+    document.body.appendChild(overlay);
+    renderSelection();
+
+    // If the user chooses the phone keyboard by tapping the name field,
+    // keep the controller overlay's name display synchronized with React.
+    const syncTimer = window.setInterval(syncNameDisplay, 100);
+
+    return () => {
+      clearRepeat();
+      window.clearInterval(syncTimer);
+      window.removeEventListener('cvd-native-controller-key', onNativeControllerKey);
+      overlay.remove();
+    };
+  }, [gameState, submitHighScore]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
