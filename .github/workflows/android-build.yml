@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - AndroidAPK-Pause
+      - AndroidAPK-ExternalController
     paths:
       - '.github/workflows/android-build.yml'
 
@@ -51,8 +51,8 @@ jobs:
           import type { CapacitorConfig } from '@capacitor/cli';
 
           const config: CapacitorConfig = {
-            appId: 'com.team2go.cavemanvsdragon.pause',
-            appName: 'CVD Pause',
+            appId: 'com.team2go.cavemanvsdragon.externalcontroller',
+            appName: 'CVD External Controller',
             webDir: 'dist',
             android: {
               allowMixedContent: false,
@@ -1016,7 +1016,43 @@ jobs:
               gamepadActiveRef.current = false;
               setGamepadActive(false);
             }
-          }, [nativeHardwareController, isIiRcadeDevice]);""",
+          }, [nativeHardwareController, isIiRcadeDevice]);
+
+          // Dedicated native Android input path for the first controller pass:
+          // only D-pad U/D/L/R plus A. This avoids depending on synthetic
+          // KeyboardEvent behavior inside Android WebView.
+          useEffect(() => {
+            const onNativeControllerKey = (event: Event) => {
+              const detail = (event as CustomEvent<{ key?: string; down?: boolean }>).detail;
+              const key = detail?.key;
+              const down = Boolean(detail?.down);
+
+              if (
+                key !== 'ArrowUp' &&
+                key !== 'ArrowDown' &&
+                key !== 'ArrowLeft' &&
+                key !== 'ArrowRight' &&
+                key !== ' '
+              ) return;
+
+              markGamepadActive();
+
+              if (down) {
+                const wasAlreadyDown = keysRef.current.has(key);
+                keysRef.current.add(key);
+                if (!wasAlreadyDown) {
+                  anyInputHandlerRef.current?.(key, 'pad');
+                }
+              } else {
+                keysRef.current.delete(key);
+              }
+            };
+
+            window.addEventListener('cvd-native-controller-key', onNativeControllerKey);
+            return () => {
+              window.removeEventListener('cvd-native-controller-key', onNativeControllerKey);
+            };
+          }, [markGamepadActive]);""",
               'gamepad state block'
           )
 
@@ -1191,10 +1227,10 @@ jobs:
       - name: Add native Android controller bridge and immersive fullscreen
         shell: bash
         run: |
-          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/pause/MainActivity.java'
+          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/externalcontroller/MainActivity.java'
           mkdir -p "$(dirname "$MAIN")"
           cat > "$MAIN" <<'JAVA'
-          package com.team2go.cavemanvsdragon.pause;
+          package com.team2go.cavemanvsdragon.externalcontroller;
 
           import android.content.Context;
           import android.graphics.Point;
@@ -1205,6 +1241,7 @@ jobs:
           import android.os.VibratorManager;
           import android.view.InputDevice;
           import android.view.KeyEvent;
+          import android.view.MotionEvent;
           import android.view.View;
           import android.view.WindowInsets;
           import android.view.WindowInsetsController;
@@ -1218,6 +1255,15 @@ jobs:
           public class MainActivity extends BridgeActivity {
 
               private boolean iiRcadeDevice = false;
+
+              // First-pass external-controller state: D-pad + A only.
+              // KeyEvents and HAT-axis motion share this state so the same
+              // physical press cannot be delivered twice.
+              private boolean controllerUp = false;
+              private boolean controllerDown = false;
+              private boolean controllerLeft = false;
+              private boolean controllerRight = false;
+              private boolean controllerA = false;
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
@@ -1414,7 +1460,7 @@ jobs:
                   }
               }
 
-              private static String webKeyForAndroidKeyCode(int keyCode) {
+              private static String gameKeyForAndroidKeyCode(int keyCode) {
                   switch (keyCode) {
                       case KeyEvent.KEYCODE_DPAD_UP:    // 19
                           return "ArrowUp";
@@ -1431,66 +1477,111 @@ jobs:
                   }
               }
 
-              private static String webCodeForAndroidKeyCode(int keyCode) {
-                  switch (keyCode) {
-                      case KeyEvent.KEYCODE_DPAD_UP:
-                          return "ArrowUp";
-                      case KeyEvent.KEYCODE_DPAD_DOWN:
-                          return "ArrowDown";
-                      case KeyEvent.KEYCODE_DPAD_LEFT:
-                          return "ArrowLeft";
-                      case KeyEvent.KEYCODE_DPAD_RIGHT:
-                          return "ArrowRight";
-                      case KeyEvent.KEYCODE_BUTTON_A:
-                          return "Space";
-                      default:
-                          return "";
+              private boolean isControllerInputSource(int source) {
+                  final boolean gamepad =
+                      (source & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD;
+                  final boolean joystick =
+                      (source & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK;
+                  final boolean dpad =
+                      (source & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD;
+                  return gamepad || joystick || dpad;
+              }
+
+              private boolean currentControllerState(String key) {
+                  switch (key) {
+                      case "ArrowUp":    return controllerUp;
+                      case "ArrowDown":  return controllerDown;
+                      case "ArrowLeft":  return controllerLeft;
+                      case "ArrowRight": return controllerRight;
+                      case " ":          return controllerA;
+                      default:           return false;
                   }
+              }
+
+              private void setControllerState(String key, boolean down) {
+                  if (key == null || currentControllerState(key) == down) return;
+
+                  switch (key) {
+                      case "ArrowUp":
+                          controllerUp = down;
+                          break;
+                      case "ArrowDown":
+                          controllerDown = down;
+                          break;
+                      case "ArrowLeft":
+                          controllerLeft = down;
+                          break;
+                      case "ArrowRight":
+                          controllerRight = down;
+                          break;
+                      case " ":
+                          controllerA = down;
+                          break;
+                      default:
+                          return;
+                  }
+
+                  dispatchControllerStateToGame(key, down);
               }
 
               @Override
               public boolean dispatchKeyEvent(KeyEvent event) {
-                  final int androidKeyCode = event.getKeyCode();
-                  final String webKey = webKeyForAndroidKeyCode(androidKeyCode);
+                  final String gameKey = gameKeyForAndroidKeyCode(event.getKeyCode());
 
-                  if (webKey != null &&
-                      (event.getAction() == KeyEvent.ACTION_DOWN || event.getAction() == KeyEvent.ACTION_UP)) {
-                      final boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
-                      dispatchControllerKeyToGame(
-                          down ? "keydown" : "keyup",
-                          webKey,
-                          webCodeForAndroidKeyCode(androidKeyCode),
-                          androidKeyCode,
-                          event.getRepeatCount() > 0
-                      );
-                      return true;
+                  if (gameKey != null && isControllerInputSource(event.getSource())) {
+                      if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                          setControllerState(gameKey, true);
+                          return true;
+                      }
+                      if (event.getAction() == KeyEvent.ACTION_UP) {
+                          setControllerState(gameKey, false);
+                          return true;
+                      }
                   }
 
                   return super.dispatchKeyEvent(event);
               }
 
-              private void dispatchControllerKeyToGame(
-                  String eventType,
-                  String key,
-                  String code,
-                  int androidKeyCode,
-                  boolean repeat
-              ) {
+              @Override
+              public boolean onGenericMotionEvent(MotionEvent event) {
+                  // D-pad HAT-axis fallback. Left analog stick is intentionally
+                  // excluded from this first-pass build.
+                  if (
+                      event.getAction() == MotionEvent.ACTION_MOVE &&
+                      isControllerInputSource(event.getSource())
+                  ) {
+                      final float hatX = event.getAxisValue(MotionEvent.AXIS_HAT_X);
+                      final float hatY = event.getAxisValue(MotionEvent.AXIS_HAT_Y);
+                      final float threshold = 0.5f;
+
+                      setControllerState("ArrowLeft",  hatX < -threshold);
+                      setControllerState("ArrowRight", hatX >  threshold);
+                      setControllerState("ArrowUp",    hatY < -threshold);
+                      setControllerState("ArrowDown",  hatY >  threshold);
+
+                      if (
+                          Math.abs(hatX) > 0.01f ||
+                          Math.abs(hatY) > 0.01f ||
+                          controllerUp || controllerDown ||
+                          controllerLeft || controllerRight
+                      ) {
+                          return true;
+                      }
+                  }
+
+                  return super.onGenericMotionEvent(event);
+              }
+
+              private void dispatchControllerStateToGame(String key, boolean down) {
                   if (getBridge() == null) return;
                   final WebView webView = getBridge().getWebView();
                   if (webView == null) return;
 
-                  final String escapedKey = jsString(key);
-                  final String escapedCode = jsString(code);
                   final String js =
                       "(function(){" +
-                      "var e=new KeyboardEvent('" + eventType + "',{" +
-                      "key:" + escapedKey + "," +
-                      "code:" + escapedCode + "," +
-                      "bubbles:true,cancelable:true,repeat:" + repeat + "});" +
-                      "try{Object.defineProperty(e,'keyCode',{get:function(){return " + androidKeyCode + ";}});" +
-                      "Object.defineProperty(e,'which',{get:function(){return " + androidKeyCode + ";}});}catch(_){}" +
-                      "window.dispatchEvent(e);" +
+                      "window.dispatchEvent(new CustomEvent('cvd-native-controller-key',{" +
+                      "detail:{key:" + jsString(key) + ",down:" + down + "}" +
+                      "}));" +
                       "})();";
 
                   webView.post(() -> webView.evaluateJavascript(js, null));
@@ -1506,6 +1597,20 @@ jobs:
               }
           }
           JAVA
+
+          grep -q 'KEYCODE_DPAD_UP' "$MAIN"
+          grep -q 'KEYCODE_DPAD_DOWN' "$MAIN"
+          grep -q 'KEYCODE_DPAD_LEFT' "$MAIN"
+          grep -q 'KEYCODE_DPAD_RIGHT' "$MAIN"
+          grep -q 'KEYCODE_BUTTON_A' "$MAIN"
+          grep -q 'AXIS_HAT_X' "$MAIN"
+          grep -q 'AXIS_HAT_Y' "$MAIN"
+          grep -q 'cvd-native-controller-key' "$MAIN"
+          if grep -q 'MotionEvent.AXIS_X' "$MAIN" || grep -q 'MotionEvent.AXIS_Y' "$MAIN"; then
+            echo 'Unexpected left analog stick support'
+            exit 1
+          fi
+          echo 'Controller scope verified: D-pad U/D/L/R + A only'
 
       - name: Set app version and Android 16 target
         shell: bash
