@@ -2151,63 +2151,129 @@ jobs:
           mains = list(Path('android/app/src/main/java').rglob('MainActivity.java'))
           if len(mains) != 1:
               raise SystemExit(f'Expected one MainActivity.java, found {len(mains)}')
+
           p = mains[0]
           s = p.read_text()
 
-          bg_event_old = '"window.dispatchEvent(new Event(\'cvd-native-app-background\'));",'
-          bg_event_new = '"window.__cvdAndroidBackgrounded=true;window.dispatchEvent(new Event(\'cvd-native-app-background\'));",'
-          if bg_event_old in s:
-              s = s.replace(bg_event_old, bg_event_new, 1)
+          # ----------------------------------------------------------
+          # 1. Set persistent Android background flag as soon as the
+          #    existing native background event fires.
+          # ----------------------------------------------------------
+          bg_plain = (
+              "\"window.dispatchEvent(new Event('cvd-native-app-background'));\","
+          )
+          bg_flagged = (
+              "\"window.__cvdAndroidBackgrounded=true;"
+              "window.dispatchEvent(new Event('cvd-native-app-background'));\","
+          )
+
+          if bg_plain in s:
+              s = s.replace(bg_plain, bg_flagged, 1)
               print('OK: native background flag added')
           elif '__cvdAndroidBackgrounded=true' in s:
               print('OK: native background flag already present')
           else:
               raise SystemExit('Native background event string not found')
 
-          if 'webView.pauseTimers();' not in s:
-              marker = '                      webView.onPause();'
-              if s.count(marker) != 1:
-                  raise SystemExit(
-                      f'webView.onPause marker: expected 1 match, found {s.count(marker)}'
-                  )
-              s = s.replace(marker, marker + '\n                      webView.pauseTimers();', 1)
+          # ----------------------------------------------------------
+          # 2. Pause WebView JavaScript timers while Android is in the
+          #    background. Do NOT depend on a specific local WebView
+          #    variable or a webView.onPause() line.
+          # ----------------------------------------------------------
+          if 'pauseTimers();' not in s:
+              pause_method = s.find('public void onPause()')
+              if pause_method < 0:
+                  raise SystemExit('MainActivity onPause() method not found')
+
+              pause_super = s.find('super.onPause();', pause_method)
+              if pause_super < 0:
+                  raise SystemExit('super.onPause() not found inside onPause()')
+
+              pause_insert = (
+                  "                  if (getBridge() != null && "
+                  "getBridge().getWebView() != null) {\n"
+                  "                      getBridge().getWebView().pauseTimers();\n"
+                  "                  }\n\n"
+              )
+
+              s = s[:pause_super] + pause_insert + s[pause_super:]
               print('OK: WebView timers pause in background')
           else:
               print('OK: WebView pauseTimers already present')
 
-          resume_old = '                      getBridge().getWebView().onResume();'
-          if resume_old in s:
-              resume_new = '''                      final WebView webView = getBridge().getWebView();
-                      webView.resumeTimers();
-                      webView.onResume();
-                      webView.evaluateJavascript(
-                          "window.__cvdAndroidBackgrounded=false;window.dispatchEvent(new Event('cvd-native-app-foreground'));",
-                          null
-                      );'''
-              s = s.replace(resume_old, resume_new, 1)
+          # ----------------------------------------------------------
+          # 3. Resume timers on foreground and explicitly open the
+          #    persistent media gate. Again, use the method boundary
+          #    instead of assuming the existing WebView variable name.
+          # ----------------------------------------------------------
+          needs_resume_timers = 'resumeTimers();' not in s
+          needs_foreground_event = 'cvd-native-app-foreground' not in s
+
+          if needs_resume_timers or needs_foreground_event:
+              resume_method = s.find('public void onResume()')
+              if resume_method < 0:
+                  raise SystemExit('MainActivity onResume() method not found')
+
+              resume_super = s.find('super.onResume();', resume_method)
+              if resume_super < 0:
+                  raise SystemExit('super.onResume() not found inside onResume()')
+
+              resume_line_end = s.find('\n', resume_super)
+              if resume_line_end < 0:
+                  raise SystemExit('Could not locate end of super.onResume() line')
+              resume_line_end += 1
+
+              resume_insert = (
+                  "\n"
+                  "                  if (getBridge() != null && "
+                  "getBridge().getWebView() != null) {\n"
+                  "                      final WebView cvdResumeWebView = "
+                  "getBridge().getWebView();\n"
+                  "                      cvdResumeWebView.resumeTimers();\n"
+                  "                      cvdResumeWebView.evaluateJavascript(\n"
+                  "                          \"window.__cvdAndroidBackgrounded=false;"
+                  "window.dispatchEvent(new Event('cvd-native-app-foreground'));\",\n"
+                  "                          null\n"
+                  "                      );\n"
+                  "                  }\n"
+              )
+
+              s = s[:resume_line_end] + resume_insert + s[resume_line_end:]
               print('OK: WebView timers resume and foreground audio gate opens')
-          elif 'webView.resumeTimers();' in s and 'cvd-native-app-foreground' in s:
-              print('OK: native foreground lifecycle already hardened')
           else:
-              raise SystemExit('Native foreground WebView resume marker not found')
+              print('OK: native foreground lifecycle already hardened')
 
           p.write_text(s)
+
           check = p.read_text()
           required = {
-              'background flag': '__cvdAndroidBackgrounded=true' in check,
-              'foreground flag': '__cvdAndroidBackgrounded=false' in check,
-              'background event': 'cvd-native-app-background' in check,
-              'foreground event': 'cvd-native-app-foreground' in check,
-              'pauseTimers': 'webView.pauseTimers();' in check,
-              'resumeTimers': 'webView.resumeTimers();' in check,
-              'onPause': 'webView.onPause();' in check,
-              'onResume': 'webView.onResume();' in check,
+              'background flag':
+                  '__cvdAndroidBackgrounded=true' in check,
+              'foreground flag':
+                  '__cvdAndroidBackgrounded=false' in check,
+              'background event':
+                  'cvd-native-app-background' in check,
+              'foreground event':
+                  'cvd-native-app-foreground' in check,
+              'pauseTimers':
+                  'pauseTimers();' in check,
+              'resumeTimers':
+                  'resumeTimers();' in check,
+              'onPause method':
+                  'public void onPause()' in check,
+              'onResume method':
+                  'public void onResume()' in check,
           }
+
           failed = [name for name, ok in required.items() if not ok]
           for name, ok in required.items():
               print(('OK: ' if ok else 'FAIL: ') + name)
+
           if failed:
-              raise SystemExit('Fix 9 native verification failed: ' + ', '.join(failed))
+              raise SystemExit(
+                  'Fix 9 native verification failed: ' + ', '.join(failed)
+              )
+
           print('ALL FIX 9 NATIVE LIFECYCLE ASSERTIONS PASSED.')
           PY
 
