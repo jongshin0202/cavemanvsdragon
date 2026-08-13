@@ -52,7 +52,7 @@ jobs:
 
           const config: CapacitorConfig = {
             appId: 'com.team2go.cavemanvsdragon.mobilestart1',
-            appName: 'CVD Mobile Start Fix 4',
+            appName: 'CVD Mobile Start Fix 5',
             webDir: 'dist',
             android: {
               allowMixedContent: false,
@@ -1353,6 +1353,67 @@ jobs:
               )
           s = s.replace(old_attract, new_attract, 1)
 
+          # Post-game LOCAL/GLOBAL leaderboard is canvas-rendered and has
+          # its own PC start prompt. This is a separate path from the React
+          # title/attract screens. In the Android APK, make it controller/touch
+          # aware and guarantee that the R-key prompt cannot survive.
+          import re
+
+          leaderboard_marker = (
+              "if (gameStateRef.current === 'leaderboard' || "
+              "gameStateRef.current === 'globalLeaderboard') {"
+          )
+          lb_start = s.find(leaderboard_marker)
+          lb_end = s.find("  const simulateKey", lb_start)
+          if lb_start < 0 or lb_end < 0 or lb_end <= lb_start:
+              raise SystemExit(
+                  f'Post-game leaderboard block not found: start={lb_start}, end={lb_end}'
+              )
+
+          lb = s[lb_start:lb_end]
+          before_r = len(re.findall(r"PRESS R TO START|Press R to Start", lb))
+          if before_r == 0:
+              raise SystemExit(
+                  'Expected an R-key prompt in post-game leaderboard block, found none. '
+                  'Refusing to guess.'
+              )
+
+          dynamic_prompt = (
+              "gamepadActiveRef.current ? "
+              "'PRESS START TO START' : 'TOUCH SCREEN TO START'"
+          )
+
+          lb = re.sub(
+              r"isMobileRef\.current\s*\?\s*'[^']*'\s*:\s*'(?:PRESS R TO START|Press R to Start)'",
+              dynamic_prompt,
+              lb,
+          )
+
+          lb = re.sub(
+              r"'(?:PRESS R TO START|Press R to Start)'",
+              "(" + dynamic_prompt + ")",
+              lb,
+          )
+          lb = re.sub(
+              r'"(?:PRESS R TO START|Press R to Start)"',
+              "(" + dynamic_prompt + ")",
+              lb,
+          )
+
+          after_r = len(re.findall(r"PRESS R TO START|Press R to Start", lb))
+          if after_r != 0:
+              raise SystemExit(
+                  f'Post-game Android R-key prompt still present after patch: {after_r}'
+              )
+          if "PRESS START TO START" not in lb or "TOUCH SCREEN TO START" not in lb:
+              raise SystemExit('Post-game Android dynamic start prompt was not installed')
+
+          s = s[:lb_start] + lb + s[lb_end:]
+          print(
+              f'Post-game leaderboard Android prompt patched: '
+              f'{before_r} R-key occurrence(s) removed'
+          )
+
           p.write_text(s)
 
           check = p.read_text()
@@ -1373,6 +1434,19 @@ jobs:
               print(('OK: ' if ok else 'FAIL: ') + name)
           if failed:
               raise SystemExit('Android APK start-screen assertion failed: ' + ', '.join(failed))
+
+          final_check = p.read_text()
+          final_lb_start = final_check.find(
+              "if (gameStateRef.current === 'leaderboard' || "
+              "gameStateRef.current === 'globalLeaderboard') {"
+          )
+          final_lb_end = final_check.find("  const simulateKey", final_lb_start)
+          final_lb = final_check[final_lb_start:final_lb_end]
+          if 'PRESS R TO START' in final_lb or 'Press R to Start' in final_lb:
+              raise SystemExit('FINAL ASSERTION FAILED: Android post-game leaderboard still contains R prompt')
+          if 'PRESS START TO START' not in final_lb or 'TOUCH SCREEN TO START' not in final_lb:
+              raise SystemExit('FINAL ASSERTION FAILED: Android post-game dynamic prompt missing')
+          print('Android post-game leaderboard prompt verified: START/touch only, no R')
 
           print('Android APK start-screen final override verified')
           PY
