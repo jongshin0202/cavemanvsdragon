@@ -52,7 +52,7 @@ jobs:
 
           const config: CapacitorConfig = {
             appId: 'com.team2go.cavemanvsdragon.mobilestart1',
-            appName: 'CVD Mobile Start Fix 2',
+            appName: 'CVD Mobile Start Fix 3',
             webDir: 'dist',
             android: {
               allowMixedContent: false,
@@ -1076,8 +1076,18 @@ jobs:
                 const iiRcade = Boolean(nativeBridge.isIiRcade?.());
                 const controller = Boolean(nativeBridge.hasHardwareController?.());
                 const cutoutInset = Number(nativeBridge.getTopCutoutInsetDp?.() ?? 0);
+                const nativeControllerActive = controller || iiRcade;
                 setIsIiRcadeDevice(iiRcade);
-                setNativeHardwareController(controller || iiRcade);
+                setNativeHardwareController(nativeControllerActive);
+
+                // IMPORTANT: the title prompt reads gamepadActive, not
+                // nativeHardwareController. Keep both states synchronized so
+                // a controller attached before first input shows START immediately.
+                if (gamepadActiveRef.current !== nativeControllerActive) {
+                  gamepadActiveRef.current = nativeControllerActive;
+                  setGamepadActive(nativeControllerActive);
+                }
+
                 setNativeTopCutoutInset(
                   Number.isFinite(cutoutInset) ? Math.max(0, Math.round(cutoutInset)) : 0
                 );
@@ -1286,6 +1296,59 @@ jobs:
               raise SystemExit('Native Gamepad bypass assertion failed')
 
           print('Native controller runtime ordering and duplicate-path bypass verified')
+          PY
+
+      - name: Force Android APK start-screen mode
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('src/components/CavemanVsDragonGame.tsx')
+          s = p.read_text()
+
+          old_ui = "  const mobileStartUi = isNativeApp || isMobile;"
+          new_ui = "  const mobileStartUi = true; // Android APK build"
+          if s.count(old_ui) != 1:
+              raise SystemExit(
+                  f'Android mobileStartUi override: expected 1 match, found {s.count(old_ui)}'
+              )
+          s = s.replace(old_ui, new_ui, 1)
+
+          old_attract = (
+              "  useEffect(() => {\n"
+              "    if (isNativeApp) return;\n\n"
+              "    let nextState: GameState | null = null;"
+          )
+          new_attract = (
+              "  useEffect(() => {\n"
+              "    if (mobileStartUi) return; // Android APK: remain on title until explicit input\n\n"
+              "    let nextState: GameState | null = null;"
+          )
+          if s.count(old_attract) != 1:
+              raise SystemExit(
+                  f'Android attract guard: expected 1 match, found {s.count(old_attract)}'
+              )
+          s = s.replace(old_attract, new_attract, 1)
+
+          p.write_text(s)
+
+          check = p.read_text()
+          required = {
+              'APK mobile UI forced': 'const mobileStartUi = true; // Android APK build' in check,
+              'APK attract timer disabled':
+                  'if (mobileStartUi) return; // Android APK: remain on title until explicit input' in check,
+              'Touch prompt retained': check.count("'Touch Screen to Start'") == 2,
+              'START prompt retained': check.count("'Press START to Start'") == 2,
+              'PC prompt source retained': check.count("Press R to Start") >= 3,
+          }
+          failed = [name for name, ok in required.items() if not ok]
+          for name, ok in required.items():
+              print(('OK: ' if ok else 'FAIL: ') + name)
+          if failed:
+              raise SystemExit('Android APK start-screen assertion failed: ' + ', '.join(failed))
+
+          print('Android APK start-screen final override verified')
           PY
 
       - name: Build web game
