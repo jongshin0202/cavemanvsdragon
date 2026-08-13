@@ -52,7 +52,7 @@ jobs:
 
           const config: CapacitorConfig = {
             appId: 'com.team2go.cavemanvsdragon.mobilestart1',
-            appName: 'CVD Mobile Start Fix 5',
+            appName: 'CVD Mobile Start Fix 6',
             webDir: 'dist',
             android: {
               allowMixedContent: false,
@@ -1833,9 +1833,31 @@ jobs:
                   }
               }
 
+              private boolean isUnsupportedControllerButton(int keyCode) {
+                  switch (keyCode) {
+                      case KeyEvent.KEYCODE_BUTTON_B:
+                      case KeyEvent.KEYCODE_BUTTON_C:
+                      case KeyEvent.KEYCODE_BUTTON_X:
+                      case KeyEvent.KEYCODE_BUTTON_Y:
+                      case KeyEvent.KEYCODE_BUTTON_Z:
+                      case KeyEvent.KEYCODE_BUTTON_L1:
+                      case KeyEvent.KEYCODE_BUTTON_R1:
+                      case KeyEvent.KEYCODE_BUTTON_L2:
+                      case KeyEvent.KEYCODE_BUTTON_R2:
+                      case KeyEvent.KEYCODE_BUTTON_THUMBL:
+                      case KeyEvent.KEYCODE_BUTTON_THUMBR:
+                      case KeyEvent.KEYCODE_BUTTON_SELECT:
+                      case KeyEvent.KEYCODE_BUTTON_MODE:
+                          return true;
+                      default:
+                          return false;
+                  }
+              }
+
               @Override
               public boolean dispatchKeyEvent(KeyEvent event) {
-                  final String gameKey = gameKeyForAndroidKeyCode(event.getKeyCode());
+                  final int keyCode = event.getKeyCode();
+                  final String gameKey = gameKeyForAndroidKeyCode(keyCode);
 
                   if (gameKey != null) {
                       final boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
@@ -1852,6 +1874,23 @@ jobs:
                       } else {
                           setButtonState(gameKey, down);
                       }
+                      return true;
+                  }
+
+                  // Unsupported controller buttons must never escape to Android/
+                  // WebView default handling. Some controllers expose B as
+                  // BACK/ESCAPE rather than KEYCODE_BUTTON_B.
+                  if (isUnsupportedControllerButton(keyCode)) {
+                      return true;
+                  }
+
+                  if (
+                      hasHardwareGameController() &&
+                      (
+                          keyCode == KeyEvent.KEYCODE_BACK ||
+                          keyCode == KeyEvent.KEYCODE_ESCAPE
+                      )
+                  ) {
                       return true;
                   }
 
@@ -1945,7 +1984,12 @@ jobs:
           grep -q 'KeyCharacterMap.deviceHasKey' "$MAIN"
           grep -q 'refreshEffectiveDirections' "$MAIN"
           grep -q 'cvd-native-controller-key' "$MAIN"
-          echo 'Controller scope verified: D-pad + left stick + A + START pause'
+          grep -q 'KEYCODE_BUTTON_B' "$MAIN"
+          grep -q 'KEYCODE_BUTTON_SELECT' "$MAIN"
+          grep -q 'KEYCODE_BACK' "$MAIN"
+          grep -q 'KEYCODE_ESCAPE' "$MAIN"
+          grep -q 'isUnsupportedControllerButton' "$MAIN"
+          echo 'Controller scope verified: D-pad + left stick + A + START pause + unsupported-button exit protection'
 
       - name: Set app version and Android 16 target
         shell: bash
