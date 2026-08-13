@@ -51,8 +51,8 @@ jobs:
           import type { CapacitorConfig } from '@capacitor/cli';
 
           const config: CapacitorConfig = {
-            appId: 'com.team2go.cavemanvsdragon.mobilestart9',
-            appName: 'CVD Mobile Start Fix 9',
+            appId: 'com.team2go.cavemanvsdragon',
+            appName: 'Caveman Vs Dragon',
             webDir: 'dist',
             android: {
               allowMixedContent: false,
@@ -1579,6 +1579,94 @@ jobs:
           npx cap add android
           npx cap sync android
 
+      - name: Apply final Caveman Vs Dragon name and launcher icon
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import shutil
+
+          icon_src = Path('.github/assets/cvd-app-icon.png')
+          if not icon_src.exists():
+              raise SystemExit('Approved CvD icon source is missing')
+
+          res = Path('android/app/src/main/res')
+          drawable = res / 'drawable-nodpi'
+          drawable.mkdir(parents=True, exist_ok=True)
+          icon_dst = drawable / 'cvd_app_icon.png'
+          shutil.copyfile(icon_src, icon_dst)
+
+          manifest = Path('android/app/src/main/AndroidManifest.xml')
+          m = manifest.read_text()
+
+          m, icon_count = re.subn(
+              r'android:icon="@[^"]+"',
+              'android:icon="@drawable/cvd_app_icon"',
+              m,
+              count=1,
+          )
+          if icon_count != 1:
+              raise SystemExit(
+                  f'AndroidManifest icon attribute: expected 1 match, found {icon_count}'
+              )
+
+          if 'android:roundIcon=' in m:
+              m, round_count = re.subn(
+                  r'android:roundIcon="@[^"]+"',
+                  'android:roundIcon="@drawable/cvd_app_icon"',
+                  m,
+                  count=1,
+              )
+              if round_count != 1:
+                  raise SystemExit(
+                      f'AndroidManifest roundIcon: expected 1 match, found {round_count}'
+                  )
+
+          manifest.write_text(m)
+
+          strings = res / 'values' / 'strings.xml'
+          x = strings.read_text()
+
+          x, app_name_count = re.subn(
+              r'(<string name="app_name">).*?(</string>)',
+              r'\1Caveman Vs Dragon\2',
+              x,
+              count=1,
+          )
+          if app_name_count != 1:
+              raise SystemExit(
+                  f'app_name string: expected 1 match, found {app_name_count}'
+              )
+
+          # Capacitor also commonly creates title_activity_main.
+          x = re.sub(
+              r'(<string name="title_activity_main">).*?(</string>)',
+              r'\1Caveman Vs Dragon\2',
+              x,
+              count=1,
+          )
+
+          strings.write_text(x)
+
+          final_manifest = manifest.read_text()
+          final_strings = strings.read_text()
+
+          required = {
+              'launcher icon file': icon_dst.exists() and icon_dst.stat().st_size > 50000,
+              'manifest icon': '@drawable/cvd_app_icon' in final_manifest,
+              'app label': '>Caveman Vs Dragon<' in final_strings,
+          }
+
+          failed = [name for name, ok in required.items() if not ok]
+          for name, ok in required.items():
+              print(('OK: ' if ok else 'FAIL: ') + name)
+          if failed:
+              raise SystemExit('Final branding verification failed: ' + ', '.join(failed))
+
+          print('FINAL APP BRANDING APPLIED.')
+          PY
+
       - name: Add Android vibration permission
         shell: bash
         run: |
@@ -1603,10 +1691,10 @@ jobs:
       - name: Add native Android D-pad analog A START controller bridge
         shell: bash
         run: |
-          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/mobilestart9/MainActivity.java'
+          MAIN='android/app/src/main/java/com/team2go/cavemanvsdragon/MainActivity.java'
           mkdir -p "$(dirname "$MAIN")"
           cat > "$MAIN" <<'JAVA'
-          package com.team2go.cavemanvsdragon.mobilestart9;
+          package com.team2go.cavemanvsdragon;
 
           import android.content.Context;
           import android.graphics.Point;
@@ -2328,7 +2416,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CavemanVsDragon-Android-APK
+          name: Caveman-Vs-Dragon-APK
           path: |
             CavemanVsDragon-debug.apk
             CavemanVsDragon-debug.apk.sha256
