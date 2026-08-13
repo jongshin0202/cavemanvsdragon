@@ -937,8 +937,11 @@ const CavemanVsDragonGame = () => {
 
   // Attract-mode idle cycle on the title screen.
   //   PC:     intro → attractControls → attractLocalLeaderboard → attractGlobalLeaderboard → intro …
-  //   Mobile: intro → attractLocalLeaderboard → attractGlobalLeaderboard → intro …
+  //   Mobile browser: intro → attractLocalLeaderboard → attractGlobalLeaderboard → intro …
+  //   Native Android APK: stay on the intro/start screen until the user starts.
   useEffect(() => {
+    if (isNativeApp) return;
+
     let nextState: GameState | null = null;
     let delay = 0;
     if (gameState === 'intro') {

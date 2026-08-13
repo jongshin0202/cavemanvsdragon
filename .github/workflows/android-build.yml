@@ -52,7 +52,7 @@ jobs:
 
           const config: CapacitorConfig = {
             appId: 'com.team2go.cavemanvsdragon.mobilestart1',
-            appName: 'CVD Mobile Start Fix',
+            appName: 'CVD Mobile Start Fix 2',
             webDir: 'dist',
             android: {
               allowMixedContent: false,
@@ -1335,6 +1335,7 @@ jobs:
           import android.os.Vibrator;
           import android.os.VibratorManager;
           import android.view.InputDevice;
+          import android.view.KeyCharacterMap;
           import android.view.KeyEvent;
           import android.view.MotionEvent;
           import android.view.View;
@@ -1529,6 +1530,18 @@ jobs:
               }
 
               private boolean hasHardwareGameController() {
+                  // Some USB/Bluetooth controllers report keyboard-style source
+                  // flags even though they emit Android gamepad button keycodes.
+                  // KEYCODE_BUTTON_A / START capability is therefore authoritative
+                  // for the controller used by this game.
+                  if (
+                      KeyCharacterMap.deviceHasKey(KeyEvent.KEYCODE_BUTTON_A) ||
+                      KeyCharacterMap.deviceHasKey(KeyEvent.KEYCODE_BUTTON_START)
+                  ) {
+                      return true;
+                  }
+
+                  // Keep the standard Android source-based detection as fallback.
                   final int[] ids = InputDevice.getDeviceIds();
                   for (int id : ids) {
                       final InputDevice device = InputDevice.getDevice(id);
@@ -1766,6 +1779,7 @@ jobs:
           grep -q 'if (gameKey != null)' "$MAIN"
           grep -q 'webView.requestFocus()' "$MAIN"
           grep -q 'hasGameController' "$MAIN"
+          grep -q 'KeyCharacterMap.deviceHasKey' "$MAIN"
           grep -q 'refreshEffectiveDirections' "$MAIN"
           grep -q 'cvd-native-controller-key' "$MAIN"
           echo 'Controller scope verified: D-pad + left stick + A + START pause'
