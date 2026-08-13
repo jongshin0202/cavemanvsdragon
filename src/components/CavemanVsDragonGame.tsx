@@ -276,6 +276,11 @@ const CavemanVsDragonGame = () => {
     mql.addEventListener('change', update);
     return () => mql.removeEventListener('change', update);
   }, []);
+  // Start-screen UI must not depend on landscape width.
+  // Native Android is always mobile UI; browser behavior keeps the existing
+  // mobile breakpoint logic.
+  const mobileStartUi = isNativeApp || isMobile;
+
   // Landscape orientation — on touch devices, when held horizontally, the
   // D-pad moves to the left of the canvas and JUMP/R move to the right.
   const [isLandscape, setIsLandscape] = useState<boolean>(false);
@@ -388,6 +393,36 @@ const CavemanVsDragonGame = () => {
       gamepadActiveRef.current = true;
       setGamepadActive(true);
     }
+  }, []);
+
+  // Native Android: detect a connected controller before its first button
+  // press and keep the state current if it is plugged in or removed.
+  useEffect(() => {
+    if (!isNativeApp) return;
+
+    const syncNativeController = () => {
+      try {
+        const nativeBridge = (window as any).CvdNative;
+        if (!nativeBridge || typeof nativeBridge.hasGameController !== 'function') return;
+
+        const attached = Boolean(nativeBridge.hasGameController());
+        if (gamepadActiveRef.current !== attached) {
+          gamepadActiveRef.current = attached;
+          setGamepadActive(attached);
+        }
+      } catch {
+        // The JavaScript bridge can appear shortly after WebView startup.
+      }
+    };
+
+    syncNativeController();
+    const timer = window.setInterval(syncNativeController, 750);
+    window.addEventListener('focus', syncNativeController);
+
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', syncNativeController);
+    };
   }, []);
 
   // Hidden dedication: type "iiRcade" quickly on PC (case-insensitive,
@@ -902,12 +937,15 @@ const CavemanVsDragonGame = () => {
 
   // Attract-mode idle cycle on the title screen.
   //   PC:     intro → attractControls → attractLocalLeaderboard → attractGlobalLeaderboard → intro …
-  //   Mobile: intro → attractLocalLeaderboard → attractGlobalLeaderboard → intro …
+  //   Mobile browser: intro → attractLocalLeaderboard → attractGlobalLeaderboard → intro …
+  //   Native Android APK: stay on the intro/start screen until the user starts.
   useEffect(() => {
+    if (isNativeApp) return;
+
     let nextState: GameState | null = null;
     let delay = 0;
     if (gameState === 'intro') {
-      nextState = isMobile ? 'attractLocalLeaderboard' : 'attractControls';
+      nextState = mobileStartUi ? 'attractLocalLeaderboard' : 'attractControls';
       delay = 5000;
     } else if (gameState === 'attractControls') {
       nextState = 'attractLocalLeaderboard';
@@ -923,7 +961,7 @@ const CavemanVsDragonGame = () => {
     const target = nextState;
     const timer = window.setTimeout(() => setGameState(target), delay);
     return () => window.clearTimeout(timer);
-  }, [gameState, isMobile]);
+  }, [gameState, mobileStartUi]);
 
   // Wire up the unified "any input" handler. Re-binds whenever dependencies change.
   useEffect(() => {
@@ -4428,7 +4466,7 @@ const CavemanVsDragonGame = () => {
                   textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
                 }}
               >
-                {isMobile ? 'Tap Anywhere to Start' : 'Press R to Start'}
+                {mobileStartUi ? (gamepadActive ? 'Press START to Start' : 'Touch Screen to Start') : 'Press R to Start'}
               </div>
               <div
                 className="flex items-center justify-center gap-3 text-center font-caveman"
@@ -4802,7 +4840,7 @@ const AttractLeaderboardScreen = ({
             textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
           }}
         >
-          {isMobile ? 'Tap Anywhere to Start' : 'Press R to Start'}
+          {mobileStartUi ? (gamepadActive ? 'Press START to Start' : 'Touch Screen to Start') : 'Press R to Start'}
         </div>
         <div
           className="flex items-center justify-center gap-3 text-center font-caveman"
