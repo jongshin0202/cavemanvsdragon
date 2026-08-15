@@ -1,4 +1,4 @@
-// Global leaderboard backed by Lovable Cloud (Supabase).
+// Global leaderboard with a controlled Supabase -> Worker migration path.
 // Shared across ALL platforms (web preview, Vercel, APK, mobile, PC).
 //
 // Cost-optimization strategy ("check on demand"):
@@ -23,6 +23,7 @@
 //   most 1 full fetch.
 import { supabase } from '@/integrations/supabase/client';
 import { MAX_ENTRIES } from './leaderboard';
+import { fetchWorkerLeaderboard, getWorkerReadMode } from './workerApi';
 
 export interface GlobalEntry {
   id?: string;
@@ -148,7 +149,7 @@ async function fetchTop(limit: number = MAX_ENTRIES): Promise<GlobalEntry[] | nu
 //
 // Returns the rows that should now be displayed. On any network failure we
 // fall back to whatever we have cached so the UI still renders.
-export async function checkAndRefresh(
+async function checkSupabaseAndRefresh(
   limit: number = MAX_ENTRIES,
 ): Promise<GlobalEntry[]> {
   const cached = loadCacheFromStorage();
@@ -170,6 +171,75 @@ export async function checkAndRefresh(
   }
   saveCache(rows, sig);
   return rows;
+}
+
+async function fetchWorkerTop(limit: number): Promise<{
+  rows: GlobalEntry[];
+  signature: CachedShape['signature'];
+}> {
+  const result = await fetchWorkerLeaderboard(limit);
+  const rows = result.entries.map((entry) => ({
+    id: entry.player_id,
+    name: entry.display_name,
+    score: entry.best_score,
+    level: entry.level ?? undefined,
+    created_at: entry.achieved_at,
+  }));
+  const latest = result.entries.reduce<string | null>((current, entry) => {
+    const candidate = entry.updated_at || entry.achieved_at;
+    return !current || candidate > current ? candidate : current;
+  }, null);
+  return { rows, signature: { count: result.total, latest } };
+}
+
+function sameVisibleLeaderboard(a: GlobalEntry[], b: GlobalEntry[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((entry, index) => {
+    const other = b[index];
+    return Boolean(other)
+      && entry.name.trim().toUpperCase() === other.name.trim().toUpperCase()
+      && entry.score === other.score
+      && (entry.level ?? null) === (other.level ?? null);
+  });
+}
+
+// Controlled migration modes:
+//   supabase — current production behavior.
+//   compare  — display Supabase, read Worker in parallel, and log only counts/
+//              ordering agreement (never credentials or private metadata).
+//   worker   — display Worker, retaining the last cache if it is unavailable.
+export async function checkAndRefresh(
+  limit: number = MAX_ENTRIES,
+): Promise<GlobalEntry[]> {
+  const mode = getWorkerReadMode();
+  if (mode === 'supabase') return checkSupabaseAndRefresh(limit);
+
+  if (mode === 'compare') {
+    const [supabaseRows, workerResult] = await Promise.all([
+      checkSupabaseAndRefresh(limit),
+      fetchWorkerTop(limit).catch((error) => {
+        console.warn('[globalLeaderboard] Worker comparison read failed:', error instanceof Error ? error.message : 'unknown error');
+        return null;
+      }),
+    ]);
+    if (workerResult) {
+      console.info('[globalLeaderboard] parallel-read comparison', {
+        supabase_count: supabaseRows.length,
+        worker_count: workerResult.rows.length,
+        visible_order_matches: sameVisibleLeaderboard(supabaseRows, workerResult.rows),
+      });
+    }
+    return supabaseRows;
+  }
+
+  try {
+    const workerResult = await fetchWorkerTop(limit);
+    saveCache(workerResult.rows, workerResult.signature);
+    return workerResult.rows;
+  } catch (error) {
+    console.error('[globalLeaderboard] Worker fetch failed:', error instanceof Error ? error.message : 'unknown error');
+    return loadCacheFromStorage()?.rows ?? [];
+  }
 }
 
 // Returns true if `score` would land in the top `MAX_ENTRIES` of the given list.
