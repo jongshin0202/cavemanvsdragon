@@ -4,9 +4,14 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - AndroidAPK-MobileStartPrompt1
+      - AndroidAPK-NewServer1
     paths:
       - '.github/workflows/android-build.yml'
+      - 'src/**'
+      - 'public/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'capacitor.config.ts'
 
 permissions:
   contents: read
@@ -15,6 +20,13 @@ jobs:
   build-android:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      # Repository variables may override these production-safe defaults.
+      # Android APK builds always use the Cloudflare Worker, never Supabase.
+      VITE_CVD_API_URL: ${{ vars.CVD_API_URL || 'https://cavemanvsdragon-api.jwshin1.workers.dev' }}
+      VITE_CVD_API_READ_MODE: ${{ vars.CVD_API_READ_MODE || 'worker' }}
+      VITE_CVD_API_WRITES_ENABLED: ${{ vars.CVD_API_WRITES_ENABLED || 'true' }}
+      VITE_CVD_APP_VERSION: ${{ vars.CVD_APP_VERSION || '1.1.0' }}
 
     steps:
       - name: Checkout game source
