@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.8ca556b9b5b4491080b1d14db143f4d8',
+  appId: 'com.team2go.cavemanvsdragon',
   appName: 'cavemanvsdragon',
   webDir: 'dist',
   server: {
