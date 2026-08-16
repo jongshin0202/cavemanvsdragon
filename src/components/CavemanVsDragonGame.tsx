@@ -825,19 +825,17 @@ const CavemanVsDragonGame = () => {
           .slice(0, MAX_ENTRIES);
         return merged;
       });
-      // Mark "just submitted" so the leaderboard-view effect skips its probe
-      // for this transition — we already have the authoritative row from the
-      // insert response, and probing too early would race the server-side
-      // commit and overwrite the optimistic row with a stale empty list.
-      justSubmittedSkipProbe.current = true;
-      // AWAIT the cloud write so we never navigate before the insert lands.
-      // submitGlobalScore returns the canonical row and updates the cache.
+      // Await the Worker write before deciding whether the leaderboard-view
+      // effect may skip its reconciliation read.
       const saved = await submitGlobalScore({
         name: cleanName,
         score: pendingScore,
         level: pendingLevel,
       });
       if (saved) {
+        // The Worker returned the canonical row, so the next view does not
+        // need an immediate duplicate read.
+        justSubmittedSkipProbe.current = true;
         justSubmittedGlobalIdRef.current = saved.id ?? null;
         // Replace the optimistic placeholder with the real row (now has id).
         setGlobalScores((prev) => {
@@ -849,6 +847,10 @@ const CavemanVsDragonGame = () => {
             .slice(0, MAX_ENTRIES);
           return merged;
         });
+      } else {
+        // The optimistic row was not persisted. Allow the view effect to
+        // fetch the canonical leaderboard immediately and remove it.
+        justSubmittedSkipProbe.current = false;
       }
       setGameState('globalLeaderboard');
     } else {
