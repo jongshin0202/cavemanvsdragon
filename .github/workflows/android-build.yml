@@ -1154,9 +1154,9 @@ jobs:
           )
 
           replace_once(
-              "  const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls');",
+              "  const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !gamepadActive && gameState === 'playing';",
               """  const controllerPresent = gamepadActive || nativeHardwareController || isIiRcadeDevice;
-          const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !controllerPresent && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls');""",
+          const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !controllerPresent && gameState === 'playing';""",
               'controls visibility block'
           )
 
@@ -1376,21 +1376,14 @@ jobs:
               )
           s = s.replace(old_ui, new_ui, 1)
 
-          old_attract = (
+          attract_rotation = (
               "  useEffect(() => {\n"
-              "    if (isNativeApp) return;\n\n"
               "    let nextState: GameState | null = null;"
           )
-          new_attract = (
-              "  useEffect(() => {\n"
-              "    if (mobileStartUi) return; // Android APK: remain on title until explicit input\n\n"
-              "    let nextState: GameState | null = null;"
-          )
-          if s.count(old_attract) != 1:
+          if s.count(attract_rotation) != 1:
               raise SystemExit(
-                  f'Android attract guard: expected 1 match, found {s.count(old_attract)}'
+                  f'Android attract rotation: expected 1 match, found {s.count(attract_rotation)}'
               )
-          s = s.replace(old_attract, new_attract, 1)
 
           # Android APK must never expose the PC-only R-key instruction.
           # This runs only inside the Android Actions build, so the browser/PC
@@ -1424,8 +1417,11 @@ jobs:
               'Post-game mobile ref forced':
                   'isMobileRef.current = true' in check,
               'APK mobile UI forced': 'const mobileStartUi = true; // Android APK build' in check,
-              'APK attract timer disabled':
-                  'if (mobileStartUi) return; // Android APK: remain on title until explicit input' in check,
+              'APK attract rotation enabled':
+                  "if (gameState === 'intro')" in check
+                  and "'attractLocalLeaderboard'" in check
+                  and "'attractGlobalLeaderboard'" in check
+                  and 'remain on title until explicit input' not in check,
               'Touch prompt present': check.count("Touch Screen to Start") >= 2,
               'START prompt present': check.count("Press START to Start") >= 2,
               'PC R prompt absent from Android source':

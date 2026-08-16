@@ -943,10 +943,8 @@ const CavemanVsDragonGame = () => {
   // Attract-mode idle cycle on the title screen.
   //   PC:     intro → attractControls → attractLocalLeaderboard → attractGlobalLeaderboard → intro …
   //   Mobile browser: intro → attractLocalLeaderboard → attractGlobalLeaderboard → intro …
-  //   Native Android APK: stay on the intro/start screen until the user starts.
+  //   Native Android APK: intro → attractLocalLeaderboard → attractGlobalLeaderboard → intro …
   useEffect(() => {
-    if (isNativeApp) return;
-
     let nextState: GameState | null = null;
     let delay = 0;
     if (gameState === 'intro') {
@@ -1190,7 +1188,7 @@ const CavemanVsDragonGame = () => {
       ['I','J','K','L','M','N','O','P'],
       ['Q','R','S','T','U','V','W','X'],
       ['Y','Z','0','1','2','3','4','5'],
-      ['6','7','8','9','SPACE','DEL'],
+      ['6','7','8','9','SPACE','DEL','GO'],
     ];
 
     let row = 0;
@@ -1263,7 +1261,7 @@ const CavemanVsDragonGame = () => {
     overlay.appendChild(nameDisplay);
 
     const instructions = document.createElement('div');
-    instructions.textContent = 'D-PAD / STICK: MOVE   A: SELECT   START: SUBMIT';
+    instructions.textContent = 'D-PAD / STICK: MOVE   A: SELECT   START / GO: SUBMIT';
     Object.assign(instructions.style, {
       textAlign: 'center',
       fontSize: 'clamp(9px, 2.2vw, 14px)',
@@ -1294,6 +1292,16 @@ const CavemanVsDragonGame = () => {
 
     const activate = (token: string) => {
       const current = nameInputRef.current || '';
+      if (token === 'GO') {
+        const value = current.trim();
+        if (!value) {
+          nameDisplay.textContent = 'ENTER NAME FIRST';
+          window.setTimeout(syncNameDisplay, 800);
+          return;
+        }
+        submitHighScore();
+        return;
+      }
       if (token === 'DEL') {
         setNameValue(current.slice(0, -1));
         return;
@@ -4272,7 +4280,7 @@ const CavemanVsDragonGame = () => {
   // On the native APK, tablets play without on-screen controls. Phones keep them.
   // Hide on-screen controls whenever a hardware gamepad / bluetooth controller
   // is connected (any orientation), or on tablets in the native APK build.
-  const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls');
+  const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !gamepadActive && gameState === 'playing';
   // Landscape side-mounted controls are an APK-only layout. In the browser
   // we always render the portrait bottom bar, regardless of window aspect.
   const useLandscapeLayout = controlsVisible && isLandscape && isNativeApp;
@@ -4413,6 +4421,7 @@ const CavemanVsDragonGame = () => {
           autoFocus={gameState === 'enterName'}
           autoCapitalize="characters"
           autoCorrect="off"
+          enterKeyHint="go"
           spellCheck={false}
           maxLength={NAME_MAX_LENGTH}
           aria-label="Enter your name (up to 10 characters)"
@@ -4642,8 +4651,8 @@ const CavemanVsDragonGame = () => {
         </div>
       )}
 
-      {/* Portrait: original bottom controls bar. Controls — only on touch devices (mobile/tablet).
-          Hidden during intro/attract screens or when a hardware gamepad is detected. */}
+      {/* Portrait: original bottom controls bar. Controls appear only during gameplay
+          and remain hidden on name-entry, game-over, and leaderboard screens. */}
       {controlsVisible && !isLandscape && (
       <div className={`w-full shrink-0 overflow-hidden px-2 pt-2 touch-none ${isNativeApp ? 'pb-0 -mt-2' : 'pb-[calc(env(safe-area-inset-bottom)+0.5rem)]'}`}>
         <div className="grid h-[152px] w-full grid-cols-[minmax(0,1fr)_3rem_minmax(7.5rem,38vw)] items-stretch gap-2">
