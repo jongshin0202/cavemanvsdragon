@@ -18,6 +18,7 @@ const isLevel1Round = (round: number): boolean =>
 import { loadScores, qualifiesForTop, insertScore, clearLocalScores, formatDate, entryDisplayName, MAX_ENTRIES, type LeaderboardEntry } from './game/leaderboard';
 import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal, type GlobalEntry } from './game/globalLeaderboard';
 import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/deviceStats';
+import { getWorkerPlayerName } from './game/workerApi';
 import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
 import { LEVEL2_PARAMS, getLevel2Difficulty } from './game/level2/params';
 import { initLevel2, updateLevel2, renderLevel2, spawnLevel2Robots, fireballHitsPlayer, tryPickupCan, tryPickupRock, trySealVolcano, maybeSpawnVolcanoRock, onMonkeyKilled, removeMonkeyWithoutKill, newSpawnJacket, pushJacket, isHoleAtPlatform, tickApples, appleHitsPlayer, notifyVolcanoSealedL3, type L2Sprites } from './game/level2/level2';
@@ -782,7 +783,9 @@ const CavemanVsDragonGame = () => {
     // insert is still pending. Without this, each Enter added another row
     // to the global leaderboard (and could dupe the local row too).
     if (submittingScoreRef.current) return;
-    const raw = nameInputRef.current;
+    // After the first Worker registration, the original public name remains
+    // persistent for this installation and later scores require no re-entry.
+    const raw = getWorkerPlayerName() || nameInputRef.current;
     const v = validateName(raw);
     if (!v.ok) {
       setNameError(v.error || 'INVALID NAME');
@@ -1091,10 +1094,19 @@ const CavemanVsDragonGame = () => {
 
       if (gs === 'highscorePrompt') {
         if (now < continueArmedAtRef.current) return true;
-        setNameInput('');
-        nameInputRef.current = '';
+        const savedWorkerName = getWorkerPlayerName();
+        setNameInput(savedWorkerName || '');
+        nameInputRef.current = savedWorkerName || '';
         setNameError('');
         setGameState('enterName');
+
+        // A returning player keeps the first public name automatically. The
+        // hidden device credential restores authentication without showing
+        // the name keyboard, password, registration, or login UI.
+        if (savedWorkerName) {
+          void submitHighScore();
+          return true;
+        }
 
         // Controller/touch entry uses the in-game keyboard below. Do not
         // force Android IME focus from a controller A press: some controller
