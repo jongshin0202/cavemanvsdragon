@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { getOrCreateDeviceId } from './deviceStats';
+import { getGameplayControlType } from './controlType';
 
 export interface WorkerLeaderboardEntry {
   rank: number;
@@ -97,7 +98,7 @@ function platformMetadata(): Record<string, unknown> {
       : undefined,
     device_type: type,
     app_version: import.meta.env.VITE_CVD_APP_VERSION || 'unknown',
-    control_type: 'unknown',
+    control_type: getGameplayControlType(),
   };
 }
 
