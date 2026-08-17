@@ -331,7 +331,7 @@ const CavemanVsDragonGame = () => {
   const submittingScoreRef = useRef<boolean>(false);
   const [nameInput, setNameInput] = useState<string>('');
   const [nameError, setNameError] = useState<string>('');
-  const [nameAvailabilityChecking, setNameAvailabilityChecking] = useState(false);
+  const nameAvailabilityCheckingRef = useRef(false);
   const [confirmNameChoice, setConfirmNameChoice] = useState<'yes' | 'change'>('yes');
   const [pendingScore, setPendingScore] = useState(0);
   const [pendingLevel, setPendingLevel] = useState(1);
@@ -862,7 +862,7 @@ const CavemanVsDragonGame = () => {
   }, [pendingScore, pendingLevel]);
 
   const requestNameConfirmation = useCallback(async () => {
-    if (submittingScoreRef.current || nameAvailabilityChecking) return;
+    if (submittingScoreRef.current || nameAvailabilityCheckingRef.current) return;
     const savedWorkerName = getWorkerPlayerName();
     const raw = savedWorkerName || nameInputRef.current;
     const validation = validateName(raw);
@@ -879,7 +879,7 @@ const CavemanVsDragonGame = () => {
     }
 
     const cleanName = raw.trim().slice(0, NAME_MAX_LENGTH);
-    setNameAvailabilityChecking(true);
+    nameAvailabilityCheckingRef.current = true;
     setNameError('');
     try {
       const available = await checkWorkerPlayerNameAvailability(cleanName);
@@ -896,9 +896,9 @@ const CavemanVsDragonGame = () => {
           : 'COULD NOT CHECK NAME. PLEASE TRY AGAIN.',
       );
     } finally {
-      setNameAvailabilityChecking(false);
+      nameAvailabilityCheckingRef.current = false;
     }
-  }, [nameAvailabilityChecking, submitHighScore]);
+  }, [submitHighScore]);
 
   // Keep refs in sync with state for the canvas render loop
   useEffect(() => { scoresRef.current = scores; }, [scores]);
@@ -4350,7 +4350,7 @@ const CavemanVsDragonGame = () => {
   // On the native APK, tablets play without on-screen controls. Phones keep them.
   // Hide on-screen controls whenever a hardware gamepad / bluetooth controller
   // is connected (any orientation), or on tablets in the native APK build.
-  const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls' || gameState === 'enterName' || gameState === 'confirmName');
+  const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls' || gameState === 'enterName' || gameState === 'confirmName' || gameState === 'globalLeaderboard');
   // Landscape side-mounted controls are an APK-only layout. In the browser
   // we always render the portrait bottom bar, regardless of window aspect.
   const useLandscapeLayout = controlsVisible && isLandscape && isNativeApp;
