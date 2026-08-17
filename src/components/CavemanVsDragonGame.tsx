@@ -4623,7 +4623,6 @@ const CavemanVsDragonGame = () => {
           <AttractLeaderboardScreen
             kind="local"
             isMobile={mobileStartUi}
-            isLandscape={isLandscape}
             gamepadActive={gamepadActive}
             scores={scores}
             globalScores={globalScores}
@@ -4642,7 +4641,6 @@ const CavemanVsDragonGame = () => {
           <AttractLeaderboardScreen
             kind="global"
             isMobile={mobileStartUi}
-            isLandscape={isLandscape}
             gamepadActive={gamepadActive}
             scores={scores}
             globalScores={globalScores}
@@ -4811,7 +4809,6 @@ const CavemanVsDragonGame = () => {
 interface AttractLeaderboardScreenProps {
   kind: 'local' | 'global';
   isMobile: boolean;
-  isLandscape: boolean;
   gamepadActive: boolean;
   scores: LeaderboardEntry[];
   globalScores: GlobalEntry[];
@@ -4829,7 +4826,6 @@ const LONG_PRESS_MS = 10_000;
 const AttractLeaderboardScreen = ({
   kind,
   isMobile,
-  isLandscape,
   gamepadActive,
   scores,
   globalScores,
@@ -4844,6 +4840,34 @@ const AttractLeaderboardScreen = ({
   const longPressTimer = useRef<number | null>(null);
   const longPressFiredRef = useRef<boolean>(false);
   const pointerStartRef = useRef<{ id: number; x: number; y: number } | null>(null);
+  const screenRef = useRef<HTMLButtonElement | null>(null);
+  const [leaderboardLandscape, setLeaderboardLandscape] = useState(false);
+
+  // Android can briefly retain stale window dimensions after rotation. Measure
+  // this screen itself so portrait never receives the compact landscape layout.
+  useEffect(() => {
+    const screen = screenRef.current;
+    if (!screen) return;
+
+    const updateLayout = () => {
+      const bounds = screen.getBoundingClientRect();
+      setLeaderboardLandscape(bounds.width > bounds.height);
+    };
+    const scheduleUpdate = () => window.requestAnimationFrame(updateLayout);
+    const observer = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(updateLayout);
+
+    updateLayout();
+    observer?.observe(screen);
+    window.addEventListener('resize', scheduleUpdate);
+    window.addEventListener('orientationchange', scheduleUpdate);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', scheduleUpdate);
+      window.removeEventListener('orientationchange', scheduleUpdate);
+    };
+  }, []);
 
   const clearLongPress = () => {
     if (longPressTimer.current !== null) {
@@ -4903,6 +4927,7 @@ const AttractLeaderboardScreen = ({
 
   return (
     <button
+      ref={screenRef}
       type="button"
       aria-label="Start game"
       onPointerDown={handlePointerDown}
@@ -4920,11 +4945,11 @@ const AttractLeaderboardScreen = ({
       }}
     >
       <div className="pointer-events-none absolute inset-0 bg-black/70" />
-      <div className={`relative z-10 flex h-full min-h-0 w-full flex-col items-center ${isLandscape ? 'justify-start gap-0 px-3 pb-12 pt-2' : 'justify-start gap-[clamp(0.25rem,1.2vmin,0.75rem)] px-[clamp(0.5rem,2vmin,1.5rem)] pt-[clamp(0.5rem,2vmin,1.5rem)] pb-[clamp(5.5rem,18vmin,8rem)]'}`}>
+      <div className={`relative z-10 flex h-full min-h-0 w-full flex-col items-center ${leaderboardLandscape ? 'justify-start gap-0 px-3 pb-12 pt-2' : 'justify-start gap-[clamp(0.25rem,1.2vmin,0.75rem)] px-[clamp(0.5rem,2vmin,1.5rem)] pt-[clamp(0.5rem,2vmin,1.5rem)] pb-[clamp(5.5rem,18vmin,8rem)]'}`}>
         <h2
           className="font-caveman text-center"
           style={{
-            fontSize: isLandscape ? 'clamp(0.75rem, 3.8vh, 1.25rem)' : 'clamp(1rem, 5vmin, 2.2rem)',
+            fontSize: leaderboardLandscape ? 'clamp(0.75rem, 3.8vh, 1.25rem)' : 'clamp(1rem, 5vmin, 2.2rem)',
             color: 'hsl(var(--accent))',
             textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
           }}
@@ -4933,16 +4958,16 @@ const AttractLeaderboardScreen = ({
         </h2>
 
         <ol
-          className={`flex w-full max-w-md min-h-0 flex-col font-caveman ${isLandscape ? 'flex-1' : ''}`}
+          className={`flex w-full max-w-md min-h-0 flex-col font-caveman ${leaderboardLandscape ? 'flex-1' : ''}`}
           style={{
-            fontSize: isLandscape ? 'clamp(0.4rem, 2.2vh, 0.65rem)' : 'clamp(0.48rem, 1.7vmin, 0.8rem)',
+            fontSize: leaderboardLandscape ? 'clamp(0.4rem, 2.2vh, 0.65rem)' : 'clamp(0.48rem, 1.7vmin, 0.8rem)',
             color: 'hsl(var(--foreground))',
             textShadow: '2px 2px 0 #000',
-            lineHeight: isLandscape ? 1 : 1.15,
+            lineHeight: leaderboardLandscape ? 1 : 1.15,
           }}
         >
           <li
-            className={`flex min-h-0 items-center justify-between gap-2 border-b-2 border-accent px-2 text-accent ${isLandscape ? 'flex-1 py-0' : 'py-1'}`}
+            className={`flex min-h-0 items-center justify-between gap-2 border-b-2 border-accent px-2 text-accent ${leaderboardLandscape ? 'flex-1 py-0' : 'py-1'}`}
             aria-hidden="true"
           >
             <span className="w-6">#</span>
@@ -4955,7 +4980,7 @@ const AttractLeaderboardScreen = ({
               const e = globalScores[i];
               const display = e ? (e.name || '---') : '---';
               return (
-                <li key={i} className={`flex min-h-0 items-center justify-between gap-2 border-b border-accent/20 px-2 ${isLandscape ? 'flex-1 py-0' : 'py-[2px]'}`}>
+                <li key={i} className={`flex min-h-0 items-center justify-between gap-2 border-b border-accent/20 px-2 ${leaderboardLandscape ? 'flex-1 py-0' : 'py-[2px]'}`}>
                   <span className="w-6 text-accent">{(i + 1).toString().padStart(2, '0')}</span>
                   <span className="flex-1 truncate tracking-wider">{display}</span>
                   <span className="w-16 text-right">{e ? e.score.toString().padStart(6, '0') : '------'}</span>
@@ -4966,7 +4991,7 @@ const AttractLeaderboardScreen = ({
             const e = scores[i];
             const display = e ? entryDisplayName(e) : '---';
             return (
-              <li key={i} className={`flex min-h-0 items-center justify-between gap-2 border-b border-accent/20 px-2 ${isLandscape ? 'flex-1 py-0' : 'py-[2px]'}`}>
+              <li key={i} className={`flex min-h-0 items-center justify-between gap-2 border-b border-accent/20 px-2 ${leaderboardLandscape ? 'flex-1 py-0' : 'py-[2px]'}`}>
                 <span className="w-6 text-accent">{(i + 1).toString().padStart(2, '0')}</span>
                 <span className="flex-1 truncate tracking-wider">{display}</span>
                 <span className="w-16 text-right">{e ? e.score.toString().padStart(6, '0') : '------'}</span>
@@ -4993,11 +5018,11 @@ const AttractLeaderboardScreen = ({
             (long-press on mobile, hold C on PC), but is intentionally not shown. */}
       </div>
       {/* Footer prompt — same position as intro screen */}
-      <div className={`pointer-events-none absolute inset-x-0 z-10 flex w-full flex-col items-center ${isLandscape ? 'bottom-1 gap-0 px-2' : 'bottom-[clamp(0.35rem,2vmin,1rem)] gap-[clamp(0.25rem,1vmin,0.75rem)] px-4'}`}>
+      <div className={`pointer-events-none absolute inset-x-0 z-10 flex w-full flex-col items-center ${leaderboardLandscape ? 'bottom-1 gap-0 px-2' : 'bottom-[clamp(0.35rem,2vmin,1rem)] gap-[clamp(0.25rem,1vmin,0.75rem)] px-4'}`}>
         <div
           className="intro-blink text-center font-caveman"
           style={{
-            fontSize: isLandscape ? 'clamp(0.55rem, 2.8vh, 0.9rem)' : 'clamp(0.9rem, 4.2vmin, 2rem)',
+            fontSize: leaderboardLandscape ? 'clamp(0.55rem, 2.8vh, 0.9rem)' : 'clamp(0.9rem, 4.2vmin, 2rem)',
             color: 'hsl(var(--accent))',
             textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
           }}
@@ -5007,7 +5032,7 @@ const AttractLeaderboardScreen = ({
         <div
           className="flex items-center justify-center gap-3 text-center font-caveman"
           style={{
-            fontSize: isLandscape ? 'clamp(0.45rem, 2vh, 0.7rem)' : 'clamp(0.65rem, 2.4vmin, 1.1rem)',
+            fontSize: leaderboardLandscape ? 'clamp(0.45rem, 2vh, 0.7rem)' : 'clamp(0.65rem, 2.4vmin, 1.1rem)',
             color: 'hsl(var(--foreground))',
             textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
             letterSpacing: '0.08em',
@@ -5020,8 +5045,8 @@ const AttractLeaderboardScreen = ({
             onPointerDown={onLogoTap}
             className="object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] cursor-pointer"
             style={{
-              width: isLandscape ? 'clamp(20px, 7vh, 32px)' : 'clamp(32px, 7vmin, 56px)',
-              height: isLandscape ? 'clamp(20px, 7vh, 32px)' : 'clamp(32px, 7vmin, 56px)',
+              width: leaderboardLandscape ? 'clamp(20px, 7vh, 32px)' : 'clamp(32px, 7vmin, 56px)',
+              height: leaderboardLandscape ? 'clamp(20px, 7vh, 32px)' : 'clamp(32px, 7vmin, 56px)',
             }}
           />
         </div>
