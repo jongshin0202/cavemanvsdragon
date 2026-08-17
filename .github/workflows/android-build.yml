@@ -850,6 +850,9 @@ jobs:
               const nextPaused = !pausedRef.current;
               pausedRef.current = nextPaused;
               setIsPaused(nextPaused);
+              if (isNativeApp && typeof window !== 'undefined') {
+                (window as any).__cvdAndroidGamePaused = nextPaused;
+              }
 
               if (nextPaused) {
                 void pauseAllMusicForGamePause();
@@ -966,6 +969,9 @@ jobs:
               if (gameState === 'playing' || !pausedRef.current) return;
               pausedRef.current = false;
               setIsPaused(false);
+              if (isNativeApp && typeof window !== 'undefined') {
+                (window as any).__cvdAndroidGamePaused = false;
+              }
               void resumeAllMusicFromGamePause();
               void resumeAllSfxFromGamePause();
             }, [gameState]);
@@ -1450,16 +1456,17 @@ jobs:
           p = Path('src/components/CavemanVsDragonGame.tsx')
           s = p.read_text()
 
-          # The actual post-game string is PRESS R TO RESTART.
+          # Replace any remaining legacy post-game PRESS R prompt.
+          # GAME OVER now uses any-button restart, leaving one leaderboard prompt.
           restart_pattern = re.compile(r"(['\"])PRESS R TO RESTART\1")
           replacement = (
               "(gamepadActiveRef.current ? "
               "'PRESS START TO START' : 'TOUCH SCREEN TO START')"
           )
           s, restart_count = restart_pattern.subn(replacement, s)
-          if restart_count < 2:
+          if restart_count < 1:
               raise SystemExit(
-                  f'Expected at least 2 PRESS R TO RESTART strings, found {restart_count}'
+                  f'Expected at least 1 PRESS R TO RESTART string, found {restart_count}'
               )
           print(f'OK: replaced {restart_count} PRESS R TO RESTART prompt(s)')
 
@@ -1525,11 +1532,15 @@ jobs:
               cvdWindow.__cvdAndroidAudioGateInstalled = true;
               cvdWindow.__cvdAndroidBackgrounded =
                 document.visibilityState === 'hidden';
+              if (typeof cvdWindow.__cvdAndroidGamePaused !== 'boolean') {
+                cvdWindow.__cvdAndroidGamePaused = false;
+              }
 
               const originalMediaPlay = HTMLMediaElement.prototype.play;
               HTMLMediaElement.prototype.play = function(): Promise<void> {
                 if (
                   cvdWindow.__cvdAndroidBackgrounded ||
+                  cvdWindow.__cvdAndroidGamePaused ||
                   document.visibilityState === 'hidden'
                 ) {
                   return Promise.resolve();
@@ -1569,6 +1580,7 @@ jobs:
               'persistent media gate':
                   '__cvdAndroidAudioGateInstalled' in check
                   and '__cvdAndroidBackgrounded' in check
+                  and '__cvdAndroidGamePaused' in check
                   and 'HTMLMediaElement.prototype.play' in check,
               'background event': 'cvd-native-app-background' in check,
               'foreground event': 'cvd-native-app-foreground' in check,
@@ -2264,6 +2276,8 @@ jobs:
           )
           bg_flagged = (
               "\"window.__cvdAndroidBackgrounded=true;"
+              "document.querySelectorAll('audio,video').forEach(function(m){"
+              "try{m.pause();}catch(e){}});"
               "window.dispatchEvent(new Event('cvd-native-app-background'));\","
           )
 
@@ -2353,6 +2367,8 @@ jobs:
                   '__cvdAndroidBackgrounded=false' in check,
               'background event':
                   'cvd-native-app-background' in check,
+              'background media pause':
+                  "querySelectorAll('audio,video')" in check,
               'foreground event':
                   'cvd-native-app-foreground' in check,
               'pauseTimers':
