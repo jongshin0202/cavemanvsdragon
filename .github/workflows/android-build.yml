@@ -850,6 +850,9 @@ jobs:
               const nextPaused = !pausedRef.current;
               pausedRef.current = nextPaused;
               setIsPaused(nextPaused);
+              if (isNativeApp && typeof window !== 'undefined') {
+                (window as any).__cvdAndroidGamePaused = nextPaused;
+              }
 
               if (nextPaused) {
                 void pauseAllMusicForGamePause();
@@ -881,6 +884,15 @@ jobs:
                     gs === 'attractControls'
                   ) {
                     // START is equivalent to a normal immediate start action.
+                    anyInputHandlerRef.current?.('Enter', 'keyboard');
+                    return;
+                  }
+
+                  if (
+                    gs === 'confirmName' ||
+                    gs === 'gameover' ||
+                    gs === 'highscorePrompt'
+                  ) {
                     anyInputHandlerRef.current?.('Enter', 'keyboard');
                     return;
                   }
@@ -961,6 +973,9 @@ jobs:
               if (gameState === 'playing' || !pausedRef.current) return;
               pausedRef.current = false;
               setIsPaused(false);
+              if (isNativeApp && typeof window !== 'undefined') {
+                (window as any).__cvdAndroidGamePaused = false;
+              }
               void resumeAllMusicFromGamePause();
               void resumeAllSfxFromGamePause();
             }, [gameState]);
@@ -996,6 +1011,13 @@ jobs:
                       height={CANVAS_H}
                       onPointerDown={(e) => {
                         if (gameStateRef.current !== 'playing' || levelIntroRef.current) return;
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const canvasY = ((e.clientY - rect.top) / rect.height) * CANVAS_H;
+                        const bottomPlatformY = Math.max(...PLATFORMS.map((platform) => platform.y));
+                        // The black band below the bottommost platform is not
+                        // part of the pause target. This keeps a finger just
+                        // above the on-screen UP control from pausing gameplay.
+                        if (canvasY > bottomPlatformY) return;
                         e.preventDefault();
                         e.stopPropagation();
                         toggleGamePause();
@@ -1045,8 +1067,11 @@ jobs:
               'SFX suspend': 'await audioCtx.suspend()' in sf,
               'SFX resume': 'await audioCtx.resume()' in sf,
               'Pause state': 'const [isPaused, setIsPaused] = useState(false);' in gm,
+              'Persistent paused media gate': '__cvdAndroidGamePaused' in gm,
               'Simulation freeze': 'if (pausedRef.current)' in gm,
               'Canvas toggle': 'toggleGamePause();' in gm,
+              'Pause excludes below-platform black band':
+                  'if (canvasY > bottomPlatformY) return;' in gm,
               'White round II icon': 'rounded-full bg-white' in gm and gm.count('rounded-sm bg-black') >= 2,
               'Android background pause listener':
                   "cvd-native-app-background" in gm and "visibilitychange" in gm,
@@ -1142,9 +1167,9 @@ jobs:
           )
 
           replace_once(
-              "  const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls');",
+              "  const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls' || gameState === 'enterName' || gameState === 'confirmName' || gameState === 'globalLeaderboard');",
               """  const controllerPresent = gamepadActive || nativeHardwareController || isIiRcadeDevice;
-          const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !controllerPresent && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls');""",
+          const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !controllerPresent && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls' || gameState === 'enterName' || gameState === 'confirmName' || gameState === 'globalLeaderboard');""",
               'controls visibility block'
           )
 
@@ -1364,21 +1389,19 @@ jobs:
               )
           s = s.replace(old_ui, new_ui, 1)
 
-          old_attract = (
-              "  useEffect(() => {\n"
-              "    if (isNativeApp) return;\n\n"
-              "    let nextState: GameState | null = null;"
-          )
-          new_attract = (
-              "  useEffect(() => {\n"
-              "    if (mobileStartUi) return; // Android APK: remain on title until explicit input\n\n"
-              "    let nextState: GameState | null = null;"
-          )
-          if s.count(old_attract) != 1:
+          # Preserve the shared attract timer in Android. It now uses the
+          # same mobile sequence as touch/controller navigation:
+          # title -> local -> global -> title.
+          attract_markers = [
+              "const moveAttractScreen = useCallback",
+              "window.setTimeout(() => moveAttractScreen(1), 5000)",
+              "adjacentAttractScreen(current, mobileStartUi, direction)",
+          ]
+          missing_attract = [marker for marker in attract_markers if marker not in s]
+          if missing_attract:
               raise SystemExit(
-                  f'Android attract guard: expected 1 match, found {s.count(old_attract)}'
+                  'Android attract navigation markers missing: ' + ', '.join(missing_attract)
               )
-          s = s.replace(old_attract, new_attract, 1)
 
           # Android APK must never expose the PC-only R-key instruction.
           # This runs only inside the Android Actions build, so the browser/PC
@@ -1412,8 +1435,8 @@ jobs:
               'Post-game mobile ref forced':
                   'isMobileRef.current = true' in check,
               'APK mobile UI forced': 'const mobileStartUi = true; // Android APK build' in check,
-              'APK attract timer disabled':
-                  'if (mobileStartUi) return; // Android APK: remain on title until explicit input' in check,
+              'APK attract timer enabled':
+                  'window.setTimeout(() => moveAttractScreen(1), 5000)' in check,
               'Touch prompt present': check.count("Touch Screen to Start") >= 2,
               'START prompt present': check.count("Press START to Start") >= 2,
               'PC R prompt absent from Android source':
@@ -1425,7 +1448,7 @@ jobs:
           if failed:
               raise SystemExit('Android APK start-screen assertion failed: ' + ', '.join(failed))
 
-          print('Android APK start-screen final override verified')
+          print('Android APK start-screen navigation verified')
           PY
 
       - name: Fix Android leaderboard restart and background audio gate
@@ -1438,16 +1461,17 @@ jobs:
           p = Path('src/components/CavemanVsDragonGame.tsx')
           s = p.read_text()
 
-          # The actual post-game string is PRESS R TO RESTART.
+          # Replace any remaining legacy post-game PRESS R prompt.
+          # GAME OVER now uses any-button restart, leaving one leaderboard prompt.
           restart_pattern = re.compile(r"(['\"])PRESS R TO RESTART\1")
           replacement = (
               "(gamepadActiveRef.current ? "
               "'PRESS START TO START' : 'TOUCH SCREEN TO START')"
           )
           s, restart_count = restart_pattern.subn(replacement, s)
-          if restart_count < 2:
+          if restart_count < 1:
               raise SystemExit(
-                  f'Expected at least 2 PRESS R TO RESTART strings, found {restart_count}'
+                  f'Expected at least 1 PRESS R TO RESTART string, found {restart_count}'
               )
           print(f'OK: replaced {restart_count} PRESS R TO RESTART prompt(s)')
 
@@ -1513,11 +1537,15 @@ jobs:
               cvdWindow.__cvdAndroidAudioGateInstalled = true;
               cvdWindow.__cvdAndroidBackgrounded =
                 document.visibilityState === 'hidden';
+              if (typeof cvdWindow.__cvdAndroidGamePaused !== 'boolean') {
+                cvdWindow.__cvdAndroidGamePaused = false;
+              }
 
               const originalMediaPlay = HTMLMediaElement.prototype.play;
               HTMLMediaElement.prototype.play = function(): Promise<void> {
                 if (
                   cvdWindow.__cvdAndroidBackgrounded ||
+                  cvdWindow.__cvdAndroidGamePaused ||
                   document.visibilityState === 'hidden'
                 ) {
                   return Promise.resolve();
@@ -1554,9 +1582,13 @@ jobs:
                   "=== 'leaderboard'" in check
                   and "=== 'globalLeaderboard'" in check
                   and 'resetGame();' in check,
+              'native START game-over behavior':
+                  "gs === 'gameover'" in check
+                  and "gs === 'highscorePrompt'" in check,
               'persistent media gate':
                   '__cvdAndroidAudioGateInstalled' in check
                   and '__cvdAndroidBackgrounded' in check
+                  and '__cvdAndroidGamePaused' in check
                   and 'HTMLMediaElement.prototype.play' in check,
               'background event': 'cvd-native-app-background' in check,
               'foreground event': 'cvd-native-app-foreground' in check,
@@ -2252,6 +2284,8 @@ jobs:
           )
           bg_flagged = (
               "\"window.__cvdAndroidBackgrounded=true;"
+              "document.querySelectorAll('audio,video').forEach(function(m){"
+              "try{m.pause();}catch(e){}});"
               "window.dispatchEvent(new Event('cvd-native-app-background'));\","
           )
 
@@ -2341,6 +2375,8 @@ jobs:
                   '__cvdAndroidBackgrounded=false' in check,
               'background event':
                   'cvd-native-app-background' in check,
+              'background media pause':
+                  "querySelectorAll('audio,video')" in check,
               'foreground event':
                   'cvd-native-app-foreground' in check,
               'pauseTimers':
