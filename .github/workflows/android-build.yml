@@ -1364,21 +1364,19 @@ jobs:
               )
           s = s.replace(old_ui, new_ui, 1)
 
-          old_attract = (
-              "  useEffect(() => {\n"
-              "    if (isNativeApp) return;\n\n"
-              "    let nextState: GameState | null = null;"
-          )
-          new_attract = (
-              "  useEffect(() => {\n"
-              "    if (mobileStartUi) return; // Android APK: remain on title until explicit input\n\n"
-              "    let nextState: GameState | null = null;"
-          )
-          if s.count(old_attract) != 1:
+          # Preserve the shared attract timer in Android. It now uses the
+          # same mobile sequence as touch/controller navigation:
+          # title -> local -> global -> title.
+          attract_markers = [
+              "const moveAttractScreen = useCallback",
+              "window.setTimeout(() => moveAttractScreen(1), 5000)",
+              "adjacentAttractScreen(current, mobileStartUi, direction)",
+          ]
+          missing_attract = [marker for marker in attract_markers if marker not in s]
+          if missing_attract:
               raise SystemExit(
-                  f'Android attract guard: expected 1 match, found {s.count(old_attract)}'
+                  'Android attract navigation markers missing: ' + ', '.join(missing_attract)
               )
-          s = s.replace(old_attract, new_attract, 1)
 
           # Android APK must never expose the PC-only R-key instruction.
           # This runs only inside the Android Actions build, so the browser/PC
@@ -1412,8 +1410,8 @@ jobs:
               'Post-game mobile ref forced':
                   'isMobileRef.current = true' in check,
               'APK mobile UI forced': 'const mobileStartUi = true; // Android APK build' in check,
-              'APK attract timer disabled':
-                  'if (mobileStartUi) return; // Android APK: remain on title until explicit input' in check,
+              'APK attract timer enabled':
+                  'window.setTimeout(() => moveAttractScreen(1), 5000)' in check,
               'Touch prompt present': check.count("Touch Screen to Start") >= 2,
               'START prompt present': check.count("Press START to Start") >= 2,
               'PC R prompt absent from Android source':
@@ -1425,7 +1423,7 @@ jobs:
           if failed:
               raise SystemExit('Android APK start-screen assertion failed: ' + ', '.join(failed))
 
-          print('Android APK start-screen final override verified')
+          print('Android APK start-screen navigation verified')
           PY
 
       - name: Fix Android leaderboard restart and background audio gate
