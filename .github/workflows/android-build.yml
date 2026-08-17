@@ -1156,9 +1156,9 @@ jobs:
           )
 
           replace_once(
-              "  const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls');",
+              "  const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls' || gameState === 'enterName' || gameState === 'confirmName' || gameState === 'globalLeaderboard');",
               """  const controllerPresent = gamepadActive || nativeHardwareController || isIiRcadeDevice;
-          const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !controllerPresent && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls');""",
+          const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !controllerPresent && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls' || gameState === 'enterName' || gameState === 'confirmName' || gameState === 'globalLeaderboard');""",
               'controls visibility block'
           )
 
