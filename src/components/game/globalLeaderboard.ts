@@ -5,7 +5,7 @@
 // Scores use an invisible per-installation identity; players never see an
 // account, password, email, or login prompt.
 import { MAX_ENTRIES } from './leaderboard';
-import { fetchWorkerLeaderboard, submitWorkerScore, type WorkerLeaderboardEntry } from './workerApi';
+import { fetchWorkerLeaderboard, isWorkerNameUnavailableError, submitWorkerScore, type WorkerLeaderboardEntry } from './workerApi';
 
 export interface GlobalEntry {
   id?: string;
@@ -126,6 +126,7 @@ export async function submitGlobalScore(entry: {
     });
     return row;
   } catch (error) {
+    if (isWorkerNameUnavailableError(error)) throw error;
     console.error(
       '[globalLeaderboard] Worker submission failed:',
       error instanceof Error ? error.message : 'unknown error',
