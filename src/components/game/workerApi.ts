@@ -52,7 +52,7 @@ interface DeviceSessionResult {
 const DEVICE_IDENTITY_KEY = 'cavemanVsDragon.workerDeviceIdentity.v1';
 const apiUrl = (import.meta.env.VITE_CVD_API_URL || '').trim().replace(/\/$/, '');
 
-class WorkerApiError extends Error {
+export class WorkerApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
@@ -166,6 +166,19 @@ export async function fetchWorkerLeaderboard(limit: number): Promise<{
 }> {
   const safeLimit = Math.min(100, Math.max(1, Math.floor(limit)));
   return workerRequest(`/v1/leaderboard?limit=${safeLimit}&offset=0`);
+}
+
+export async function checkWorkerPlayerNameAvailability(name: string): Promise<boolean> {
+  if (!workerApiConfigured()) throw new Error('VITE_CVD_API_URL is not configured');
+  const query = new URLSearchParams({ name });
+  const result = await workerRequest<{ available: boolean; display_name: string }>(
+    `/v1/device-players/name-availability?${query.toString()}`,
+  );
+  return result.available;
+}
+
+export function isWorkerNameUnavailableError(error: unknown): boolean {
+  return error instanceof WorkerApiError && error.code === 'name_unavailable';
 }
 
 async function registerDeviceAndSubmit(entry: {
