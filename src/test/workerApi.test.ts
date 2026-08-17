@@ -54,6 +54,26 @@ describe('invisible Worker device identity', () => {
     expect((fetchMock.mock.calls[0]?.[1] as RequestInit)?.method).toBeUndefined();
   });
 
+  it('identifies a missing availability route for safe registration fallback', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({
+      ok: false,
+      error: { code: 'not_found', message: 'Route not found.' },
+    }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' },
+    })));
+
+    const api = await loadApi();
+
+    try {
+      await api.checkWorkerPlayerNameAvailability('JONG');
+      throw new Error('Expected the availability request to fail');
+    } catch (error) {
+      expect(api.isWorkerNameAvailabilityEndpointMissing(error)).toBe(true);
+      expect(api.isWorkerNameUnavailableError(error)).toBe(false);
+    }
+  });
+
   it('registers once, stores the hidden credential, and reuses the bearer session', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(ok({
