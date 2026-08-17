@@ -181,6 +181,10 @@ export function isWorkerNameUnavailableError(error: unknown): boolean {
   return error instanceof WorkerApiError && error.code === 'name_unavailable';
 }
 
+export function isWorkerNameAvailabilityEndpointMissing(error: unknown): boolean {
+  return error instanceof WorkerApiError && error.status === 404;
+}
+
 async function registerDeviceAndSubmit(entry: {
   name: string;
   score: number;
