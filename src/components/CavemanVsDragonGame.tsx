@@ -18,7 +18,7 @@ const isLevel1Round = (round: number): boolean =>
 import { loadScores, qualifiesForTop, insertScore, clearLocalScores, formatDate, entryDisplayName, MAX_ENTRIES, type LeaderboardEntry } from './game/leaderboard';
 import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal, type GlobalEntry } from './game/globalLeaderboard';
 import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/deviceStats';
-import { getWorkerPlayerName } from './game/workerApi';
+import { checkWorkerPlayerNameAvailability, getWorkerPlayerName, isWorkerNameUnavailableError } from './game/workerApi';
 import { adjacentAttractScreen, isAttractScreen } from './game/attractNavigation';
 import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
 import { LEVEL2_PARAMS, getLevel2Difficulty } from './game/level2/params';
@@ -260,6 +260,7 @@ type GameState =
   | 'savedAnim'          // L4-cleared cinematic: dragon re-kidnaps princess
   | 'highscorePrompt'
   | 'enterName'
+  | 'confirmName'
   | 'leaderboard'        // post-game LOCAL leaderboard (only-local qualifier)
   | 'globalLeaderboard'  // post-game GLOBAL leaderboard (global qualifier)
   | 'attractLocalLeaderboard'
@@ -330,6 +331,8 @@ const CavemanVsDragonGame = () => {
   const submittingScoreRef = useRef<boolean>(false);
   const [nameInput, setNameInput] = useState<string>('');
   const [nameError, setNameError] = useState<string>('');
+  const [nameAvailabilityChecking, setNameAvailabilityChecking] = useState(false);
+  const [confirmNameChoice, setConfirmNameChoice] = useState<'yes' | 'change'>('yes');
   const [pendingScore, setPendingScore] = useState(0);
   const [pendingLevel, setPendingLevel] = useState(1);
   // Level intro overlay: 'level' shows "Level N" for 3s, then 'black' for 0.5s, then null.
@@ -777,87 +780,125 @@ const CavemanVsDragonGame = () => {
     playLevelIntro(nextRound, () => resetLevel());
   }, [resetLevel, resetPlayer, playLevelIntro]);
 
-  // Submit a high score: writes to LOCAL always, and to GLOBAL if it qualifies
-  // for the global top 20. Then routes to the appropriate post-game view.
+  // Submit a high score locally, and to the Worker when it qualifies
+  // globally. A global row remains one-per-player/highest-score-only.
   const submitHighScore = useCallback(async () => {
-    // Guard against re-entry from mashed Enter presses while the cloud
-    // insert is still pending. Without this, each Enter added another row
-    // to the global leaderboard (and could dupe the local row too).
     if (submittingScoreRef.current) return;
-    // After the first Worker registration, the original public name remains
-    // persistent for this installation and later scores require no re-entry.
     const raw = getWorkerPlayerName() || nameInputRef.current;
     const v = validateName(raw);
     if (!v.ok) {
       setNameError(v.error || 'INVALID NAME');
       return;
     }
+
     submittingScoreRef.current = true;
     const cleanName = raw.trim().slice(0, NAME_MAX_LENGTH);
     const entry: LeaderboardEntry = {
       name: cleanName,
-      // Keep initials for backward compat (first 3 chars uppercased)
       initials: cleanName.replace(/\s+/g, '').toUpperCase().padEnd(3, 'A').slice(0, 3),
       score: pendingScore,
       date: new Date().toISOString(),
       level: pendingLevel,
     };
-    // 1) Always write to local
-    const next = insertScore(entry);
-    setScores(next);
-    setNameError('');
-    justSubmittedLocalDateRef.current = entry.date;
 
-    // 2) If it qualifies globally, write to the cloud and show GLOBAL view.
-    //    Otherwise, show LOCAL view.
-    if (justSubmittedGlobal.current) {
-      // Anonymous usage stats: count this as a global-leaderboard hit.
-      recordGlobalHit();
-      // Optimistically merge so the user instantly sees their row.
-      const optimistic: GlobalEntry = {
-        name: cleanName,
-        score: pendingScore,
-        level: pendingLevel,
-        created_at: new Date().toISOString(),
-      };
-      setGlobalScores((prev) => {
-        const merged = [...prev, optimistic]
+    try {
+      setNameError('');
+
+      if (justSubmittedGlobal.current) {
+        recordGlobalHit();
+        const optimistic: GlobalEntry = {
+          name: cleanName,
+          score: pendingScore,
+          level: pendingLevel,
+          created_at: new Date().toISOString(),
+        };
+        setGlobalScores((prev) => [...prev, optimistic]
           .sort((a, b) => b.score - a.score || (a.created_at || '').localeCompare(b.created_at || ''))
-          .slice(0, MAX_ENTRIES);
-        return merged;
-      });
-      // Await the Worker write before deciding whether the leaderboard-view
-      // effect may skip its reconciliation read.
-      const saved = await submitGlobalScore({
-        name: cleanName,
-        score: pendingScore,
-        level: pendingLevel,
-      });
-      if (saved) {
-        // The Worker returned the canonical row, so the next view does not
-        // need an immediate duplicate read.
-        justSubmittedSkipProbe.current = true;
-        justSubmittedGlobalIdRef.current = saved.id ?? null;
-        // Replace the optimistic placeholder with the real row (now has id).
-        setGlobalScores((prev) => {
-          const withoutOptimistic = prev.filter(
-            (r) => !(r.name === optimistic.name && r.score === optimistic.score && !r.id),
-          );
-          const merged = [...withoutOptimistic, saved]
-            .sort((a, b) => b.score - a.score || (a.created_at || '').localeCompare(b.created_at || ''))
-            .slice(0, MAX_ENTRIES);
-          return merged;
-        });
-      } else {
-        // The optimistic row was not persisted. Allow the view effect to
-        // fetch the canonical leaderboard immediately and remove it.
-        justSubmittedSkipProbe.current = false;
+          .slice(0, MAX_ENTRIES));
+
+        let saved: GlobalEntry | null;
+        try {
+          saved = await submitGlobalScore({
+            name: cleanName,
+            score: pendingScore,
+            level: pendingLevel,
+          });
+        } catch (error) {
+          setGlobalScores((prev) => prev.filter(
+            (row) => !(row.name === optimistic.name && row.score === optimistic.score && !row.id),
+          ));
+          if (isWorkerNameUnavailableError(error)) {
+            setNameError('THAT NAME ALREADY EXISTS. CHOOSE ANOTHER.');
+            setGameState('enterName');
+            return;
+          }
+          throw error;
+        }
+
+        if (saved) {
+          justSubmittedSkipProbe.current = true;
+          justSubmittedGlobalIdRef.current = saved.id ?? null;
+          setGlobalScores((prev) => {
+            const withoutOptimistic = prev.filter(
+              (row) => !(row.name === optimistic.name && row.score === optimistic.score && !row.id),
+            );
+            return [...withoutOptimistic, saved]
+              .sort((a, b) => b.score - a.score || (a.created_at || '').localeCompare(b.created_at || ''))
+              .slice(0, MAX_ENTRIES);
+          });
+        } else {
+          justSubmittedSkipProbe.current = false;
+        }
       }
-      setGameState('globalLeaderboard');
-    } else {
-      setGameState('leaderboard');
+
+      // Local history intentionally allows the same public name multiple times.
+      const next = insertScore(entry);
+      setScores(next);
+      justSubmittedLocalDateRef.current = entry.date;
+      setGameState(justSubmittedGlobal.current ? 'globalLeaderboard' : 'leaderboard');
+    } finally {
+      submittingScoreRef.current = false;
     }
   }, [pendingScore, pendingLevel]);
+
+  const requestNameConfirmation = useCallback(async () => {
+    if (submittingScoreRef.current || nameAvailabilityChecking) return;
+    const savedWorkerName = getWorkerPlayerName();
+    const raw = savedWorkerName || nameInputRef.current;
+    const validation = validateName(raw);
+    if (!validation.ok) {
+      setNameError(validation.error || 'INVALID NAME');
+      return;
+    }
+
+    // Local-only entries are not permanent account names. Returning players
+    // already have a permanent Worker name and skip both entry and confirmation.
+    if (!justSubmittedGlobal.current || savedWorkerName) {
+      await submitHighScore();
+      return;
+    }
+
+    const cleanName = raw.trim().slice(0, NAME_MAX_LENGTH);
+    setNameAvailabilityChecking(true);
+    setNameError('');
+    try {
+      const available = await checkWorkerPlayerNameAvailability(cleanName);
+      if (!available) {
+        setNameError('THAT NAME ALREADY EXISTS. CHOOSE ANOTHER.');
+        return;
+      }
+      setConfirmNameChoice('yes');
+      setGameState('confirmName');
+    } catch (error) {
+      setNameError(
+        isWorkerNameUnavailableError(error)
+          ? 'THAT NAME ALREADY EXISTS. CHOOSE ANOTHER.'
+          : 'COULD NOT CHECK NAME. PLEASE TRY AGAIN.',
+      );
+    } finally {
+      setNameAvailabilityChecking(false);
+    }
+  }, [nameAvailabilityChecking, submitHighScore]);
 
   // Keep refs in sync with state for the canvas render loop
   useEffect(() => { scoresRef.current = scores; }, [scores]);
@@ -1123,7 +1164,6 @@ const CavemanVsDragonGame = () => {
         setNameInput(savedWorkerName || '');
         nameInputRef.current = savedWorkerName || '';
         setNameError('');
-        setGameState('enterName');
 
         // A returning player keeps the first public name automatically. The
         // hidden device credential restores authentication without showing
@@ -1132,6 +1172,7 @@ const CavemanVsDragonGame = () => {
           void submitHighScore();
           return true;
         }
+        setGameState('enterName');
 
         // Controller/touch entry uses the in-game keyboard below. Do not
         // force Android IME focus from a controller A press: some controller
@@ -1166,14 +1207,24 @@ const CavemanVsDragonGame = () => {
       }
 
       if (gs === 'enterName') {
-        // The hidden <input> handles typing via React onChange; here we only
-        // catch Enter (submit). Everything else is swallowed so it doesn't
-        // bleed into the game.
         if (key === 'Enter') {
-          submitHighScore();
+          void requestNameConfirmation();
           return true;
         }
-        return true; // swallow other keys during entry (typing handled by input element)
+        return true;
+      }
+
+      if (gs === 'confirmName') {
+        if (key === 'ArrowLeft' || key === 'ArrowRight') {
+          setConfirmNameChoice((choice) => choice === 'yes' ? 'change' : 'yes');
+          return true;
+        }
+        if (key === 'Enter' || key === ' ' || key === 'r' || key === 'R') {
+          if (confirmNameChoice === 'yes') void submitHighScore();
+          else setGameState('enterName');
+          return true;
+        }
+        return true;
       }
 
       if (gs === 'leaderboard' || gs === 'globalLeaderboard') {
@@ -1184,7 +1235,7 @@ const CavemanVsDragonGame = () => {
 
       return false;
     };
-  }, [startNextLevel, submitHighScore, resetGame, startInLevel2Test, startInLevel3Test, startInLevel3Iter4Test, startInLevel4Test, globalScores, moveAttractScreen]);
+  }, [startNextLevel, submitHighScore, requestNameConfirmation, confirmNameChoice, resetGame, startInLevel2Test, startInLevel3Test, startInLevel3Iter4Test, startInLevel4Test, globalScores, moveAttractScreen]);
 
 
 
@@ -1213,7 +1264,7 @@ const CavemanVsDragonGame = () => {
       ['I','J','K','L','M','N','O','P'],
       ['Q','R','S','T','U','V','W','X'],
       ['Y','Z','0','1','2','3','4','5'],
-      ['6','7','8','9','SPACE','DEL'],
+      ['6','7','8','9','SPACE','DEL','SEND'],
     ];
 
     let row = 0;
@@ -1286,7 +1337,7 @@ const CavemanVsDragonGame = () => {
     overlay.appendChild(nameDisplay);
 
     const instructions = document.createElement('div');
-    instructions.textContent = 'D-PAD / STICK: MOVE   A: SELECT   START: SUBMIT';
+    instructions.textContent = 'D-PAD / STICK: MOVE   A: SELECT   START / SEND: CONTINUE';
     Object.assign(instructions.style, {
       textAlign: 'center',
       fontSize: 'clamp(9px, 2.2vw, 14px)',
@@ -1317,6 +1368,10 @@ const CavemanVsDragonGame = () => {
 
     const activate = (token: string) => {
       const current = nameInputRef.current || '';
+      if (token === 'SEND') {
+        void requestNameConfirmation();
+        return;
+      }
       if (token === 'DEL') {
         setNameValue(current.slice(0, -1));
         return;
@@ -1359,7 +1414,7 @@ const CavemanVsDragonGame = () => {
         button.textContent = token === 'SPACE' ? 'SPACE' : token === 'DEL' ? '⌫' : token;
         button.setAttribute('aria-label', token);
         Object.assign(button.style, {
-          flex: token === 'SPACE' ? '2' : '1',
+          flex: token === 'SPACE' || token === 'SEND' ? '2' : '1',
           minWidth: '0',
           minHeight: 'clamp(32px, 6.5vh, 48px)',
           padding: '2px',
@@ -1454,7 +1509,7 @@ const CavemanVsDragonGame = () => {
           window.setTimeout(syncNameDisplay, 800);
           return;
         }
-        submitHighScore();
+        void requestNameConfirmation();
       }
     };
 
@@ -1472,7 +1527,7 @@ const CavemanVsDragonGame = () => {
       window.removeEventListener('cvd-native-controller-key', onNativeControllerKey);
       overlay.remove();
     };
-  }, [gameState, submitHighScore]);
+  }, [gameState, requestNameConfirmation]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -4295,7 +4350,7 @@ const CavemanVsDragonGame = () => {
   // On the native APK, tablets play without on-screen controls. Phones keep them.
   // Hide on-screen controls whenever a hardware gamepad / bluetooth controller
   // is connected (any orientation), or on tablets in the native APK build.
-  const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls');
+  const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls' || gameState === 'enterName' || gameState === 'confirmName');
   // Landscape side-mounted controls are an APK-only layout. In the browser
   // we always render the portrait bottom bar, regardless of window aspect.
   const useLandscapeLayout = controlsVisible && isLandscape && isNativeApp;
@@ -4430,7 +4485,7 @@ const CavemanVsDragonGame = () => {
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();
-              if (gameState === 'enterName') submitHighScore();
+              if (gameState === 'enterName') void requestNameConfirmation();
             }
           }}
           autoFocus={gameState === 'enterName'}
@@ -4441,6 +4496,7 @@ const CavemanVsDragonGame = () => {
           aria-label="Enter your name (up to 10 characters)"
           placeholder=""
           inputMode={gameState === 'enterName' ? 'text' : 'none'}
+          enterKeyHint="send"
           readOnly={gameState !== 'enterName'}
           tabIndex={gameState === 'enterName' ? 0 : -1}
           className={
@@ -4450,6 +4506,39 @@ const CavemanVsDragonGame = () => {
           }
           style={{ WebkitAppearance: 'none', appearance: 'none' }}
         />
+
+        {gameState === 'confirmName' && (
+          <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/95 px-6">
+            <div className="w-full max-w-lg rounded-lg border-2 border-accent bg-black p-6 text-center font-caveman text-white shadow-2xl">
+              <h2 className="mb-5 text-2xl text-accent">Confirm Leaderboard Name</h2>
+              <p className="mb-3 text-xl">{nameInputRef.current.trim()}</p>
+              <p className="mb-6 text-sm leading-relaxed">
+                This will be your leaderboard name from now on and cannot be changed.
+                Do you want this name?
+              </p>
+              <div className="flex justify-center gap-4">
+                <button
+                  type="button"
+                  autoFocus={confirmNameChoice === 'yes'}
+                  onFocus={() => setConfirmNameChoice('yes')}
+                  onClick={() => void submitHighScore()}
+                  className={`min-w-28 rounded border-2 px-5 py-3 ${confirmNameChoice === 'yes' ? 'border-accent bg-white text-black' : 'border-white bg-black text-white'}`}
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  autoFocus={confirmNameChoice === 'change'}
+                  onFocus={() => setConfirmNameChoice('change')}
+                  onClick={() => setGameState('enterName')}
+                  className={`min-w-28 rounded border-2 px-5 py-3 ${confirmNameChoice === 'change' ? 'border-accent bg-white text-black' : 'border-white bg-black text-white'}`}
+                >
+                  Change
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* L4-cleared cinematic: dragon re-kidnaps the princess. */}
         {gameState === 'savedAnim' && (
