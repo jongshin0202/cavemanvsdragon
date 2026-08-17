@@ -4916,11 +4916,11 @@ const AttractLeaderboardScreen = ({
       }}
     >
       <div className="pointer-events-none absolute inset-0 bg-black/70" />
-      <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-3 px-6 py-8">
+      <div className="relative z-10 flex h-full min-h-0 w-full flex-col items-center justify-start gap-[clamp(0.25rem,1.2vmin,0.75rem)] px-[clamp(0.5rem,2vmin,1.5rem)] pt-[clamp(0.5rem,2vmin,1.5rem)] pb-[clamp(5.5rem,18vmin,8rem)]">
         <h2
           className="font-caveman text-center"
           style={{
-            fontSize: 'clamp(1.4rem, 5vw, 2.8rem)',
+            fontSize: 'clamp(1rem, 5vmin, 2.2rem)',
             color: 'hsl(var(--accent))',
             textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
           }}
@@ -4931,7 +4931,7 @@ const AttractLeaderboardScreen = ({
         <ol
           className="flex w-full max-w-md flex-col font-caveman"
           style={{
-            fontSize: 'clamp(0.55rem, 1.7vw, 0.85rem)',
+            fontSize: 'clamp(0.48rem, 1.7vmin, 0.8rem)',
             color: 'hsl(var(--foreground))',
             textShadow: '2px 2px 0 #000',
             lineHeight: 1.15,
@@ -4976,7 +4976,7 @@ const AttractLeaderboardScreen = ({
           <div
             className="font-caveman text-center"
             style={{
-              fontSize: 'clamp(0.7rem, 2vw, 1rem)',
+              fontSize: 'clamp(0.6rem, 2vmin, 0.9rem)',
               color: 'hsl(var(--accent))',
               textShadow: '2px 2px 0 #000',
             }}
@@ -4989,11 +4989,11 @@ const AttractLeaderboardScreen = ({
             (long-press on mobile, hold C on PC), but is intentionally not shown. */}
       </div>
       {/* Footer prompt — same position as intro screen */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 mb-[7%] flex w-full flex-col items-center gap-3 px-4">
+      <div className="pointer-events-none absolute inset-x-0 bottom-[clamp(0.35rem,2vmin,1rem)] z-10 flex w-full flex-col items-center gap-[clamp(0.25rem,1vmin,0.75rem)] px-4">
         <div
           className="intro-blink text-center font-caveman"
           style={{
-            fontSize: 'clamp(1.25rem, 4.2vw, 2.4rem)',
+            fontSize: 'clamp(0.9rem, 4.2vmin, 2rem)',
             color: 'hsl(var(--accent))',
             textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
           }}
@@ -5003,7 +5003,7 @@ const AttractLeaderboardScreen = ({
         <div
           className="flex items-center justify-center gap-3 text-center font-caveman"
           style={{
-            fontSize: 'clamp(0.85rem, 2.4vw, 1.4rem)',
+            fontSize: 'clamp(0.65rem, 2.4vmin, 1.1rem)',
             color: 'hsl(var(--foreground))',
             textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
             letterSpacing: '0.08em',
@@ -5016,8 +5016,8 @@ const AttractLeaderboardScreen = ({
             onPointerDown={onLogoTap}
             className="object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] cursor-pointer"
             style={{
-              width: 'clamp(40px, 7vw, 64px)',
-              height: 'clamp(40px, 7vw, 64px)',
+              width: 'clamp(32px, 7vmin, 56px)',
+              height: 'clamp(32px, 7vmin, 56px)',
             }}
           />
         </div>
