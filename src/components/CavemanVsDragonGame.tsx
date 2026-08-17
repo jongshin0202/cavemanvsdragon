@@ -18,7 +18,7 @@ const isLevel1Round = (round: number): boolean =>
 import { loadScores, qualifiesForTop, insertScore, clearLocalScores, formatDate, entryDisplayName, MAX_ENTRIES, type LeaderboardEntry } from './game/leaderboard';
 import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal, type GlobalEntry } from './game/globalLeaderboard';
 import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/deviceStats';
-import { checkWorkerPlayerNameAvailability, getWorkerPlayerName, isWorkerNameUnavailableError } from './game/workerApi';
+import { checkWorkerPlayerNameAvailability, getWorkerPlayerName, isWorkerNameAvailabilityEndpointMissing, isWorkerNameUnavailableError } from './game/workerApi';
 import { adjacentAttractScreen, isAttractScreen } from './game/attractNavigation';
 import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
 import { LEVEL2_PARAMS, getLevel2Difficulty } from './game/level2/params';
@@ -867,7 +867,9 @@ const CavemanVsDragonGame = () => {
     const raw = savedWorkerName || nameInputRef.current;
     const validation = validateName(raw);
     if (!validation.ok) {
-      setNameError(validation.error || 'INVALID NAME');
+      const message = validation.error || 'INVALID NAME';
+      nameErrorRef.current = message;
+      setNameError(message);
       return;
     }
 
@@ -880,21 +882,32 @@ const CavemanVsDragonGame = () => {
 
     const cleanName = raw.trim().slice(0, NAME_MAX_LENGTH);
     nameAvailabilityCheckingRef.current = true;
+    nameErrorRef.current = '';
     setNameError('');
     try {
       const available = await checkWorkerPlayerNameAvailability(cleanName);
       if (!available) {
-        setNameError('THAT NAME ALREADY EXISTS. CHOOSE ANOTHER.');
+        const message = 'THAT NAME ALREADY EXISTS. CHOOSE ANOTHER.';
+        nameErrorRef.current = message;
+        setNameError(message);
         return;
       }
       setConfirmNameChoice('yes');
       setGameState('confirmName');
     } catch (error) {
-      setNameError(
-        isWorkerNameUnavailableError(error)
-          ? 'THAT NAME ALREADY EXISTS. CHOOSE ANOTHER.'
-          : 'COULD NOT CHECK NAME. PLEASE TRY AGAIN.',
-      );
+      if (isWorkerNameAvailabilityEndpointMissing(error)) {
+        // Registration is still the authoritative, atomic uniqueness check.
+        // Continue to confirmation when an older Worker lacks the optional
+        // preflight route; a duplicate is rejected when the user chooses Yes.
+        setConfirmNameChoice('yes');
+        setGameState('confirmName');
+        return;
+      }
+      const message = isWorkerNameUnavailableError(error)
+        ? 'THAT NAME ALREADY EXISTS. CHOOSE ANOTHER.'
+        : 'COULD NOT CHECK NAME. PLEASE TRY AGAIN.';
+      nameErrorRef.current = message;
+      setNameError(message);
     } finally {
       nameAvailabilityCheckingRef.current = false;
     }
@@ -1336,6 +1349,27 @@ const CavemanVsDragonGame = () => {
     });
     overlay.appendChild(nameDisplay);
 
+    const statusDisplay = document.createElement('div');
+    statusDisplay.setAttribute('role', 'status');
+    statusDisplay.setAttribute('aria-live', 'polite');
+    Object.assign(statusDisplay.style, {
+      minHeight: '18px',
+      textAlign: 'center',
+      fontWeight: 'bold',
+      fontSize: 'clamp(10px, 2.4vw, 15px)',
+      marginBottom: '4px',
+      color: '#ff6b6b',
+    } as Partial<CSSStyleDeclaration>);
+    const syncStatusDisplay = () => {
+      const checking = nameAvailabilityCheckingRef.current;
+      const message = checking ? 'CHECKING NAME...' : nameErrorRef.current;
+      statusDisplay.textContent = message || '';
+      statusDisplay.style.color = checking ? '#ffd400' : '#ff6b6b';
+      statusDisplay.style.visibility = message ? 'visible' : 'hidden';
+    };
+    syncStatusDisplay();
+    overlay.appendChild(statusDisplay);
+
     const instructions = document.createElement('div');
     instructions.textContent = 'D-PAD / STICK: MOVE   A: SELECT   START / SEND: CONTINUE';
     Object.assign(instructions.style, {
@@ -1362,8 +1396,10 @@ const CavemanVsDragonGame = () => {
       const clipped = next.slice(0, NAME_MAX_LENGTH);
       nameInputRef.current = clipped;
       setNameInput(clipped);
+      nameErrorRef.current = '';
       setNameError('');
       syncNameDisplay();
+      syncStatusDisplay();
     };
 
     const activate = (token: string) => {
@@ -1519,7 +1555,10 @@ const CavemanVsDragonGame = () => {
 
     // If the user chooses the phone keyboard by tapping the name field,
     // keep the controller overlay's name display synchronized with React.
-    const syncTimer = window.setInterval(syncNameDisplay, 100);
+    const syncTimer = window.setInterval(() => {
+      syncNameDisplay();
+      syncStatusDisplay();
+    }, 100);
 
     return () => {
       clearRepeat();
