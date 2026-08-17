@@ -885,6 +885,11 @@ jobs:
                     return;
                   }
 
+                  if (gs === 'confirmName') {
+                    anyInputHandlerRef.current?.('Enter', 'keyboard');
+                    return;
+                  }
+
                   if (gs === 'playing') {
                     toggleGamePause();
                   }
@@ -996,6 +1001,13 @@ jobs:
                       height={CANVAS_H}
                       onPointerDown={(e) => {
                         if (gameStateRef.current !== 'playing' || levelIntroRef.current) return;
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const canvasY = ((e.clientY - rect.top) / rect.height) * CANVAS_H;
+                        const bottomPlatformY = Math.max(...PLATFORMS.map((platform) => platform.y));
+                        // The black band below the bottommost platform is not
+                        // part of the pause target. This keeps a finger just
+                        // above the on-screen UP control from pausing gameplay.
+                        if (canvasY > bottomPlatformY) return;
                         e.preventDefault();
                         e.stopPropagation();
                         toggleGamePause();
@@ -1047,6 +1059,8 @@ jobs:
               'Pause state': 'const [isPaused, setIsPaused] = useState(false);' in gm,
               'Simulation freeze': 'if (pausedRef.current)' in gm,
               'Canvas toggle': 'toggleGamePause();' in gm,
+              'Pause excludes below-platform black band':
+                  'if (canvasY > bottomPlatformY) return;' in gm,
               'White round II icon': 'rounded-full bg-white' in gm and gm.count('rounded-sm bg-black') >= 2,
               'Android background pause listener':
                   "cvd-native-app-background" in gm and "visibilitychange" in gm,
