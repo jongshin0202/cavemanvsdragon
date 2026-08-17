@@ -4945,11 +4945,11 @@ const AttractLeaderboardScreen = ({
       }}
     >
       <div className="pointer-events-none absolute inset-0 bg-black/70" />
-      <div className={`relative z-10 flex h-full min-h-0 w-full flex-col items-center ${leaderboardLandscape ? 'justify-start gap-0 px-3 pb-12 pt-2' : 'justify-start gap-[clamp(0.25rem,1.2vmin,0.75rem)] px-[clamp(0.5rem,2vmin,1.5rem)] pt-[clamp(0.5rem,2vmin,1.5rem)] pb-[clamp(5.5rem,18vmin,8rem)]'}`}>
+      <div className={`relative z-10 flex h-full w-full flex-col items-center ${leaderboardLandscape ? 'min-h-0 justify-start gap-0 px-3 pb-12 pt-2' : 'justify-center gap-3 px-6 py-8'}`}>
         <h2
           className="font-caveman text-center"
           style={{
-            fontSize: leaderboardLandscape ? 'clamp(0.75rem, 3.8vh, 1.25rem)' : 'clamp(1rem, 5vmin, 2.2rem)',
+            fontSize: leaderboardLandscape ? 'clamp(0.75rem, 3.8vh, 1.25rem)' : 'clamp(1.4rem, 5vw, 2.8rem)',
             color: 'hsl(var(--accent))',
             textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
           }}
@@ -4958,16 +4958,16 @@ const AttractLeaderboardScreen = ({
         </h2>
 
         <ol
-          className={`flex w-full max-w-md min-h-0 flex-col font-caveman ${leaderboardLandscape ? 'flex-1' : ''}`}
+          className={`flex w-full max-w-md flex-col font-caveman ${leaderboardLandscape ? 'min-h-0 flex-1' : ''}`}
           style={{
-            fontSize: leaderboardLandscape ? 'clamp(0.4rem, 2.2vh, 0.65rem)' : 'clamp(0.48rem, 1.7vmin, 0.8rem)',
+            fontSize: leaderboardLandscape ? 'clamp(0.4rem, 2.2vh, 0.65rem)' : 'clamp(0.55rem, 1.7vw, 0.85rem)',
             color: 'hsl(var(--foreground))',
             textShadow: '2px 2px 0 #000',
             lineHeight: leaderboardLandscape ? 1 : 1.15,
           }}
         >
           <li
-            className={`flex min-h-0 items-center justify-between gap-2 border-b-2 border-accent px-2 text-accent ${leaderboardLandscape ? 'flex-1 py-0' : 'py-1'}`}
+            className={`flex items-center justify-between gap-2 border-b-2 border-accent px-2 text-accent ${leaderboardLandscape ? 'min-h-0 flex-1 py-0' : 'py-1'}`}
             aria-hidden="true"
           >
             <span className="w-6">#</span>
@@ -4980,7 +4980,7 @@ const AttractLeaderboardScreen = ({
               const e = globalScores[i];
               const display = e ? (e.name || '---') : '---';
               return (
-                <li key={i} className={`flex min-h-0 items-center justify-between gap-2 border-b border-accent/20 px-2 ${leaderboardLandscape ? 'flex-1 py-0' : 'py-[2px]'}`}>
+                <li key={i} className={`flex items-center justify-between gap-2 border-b border-accent/20 px-2 ${leaderboardLandscape ? 'min-h-0 flex-1 py-0' : 'py-[2px]'}`}>
                   <span className="w-6 text-accent">{(i + 1).toString().padStart(2, '0')}</span>
                   <span className="flex-1 truncate tracking-wider">{display}</span>
                   <span className="w-16 text-right">{e ? e.score.toString().padStart(6, '0') : '------'}</span>
@@ -4991,7 +4991,7 @@ const AttractLeaderboardScreen = ({
             const e = scores[i];
             const display = e ? entryDisplayName(e) : '---';
             return (
-              <li key={i} className={`flex min-h-0 items-center justify-between gap-2 border-b border-accent/20 px-2 ${leaderboardLandscape ? 'flex-1 py-0' : 'py-[2px]'}`}>
+              <li key={i} className={`flex items-center justify-between gap-2 border-b border-accent/20 px-2 ${leaderboardLandscape ? 'min-h-0 flex-1 py-0' : 'py-[2px]'}`}>
                 <span className="w-6 text-accent">{(i + 1).toString().padStart(2, '0')}</span>
                 <span className="flex-1 truncate tracking-wider">{display}</span>
                 <span className="w-16 text-right">{e ? e.score.toString().padStart(6, '0') : '------'}</span>
@@ -5005,7 +5005,7 @@ const AttractLeaderboardScreen = ({
           <div
             className="font-caveman text-center"
             style={{
-              fontSize: 'clamp(0.6rem, 2vmin, 0.9rem)',
+              fontSize: leaderboardLandscape ? 'clamp(0.6rem, 2vh, 0.9rem)' : 'clamp(0.7rem, 2vw, 1rem)',
               color: 'hsl(var(--accent))',
               textShadow: '2px 2px 0 #000',
             }}
@@ -5018,11 +5018,11 @@ const AttractLeaderboardScreen = ({
             (long-press on mobile, hold C on PC), but is intentionally not shown. */}
       </div>
       {/* Footer prompt — same position as intro screen */}
-      <div className={`pointer-events-none absolute inset-x-0 z-10 flex w-full flex-col items-center ${leaderboardLandscape ? 'bottom-1 gap-0 px-2' : 'bottom-[clamp(0.35rem,2vmin,1rem)] gap-[clamp(0.25rem,1vmin,0.75rem)] px-4'}`}>
+      <div className={`pointer-events-none absolute inset-x-0 z-10 flex w-full flex-col items-center ${leaderboardLandscape ? 'bottom-1 gap-0 px-2' : 'bottom-0 mb-[7%] gap-3 px-4'}`}>
         <div
           className="intro-blink text-center font-caveman"
           style={{
-            fontSize: leaderboardLandscape ? 'clamp(0.55rem, 2.8vh, 0.9rem)' : 'clamp(0.9rem, 4.2vmin, 2rem)',
+            fontSize: leaderboardLandscape ? 'clamp(0.55rem, 2.8vh, 0.9rem)' : 'clamp(1.25rem, 4.2vw, 2.4rem)',
             color: 'hsl(var(--accent))',
             textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
           }}
@@ -5032,7 +5032,7 @@ const AttractLeaderboardScreen = ({
         <div
           className="flex items-center justify-center gap-3 text-center font-caveman"
           style={{
-            fontSize: leaderboardLandscape ? 'clamp(0.45rem, 2vh, 0.7rem)' : 'clamp(0.65rem, 2.4vmin, 1.1rem)',
+            fontSize: leaderboardLandscape ? 'clamp(0.45rem, 2vh, 0.7rem)' : 'clamp(0.85rem, 2.4vw, 1.4rem)',
             color: 'hsl(var(--foreground))',
             textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
             letterSpacing: '0.08em',
@@ -5045,8 +5045,8 @@ const AttractLeaderboardScreen = ({
             onPointerDown={onLogoTap}
             className="object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] cursor-pointer"
             style={{
-              width: leaderboardLandscape ? 'clamp(20px, 7vh, 32px)' : 'clamp(32px, 7vmin, 56px)',
-              height: leaderboardLandscape ? 'clamp(20px, 7vh, 32px)' : 'clamp(32px, 7vmin, 56px)',
+              width: leaderboardLandscape ? 'clamp(20px, 7vh, 32px)' : 'clamp(40px, 7vw, 64px)',
+              height: leaderboardLandscape ? 'clamp(20px, 7vh, 32px)' : 'clamp(40px, 7vw, 64px)',
             }}
           />
         </div>
