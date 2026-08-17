@@ -888,7 +888,11 @@ jobs:
                     return;
                   }
 
-                  if (gs === 'confirmName') {
+                  if (
+                    gs === 'confirmName' ||
+                    gs === 'gameover' ||
+                    gs === 'highscorePrompt'
+                  ) {
                     anyInputHandlerRef.current?.('Enter', 'keyboard');
                     return;
                   }
@@ -1063,6 +1067,7 @@ jobs:
               'SFX suspend': 'await audioCtx.suspend()' in sf,
               'SFX resume': 'await audioCtx.resume()' in sf,
               'Pause state': 'const [isPaused, setIsPaused] = useState(false);' in gm,
+              'Persistent paused media gate': '__cvdAndroidGamePaused' in gm,
               'Simulation freeze': 'if (pausedRef.current)' in gm,
               'Canvas toggle': 'toggleGamePause();' in gm,
               'Pause excludes below-platform black band':
@@ -1577,6 +1582,9 @@ jobs:
                   "=== 'leaderboard'" in check
                   and "=== 'globalLeaderboard'" in check
                   and 'resetGame();' in check,
+              'native START game-over behavior':
+                  "gs === 'gameover'" in check
+                  and "gs === 'highscorePrompt'" in check,
               'persistent media gate':
                   '__cvdAndroidAudioGateInstalled' in check
                   and '__cvdAndroidBackgrounded' in check
