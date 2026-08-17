@@ -112,9 +112,12 @@ describe('invisible Worker device identity', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const api = await loadApi();
+    const controls = await import('@/components/game/controlType');
+    controls.recordGameplayControlInput('gamepad');
     const first = await api.submitWorkerScore({ name: 'JONG', score: 12000, level: 3 });
     expect(first.entry?.display_name).toBe('JONG');
     expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.example/v1/device-players/register');
+    expect(JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit)?.body)).control_type).toBe('gamepad');
 
     const stored = JSON.parse(localStorage.getItem(identityKey) || '{}');
     expect(stored).toMatchObject({
@@ -124,12 +127,15 @@ describe('invisible Worker device identity', () => {
       session_token: 'session-1',
     });
 
+    controls.recordGameplayControlInput('touch');
     const second = await api.submitWorkerScore({ name: 'IGNORED', score: 15000, level: 4 });
     expect(second.entry?.display_name).toBe('JONG');
     expect(fetchMock.mock.calls[1]?.[0]).toBe('https://api.example/v1/scores');
     const secondInit = fetchMock.mock.calls[1]?.[1] as RequestInit;
     expect(new Headers(secondInit.headers).get('Authorization')).toBe('Bearer session-1');
-    expect(JSON.parse(String(secondInit.body))).not.toHaveProperty('name');
+    const secondBody = JSON.parse(String(secondInit.body));
+    expect(secondBody).not.toHaveProperty('name');
+    expect(secondBody.control_type).toBe('mixed');
   });
 
   it('restores an expired session silently before submitting a score', async () => {
