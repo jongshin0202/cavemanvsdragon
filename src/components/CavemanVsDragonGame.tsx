@@ -19,6 +19,7 @@ import { loadScores, qualifiesForTop, insertScore, clearLocalScores, formatDate,
 import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal, type GlobalEntry } from './game/globalLeaderboard';
 import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/deviceStats';
 import { getWorkerPlayerName } from './game/workerApi';
+import { adjacentAttractScreen, isAttractScreen } from './game/attractNavigation';
 import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
 import { LEVEL2_PARAMS, getLevel2Difficulty } from './game/level2/params';
 import { initLevel2, updateLevel2, renderLevel2, spawnLevel2Robots, fireballHitsPlayer, tryPickupCan, tryPickupRock, trySealVolcano, maybeSpawnVolcanoRock, onMonkeyKilled, removeMonkeyWithoutKill, newSpawnJacket, pushJacket, isHoleAtPlatform, tickApples, appleHitsPlayer, notifyVolcanoSealedL3, type L2Sprites } from './game/level2/level2';
@@ -905,6 +906,39 @@ const CavemanVsDragonGame = () => {
   const gameStateRef = useRef<GameState>('intro');
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
 
+  const moveAttractScreen = useCallback((direction: -1 | 1) => {
+    const current = gameStateRef.current;
+    if (!isAttractScreen(current)) return;
+    setGameState(adjacentAttractScreen(current, mobileStartUi, direction));
+  }, [mobileStartUi]);
+
+  // Taps keep their original start-game behavior. A deliberate horizontal
+  // swipe navigates the attract screens instead: swipe left moves forward,
+  // and swipe right moves backward.
+  const attractPointerStartRef = useRef<{ id: number; x: number; y: number } | null>(null);
+  const handleAttractPointerDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    unlockAudio();
+    attractPointerStartRef.current = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  }, []);
+  const handleAttractPointerUp = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    const start = attractPointerStartRef.current;
+    attractPointerStartRef.current = null;
+    if (!start || start.id !== e.pointerId) return;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    if (Math.abs(dx) >= 48 && Math.abs(dx) > Math.abs(dy) * 1.25) {
+      moveAttractScreen(dx < 0 ? 1 : -1);
+      return;
+    }
+    anyInputHandlerRef.current?.('Tap', 'pad');
+  }, [moveAttractScreen]);
+  const handleAttractPointerCancel = useCallback(() => {
+    attractPointerStartRef.current = null;
+  }, []);
+
   // Stop gameplay music whenever we're not actively in gameplay.
   // Keep music control inside SavedAnimation while the ending cinematic runs;
   // otherwise this parent effect immediately stops the ending track after it starts.
@@ -940,33 +974,15 @@ const CavemanVsDragonGame = () => {
     };
   }, [gameState]);
 
-  // Attract-mode idle cycle on the title screen.
-  //   PC:     intro → attractControls → attractLocalLeaderboard → attractGlobalLeaderboard → intro …
-  //   Mobile browser: intro → attractLocalLeaderboard → attractGlobalLeaderboard → intro …
-  //   Native Android APK: stay on the intro/start screen until the user starts.
+  // Attract-mode idle cycle on every platform.
+  //   PC:            intro → controls → local → global → intro …
+  //   Phone/Android: intro → local → global → intro …
+  // Manual left/right navigation uses this same ordering.
   useEffect(() => {
-    if (isNativeApp) return;
-
-    let nextState: GameState | null = null;
-    let delay = 0;
-    if (gameState === 'intro') {
-      nextState = mobileStartUi ? 'attractLocalLeaderboard' : 'attractControls';
-      delay = 5000;
-    } else if (gameState === 'attractControls') {
-      nextState = 'attractLocalLeaderboard';
-      delay = 5000;
-    } else if (gameState === 'attractLocalLeaderboard') {
-      nextState = 'attractGlobalLeaderboard';
-      delay = 5000;
-    } else if (gameState === 'attractGlobalLeaderboard') {
-      nextState = 'intro';
-      delay = 5000;
-    }
-    if (!nextState) return;
-    const target = nextState;
-    const timer = window.setTimeout(() => setGameState(target), delay);
+    if (!isAttractScreen(gameState)) return;
+    const timer = window.setTimeout(() => moveAttractScreen(1), 5000);
     return () => window.clearTimeout(timer);
-  }, [gameState, mobileStartUi]);
+  }, [gameState, moveAttractScreen]);
 
   // Wire up the unified "any input" handler. Re-binds whenever dependencies change.
   useEffect(() => {
@@ -981,6 +997,13 @@ const CavemanVsDragonGame = () => {
         gs === 'attractGlobalLeaderboard' ||
         gs === 'attractControls'
       ) {
+        // Left/right navigates without starting. This covers PC arrows,
+        // browser Gamepad API input, Android D-pad, and native analog events.
+        if (key === 'ArrowLeft' || key === 'ArrowRight') {
+          moveAttractScreen(key === 'ArrowRight' ? 1 : -1);
+          return true;
+        }
+
         // PC: on the local-leaderboard attract screen, holding C for 10s
         // opens the "clear local leaderboard" confirmation. Don't start a
         // new game while C is being held.
@@ -1161,7 +1184,7 @@ const CavemanVsDragonGame = () => {
 
       return false;
     };
-  }, [startNextLevel, submitHighScore, resetGame, startInLevel2Test, startInLevel3Test, startInLevel3Iter4Test, startInLevel4Test, globalScores]);
+  }, [startNextLevel, submitHighScore, resetGame, startInLevel2Test, startInLevel3Test, startInLevel3Iter4Test, startInLevel4Test, globalScores, moveAttractScreen]);
 
 
 
@@ -4449,11 +4472,10 @@ const CavemanVsDragonGame = () => {
           <button
             type="button"
             aria-label="Start game"
-            onPointerDown={(e) => {
-              e.preventDefault();
-              unlockAudio();
-              anyInputHandlerRef.current?.('Tap', 'pad');
-            }}
+            onPointerDown={handleAttractPointerDown}
+            onPointerUp={handleAttractPointerUp}
+            onPointerCancel={handleAttractPointerCancel}
+            onPointerLeave={handleAttractPointerCancel}
             className="absolute inset-0 flex flex-col items-center justify-between overflow-hidden focus:outline-none bg-black"
             style={{
               backgroundImage: `url(${introBackgroundUrl})`,
@@ -4511,11 +4533,13 @@ const CavemanVsDragonGame = () => {
         {gameState === 'attractLocalLeaderboard' && (
           <AttractLeaderboardScreen
             kind="local"
-            isMobile={isMobile}
+            isMobile={mobileStartUi}
+            gamepadActive={gamepadActive}
             scores={scores}
             globalScores={globalScores}
             globalLoading={globalLoading}
             onStart={() => { unlockAudio(); anyInputHandlerRef.current?.('Tap', 'pad'); }}
+            onNavigate={moveAttractScreen}
             onRequestClearLocal={() => setConfirmClearOpen(true)}
             background={introBackgroundUrl}
             logo={team2goLogoUrl}
@@ -4527,11 +4551,13 @@ const CavemanVsDragonGame = () => {
         {gameState === 'attractGlobalLeaderboard' && (
           <AttractLeaderboardScreen
             kind="global"
-            isMobile={isMobile}
+            isMobile={mobileStartUi}
+            gamepadActive={gamepadActive}
             scores={scores}
             globalScores={globalScores}
             globalLoading={globalLoading}
             onStart={() => { unlockAudio(); anyInputHandlerRef.current?.('Tap', 'pad'); }}
+            onNavigate={moveAttractScreen}
             onRequestClearLocal={() => setConfirmClearOpen(true)}
             background={introBackgroundUrl}
             logo={team2goLogoUrl}
@@ -4544,7 +4570,10 @@ const CavemanVsDragonGame = () => {
           <button
             type="button"
             aria-label="Start game"
-            onPointerDown={(e) => { e.preventDefault(); unlockAudio(); anyInputHandlerRef.current?.('Tap', 'pad'); }}
+            onPointerDown={handleAttractPointerDown}
+            onPointerUp={handleAttractPointerUp}
+            onPointerCancel={handleAttractPointerCancel}
+            onPointerLeave={handleAttractPointerCancel}
             className="absolute inset-0 flex flex-col items-center overflow-hidden focus:outline-none bg-black"
             style={{
               backgroundImage: `url(${introBackgroundUrl})`,
@@ -4691,12 +4720,14 @@ const CavemanVsDragonGame = () => {
 interface AttractLeaderboardScreenProps {
   kind: 'local' | 'global';
   isMobile: boolean;
+  gamepadActive: boolean;
   scores: LeaderboardEntry[];
   globalScores: GlobalEntry[];
   globalLoading: boolean;
   background: string;
   logo: string;
   onStart: () => void;
+  onNavigate: (direction: -1 | 1) => void;
   onRequestClearLocal: () => void;
   onLogoTap?: (e?: React.SyntheticEvent) => void;
 }
@@ -4706,17 +4737,20 @@ const LONG_PRESS_MS = 10_000;
 const AttractLeaderboardScreen = ({
   kind,
   isMobile,
+  gamepadActive,
   scores,
   globalScores,
   globalLoading,
   background,
   logo,
   onStart,
+  onNavigate,
   onRequestClearLocal,
   onLogoTap,
 }: AttractLeaderboardScreenProps) => {
   const longPressTimer = useRef<number | null>(null);
   const longPressFiredRef = useRef<boolean>(false);
+  const pointerStartRef = useRef<{ id: number; x: number; y: number } | null>(null);
 
   const clearLongPress = () => {
     if (longPressTimer.current !== null) {
@@ -4728,6 +4762,8 @@ const AttractLeaderboardScreen = ({
   const handlePointerDown = (e: React.PointerEvent) => {
     e.preventDefault();
     longPressFiredRef.current = false;
+    pointerStartRef.current = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     if (kind === 'local' && isMobile) {
       clearLongPress();
       longPressTimer.current = window.setTimeout(() => {
@@ -4740,13 +4776,31 @@ const AttractLeaderboardScreen = ({
   const handlePointerUp = (e: React.PointerEvent) => {
     e.preventDefault();
     const wasLong = longPressFiredRef.current;
+    const start = pointerStartRef.current;
+    pointerStartRef.current = null;
     clearLongPress();
     longPressFiredRef.current = false;
     if (wasLong) return; // long-press already opened the dialog
+    if (!start || start.id !== e.pointerId) return;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    if (Math.abs(dx) >= 48 && Math.abs(dx) > Math.abs(dy) * 1.25) {
+      onNavigate(dx < 0 ? 1 : -1);
+      return;
+    }
     onStart();
   };
 
+  const handlePointerMove = (e: React.PointerEvent) => {
+    const start = pointerStartRef.current;
+    if (!start || start.id !== e.pointerId) return;
+    if (Math.abs(e.clientX - start.x) > 12 || Math.abs(e.clientY - start.y) > 12) {
+      clearLongPress();
+    }
+  };
+
   const handlePointerCancel = () => {
+    pointerStartRef.current = null;
     clearLongPress();
     longPressFiredRef.current = false;
   };
@@ -4759,6 +4813,7 @@ const AttractLeaderboardScreen = ({
       type="button"
       aria-label="Start game"
       onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
       onPointerLeave={handlePointerCancel}
@@ -4854,7 +4909,7 @@ const AttractLeaderboardScreen = ({
             textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
           }}
         >
-          {mobileStartUi ? (gamepadActive ? 'Press START to Start' : 'Touch Screen to Start') : 'Press R to Start'}
+          {isMobile ? (gamepadActive ? 'Press START to Start' : 'Touch Screen to Start') : 'Press R to Start'}
         </div>
         <div
           className="flex items-center justify-center gap-3 text-center font-caveman"
