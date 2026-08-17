@@ -4818,10 +4818,10 @@ const CavemanVsDragonGame = () => {
       </div>
 
       {/* Landscape (APK only): big red JUMP rectangle on the right of the canvas.
-          R button stacks above only when relevant (game over / leaderboard). */}
+          R button stacks above only on post-game leaderboard screens. */}
       {useLandscapeLayout && (
         <div className="h-full shrink-0 py-2 pr-[calc(env(safe-area-inset-right)+0.5rem)] pl-2 touch-none flex flex-col items-stretch justify-center gap-2 w-[min(36vw,180px)]">
-          {(gameState === 'gameover' || gameState === 'leaderboard' || gameState === 'globalLeaderboard') && (
+          {(gameState === 'leaderboard' || gameState === 'globalLeaderboard') && (
             <div className="self-center">{rButtonEl}</div>
           )}
           <div className="flex-1 min-h-0">
