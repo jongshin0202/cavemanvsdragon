@@ -20,6 +20,7 @@ import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal
 import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/deviceStats';
 import { checkWorkerPlayerNameAvailability, getWorkerPlayerName, isWorkerNameAvailabilityEndpointMissing, isWorkerNameUnavailableError } from './game/workerApi';
 import { adjacentAttractScreen, isAttractScreen } from './game/attractNavigation';
+import { canMountLadder } from './game/ladderMount';
 import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
 import { LEVEL2_PARAMS, getLevel2Difficulty } from './game/level2/params';
 import { initLevel2, updateLevel2, renderLevel2, spawnLevel2Robots, fireballHitsPlayer, tryPickupCan, tryPickupRock, trySealVolcano, maybeSpawnVolcanoRock, onMonkeyKilled, removeMonkeyWithoutKill, newSpawnJacket, pushJacket, isHoleAtPlatform, tickApples, appleHitsPlayer, notifyVolcanoSealedL3, type L2Sprites } from './game/level2/level2';
@@ -1215,8 +1216,10 @@ const CavemanVsDragonGame = () => {
           setGameState('highscorePrompt');
           return true;
         }
-        // Not a high score: only R restarts (handled by outer keydown handler)
-        return false;
+        // A non-qualifying score restarts on any button/key. This removes
+        // the need for a separate on-screen R control on GAME OVER.
+        resetGame();
+        return true;
       }
 
       if (gs === 'enterName') {
@@ -1914,8 +1917,9 @@ const CavemanVsDragonGame = () => {
         // vertical overlap with the ladder span counts as being within reach.
         const playerCX = p.x + p.w / 2;
         const LADDER_HALF_W = 7;
-        // Overlap-based horizontal tolerance (any pixel overlap).
-        const OVERLAP_SNAP = p.w / 2 + LADDER_HALF_W; // = 15 for a 16-wide player
+        // Mounting gets a small deterministic assist beyond exact sprite
+        // overlap. This prevents first-life spawn differences from making Up
+        // appear unresponsive while keeping distant ladders out of range.
         let nearestLadder: (typeof LADDERS)[number] | null = null;
         let nearestLadderIdx = -1;
         let nearestLadderDist = Infinity;
@@ -2010,9 +2014,15 @@ const CavemanVsDragonGame = () => {
         const jumpJustPressed = jumpPressed && !(g as any)._jumpHeldLastFrame;
         (g as any)._jumpHeldLastFrame = jumpPressed;
 
-        // Lenient mount: any pixel of horizontal overlap between the player
-        // and the ladder is enough to start climbing when Up/Down is pressed.
-        const canMountHere = !!nearestLadder && nearestLadderDist <= OVERLAP_SNAP;
+        // Accept nearby intentional Up/Down input even if the character and
+        // ladder sprites do not overlap yet. The search radius remains the
+        // hard upper bound, so this cannot snap to a distant ladder.
+        const canMountHere = !!nearestLadder && canMountLadder(
+          nearestLadderDist,
+          p.w,
+          LADDER_HALF_W,
+          LADDER_SNAP,
+        );
 
 
         if (wantUp && nearestLadder && !jumpPressed && (p.climbing || canMountHere)) {
@@ -4034,7 +4044,8 @@ const CavemanVsDragonGame = () => {
           ctx.fillText(continuePrompt, CANVAS_W / 2, CANVAS_H / 2 + 80);
           ctx.fillText('TO CONTINUE', CANVAS_W / 2, CANVAS_H / 2 + 110);
         } else {
-          ctx.fillText('PRESS R TO RESTART', CANVAS_W / 2, CANVAS_H / 2 + 80);
+          ctx.fillText(continuePrompt, CANVAS_W / 2, CANVAS_H / 2 + 80);
+          ctx.fillText('TO RESTART', CANVAS_W / 2, CANVAS_H / 2 + 110);
         }
       }
       if (gameStateRef.current === 'highscorePrompt') {
@@ -4425,7 +4436,7 @@ const CavemanVsDragonGame = () => {
     </div>
   );
 
-  const rButtonEl = (gameState === 'gameover' || gameState === 'leaderboard' || gameState === 'globalLeaderboard') ? (
+  const rButtonEl = (gameState === 'leaderboard' || gameState === 'globalLeaderboard') ? (
     <button
       className="w-12 h-12 self-center rounded-full bg-accent text-accent-foreground text-sm font-bold active:scale-95 shrink-0"
       onPointerDown={(e) => {
@@ -4675,7 +4686,7 @@ const CavemanVsDragonGame = () => {
           />
         )}
 
-        {/* Attract: GLOBAL leaderboard (everyone, via Lovable Cloud) */}
+        {/* Attract: GLOBAL leaderboard (everyone, via Cloudflare Worker) */}
         {gameState === 'attractGlobalLeaderboard' && (
           <AttractLeaderboardScreen
             kind="global"
@@ -4686,6 +4697,26 @@ const CavemanVsDragonGame = () => {
             globalLoading={globalLoading}
             onStart={() => { unlockAudio(); anyInputHandlerRef.current?.('Tap', 'pad'); }}
             onNavigate={moveAttractScreen}
+            onRequestClearLocal={() => setConfirmClearOpen(true)}
+            background={introBackgroundUrl}
+            logo={team2goLogoUrl}
+            onLogoTap={handleLogoTap}
+          />
+        )}
+
+        {/* Post-score GLOBAL leaderboard uses the same responsive DOM layout
+            as attract mode. The canvas version stretches with the portrait
+            game surface and makes the table appear enlarged and clipped. */}
+        {gameState === 'globalLeaderboard' && (
+          <AttractLeaderboardScreen
+            kind="global"
+            isMobile={mobileStartUi}
+            gamepadActive={gamepadActive}
+            scores={scores}
+            globalScores={globalScores}
+            globalLoading={globalLoading}
+            onStart={() => { unlockAudio(); resetGame(); }}
+            onNavigate={() => {}}
             onRequestClearLocal={() => setConfirmClearOpen(true)}
             background={introBackgroundUrl}
             logo={team2goLogoUrl}
