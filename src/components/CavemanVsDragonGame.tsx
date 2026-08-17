@@ -1280,11 +1280,12 @@ const CavemanVsDragonGame = () => {
       ['I','J','K','L','M','N','O','P'],
       ['Q','R','S','T','U','V','W','X'],
       ['Y','Z','0','1','2','3','4','5'],
-      ['6','7','8','9','SPACE','DEL','SEND'],
+      ['6','7','8','9','SHIFT','SPACE','DEL','SEND'],
     ];
 
     let row = 0;
     let col = 0;
+    let shifted = true;
     let repeatDelay: number | null = null;
     let repeatTimer: number | null = null;
 
@@ -1374,7 +1375,7 @@ const CavemanVsDragonGame = () => {
     overlay.appendChild(statusDisplay);
 
     const instructions = document.createElement('div');
-    instructions.textContent = 'D-PAD / STICK: MOVE   A: SELECT   START / SEND: CONTINUE';
+    instructions.textContent = 'D-PAD / STICK: MOVE   A: SELECT   SHIFT: CASE   START / SEND: CONTINUE';
     Object.assign(instructions.style, {
       textAlign: 'center',
       fontSize: 'clamp(9px, 2.2vw, 14px)',
@@ -1395,6 +1396,21 @@ const CavemanVsDragonGame = () => {
 
     const buttons: HTMLButtonElement[][] = [];
 
+    const keyLabel = (token: string) => {
+      if (/^[A-Z]$/.test(token)) return shifted ? token : token.toLowerCase();
+      if (token === 'SHIFT') return shifted ? 'SHIFT' : 'shift';
+      if (token === 'DEL') return '⌫';
+      return token;
+    };
+
+    const renderKeyLabels = () => {
+      buttons.forEach((buttonRow, r) => {
+        buttonRow.forEach((button, c) => {
+          button.textContent = keyLabel(rows[r][c]);
+        });
+      });
+    };
+
     const setNameValue = (next: string) => {
       const clipped = next.slice(0, NAME_MAX_LENGTH);
       nameInputRef.current = clipped;
@@ -1411,6 +1427,12 @@ const CavemanVsDragonGame = () => {
         void requestNameConfirmation();
         return;
       }
+      if (token === 'SHIFT') {
+        shifted = !shifted;
+        renderKeyLabels();
+        renderSelection();
+        return;
+      }
       if (token === 'DEL') {
         setNameValue(current.slice(0, -1));
         return;
@@ -1422,7 +1444,10 @@ const CavemanVsDragonGame = () => {
         return;
       }
       if (current.length < NAME_MAX_LENGTH) {
-        setNameValue(current + token);
+        const character = /^[A-Z]$/.test(token) && !shifted
+          ? token.toLowerCase()
+          : token;
+        setNameValue(current + character);
       }
     };
 
@@ -1450,10 +1475,10 @@ const CavemanVsDragonGame = () => {
       tokens.forEach((token, c) => {
         const button = document.createElement('button');
         button.type = 'button';
-        button.textContent = token === 'SPACE' ? 'SPACE' : token === 'DEL' ? '⌫' : token;
+        button.textContent = keyLabel(token);
         button.setAttribute('aria-label', token);
         Object.assign(button.style, {
-          flex: token === 'SPACE' || token === 'SEND' ? '2' : '1',
+          flex: token === 'SPACE' || token === 'SHIFT' || token === 'SEND' ? '2' : '1',
           minWidth: '0',
           minHeight: 'clamp(32px, 6.5vh, 48px)',
           padding: '2px',
