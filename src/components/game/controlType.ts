@@ -3,6 +3,7 @@ export type GameplayControlType = 'keyboard' | 'touch' | 'gamepad' | 'mixed' | '
 type ConcreteGameplayControlType = Exclude<GameplayControlType, 'mixed' | 'unknown'>;
 
 const usedControlTypes = new Set<ConcreteGameplayControlType>();
+const gameplayControlKeys = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ']);
 
 export function resetGameplayControlType(): void {
   usedControlTypes.clear();
@@ -10,6 +11,15 @@ export function resetGameplayControlType(): void {
 
 export function recordGameplayControlInput(type: ConcreteGameplayControlType): void {
   usedControlTypes.add(type);
+}
+
+export function recordGameplayControlKey(
+  type: ConcreteGameplayControlType,
+  key: string,
+  gameplayActive: boolean,
+): void {
+  if (!gameplayActive || !gameplayControlKeys.has(key)) return;
+  recordGameplayControlInput(type);
 }
 
 export function getGameplayControlType(): GameplayControlType {
