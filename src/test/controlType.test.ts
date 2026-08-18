@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   getGameplayControlType,
   recordGameplayControlInput,
+  recordGameplayControlKey,
   resetGameplayControlType,
 } from '@/components/game/controlType';
 
@@ -22,6 +23,15 @@ describe('gameplay control type tracking', () => {
       expect(getGameplayControlType()).toBe(type);
     },
   );
+
+  it('records only active gameplay controls from the native controller bridge', () => {
+    recordGameplayControlKey('gamepad', 'ArrowUp', false);
+    recordGameplayControlKey('gamepad', 'Start', true);
+    expect(getGameplayControlType()).toBe('unknown');
+
+    recordGameplayControlKey('gamepad', 'ArrowUp', true);
+    expect(getGameplayControlType()).toBe('gamepad');
+  });
 
   it('reports mixed when more than one gameplay input source is used', () => {
     recordGameplayControlInput('touch');
