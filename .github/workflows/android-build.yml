@@ -108,18 +108,18 @@ jobs:
           L4='public/__l5e/assets-v1/a6f66d24-ca19-4677-97af-60cd2eda8a89/Gamemusic4.mp3'
           ENDING='public/__l5e/assets-v1/9f6d1fe7-96b1-4f22-ac2d-43ddf020559c/Gamemusic_Ending.mp3'
 
-          # Level 2: preserve composition, widen the tiny existing stereo side,
+          # Level 2: preserve composition, make the narrow stereo image clearly audible,
           # add phone-relevant presence, compress/limit for much stronger
           # perceived loudness, and retain ~0.4 dB true-peak headroom.
           ffmpeg -y -loglevel error -i "$L2" \
-            -af "highpass=f=70,stereotools=slev=4,equalizer=f=1200:t=q:w=1:g=2,acompressor=threshold=0.12:ratio=3:attack=5:release=80:makeup=2.0,alimiter=limit=0.58:attack=5:release=50,volume=-1.3dB" \
+            -af "highpass=f=70,stereotools=slev=8,equalizer=f=1200:t=q:w=1:g=2,acompressor=threshold=0.12:ratio=3:attack=5:release=80:makeup=2.0,alimiter=limit=0.58:attack=5:release=50,volume=-1.3dB" \
             -ar 44100 -ac 2 -c:a libmp3lame -b:a 192k "${L2%.mp3}.mastered.mp3"
           mv "${L2%.mp3}.mastered.mp3" "$L2"
 
-          # Level 3 is bass-heavier than Level 1, so shift more energy into
+          # Level 3 is bass-heavier than Level 1; widen its narrow stereo image and shift energy into
           # the low-mid/presence range that phone speakers reproduce well.
           ffmpeg -y -loglevel error -i "$L3" \
-            -af "highpass=f=80,stereotools=slev=4,equalizer=f=500:t=q:w=1:g=2,equalizer=f=1400:t=q:w=1:g=3,acompressor=threshold=0.12:ratio=3:attack=5:release=80:makeup=2.2,alimiter=limit=0.58:attack=5:release=50,volume=-1.3dB" \
+            -af "highpass=f=80,stereotools=slev=8,equalizer=f=500:t=q:w=1:g=2,equalizer=f=1400:t=q:w=1:g=3,acompressor=threshold=0.12:ratio=3:attack=5:release=80:makeup=2.2,alimiter=limit=0.58:attack=5:release=50,volume=-1.3dB" \
             -ar 44100 -ac 2 -c:a libmp3lame -b:a 192k "${L3%.mp3}.mastered.mp3"
           mv "${L3%.mp3}.mastered.mp3" "$L3"
 
@@ -144,7 +144,44 @@ jobs:
               -of default=nw=1 "$f"
           done
 
-          echo 'Level 2+ phone-speaker mastering completed successfully'
+          # Prove Level 2/3 contain meaningful left-right difference, not just
+          # two nominal channels carrying nearly the same signal.
+          python3 - "$L2" "$L3" <<'PY'
+          import re
+          import subprocess
+          import sys
+
+          def mean_volume(path: str, audio_filter: str) -> float:
+              proc = subprocess.run(
+                  [
+                      'ffmpeg', '-hide_banner', '-nostats', '-i', path,
+                      '-af', audio_filter, '-f', 'null', '-',
+                  ],
+                  capture_output=True,
+                  text=True,
+                  check=False,
+              )
+              match = re.findall(r'mean_volume:\s*(-?\d+(?:\.\d+)?) dB', proc.stderr)
+              if not match:
+                  raise SystemExit(f'Unable to measure stereo width for {path}')
+              return float(match[-1])
+
+          for path in sys.argv[1:]:
+              program = mean_volume(path, 'volumedetect')
+              side = mean_volume(path, 'pan=mono|c0=FL-FR,volumedetect')
+              side_gap = side - program
+              print(
+                  f'Stereo width {path}: program={program:.1f} dB, '
+                  f'L-R={side:.1f} dB, side_gap={side_gap:.1f} dB'
+              )
+              if side_gap < -15.0:
+                  raise SystemExit(
+                      f'Stereo image is still too narrow for {path}: '
+                      f'{side_gap:.1f} dB'
+                  )
+          PY
+
+          echo 'Level 2+ phone-speaker mastering and stereo-width checks completed successfully'
 
       - name: Balance all BGM to Level 1 loudness
         shell: bash
