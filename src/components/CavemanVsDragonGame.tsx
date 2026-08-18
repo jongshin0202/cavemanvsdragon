@@ -19,7 +19,7 @@ import { loadScores, qualifiesForTop, insertScore, clearLocalScores, formatDate,
 import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal, type GlobalEntry } from './game/globalLeaderboard';
 import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/deviceStats';
 import { checkWorkerPlayerNameAvailability, getWorkerPlayerName, isWorkerNameAvailabilityEndpointMissing, isWorkerNameUnavailableError } from './game/workerApi';
-import { recordGameplayControlInput, resetGameplayControlType } from './game/controlType';
+import { recordGameplayControlKey, resetGameplayControlType } from './game/controlType';
 import { adjacentAttractScreen, isAttractScreen } from './game/attractNavigation';
 import { canMountLadder } from './game/ladderMount';
 import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
@@ -963,6 +963,25 @@ const CavemanVsDragonGame = () => {
   const gameStateRef = useRef<GameState>('intro');
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
 
+  // Native Android gameplay controls arrive through the Java bridge rather
+  // than the browser Gamepad API, so record that custom event explicitly.
+  useEffect(() => {
+    if (!isNativeApp) return;
+    const recordNativeController = (event: Event) => {
+      const detail = (event as CustomEvent<{ key?: string; down?: boolean }>).detail;
+      if (!detail?.down || !detail.key) return;
+      recordGameplayControlKey(
+        'gamepad',
+        detail.key,
+        gameStateRef.current === 'playing',
+      );
+    };
+    window.addEventListener('cvd-native-controller-key', recordNativeController);
+    return () => {
+      window.removeEventListener('cvd-native-controller-key', recordNativeController);
+    };
+  }, []);
+
   const moveAttractScreen = useCallback((direction: -1 | 1) => {
     const current = gameStateRef.current;
     if (!isAttractScreen(current)) return;
@@ -1682,9 +1701,11 @@ const CavemanVsDragonGame = () => {
       let key = e.key;
       const padKey = ANDROID_PAD_KEYS[e.keyCode];
       if (padKey) { key = padKey; markGamepadActive(); e.preventDefault(); }
-      if (gameStateRef.current === 'playing' && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(key)) {
-        recordGameplayControlInput(padKey ? 'gamepad' : 'keyboard');
-      }
+      recordGameplayControlKey(
+        padKey ? 'gamepad' : 'keyboard',
+        key,
+        gameStateRef.current === 'playing',
+      );
       keysRef.current.add(key);
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(key)) e.preventDefault();
       // Route input through the unified handler. It returns true if it consumed the key.
@@ -4235,9 +4256,7 @@ const CavemanVsDragonGame = () => {
       prev[key] = down;
       if (down) {
         markGamepadActive();
-        if (gameStateRef.current === 'playing' && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(key)) {
-          recordGameplayControlInput('gamepad');
-        }
+        recordGameplayControlKey('gamepad', key, gameStateRef.current === 'playing');
         keysRef.current.add(key);
         anyInputHandlerRef.current?.(key, 'pad');
         if (isStart && key === 'r') {
@@ -4316,9 +4335,7 @@ const CavemanVsDragonGame = () => {
 
   const simulateKey = useCallback((key: string, type: 'down' | 'up') => {
     if (type === 'down') {
-      if (gameStateRef.current === 'playing' && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(key)) {
-        recordGameplayControlInput('touch');
-      }
+      recordGameplayControlKey('touch', key, gameStateRef.current === 'playing');
       keysRef.current.add(key);
       // Route mobile pad presses through the unified menu input handler too.
       anyInputHandlerRef.current?.(key, 'pad');
