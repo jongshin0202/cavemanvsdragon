@@ -12,6 +12,22 @@ export function unlockAudio() {
   if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 }
 
+let browserSfxPaused = false;
+
+export async function pauseBrowserSfx(): Promise<void> {
+  if (!audioCtx || audioCtx.state !== 'running') return;
+  browserSfxPaused = true;
+  try { await audioCtx.suspend(); } catch { /* ignore */ }
+}
+
+export async function resumeBrowserSfx(): Promise<void> {
+  if (!browserSfxPaused) return;
+  browserSfxPaused = false;
+  if (audioCtx?.state === 'suspended') {
+    try { await audioCtx.resume(); } catch { /* ignore */ }
+  }
+}
+
 // Dragon wing flap — cinematic "movie dragon" wingbeat.
 // Layers: massive sub-rumble + leathery membrane snap + broad airy whoosh.
 export function playWingFlapSound() {
@@ -732,4 +748,3 @@ export function playDizzySound(durationSec = 2.5) {
     osc.stop(start + chirpDur + 0.02);
   }
 }
-
