@@ -42,14 +42,16 @@ type Track = {
   gain?: GainNode;
   playing: boolean;
   crossfadeSec: number;
+  volume?: number;
+  htmlNativeLoop?: boolean;
 };
 
 const tracks: Record<string, Track> = {
-  level1: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },
-  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2 },
-  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3 },
-  level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },
-  ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },
+  level1: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: VOL },
+  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 0.238, htmlNativeLoop: true },
+  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 0.258, htmlNativeLoop: true },
+  level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 0.217 },
+  ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 0.311 },
 };
 
 // -------- Web Audio (gapless loop) --------
@@ -118,7 +120,7 @@ function startWebAudioLoop(t: Track) {
   src.loopStart = 0;
   src.loopEnd = t.buffer.duration; // full-file gapless loop
   const gain = ctx.createGain();
-  gain.gain.value = VOL;
+  gain.gain.value = t.volume ?? VOL;
   src.connect(gain).connect(ctx.destination);
   src.start(0);
   t.source = src;
@@ -157,8 +159,9 @@ function startCrossfade(t: Track) {
   t.fadeTimer = window.setInterval(() => {
     const elapsed = (performance.now() - startAt) / 1000;
     const p = Math.min(1, elapsed / cf);
-    const outV = Math.cos((p * Math.PI) / 2) * VOL;
-    const inV = Math.sin((p * Math.PI) / 2) * VOL;
+    const tv = t.volume ?? VOL;
+    const outV = Math.cos((p * Math.PI) / 2) * tv;
+    const inV = Math.sin((p * Math.PI) / 2) * tv;
     try { from.volume = Math.max(0, outV); } catch { /* ignore */ }
     try { next.volume = Math.max(0, inV); } catch { /* ignore */ }
     if (p >= 1) {
@@ -190,6 +193,23 @@ function play(key: string) {
   const t = tracks[key];
   t.playing = true;
 
+  if (t.htmlNativeLoop) {
+    // Preserve the native stereo image for Level 2/3 in both browsers and
+    // Android WebView by keeping every BGM track on an HTMLAudio path.
+    stopWebAudio(t);
+    clearTimers(t);
+    if (!t.a) t.a = makeAudio(t.url);
+    try {
+      t.a.pause();
+      t.a.currentTime = 0;
+      t.a.loop = true;
+      t.a.volume = t.volume ?? VOL;
+      t.active = t.a;
+      void t.a.play().catch(() => {});
+    } catch { /* ignore */ }
+    return;
+  }
+
   if (t.crossfadeSec <= 0) {
     // Gapless Web Audio path
     const ctx = getCtx();
@@ -208,7 +228,7 @@ function play(key: string) {
   if (!t.a) t.a = makeAudio(t.url);
   if (!t.b) t.b = makeAudio(t.url);
   clearTimers(t);
-  try { t.a.pause(); t.a.currentTime = 0; t.a.volume = VOL; } catch { /* ignore */ }
+  try { t.a.pause(); t.a.currentTime = 0; t.a.volume = t.volume ?? VOL; } catch { /* ignore */ }
   try { t.b.pause(); t.b.currentTime = 0; t.b.volume = 0; } catch { /* ignore */ }
   t.active = t.a;
   try { void t.a.play().catch(() => {}); } catch { /* ignore */ }

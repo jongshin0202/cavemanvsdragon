@@ -192,6 +192,21 @@ jobs:
           p = Path('src/components/game/bgMusic.ts')
           s = p.read_text()
 
+          # The canonical volume settings now live in source so Vercel and
+          # Android use the same mix. Keep this step compatible with older
+          # source revisions while treating an already-balanced file as done.
+          balanced_markers = [
+              "volume?: number;",
+              "level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 0.238",
+              "level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 0.258",
+              "level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 0.217 }",
+              "ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 0.311 }",
+              "t.a.volume = t.volume ?? VOL;",
+          ]
+          if all(marker in s for marker in balanced_markers):
+              print('BGM playback volumes already match the canonical V1.1 mix')
+              raise SystemExit(0)
+
           def replace_once(old: str, new: str, label: str):
               global s
               count = s.count(old)
@@ -284,6 +299,20 @@ jobs:
 
           p = Path('src/components/game/bgMusic.ts')
           s = p.read_text()
+
+          # The canonical stereo route now lives in source so ordinary web
+          # builds match the APK. Preserve compatibility with older revisions
+          # without inserting the native-loop block twice.
+          stereo_markers = [
+              "htmlNativeLoop?: boolean;",
+              "level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 0.238, htmlNativeLoop: true }",
+              "level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 0.258, htmlNativeLoop: true }",
+              "if (t.htmlNativeLoop) {",
+              "t.a.loop = true;",
+          ]
+          if all(marker in s for marker in stereo_markers):
+              print('All five BGM tracks already use canonical stereo-preserving HTMLAudio routes')
+              raise SystemExit(0)
 
           def replace_once(old: str, new: str, label: str):
               global s
