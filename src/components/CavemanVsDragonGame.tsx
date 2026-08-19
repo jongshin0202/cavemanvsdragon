@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import {
   CANVAS_W, CANVAS_H, GRAVITY, JUMP_FORCE, MOVE_SPEED, BARREL_SPEED, CLIMB_SPEED, ROBOT_SPEED, getRoundDifficulty,
   PLATFORMS, LADDERS, getPlatformY, rectsOverlap, findPlatformIndex, findBestLadder, buildMonkeyDistribution,
@@ -20,6 +20,7 @@ import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal
 import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/deviceStats';
 import { checkWorkerPlayerNameAvailability, getWorkerPlayerName, isWorkerNameAvailabilityEndpointMissing, isWorkerNameUnavailableError } from './game/workerApi';
 import { recordGameplayControlKey, resetGameplayControlType } from './game/controlType';
+import { isLandscapeLeaderboardViewport } from './game/leaderboardViewport';
 import { adjacentAttractScreen, isAttractScreen } from './game/attractNavigation';
 import { canMountLadder } from './game/ladderMount';
 import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
@@ -4964,17 +4965,21 @@ const AttractLeaderboardScreen = ({
   const longPressFiredRef = useRef<boolean>(false);
   const pointerStartRef = useRef<{ id: number; x: number; y: number } | null>(null);
   const screenRef = useRef<HTMLButtonElement | null>(null);
-  const [leaderboardLandscape, setLeaderboardLandscape] = useState(false);
+  const [leaderboardLandscape, setLeaderboardLandscape] = useState(() => (
+    typeof window !== 'undefined'
+      ? isLandscapeLeaderboardViewport(window.innerWidth, window.innerHeight)
+      : false
+  ));
 
   // Android can briefly retain stale window dimensions after rotation. Measure
   // this screen itself so portrait never receives the compact landscape layout.
-  useEffect(() => {
+  useLayoutEffect(() => {
     const screen = screenRef.current;
     if (!screen) return;
 
     const updateLayout = () => {
       const bounds = screen.getBoundingClientRect();
-      setLeaderboardLandscape(bounds.width > bounds.height);
+      setLeaderboardLandscape(isLandscapeLeaderboardViewport(bounds.width, bounds.height));
     };
     const scheduleUpdate = () => window.requestAnimationFrame(updateLayout);
     const observer = typeof ResizeObserver === 'undefined'
