@@ -1392,7 +1392,14 @@ jobs:
             } catch {}
           };"""
           s, count = vibrate_pattern.subn(vibrate_replacement, s, count=1)
-          if count != 1:
+          if count == 0:
+              current_haptics = "  const vibrateNow = (ms: number) => vibrateWebControl(ms);"
+              if s.count(current_haptics) != 1:
+                  raise SystemExit(
+                      f'vibrateNow block: expected legacy or current implementation, found {count}'
+                  )
+              s = s.replace(current_haptics, vibrate_replacement, 1)
+          elif count != 1:
               raise SystemExit(f'vibrateNow block: expected 1 match, found {count}')
 
           # Portrait native controls: center the 152px control row vertically
