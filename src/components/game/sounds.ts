@@ -1,7 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 
 // Web Audio API sound effects generator
-const MOBILE_WEB_SFX_GAIN = 1.75;
+const MOBILE_WEB_SFX_GAIN = 2.4;
 
 let audioCtx: AudioContext | null = null;
 let sfxOutput: GainNode | null = null;
