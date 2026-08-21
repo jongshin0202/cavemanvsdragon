@@ -183,981 +183,34 @@ jobs:
 
           echo 'Level 2+ phone-speaker mastering and stereo-width checks completed successfully'
 
-      - name: Balance all BGM to Level 1 loudness
+      - name: Verify canonical audio and browser pause implementation
         shell: bash
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          p = Path('src/components/game/bgMusic.ts')
-          s = p.read_text()
-
-          # The canonical volume settings now live in source so Vercel and
-          # Android use the same mix. Keep this step compatible with older
-          # source revisions while treating an already-balanced file as done.
-          balanced_markers = [
-              "volume?: number;",
-              "level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 0.238",
-              "level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 0.258",
-              "level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 0.217 }",
-              "ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 0.311 }",
-              "t.a.volume = t.volume ?? VOL;",
-          ]
-          if all(marker in s for marker in balanced_markers):
-              print('BGM playback volumes already match the canonical V1.1 mix')
-              raise SystemExit(0)
-
-          def replace_once(old: str, new: str, label: str):
-              global s
-              count = s.count(old)
-              if count != 1:
-                  raise SystemExit(f'{label}: expected 1 match, found {count}')
-              s = s.replace(old, new, 1)
-
-          # Keep Level 1 exactly unchanged. The later-track values compensate
-          # for the measured LUFS of the mastered files so their effective
-          # playback loudness matches Level 1 at VOL=0.333.
-          replace_once(
-              "  crossfadeSec: number;\n};",
-              "  crossfadeSec: number;\n  volume?: number;\n};",
-              'Track volume field'
-          )
-
-          replacements = [
-              (
-                  "  level1: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
-                  "  level1: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: VOL },",
-                  'Level 1 volume'
-              ),
-              (
-                  "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2 },",
-                  "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 0.238 },",
-                  'Level 2 balanced volume'
-              ),
-              (
-                  "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3 },",
-                  "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 0.258 },",
-                  'Level 3 balanced volume'
-              ),
-              (
-                  "  level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
-                  "  level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 0.217 },",
-                  'Level 4 balanced volume'
-              ),
-              (
-                  "  ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },",
-                  "  ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 0.311 },",
-                  'Ending balanced volume'
-              ),
-          ]
-          for old, new, label in replacements:
-              replace_once(old, new, label)
-
-          replace_once(
-              "  gain.gain.value = VOL;",
-              "  gain.gain.value = t.volume ?? VOL;",
-              'WebAudio gain'
-          )
-          replace_once(
-              "    const outV = Math.cos((p * Math.PI) / 2) * VOL;\n    const inV = Math.sin((p * Math.PI) / 2) * VOL;",
-              "    const tv = t.volume ?? VOL;\n    const outV = Math.cos((p * Math.PI) / 2) * tv;\n    const inV = Math.sin((p * Math.PI) / 2) * tv;",
-              'Crossfade volume'
-          )
-          replace_once(
-              "  try { t.a.pause(); t.a.currentTime = 0; t.a.volume = VOL; } catch { /* ignore */ }",
-              "  try { t.a.pause(); t.a.currentTime = 0; t.a.volume = t.volume ?? VOL; } catch { /* ignore */ }",
-              'HTMLAudio start volume'
-          )
-
-          p.write_text(s)
-
-          required = [
-              "level1: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: VOL }",
-              "level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 0.238 }",
-              "level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 0.258 }",
-              "level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 0.217 }",
-              "ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 0.311 }",
-              "t.a.volume = t.volume ?? VOL;",
-          ]
-          missing = [x for x in required if x not in s]
-          if missing:
-              raise SystemExit(f'Balanced-BGM assertion failed: {missing}')
-
-          print('Balanced BGM playback volumes:')
-          print('  Level 1  = 0.333')
-          print('  Level 2  = 0.238')
-          print('  Level 3  = 0.258')
-          print('  Level 4  = 0.217')
-          print('  Ending   = 0.311')
-          PY
-
-      - name: Route all BGM through HTMLAudio stereo paths
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          p = Path('src/components/game/bgMusic.ts')
-          s = p.read_text()
-
-          # The canonical stereo route now lives in source so ordinary web
-          # builds match the APK. Preserve compatibility with older revisions
-          # without inserting the native-loop block twice.
-          stereo_markers = [
-              "htmlNativeLoop?: boolean;",
-              "level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 0.238, htmlNativeLoop: true }",
-              "level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 0.258, htmlNativeLoop: true }",
-              "if (t.htmlNativeLoop) {",
-              "t.a.loop = true;",
-          ]
-          if all(marker in s for marker in stereo_markers):
-              print('All five BGM tracks already use canonical stereo-preserving HTMLAudio routes')
-              raise SystemExit(0)
-
-          def replace_once(old: str, new: str, label: str):
-              global s
-              count = s.count(old)
-              if count != 1:
-                  raise SystemExit(f'{label}: expected 1 match, found {count}')
-              s = s.replace(old, new, 1)
-
-          # Level 1, Level 4 and Ending already use the HTMLAudio crossfade
-          # path because their crossfadeSec is > 0.
-          #
-          # Level 2 and Level 3 are the only tracks that normally enter the
-          # Web Audio AudioBufferSourceNode path. Mark those two for an
-          # explicit HTMLAudioElement native-loop route instead.
-          replace_once(
-              "  volume?: number;\n};",
-              "  volume?: number;\n  htmlNativeLoop?: boolean;\n};",
-              'HTML native-loop field'
-          )
-
-          replace_once(
-              "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 0.238 },",
-              "  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 0.238, htmlNativeLoop: true },",
-              'Level 2 HTMLAudio route'
-          )
-
-          replace_once(
-              "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 0.258 },",
-              "  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 0.258, htmlNativeLoop: true },",
-              'Level 3 HTMLAudio route'
-          )
-
-          # Insert the HTMLAudio native-loop route immediately before the
-          # existing Web Audio branch. Match only the branch line itself so
-          # whitespace/comments cannot break the workflow matcher.
-          needle = "  if (t.crossfadeSec <= 0) {"
-          if s.count(needle) != 1:
-              raise SystemExit(
-                  f'WebAudio play branch: expected 1 match, found {s.count(needle)}'
-              )
-
-          html_loop_block = """  if (t.htmlNativeLoop) {
-            // Android stereo-preserving route for Level 2/3.
-            // Use ordinary HTML media playback, same playback family as
-            // Level 1/4/Ending, instead of AudioBufferSourceNode.
-            stopWebAudio(t);
-            clearTimers(t);
-            if (!t.a) t.a = makeAudio(t.url);
-            try {
-              t.a.pause();
-              t.a.currentTime = 0;
-              t.a.loop = true;
-              t.a.volume = t.volume ?? VOL;
-              t.active = t.a;
-              void t.a.play().catch(() => {});
-            } catch { /* ignore */ }
-            return;
-          }
-
-          """
-
-          s = s.replace(needle, html_loop_block + needle, 1)
-
-          p.write_text(s)
-
-          # Explicitly prove that every Android BGM track resolves to an
-          # HTMLAudio route:
-          #   L1       crossfade HTMLAudio
-          #   L2       native-loop HTMLAudio
-          #   L3       native-loop HTMLAudio
-          #   L4       crossfade HTMLAudio
-          #   Ending   crossfade HTMLAudio
-          required = {
-              'Level 1 HTMLAudio crossfade':
-                  "level1: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: VOL }",
-              'Level 2 HTMLAudio native loop':
-                  "level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 0.238, htmlNativeLoop: true }",
-              'Level 3 HTMLAudio native loop':
-                  "level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 0.258, htmlNativeLoop: true }",
-              'Level 4 HTMLAudio crossfade':
-                  "level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 0.217 }",
-              'Ending HTMLAudio crossfade':
-                  "ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 0.311 }",
-              'Native HTMLAudio loop implementation':
-                  "t.a.loop = true;",
-          }
-
-          missing = [label for label, fragment in required.items() if fragment not in s]
-          if missing:
-              raise SystemExit(f'All-stereo routing assertion failed: {missing}')
-
-          # No defined BGM track is allowed to reach WebAudio:
-          # only zero-crossfade tracks can enter that branch, and both
-          # zero-crossfade tracks are now intercepted by htmlNativeLoop.
-          if "level2: 0" not in s or "level3: 0" not in s:
-              raise SystemExit('Unexpected crossfade override configuration')
-
-          print('Android BGM route verification:')
-          print('  Level 1  -> HTMLAudio crossfade @ 0.333')
-          print('  Level 2  -> HTMLAudio native loop @ 0.238')
-          print('  Level 3  -> HTMLAudio native loop @ 0.258')
-          print('  Level 4  -> HTMLAudio crossfade @ 0.217')
-          print('  Ending   -> HTMLAudio crossfade @ 0.311')
-          print('  WebAudio -> unreachable by all five BGM tracks')
-          PY
-
-      - name: Balance completion SFX against BGM
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          p = Path('src/components/game/sounds.ts')
-          s = p.read_text()
-
-          def get_block(name: str):
-              token = f'export function {name}('
-              start = s.find(token)
-              if start < 0:
-                  raise SystemExit(f'Missing sound function: {name}')
-              nxt = s.find('\nexport function ', start + len(token))
-              if nxt < 0:
-                  nxt = len(s)
-              return start, nxt, s[start:nxt]
-
-          def patch_block(name: str, replacements):
-              global s
-              start, end, block = get_block(name)
-              for old, new, label in replacements:
-                  count = block.count(old)
-                  if count != 1:
-                      raise SystemExit(f'{name}/{label}: expected 1 match, found {count}')
-                  block = block.replace(old, new, 1)
-              s = s[:start] + block + s[end:]
-
-          # All BGM is now normalized to Level 1. Leave ordinary gameplay and
-          # cinematic effects unchanged because their existing dynamics are
-          # intentional. Raise critical state cues just enough to stay clearly
-          # audible over the music.
-          patch_block('playWinSound', [
-              (
-                  'gain.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.15);',
-                  'gain.gain.setValueAtTime(0.22, ctx.currentTime + i * 0.15);',
-                  'win melody'
-              ),
-          ])
-
-          patch_block('playGameOverSound', [
-              (
-                  'gain.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.2);',
-                  'gain.gain.setValueAtTime(0.20, ctx.currentTime + i * 0.2);',
-                  'game over melody'
-              ),
-          ])
-
-          patch_block('playPrincessSavedSound', [
-              (
-                  'gain.gain.setValueAtTime(0.13, t);',
-                  'gain.gain.setValueAtTime(0.20, t);',
-                  'princess melody'
-              ),
-              (
-                  'gain.gain.setValueAtTime(0.10, chordT);',
-                  'gain.gain.setValueAtTime(0.15, chordT);',
-                  'princess chord'
-              ),
-              (
-                  'sparkleGain.gain.setValueAtTime(0.10, ts);',
-                  'sparkleGain.gain.setValueAtTime(0.15, ts);',
-                  'princess sparkle'
-              ),
-          ])
-
-          p.write_text(s)
-
-          checks = [
-              'gain.gain.setValueAtTime(0.22, ctx.currentTime + i * 0.15);',
-              'gain.gain.setValueAtTime(0.20, ctx.currentTime + i * 0.2);',
-              'gain.gain.setValueAtTime(0.20, t);',
-              'gain.gain.setValueAtTime(0.15, chordT);',
-              'sparkleGain.gain.setValueAtTime(0.15, ts);',
-          ]
-          missing = [x for x in checks if x not in s]
-          if missing:
-              raise SystemExit(f'SFX mix assertion failed: {missing}')
-
-          print('Critical SFX mix:')
-          print('  Win melody:       0.15 -> 0.22')
-          print('  Game over:        0.15 -> 0.20')
-          print('  Princess melody:  0.13 -> 0.20')
-          print('  Princess chord:   0.10 -> 0.15')
-          print('  Princess sparkle: 0.10 -> 0.15')
-          print('  Other SFX: unchanged')
-          PY
-
-      - name: Balance all SFX through master bus
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          p = Path('src/components/game/sounds.ts')
-          s = p.read_text()
-
-          # Remove the previous one-off completion-cue boosts so every SFX is
-          # handled by the same master mix bus.
-          reversions = [
-              (
-                  'gain.gain.setValueAtTime(0.22, ctx.currentTime + i * 0.15);',
-                  'gain.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.15);',
-                  'win cue reset'
-              ),
-              (
-                  'gain.gain.setValueAtTime(0.20, ctx.currentTime + i * 0.2);',
-                  'gain.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.2);',
-                  'game-over cue reset'
-              ),
-              (
-                  'gain.gain.setValueAtTime(0.20, t);',
-                  'gain.gain.setValueAtTime(0.13, t);',
-                  'princess melody reset'
-              ),
-              (
-                  'gain.gain.setValueAtTime(0.15, chordT);',
-                  'gain.gain.setValueAtTime(0.10, chordT);',
-                  'princess chord reset'
-              ),
-              (
-                  'sparkleGain.gain.setValueAtTime(0.15, ts);',
-                  'sparkleGain.gain.setValueAtTime(0.10, ts);',
-                  'princess sparkle reset'
-              ),
-          ]
-          for old, new, label in reversions:
-              count = s.count(old)
-              if count != 1:
-                  raise SystemExit(f'{label}: expected 1 match, found {count}')
-              s = s.replace(old, new, 1)
-
-          # Route every existing Web Audio SFX output through a shared master bus.
-          direct_count = s.count('connect(ctx.destination)')
-          if direct_count < 10:
-              raise SystemExit(f'Expected many direct SFX outputs, found only {direct_count}')
-          s = s.replace('connect(ctx.destination)', 'connect(getSfxBus())')
-
-          marker = """function getCtx(): AudioContext {
-            if (!audioCtx) audioCtx = new AudioContext();
-            return audioCtx;
-          }
-
-          """
-          if marker not in s:
-              raise SystemExit('getCtx() marker not found')
-
-          bus_code = """let sfxBus: GainNode | null = null;
-          let sfxCompressor: DynamicsCompressorNode | null = null;
-
-          function getSfxBus(): AudioNode {
-            const ctx = getCtx();
-            if (!sfxBus || !sfxCompressor) {
-              sfxBus = ctx.createGain();
-              sfxCompressor = ctx.createDynamicsCompressor();
-
-              // Raise quiet gameplay cues on Android/WebView.
-              sfxBus.gain.value = 2.75;
-
-              // Prevent strong effects from becoming painfully loud.
-              sfxCompressor.threshold.value = -18;
-              sfxCompressor.knee.value = 18;
-              sfxCompressor.ratio.value = 4;
-              sfxCompressor.attack.value = 0.003;
-              sfxCompressor.release.value = 0.18;
-
-              sfxBus.connect(sfxCompressor);
-              sfxCompressor.connect(ctx.destination);
-            }
-            return sfxBus;
-          }
-
-          """
-          s = s.replace(marker, marker + bus_code, 1)
-          p.write_text(s)
-
-          checks = [
-              'sfxBus.gain.value = 2.75;',
-              'sfxCompressor.threshold.value = -18;',
-              'sfxCompressor.ratio.value = 4;',
-              'sfxCompressor.connect(ctx.destination);',
-              'connect(getSfxBus())',
-              'gain.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.15);',
-              'gain.gain.setValueAtTime(0.13, t);',
-          ]
-          missing = [x for x in checks if x not in s]
-          if missing:
-              raise SystemExit(f'All-SFX bus assertion failed: {missing}')
-
-          remaining_direct = s.count('connect(ctx.destination)')
-          if remaining_direct != 1:
-              raise SystemExit(
-                  f'Expected exactly 1 direct destination connection (compressor), found {remaining_direct}'
-              )
-
-          print(f'Routed {direct_count} SFX outputs through shared master bus')
-          print('SFX master gain: 2.75x (+25% vs v28)')
-          print('Compressor: threshold -18 dB, ratio 4:1')
-          print('All SFX now share one master mix bus')
-          PY
-
-      - name: Boost post-watering sprout and vine SFX 75 percent more
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          p = Path('src/components/game/sounds.ts')
-          s = p.read_text()
-
-          def get_block(name: str):
-              token = f'export function {name}('
-              start = s.find(token)
-              if start < 0:
-                  raise SystemExit(f'Missing sound function: {name}')
-              nxt = s.find('\nexport function ', start + len(token))
-              if nxt < 0:
-                  nxt = len(s)
-              return start, nxt, s[start:nxt]
-
-          def patch_block(name: str, replacements):
-              global s
-              start, end, block = get_block(name)
-              for old, new, label in replacements:
-                  count = block.count(old)
-                  if count != 1:
-                      raise SystemExit(f'{name}/{label}: expected 1 match, found {count}')
-                  block = block.replace(old, new, 1)
-              s = s[:start] + block + s[end:]
-
-          # v30 already applied +25% globally to all SFX.
-          # This build raises the entire post-watering growth sequence another
-          # 75% over v30, because filtered noise + sine waves translate more
-          # quietly on phone speakers than square/triangle gameplay cues.
-          #
-          # Relative to the original local values:
-          #   0.12 -> 0.315  (water/sprout noise)
-          #   0.08 -> 0.210  (sprout rising tone)
-          #   0.10 -> 0.2625 (vine organic noise)
-          #   0.07 -> 0.18375 (vine rising notes)
-          #   0.12 -> 0.315  (final bloom chime)
-
-          patch_block('playWaterSproutSound', [
-              (
-                  'noiseGain.gain.setValueAtTime(0.12, ctx.currentTime);',
-                  'noiseGain.gain.setValueAtTime(0.315, ctx.currentTime);',
-                  'water sprout noise'
-              ),
-              (
-                  'oscGain.gain.setValueAtTime(0.08, ctx.currentTime + 0.05);',
-                  'oscGain.gain.setValueAtTime(0.210, ctx.currentTime + 0.05);',
-                  'water sprout rising tone'
-              ),
-          ])
-
-          patch_block('playVineGrowSound', [
-              (
-                  'noiseGain.gain.setValueAtTime(0.10, t0);',
-                  'noiseGain.gain.setValueAtTime(0.2625, t0);',
-                  'vine organic noise'
-              ),
-              (
-                  'gain.gain.setValueAtTime(0.07, t);',
-                  'gain.gain.setValueAtTime(0.18375, t);',
-                  'vine rising notes'
-              ),
-              (
-                  'cg.gain.setValueAtTime(0.12, tc);',
-                  'cg.gain.setValueAtTime(0.315, tc);',
-                  'vine bloom chime'
-              ),
-          ])
-
-          p.write_text(s)
-
-          required = [
-              'noiseGain.gain.setValueAtTime(0.315, ctx.currentTime);',
-              'oscGain.gain.setValueAtTime(0.210, ctx.currentTime + 0.05);',
-              'noiseGain.gain.setValueAtTime(0.2625, t0);',
-              'gain.gain.setValueAtTime(0.18375, t);',
-              'cg.gain.setValueAtTime(0.315, tc);',
-          ]
-          missing = [x for x in required if x not in s]
-          if missing:
-              raise SystemExit(f'Post-watering growth boost assertion failed: {missing}')
-
-          print('Music: unchanged from v30')
-          print('All non-growth SFX: unchanged from v30')
-          print('Post-watering sprout/vine sequence: +75% vs v30')
-          print('Shared SFX master gain remains 2.75x')
-          PY
-
-      - name: Implement true tap-to-pause with exact audio resume
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          # --- Background music: preserve exact currentTime and crossfade progress ---
-          p = Path('src/components/game/bgMusic.ts')
-          s = p.read_text()
-
-          stop_all = """export function stopAllMusic() {
-            for (const k of Object.keys(tracks)) stop(k);
-          }
-          """
-          if s.count(stop_all) != 1:
-              raise SystemExit(f'bgMusic stopAllMusic: expected 1 match, found {s.count(stop_all)}')
-
-          pause_music = r"""
-          type GamePauseMusicSnapshot = {
-            playingElements: HTMLAudioElement[];
-            active?: HTMLAudioElement;
-            fadeProgress: number | null;
-          };
-
-          const gamePauseMusicSnapshots = new Map<string, GamePauseMusicSnapshot>();
-          let gamePauseMusicActive = false;
-          let gamePauseWebAudioWasRunning = false;
-
-          export async function pauseAllMusicForGamePause() {
-            if (gamePauseMusicActive) return;
-            gamePauseMusicActive = true;
-            gamePauseMusicSnapshots.clear();
-
-            gamePauseWebAudioWasRunning = !!audioCtx && audioCtx.state === 'running';
-            if (gamePauseWebAudioWasRunning && audioCtx) {
-              try { await audioCtx.suspend(); } catch { /* ignore */ }
-            }
-
-            for (const [key, t] of Object.entries(tracks)) {
-              if (!t.playing) continue;
-              const elements = [t.a, t.b].filter((el): el is HTMLAudioElement => !!el);
-              const playingElements = elements.filter((el) => !el.paused);
-
-              let fadeProgress: number | null = null;
-              if (t.fadeTimer && t.active && t.crossfadeSec > 0 && playingElements.length > 1) {
-                const tv = t.volume ?? VOL;
-                if (tv > 0) {
-                  const ratio = Math.max(0, Math.min(1, t.active.volume / tv));
-                  fadeProgress = (2 / Math.PI) * Math.asin(ratio);
-                }
-              }
-
-              gamePauseMusicSnapshots.set(key, {
-                playingElements,
-                active: t.active,
-                fadeProgress,
-              });
-
-              clearTimers(t);
-              for (const el of playingElements) {
-                try { el.pause(); } catch { /* ignore */ }
-              }
-            }
-          }
-
-          export async function resumeAllMusicFromGamePause() {
-            if (!gamePauseMusicActive) return;
-            gamePauseMusicActive = false;
-
-            if (gamePauseWebAudioWasRunning && audioCtx?.state === 'suspended') {
-              try { await audioCtx.resume(); } catch { /* ignore */ }
-            }
-            gamePauseWebAudioWasRunning = false;
-
-            for (const [key, snapshot] of gamePauseMusicSnapshots.entries()) {
-              const t = tracks[key];
-              if (!t || !t.playing) continue;
-
-              for (const el of snapshot.playingElements) {
-                try { void el.play().catch(() => {}); } catch { /* ignore */ }
-              }
-
-              if (
-                snapshot.fadeProgress !== null &&
-                snapshot.active &&
-                t.crossfadeSec > 0 &&
-                snapshot.playingElements.length > 1
-              ) {
-                const incoming = snapshot.active;
-                const outgoing = incoming === t.a ? t.b : t.a;
-                const pStart = Math.max(0, Math.min(1, snapshot.fadeProgress));
-                const startAt = performance.now();
-                const tv = t.volume ?? VOL;
-                t.active = incoming;
-
-                t.fadeTimer = window.setInterval(() => {
-                  const elapsed = (performance.now() - startAt) / 1000;
-                  const p = Math.min(1, pStart + elapsed / t.crossfadeSec);
-                  const outV = Math.cos((p * Math.PI) / 2) * tv;
-                  const inV = Math.sin((p * Math.PI) / 2) * tv;
-
-                  try { incoming.volume = Math.max(0, inV); } catch { /* ignore */ }
-                  if (outgoing) {
-                    try { outgoing.volume = Math.max(0, outV); } catch { /* ignore */ }
-                  }
-
-                  if (p >= 1) {
-                    if (outgoing) {
-                      try {
-                        outgoing.pause();
-                        outgoing.currentTime = 0;
-                        outgoing.volume = 0;
-                      } catch { /* ignore */ }
-                    }
-                    if (t.fadeTimer) {
-                      clearInterval(t.fadeTimer);
-                      t.fadeTimer = undefined;
-                    }
-                    watch(t);
-                  }
-                }, FADE_TICK_MS);
-              } else {
-                watch(t);
-              }
-            }
-
-            gamePauseMusicSnapshots.clear();
-          }
-
-          """
-          s = s.replace(stop_all, pause_music + stop_all, 1)
-          p.write_text(s)
-
-          # --- SFX: suspend Web Audio clock so active/scheduled effects freeze in place ---
-          p = Path('src/components/game/sounds.ts')
-          s = p.read_text()
-
-          unlock = """export function unlockAudio() {
-            const ctx = getCtx();
-            if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-          }
-          """
-          if s.count(unlock) != 1:
-              raise SystemExit(f'sounds unlockAudio: expected 1 match, found {s.count(unlock)}')
-
-          sfx_pause = unlock + r"""
-
-          let gamePauseSfxWasRunning = false;
-
-          export async function pauseAllSfxForGamePause() {
-            gamePauseSfxWasRunning = !!audioCtx && audioCtx.state === 'running';
-            if (gamePauseSfxWasRunning && audioCtx) {
-              try { await audioCtx.suspend(); } catch { /* ignore */ }
-            }
-          }
-
-          export async function resumeAllSfxFromGamePause() {
-            if (!gamePauseSfxWasRunning) return;
-            gamePauseSfxWasRunning = false;
-            if (audioCtx?.state === 'suspended') {
-              try { await audioCtx.resume(); } catch { /* ignore */ }
-            }
-          }
-          """
-          s = s.replace(unlock, sfx_pause, 1)
-          p.write_text(s)
-
-          # --- Main game: tap canvas toggles true freeze + white circular II icon ---
-          p = Path('src/components/CavemanVsDragonGame.tsx')
-          s = p.read_text()
-
-          old_sound_import = "import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarTracked, playPrincessHelpSound, isDragonRoaringNow, unlockAudio } from './game/sounds';"
-          new_sound_import = "import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarTracked, playPrincessHelpSound, isDragonRoaringNow, unlockAudio, pauseAllSfxForGamePause, resumeAllSfxFromGamePause } from './game/sounds';"
-          if s.count(old_sound_import) != 1:
-              raise SystemExit(f'game sounds import: expected 1 match, found {s.count(old_sound_import)}')
-          s = s.replace(old_sound_import, new_sound_import, 1)
-
-          old_music_import = "import { playLevel1Music, stopLevel1Music, playLevel2Music, stopLevel2Music, playLevel3Music, stopLevel3Music, playLevel4Music, stopLevel4Music, stopAllMusic } from './game/bgMusic';"
-          new_music_import = "import { playLevel1Music, stopLevel1Music, playLevel2Music, stopLevel2Music, playLevel3Music, stopLevel3Music, playLevel4Music, stopLevel4Music, stopAllMusic, pauseAllMusicForGamePause, resumeAllMusicFromGamePause } from './game/bgMusic';"
-          if s.count(old_music_import) != 1:
-              raise SystemExit(f'game music import: expected 1 match, found {s.count(old_music_import)}')
-          s = s.replace(old_music_import, new_music_import, 1)
-
-          state_marker = "  const [gameState, setGameState] = useState<GameState>('intro');"
-          state_replacement = """  const [gameState, setGameState] = useState<GameState>('intro');
-            const [isPaused, setIsPaused] = useState(false);
-            const pausedRef = useRef(false);"""
-          if s.count(state_marker) != 1:
-              raise SystemExit(f'pause state marker: expected 1 match, found {s.count(state_marker)}')
-          s = s.replace(state_marker, state_replacement, 1)
-
-          game_state_ref = """  const gameStateRef = useRef<GameState>('intro');
-            useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
-          """
-          toggle_block = game_state_ref + r"""
-
-            const toggleGamePause = useCallback(() => {
-              // Controller START must respond as soon as gameplay is active.
-              // Do not wait for the opening caveman flash/invulnerability period.
-              if (gameStateRef.current !== 'playing') return;
-
-              const nextPaused = !pausedRef.current;
-              pausedRef.current = nextPaused;
-              setIsPaused(nextPaused);
-              if (isNativeApp && typeof window !== 'undefined') {
-                (window as any).__cvdAndroidGamePaused = nextPaused;
-              }
-
-              if (nextPaused) {
-                void pauseAllMusicForGamePause();
-                void pauseAllSfxForGamePause();
-              } else {
-                void resumeAllMusicFromGamePause();
-                void resumeAllSfxFromGamePause();
-              }
-            }, []);
-
-            // Native APK controller path. This hook is intentionally declared
-            // after markGamepadActive and toggleGamePause to avoid a TDZ crash
-            // during the first React render.
-            useEffect(() => {
-              const onNativeControllerKey = (event: Event) => {
-                const detail = (event as CustomEvent<{ key?: string; down?: boolean }>).detail;
-                const key = detail?.key;
-                const down = Boolean(detail?.down);
-
-                if (key === 'Start') {
-                  markGamepadActive();
-                  if (!down) return;
-
-                  const gs = gameStateRef.current;
-                  if (
-                    gs === 'intro' ||
-                    gs === 'attractLocalLeaderboard' ||
-                    gs === 'attractGlobalLeaderboard' ||
-                    gs === 'attractControls'
-                  ) {
-                    // START is equivalent to a normal immediate start action.
-                    anyInputHandlerRef.current?.('Enter', 'keyboard');
-                    return;
-                  }
-
-                  if (
-                    gs === 'confirmName' ||
-                    gs === 'gameover' ||
-                    gs === 'highscorePrompt'
-                  ) {
-                    anyInputHandlerRef.current?.('Enter', 'keyboard');
-                    return;
-                  }
-
-                  if (gs === 'playing') {
-                    toggleGamePause();
-                  }
-                  return;
-                }
-
-                // A also starts intro/attract immediately.
-                if (key === ' ' && down) {
-                  markGamepadActive();
-                  const gs = gameStateRef.current;
-                  if (
-                    gs === 'intro' ||
-                    gs === 'attractControls' ||
-                    gs === 'attractLocalLeaderboard' ||
-                    gs === 'attractGlobalLeaderboard'
-                  ) {
-                    anyInputHandlerRef.current?.('Enter', 'keyboard');
-                    return;
-                  }
-                }
-
-                if (
-                  key !== 'ArrowUp' &&
-                  key !== 'ArrowDown' &&
-                  key !== 'ArrowLeft' &&
-                  key !== 'ArrowRight' &&
-                  key !== ' '
-                ) return;
-
-                markGamepadActive();
-                if (down) {
-                  const wasAlreadyDown = keysRef.current.has(key);
-                  keysRef.current.add(key);
-                  if (!wasAlreadyDown) {
-                    anyInputHandlerRef.current?.(key, 'pad');
-                  }
-                } else {
-                  keysRef.current.delete(key);
-                }
-              };
-
-              window.addEventListener('cvd-native-controller-key', onNativeControllerKey);
-              return () => {
-                window.removeEventListener('cvd-native-controller-key', onNativeControllerKey);
-              };
-            }, [markGamepadActive, toggleGamePause]);
-
-            // Android lifecycle safety: if the app goes to Recents/background
-            // while gameplay is active, pause gameplay + music/SFX exactly once.
-            // Returning to the app intentionally leaves it paused until the
-            // player explicitly resumes.
-            useEffect(() => {
-              const pauseForAppBackground = () => {
-                if (gameStateRef.current !== 'playing' || pausedRef.current) return;
-                void toggleGamePause();
-              };
-
-              const onVisibilityChange = () => {
-                if (document.visibilityState === 'hidden') {
-                  pauseForAppBackground();
-                }
-              };
-
-              window.addEventListener('cvd-native-app-background', pauseForAppBackground);
-              document.addEventListener('visibilitychange', onVisibilityChange);
-
-              return () => {
-                window.removeEventListener('cvd-native-app-background', pauseForAppBackground);
-                document.removeEventListener('visibilitychange', onVisibilityChange);
-              };
-            }, [toggleGamePause]);
-
-            useEffect(() => {
-              if (gameState === 'playing' || !pausedRef.current) return;
-              pausedRef.current = false;
-              setIsPaused(false);
-              if (isNativeApp && typeof window !== 'undefined') {
-                (window as any).__cvdAndroidGamePaused = false;
-              }
-              void resumeAllMusicFromGamePause();
-              void resumeAllSfxFromGamePause();
-            }, [gameState]);
-          """
-          if s.count(game_state_ref) != 1:
-              raise SystemExit(f'gameStateRef marker: expected 1 match, found {s.count(game_state_ref)}')
-          s = s.replace(game_state_ref, toggle_block, 1)
-
-          loop_marker = """    const gameLoop = (timestamp: number) => {
-                // Fixed-timestep gate: only run one full step+render per ~16.67ms.
-          """
-          loop_replacement = """    const gameLoop = (timestamp: number) => {
-                if (pausedRef.current) {
-                  lastTime = timestamp;
-                  return;
-                }
-
-                // Fixed-timestep gate: only run one full step+render per ~16.67ms.
-          """
-          if s.count(loop_marker) != 1:
-              raise SystemExit(f'game loop marker: expected 1 match, found {s.count(loop_marker)}')
-          s = s.replace(loop_marker, loop_replacement, 1)
-
-          canvas_marker = """          <canvas
-                      ref={canvasRef}
-                      width={CANVAS_W}
-                      height={CANVAS_H}
-                      className="block max-h-full max-w-full h-auto w-auto"
-          """
-          canvas_replacement = """          <canvas
-                      ref={canvasRef}
-                      width={CANVAS_W}
-                      height={CANVAS_H}
-                      onPointerDown={(e) => {
-                        if (gameStateRef.current !== 'playing' || levelIntroRef.current) return;
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const canvasY = ((e.clientY - rect.top) / rect.height) * CANVAS_H;
-                        const bottomPlatformY = Math.max(...PLATFORMS.map((platform) => platform.y));
-                        // The black band below the bottommost platform is not
-                        // part of the pause target. This keeps a finger just
-                        // above the on-screen UP control from pausing gameplay.
-                        if (canvasY > bottomPlatformY) return;
-                        e.preventDefault();
-                        e.stopPropagation();
-                        toggleGamePause();
-                      }}
-                      className="block max-h-full max-w-full h-auto w-auto"
-          """
-          if s.count(canvas_marker) != 1:
-              raise SystemExit(f'canvas marker: expected 1 match, found {s.count(canvas_marker)}')
-          s = s.replace(canvas_marker, canvas_replacement, 1)
-
-          canvas_close = """            tabIndex={0}
-                    />
-                  </div>
-          """
-          pause_overlay = """            tabIndex={0}
-                    />
-
-                    {isPaused && gameState === 'playing' && (
-                      <div
-                        className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center"
-                        aria-hidden="true"
-                      >
-                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-lg">
-                          <div className="flex h-8 items-center gap-2">
-                            <span className="block h-8 w-2 rounded-sm bg-black" />
-                            <span className="block h-8 w-2 rounded-sm bg-black" />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-          """
-          if s.count(canvas_close) != 1:
-              raise SystemExit(f'canvas close marker: expected 1 match, found {s.count(canvas_close)}')
-          s = s.replace(canvas_close, pause_overlay, 1)
-
-          p.write_text(s)
-
-          bg = Path('src/components/game/bgMusic.ts').read_text()
-          sf = Path('src/components/game/sounds.ts').read_text()
-          gm = Path('src/components/CavemanVsDragonGame.tsx').read_text()
-
-          required = {
-              'BGM pause API': 'export async function pauseAllMusicForGamePause()' in bg,
-              'BGM resume API': 'export async function resumeAllMusicFromGamePause()' in bg,
-              'Crossfade preservation': 'fadeProgress = (2 / Math.PI) * Math.asin(ratio);' in bg,
-              'SFX suspend': 'await audioCtx.suspend()' in sf,
-              'SFX resume': 'await audioCtx.resume()' in sf,
-              'Pause state': 'const [isPaused, setIsPaused] = useState(false);' in gm,
-              'Persistent paused media gate': '__cvdAndroidGamePaused' in gm,
-              'Simulation freeze': 'if (pausedRef.current)' in gm,
-              'Canvas toggle': 'toggleGamePause();' in gm,
-              'Pause excludes below-platform black band':
-                  'if (canvasY > bottomPlatformY) return;' in gm,
-              'White round II icon': 'rounded-full bg-white' in gm and gm.count('rounded-sm bg-black') >= 2,
-              'Android background pause listener':
-                  "cvd-native-app-background" in gm and "visibilitychange" in gm,
-          }
-          failed = [name for name, ok in required.items() if not ok]
-          if failed:
-              raise SystemExit(f'Pause assertion failed: {failed}')
-
-          mark_idx = gm.find('const markGamepadActive')
-          toggle_idx = gm.find('const toggleGamePause')
-          native_listener_idx = gm.find("window.addEventListener('cvd-native-controller-key'")
-          if not (0 <= mark_idx < toggle_idx < native_listener_idx):
-              raise SystemExit(
-                  f'Controller hook initialization order invalid: '
-                  f'mark={mark_idx}, toggle={toggle_idx}, listener={native_listener_idx}'
-              )
-
-          print('True pause assertions passed')
-          print('Controller hook order verified: callbacks initialize before native listener')
-          PY
+          set -euo pipefail
+
+          # These transformations are canonical MainLevel2 source now. Keep
+          # Android CI read-only here so source evolution cannot make an old
+          # mutation script corrupt or reject an already-integrated change.
+          rg -q 'htmlNativeLoop: true' src/components/game/bgMusic.ts
+          rg -q 'volume: 0\.238' src/components/game/bgMusic.ts
+          rg -q 'volume: 0\.258' src/components/game/bgMusic.ts
+          rg -q 'volume: 0\.217' src/components/game/bgMusic.ts
+          rg -q 'volume: 0\.311' src/components/game/bgMusic.ts
+          rg -q 'function getSfxOutput' src/components/game/sounds.ts
+          rg -q 'connect\(getSfxOutput\(ctx\)\)' src/components/game/sounds.ts
+          rg -q 'sfxOutput\.connect\(audioCtx\.destination\)' src/components/game/sounds.ts
+          if rg -q 'connect\(ctx\.destination\)' src/components/game/sounds.ts; then
+            echo 'Direct SFX destination routing bypasses the canonical output bus.' >&2
+            exit 1
+          fi
+          test "$(rg -o 'connect\(getSfxOutput\(ctx\)\)' src/components/game/sounds.ts | wc -l)" -ge 20
+          rg -q 'export async function pauseBrowserSfx' src/components/game/sounds.ts
+          rg -q 'export async function resumeBrowserSfx' src/components/game/sounds.ts
+          rg -q 'export async function pauseBrowserMusic' src/components/game/bgMusic.ts
+          rg -q 'export async function resumeBrowserMusic' src/components/game/bgMusic.ts
+          rg -q 'pauseBrowserMusic\(\)' src/components/CavemanVsDragonGame.tsx
+          rg -q 'resumeBrowserMusic\(\)' src/components/CavemanVsDragonGame.tsx
+          echo 'Canonical audio routing, mix, and browser pause implementation verified.'
 
       - name: Patch Android layout and controller awareness
         shell: bash
@@ -1325,17 +378,11 @@ jobs:
                   f'portrait camera-cutout game offset: expected 1 match, found {count}'
               )
 
-          # APK haptics: prefer the native Android bridge because WebView's
-          # navigator.vibrate() is not reliable on every device/WebView build.
-          vibrate_pattern = re.compile(
-              r"  const vibrateNow = \(ms: number\) => \{\n"
-              r"    try \{\n"
-              r".*?"
-              r"    \} catch \{\}\n"
-              r"  \};",
-              re.DOTALL,
-          )
-          vibrate_replacement = """  const vibrateNow = (ms: number) => {
+          # APK haptics: prefer the native bridge while retaining the canonical
+          # browser vibration helper as fallback. MainLevel2 now keeps the web
+          # implementation in vibrateWebControl(), so patch that stable call.
+          vibrate_old = "  const vibrateNow = (ms: number) => vibrateWebControl(ms);"
+          vibrate_new = """  const vibrateNow = (ms: number) => {
             const duration = Math.max(18, Math.round(ms));
             try {
               const nativeBridge = (window as any).CvdNative;
@@ -1344,18 +391,16 @@ jobs:
                 return;
               }
             } catch {}
-            try {
-              const nav = typeof navigator !== 'undefined'
-                ? (navigator as Navigator & { vibrate?: (p: number | number[]) => boolean })
-                : null;
-              if (!nav || typeof nav.vibrate !== 'function') return;
-              nav.vibrate(0);
-              nav.vibrate(duration);
-            } catch {}
+            vibrateWebControl(duration);
           };"""
-          s, count = vibrate_pattern.subn(vibrate_replacement, s, count=1)
-          if count != 1:
-              raise SystemExit(f'vibrateNow block: expected 1 match, found {count}')
+          if 'nativeBridge.vibrate(duration);' in s:
+              print('Native haptics bridge already present')
+          elif s.count(vibrate_old) == 1:
+              s = s.replace(vibrate_old, vibrate_new, 1)
+          else:
+              raise SystemExit(
+                  f'vibrateNow canonical block: expected 1 match, found {s.count(vibrate_old)}'
+              )
 
           # Portrait native controls: center the 152px control row vertically
           # in the space below the game instead of letting it touch the phone bottom.
@@ -1403,7 +448,7 @@ jobs:
 
           gm = p.read_text()
           mark_idx = gm.find('const markGamepadActive')
-          toggle_idx = gm.find('const toggleGamePause')
+          toggle_idx = gm.find('const toggleWebPause')
           listener_idx = gm.find("window.addEventListener('cvd-native-controller-key'")
           if not (0 <= mark_idx < toggle_idx < listener_idx):
               raise SystemExit(
@@ -1541,50 +586,12 @@ jobs:
               )
           print(f'OK: replaced {restart_count} PRESS R TO RESTART prompt(s)')
 
-          # Native START currently ignores local/global leaderboard.
-          native_start = s.find("if (key === 'Start') {")
-          if native_start < 0:
-              raise SystemExit('Native START block not found')
-          native_end = s.find("if (key === ' ' && down) {", native_start)
-          if native_end < 0:
-              raise SystemExit('End of native START block not found')
-          start_block = s[native_start:native_end]
-
-          if "'leaderboard'" not in start_block or "'globalLeaderboard'" not in start_block:
-              m = re.search(
-                  r"const\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*gameStateRef\.current\s*;",
-                  start_block,
-              )
-              if not m:
-                  raise SystemExit('Native START current-state variable not found')
-              state_var = m.group(1)
-              playing_marker = f"if ({state_var} === 'playing') {{"
-              playing_idx = start_block.find(playing_marker)
-              if playing_idx < 0:
-                  raise SystemExit('Native START playing marker not found')
-              leaderboard_handler = (
-                  f"if ({state_var} === 'leaderboard' || "
-                  f"{state_var} === 'globalLeaderboard') {{\n"
-                  "            resetGame();\n"
-                  "            return;\n"
-                  "          }\n"
-                  "          "
-              )
-              start_block = start_block[:playing_idx] + leaderboard_handler + start_block[playing_idx:]
-              s = s[:native_start] + start_block + s[native_end:]
-              print('OK: native START now restarts local/global leaderboard')
-          else:
-              print('OK: native START leaderboard handling already present')
-
-          dep_old = "}, [markGamepadActive, toggleGamePause]);"
-          dep_new = "}, [markGamepadActive, toggleGamePause, resetGame]);"
-          if s.count(dep_old) == 1:
-              s = s.replace(dep_old, dep_new, 1)
-              print('OK: native START listener dependency updated')
-          elif dep_new in s:
-              print('OK: native START listener dependency already updated')
-          else:
-              raise SystemExit('Native START listener dependency marker not found')
+          # MainLevel2 now owns terminal-screen restart routing through the
+          # unified input handler. Do not patch a legacy native START effect:
+          # the current `if (key === 'Start')` belongs to the name-entry overlay.
+          if "gameState !== 'gameover' && gameState !== 'leaderboard' && gameState !== 'globalLeaderboard'" not in s:
+              raise SystemExit('Canonical terminal-screen restart handler not found')
+          print('OK: canonical terminal-screen restart routing present')
 
           # Persistent Android audio gate: block future HTML media play() calls
           # while the app is backgrounded/hidden. This fixes delayed BGM starts.
@@ -1644,13 +651,10 @@ jobs:
               'no Android PRESS R TO RESTART': 'PRESS R TO RESTART' not in check,
               'START leaderboard prompt': 'PRESS START TO START' in check,
               'touch leaderboard prompt': 'TOUCH SCREEN TO START' in check,
-              'native START leaderboard behavior':
-                  "=== 'leaderboard'" in check
-                  and "=== 'globalLeaderboard'" in check
-                  and 'resetGame();' in check,
-              'native START game-over behavior':
-                  "gs === 'gameover'" in check
-                  and "gs === 'highscorePrompt'" in check,
+              'canonical terminal-screen restart behavior':
+                  "gameState !== 'gameover'" in check
+                  and "gameState !== 'leaderboard'" in check
+                  and "gameState !== 'globalLeaderboard'" in check,
               'persistent media gate':
                   '__cvdAndroidAudioGateInstalled' in check
                   and '__cvdAndroidBackgrounded' in check
@@ -1669,6 +673,21 @@ jobs:
 
       - name: Build web game
         run: npm run build
+
+      - name: Verify production leaderboard bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          rg -q 'cavemanvsdragon-api\.jwshin1\.workers\.dev' dist/assets --glob '*.js'
+          rg -q 'leaderboard-profiles/session' dist/assets --glob '*.js'
+          rg -q 'This password lets you use this leaderboard name on other devices' dist/assets --glob '*.js'
+          rg -q 'Password Saved' dist/assets --glob '*.js'
+          rg -q 'OK' dist/assets --glob '*.js'
+          if rg -q 'Use Name' dist/assets --glob '*.js'; then
+            echo 'Obsolete Use Name button label is still bundled.' >&2
+            exit 1
+          fi
+          echo 'Production API, cross-device password login, and OK label are bundled.'
 
       - name: Create Android project
         shell: bash
@@ -2472,11 +1491,20 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
+
           p = Path('android/variables.gradle')
           s = p.read_text()
-          import re
           s = re.sub(r'compileSdkVersion\s*=\s*\d+', 'compileSdkVersion = 36', s)
           s = re.sub(r'targetSdkVersion\s*=\s*\d+', 'targetSdkVersion = 36', s)
+          p.write_text(s)
+
+          p = Path('android/app/build.gradle')
+          s = p.read_text()
+          s, code_count = re.subn(r'versionCode\s+\d+', 'versionCode 110', s, count=1)
+          s, name_count = re.subn(r'versionName\s+"[^"]+"', 'versionName "1.1.0"', s, count=1)
+          if code_count != 1 or name_count != 1:
+              raise SystemExit('Unable to set Android versionCode/versionName')
           p.write_text(s)
           PY
 
@@ -2502,25 +1530,97 @@ jobs:
               -dname "CN=Android Debug,O=Team2Go,C=US"
           fi
 
-      - name: Build signed debug APK
-        working-directory: android
-        run: ./gradlew --no-daemon clean assembleDebug
-
-      - name: Verify APK exists
+      - name: Restore Google Play upload signing key
         shell: bash
+        env:
+          ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
         run: |
-          APK='android/app/build/outputs/apk/debug/app-debug.apk'
-          test -s "$APK"
-          ls -lh "$APK"
-          sha256sum "$APK" | tee CavemanVsDragon-debug.apk.sha256
-          cp "$APK" CavemanVsDragon-debug.apk
+          set -euo pipefail
+          test -n "$ANDROID_UPLOAD_KEYSTORE_BASE64"
+          install -d -m 700 "$RUNNER_TEMP/cvd-signing"
+          printf '%s' "$ANDROID_UPLOAD_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/cvd-signing/upload.jks"
+          chmod 600 "$RUNNER_TEMP/cvd-signing/upload.jks"
+          test -s "$RUNNER_TEMP/cvd-signing/upload.jks"
 
-      - name: Upload APK artifact
+      - name: Build signed debug APK and release AAB
+        working-directory: android
+        env:
+          ANDROID_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_STORE_PASSWORD }}
+          ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          ANDROID_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$ANDROID_UPLOAD_STORE_PASSWORD"
+          test -n "$ANDROID_UPLOAD_KEY_ALIAS"
+          test -n "$ANDROID_UPLOAD_KEY_PASSWORD"
+          ./gradlew --no-daemon clean assembleDebug bundleRelease \
+            -Pandroid.injected.signing.store.file="$RUNNER_TEMP/cvd-signing/upload.jks" \
+            -Pandroid.injected.signing.store.password="$ANDROID_UPLOAD_STORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$ANDROID_UPLOAD_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$ANDROID_UPLOAD_KEY_PASSWORD"
+
+      - name: Verify Android packages exist
+        shell: bash
+        env:
+          ANDROID_UPLOAD_CERT_SHA256: ${{ secrets.ANDROID_UPLOAD_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          APK='android/app/build/outputs/apk/debug/app-debug.apk'
+          AAB='android/app/build/outputs/bundle/release/app-release.aab'
+          test -s "$APK"
+          test -s "$AAB"
+          ls -lh "$APK" "$AAB"
+          # Google Play upload certificates are normally self-signed. Without
+          # -strict, jarsigner still exits nonzero for an invalid signature but
+          # does not turn the expected self-signed-chain warning into failure.
+          jarsigner -verify -verbose -certs "$AAB"
+
+          test -n "$ANDROID_UPLOAD_CERT_SHA256"
+          ACTUAL_CERT_SHA256="$(keytool -printcert -jarfile "$AAB" | sed -n 's/^[[:space:]]*SHA256: //p' | head -1 | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
+          EXPECTED_CERT_SHA256="$(printf '%s' "$ANDROID_UPLOAD_CERT_SHA256" | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
+          test -n "$ACTUAL_CERT_SHA256"
+          test "$ACTUAL_CERT_SHA256" = "$EXPECTED_CERT_SHA256"
+
+          BUNDLETOOL="$RUNNER_TEMP/bundletool.jar"
+          curl -fL --retry 3 \
+            'https://github.com/google/bundletool/releases/download/1.18.1/bundletool-all-1.18.1.jar' \
+            -o "$BUNDLETOOL"
+          VERSION_CODE="$(java -jar "$BUNDLETOOL" dump manifest --bundle="$AAB" --xpath='/manifest/@android:versionCode')"
+          VERSION_NAME="$(java -jar "$BUNDLETOOL" dump manifest --bundle="$AAB" --xpath='/manifest/@android:versionName')"
+          test "$VERSION_CODE" = '110'
+          test "$VERSION_NAME" = '1.1.0'
+
+          rm -rf "$RUNNER_TEMP/cvd-aab"
+          mkdir -p "$RUNNER_TEMP/cvd-aab"
+          unzip -q "$AAB" 'base/assets/public/assets/*.js' -d "$RUNNER_TEMP/cvd-aab"
+          rg -q 'cavemanvsdragon-api\.jwshin1\.workers\.dev' "$RUNNER_TEMP/cvd-aab" --glob '*.js'
+          rg -q 'leaderboard-profiles/session' "$RUNNER_TEMP/cvd-aab" --glob '*.js'
+          rg -q 'This password lets you use this leaderboard name on other devices' "$RUNNER_TEMP/cvd-aab" --glob '*.js'
+          rg -q 'Password Saved' "$RUNNER_TEMP/cvd-aab" --glob '*.js'
+          rg -q 'OK' "$RUNNER_TEMP/cvd-aab" --glob '*.js'
+          if rg -q 'Use Name' "$RUNNER_TEMP/cvd-aab" --glob '*.js'; then
+            echo 'Obsolete Use Name button label is still packaged in the AAB.' >&2
+            exit 1
+          fi
+
+          sha256sum "$APK" | tee CavemanVsDragon-debug.apk.sha256
+          sha256sum "$AAB" | tee CavemanVsDragon-release.aab.sha256
+          cp "$APK" CavemanVsDragon-debug.apk
+          cp "$AAB" CavemanVsDragon-release.aab
+
+      - name: Remove Google Play upload signing key
+        if: always()
+        shell: bash
+        run: rm -rf "$RUNNER_TEMP/cvd-signing"
+
+      - name: Upload Android package artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Caveman-Vs-Dragon-APK
+          name: Caveman-Vs-Dragon-Android
           path: |
             CavemanVsDragon-debug.apk
             CavemanVsDragon-debug.apk.sha256
+            CavemanVsDragon-release.aab
+            CavemanVsDragon-release.aab.sha256
           if-no-files-found: error
           retention-days: 14
