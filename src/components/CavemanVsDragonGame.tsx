@@ -62,6 +62,7 @@ import dedicationMobileUrl from '@/assets/dedication-mobile.png';
 import dedicationPcUrl from '@/assets/dedication-pc.png';
 import SavedAnimation from './savedAnimation/SavedAnimation';
 import { Capacitor } from '@capacitor/core';
+import { vibrateWebControl } from './game/controlHaptics';
 
 const isNativeApp = Capacitor.isNativePlatform();
 
@@ -4357,31 +4358,15 @@ const CavemanVsDragonGame = () => {
       cancelAnimationFrame(raf);
     };
   }, [markGamepadActive]);
-  // Direct, synchronous vibrate — Android is more reliable with a cleared pattern
-  // and a slightly longer minimum pulse fired directly from touch/pointer handlers.
-  const vibrateNow = (ms: number) => {
-    try {
-      const nav = typeof navigator !== 'undefined' ? (navigator as Navigator & { vibrate?: (p: number | number[]) => boolean }) : null;
-      if (!nav || typeof nav.vibrate !== 'function') return;
-      const duration = Math.max(18, Math.round(ms));
-      nav.vibrate(0);
-      nav.vibrate(duration);
-    } catch {}
-  };
+  // Fire synchronously from the pointer handler so Android browsers retain
+  // the user activation required by the Vibration API.
+  const vibrateNow = (ms: number) => vibrateWebControl(ms);
   const lastHapticAtRef = useRef(0);
   const pulseHaptic = (ms: number) => {
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    if (now - lastHapticAtRef.current < 18) return;
+    if (lastHapticAtRef.current > 0 && now - lastHapticAtRef.current < 18) return;
     lastHapticAtRef.current = now;
     vibrateNow(ms);
-  };
-
-  const vibrateUnlockedRef = useRef(false);
-  const ensureVibrateUnlocked = () => {
-    if (!vibrateUnlockedRef.current) {
-      vibrateUnlockedRef.current = true;
-      vibrateNow(18);
-    }
   };
 
   const simulateKey = useCallback((key: string, type: 'down' | 'up') => {
@@ -4439,7 +4424,6 @@ const CavemanVsDragonGame = () => {
   const clearPad = () => setActiveKeys([]);
 
   const pressPadKey = (rawKey: string) => {
-    ensureVibrateUnlocked();
     setActiveKeys(padKeyToKeys(rawKey));
     pulseHaptic(35);
   };
@@ -4472,7 +4456,6 @@ const CavemanVsDragonGame = () => {
   const padHandlers = {
     onPointerDown: (e: React.PointerEvent) => {
       e.preventDefault();
-      ensureVibrateUnlocked();
       padPointerIdRef.current = e.pointerId;
       updatePadFromPoint(e.clientX, e.clientY);
     },
@@ -4481,7 +4464,6 @@ const CavemanVsDragonGame = () => {
   const tapHandlers = (key: string, vibMs = 40) => ({
     onPointerDown: (e: React.PointerEvent) => {
       e.preventDefault();
-      ensureVibrateUnlocked();
       pulseHaptic(vibMs);
       (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
       simulateKey(key, 'down');
@@ -4545,14 +4527,12 @@ const CavemanVsDragonGame = () => {
       className="w-12 h-12 self-center rounded-full bg-accent text-accent-foreground text-sm font-bold active:scale-95 shrink-0"
       onPointerDown={(e) => {
         e.preventDefault();
-        ensureVibrateUnlocked();
         pulseHaptic(45);
         const consumed = anyInputHandlerRef.current?.('r', 'pad');
         if (!consumed) resetGame();
       }}
       onTouchStart={(e) => {
         e.preventDefault();
-        ensureVibrateUnlocked();
         pulseHaptic(45);
         const consumed = anyInputHandlerRef.current?.('r', 'pad');
         if (!consumed) resetGame();
