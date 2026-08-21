@@ -15,6 +15,10 @@ function isMobileWebPhone(): boolean {
   return hasTouch && shortSide < 600;
 }
 
+function mobileWebSfxLevel(baseLevel: number, mobileMultiplier: number): number {
+  return isMobileWebPhone() ? baseLevel * mobileMultiplier : baseLevel;
+}
+
 function getCtx(): AudioContext {
   if (!audioCtx) {
     audioCtx = new AudioContext();
@@ -131,7 +135,7 @@ export function playJumpSound() {
   osc.type = 'square';
   osc.frequency.setValueAtTime(200, ctx.currentTime);
   osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.15);
-  gain.gain.setValueAtTime(0.15, ctx.currentTime);
+  gain.gain.setValueAtTime(mobileWebSfxLevel(0.15, 1.25), ctx.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
   osc.start(ctx.currentTime);
   osc.stop(ctx.currentTime + 0.2);
@@ -414,7 +418,7 @@ export function playVineGrowSound() {
   filter.frequency.setValueAtTime(400, t0);
   filter.frequency.exponentialRampToValueAtTime(1600, t0 + dur);
   const noiseGain = ctx.createGain();
-  noiseGain.gain.setValueAtTime(0.10, t0);
+  noiseGain.gain.setValueAtTime(mobileWebSfxLevel(0.10, 1.7), t0);
   noiseGain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
   noise.connect(filter);
   filter.connect(noiseGain);
@@ -433,7 +437,7 @@ export function playVineGrowSound() {
     const t = t0 + i * (dur / notes.length);
     osc.frequency.setValueAtTime(freq, t);
     osc.frequency.exponentialRampToValueAtTime(freq * 1.05, t + 0.18);
-    gain.gain.setValueAtTime(0.07, t);
+    gain.gain.setValueAtTime(mobileWebSfxLevel(0.07, 1.7), t);
     gain.gain.exponentialRampToValueAtTime(0.01, t + 0.22);
     osc.start(t);
     osc.stop(t + 0.24);
@@ -447,7 +451,7 @@ export function playVineGrowSound() {
   chime.type = 'triangle';
   const tc = t0 + dur - 0.05;
   chime.frequency.setValueAtTime(1318.5, tc); // E6
-  cg.gain.setValueAtTime(0.12, tc);
+  cg.gain.setValueAtTime(mobileWebSfxLevel(0.12, 1.7), tc);
   cg.gain.exponentialRampToValueAtTime(0.001, tc + 0.45);
   chime.start(tc);
   chime.stop(tc + 0.5);
