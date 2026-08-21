@@ -75,7 +75,7 @@ describe('mobile web SFX output gain', () => {
   it('boosts sound effects on a web phone', async () => {
     const output = await initializeSfx({ touchPoints: 5, width: 844, height: 390 });
     expect(output.gain.value).toBe(2.4);
-    expect(createdGains[1].gain.setValueAtTime).toHaveBeenCalledWith(0.1875, 0);
+    expect(createdGains[1].gain.setValueAtTime).toHaveBeenCalledWith(0.24375, 0);
   });
 
   it('keeps desktop web sound effects unchanged', async () => {
