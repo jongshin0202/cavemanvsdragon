@@ -42,14 +42,16 @@ type Track = {
   gain?: GainNode;
   playing: boolean;
   crossfadeSec: number;
+  volume?: number;
+  htmlNativeLoop?: boolean;
 };
 
 const tracks: Record<string, Track> = {
-  level1: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },
-  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2 },
-  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3 },
-  level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },
-  ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC },
+  level1: { url: music1Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: VOL },
+  level2: { url: music2Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level2, volume: 0.238, htmlNativeLoop: true },
+  level3: { url: music3Asset.url, playing: false, crossfadeSec: CROSSFADE_OVERRIDES.level3, volume: 0.258, htmlNativeLoop: true },
+  level4: { url: music4Asset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 0.217 },
+  ending: { url: musicEndingAsset.url, playing: false, crossfadeSec: DEFAULT_CROSSFADE_SEC, volume: 0.311 },
 };
 
 // -------- Web Audio (gapless loop) --------
@@ -118,7 +120,7 @@ function startWebAudioLoop(t: Track) {
   src.loopStart = 0;
   src.loopEnd = t.buffer.duration; // full-file gapless loop
   const gain = ctx.createGain();
-  gain.gain.value = VOL;
+  gain.gain.value = t.volume ?? VOL;
   src.connect(gain).connect(ctx.destination);
   src.start(0);
   t.source = src;
@@ -157,8 +159,9 @@ function startCrossfade(t: Track) {
   t.fadeTimer = window.setInterval(() => {
     const elapsed = (performance.now() - startAt) / 1000;
     const p = Math.min(1, elapsed / cf);
-    const outV = Math.cos((p * Math.PI) / 2) * VOL;
-    const inV = Math.sin((p * Math.PI) / 2) * VOL;
+    const tv = t.volume ?? VOL;
+    const outV = Math.cos((p * Math.PI) / 2) * tv;
+    const inV = Math.sin((p * Math.PI) / 2) * tv;
     try { from.volume = Math.max(0, outV); } catch { /* ignore */ }
     try { next.volume = Math.max(0, inV); } catch { /* ignore */ }
     if (p >= 1) {
@@ -190,6 +193,23 @@ function play(key: string) {
   const t = tracks[key];
   t.playing = true;
 
+  if (t.htmlNativeLoop) {
+    // Preserve the native stereo image for Level 2/3 in both browsers and
+    // Android WebView by keeping every BGM track on an HTMLAudio path.
+    stopWebAudio(t);
+    clearTimers(t);
+    if (!t.a) t.a = makeAudio(t.url);
+    try {
+      t.a.pause();
+      t.a.currentTime = 0;
+      t.a.loop = true;
+      t.a.volume = t.volume ?? VOL;
+      t.active = t.a;
+      void t.a.play().catch(() => {});
+    } catch { /* ignore */ }
+    return;
+  }
+
   if (t.crossfadeSec <= 0) {
     // Gapless Web Audio path
     const ctx = getCtx();
@@ -208,7 +228,7 @@ function play(key: string) {
   if (!t.a) t.a = makeAudio(t.url);
   if (!t.b) t.b = makeAudio(t.url);
   clearTimers(t);
-  try { t.a.pause(); t.a.currentTime = 0; t.a.volume = VOL; } catch { /* ignore */ }
+  try { t.a.pause(); t.a.currentTime = 0; t.a.volume = t.volume ?? VOL; } catch { /* ignore */ }
   try { t.b.pause(); t.b.currentTime = 0; t.b.volume = 0; } catch { /* ignore */ }
   t.active = t.a;
   try { void t.a.play().catch(() => {}); } catch { /* ignore */ }
@@ -238,6 +258,124 @@ export const playLevel4Music = () => play('level4');
 export const stopLevel4Music = () => stop('level4');
 export const playEndingMusic = () => play('ending');
 export const stopEndingMusic = () => stop('ending');
+
+type BrowserPauseMusicSnapshot = {
+  playingElements: HTMLAudioElement[];
+  active?: HTMLAudioElement;
+  fadeProgress: number | null;
+};
+
+const browserMusicSnapshots = new Map<string, BrowserPauseMusicSnapshot>();
+let browserMusicPaused = false;
+let browserMusicContextWasRunning = false;
+
+export async function pauseBrowserMusic(): Promise<void> {
+  if (browserMusicPaused) return;
+  browserMusicPaused = true;
+  browserMusicSnapshots.clear();
+
+  browserMusicContextWasRunning = !!audioCtx && audioCtx.state === 'running';
+  if (browserMusicContextWasRunning && audioCtx) {
+    try { await audioCtx.suspend(); } catch { /* ignore */ }
+  }
+
+  for (const [key, track] of Object.entries(tracks)) {
+    if (!track.playing) continue;
+    const elements = [track.a, track.b].filter(
+      (element): element is HTMLAudioElement => Boolean(element),
+    );
+    const playingElements = elements.filter((element) => !element.paused);
+
+    let fadeProgress: number | null = null;
+    if (
+      track.fadeTimer &&
+      track.active &&
+      track.crossfadeSec > 0 &&
+      playingElements.length > 1
+    ) {
+      const targetVolume = track.volume ?? VOL;
+      if (targetVolume > 0) {
+        const ratio = Math.max(0, Math.min(1, track.active.volume / targetVolume));
+        fadeProgress = (2 / Math.PI) * Math.asin(ratio);
+      }
+    }
+
+    browserMusicSnapshots.set(key, {
+      playingElements,
+      active: track.active,
+      fadeProgress,
+    });
+
+    clearTimers(track);
+    for (const element of playingElements) {
+      try { element.pause(); } catch { /* ignore */ }
+    }
+  }
+}
+
+export async function resumeBrowserMusic(): Promise<void> {
+  if (!browserMusicPaused) return;
+  browserMusicPaused = false;
+
+  if (browserMusicContextWasRunning && audioCtx?.state === 'suspended') {
+    try { await audioCtx.resume(); } catch { /* ignore */ }
+  }
+  browserMusicContextWasRunning = false;
+
+  for (const [key, snapshot] of browserMusicSnapshots.entries()) {
+    const track = tracks[key];
+    if (!track?.playing) continue;
+
+    for (const element of snapshot.playingElements) {
+      try { void element.play().catch(() => {}); } catch { /* ignore */ }
+    }
+
+    if (
+      snapshot.fadeProgress !== null &&
+      snapshot.active &&
+      track.crossfadeSec > 0 &&
+      snapshot.playingElements.length > 1
+    ) {
+      const incoming = snapshot.active;
+      const outgoing = incoming === track.a ? track.b : track.a;
+      const startProgress = Math.max(0, Math.min(1, snapshot.fadeProgress));
+      const startAt = performance.now();
+      const targetVolume = track.volume ?? VOL;
+      track.active = incoming;
+
+      track.fadeTimer = window.setInterval(() => {
+        const elapsed = (performance.now() - startAt) / 1000;
+        const progress = Math.min(1, startProgress + elapsed / track.crossfadeSec);
+        const outgoingVolume = Math.cos((progress * Math.PI) / 2) * targetVolume;
+        const incomingVolume = Math.sin((progress * Math.PI) / 2) * targetVolume;
+
+        try { incoming.volume = Math.max(0, incomingVolume); } catch { /* ignore */ }
+        if (outgoing) {
+          try { outgoing.volume = Math.max(0, outgoingVolume); } catch { /* ignore */ }
+        }
+
+        if (progress >= 1) {
+          if (outgoing) {
+            try {
+              outgoing.pause();
+              outgoing.currentTime = 0;
+              outgoing.volume = 0;
+            } catch { /* ignore */ }
+          }
+          if (track.fadeTimer) {
+            clearInterval(track.fadeTimer);
+            track.fadeTimer = undefined;
+          }
+          watch(track);
+        }
+      }, FADE_TICK_MS);
+    } else {
+      watch(track);
+    }
+  }
+
+  browserMusicSnapshots.clear();
+}
 
 export function stopAllMusic() {
   for (const k of Object.keys(tracks)) stop(k);

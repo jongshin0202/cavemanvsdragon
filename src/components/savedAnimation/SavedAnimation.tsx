@@ -56,6 +56,13 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
   const doneRef = useRef<boolean>(false);
   const isMobile = useIsMobile();
   const fs = (vh: number, vw: number) => `min(${vh * (isMobile ? 1 : 0.8)}vh, ${vw}vw)`;
+  // Fit the 512x480 cinematic inside both dimensions. The old height:100%
+  // rule made the animation wider than a portrait phone and clipped its sides.
+  const frameStyle: React.CSSProperties = {
+    aspectRatio: `${CW} / ${CH}`,
+    height: 'min(100%, 93.75dvw)',
+    maxWidth: '100%',
+  };
 
   const DONE = full ? T_FULL.DONE : T_SHORT.DONE;
 
@@ -143,7 +150,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
         className="absolute inset-0 z-30 flex items-center justify-center bg-black select-none"
         onPointerDown={skip}
       >
-        <div className="relative bg-black" style={{ aspectRatio: `${CW} / ${CH}`, height: '100%' }}>
+        <div className="relative bg-black" style={frameStyle}>
           {showSadText && (
             <div
               className="absolute left-1/2 -translate-x-1/2 text-center font-caveman"
@@ -278,7 +285,7 @@ export default function SavedAnimation({ onDone, full = false }: Props) {
       className="absolute inset-0 z-30 flex items-center justify-center bg-black select-none"
       onPointerDown={skip}
     >
-      <div className="relative bg-black" style={{ aspectRatio: `${CW} / ${CH}`, height: '100%' }}>
+      <div className="relative bg-black" style={frameStyle}>
 
 
         {showCongrats && (

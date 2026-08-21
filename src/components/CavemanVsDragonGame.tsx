@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import {
   CANVAS_W, CANVAS_H, GRAVITY, JUMP_FORCE, MOVE_SPEED, BARREL_SPEED, CLIMB_SPEED, ROBOT_SPEED, getRoundDifficulty,
   PLATFORMS, LADDERS, getPlatformY, rectsOverlap, findPlatformIndex, findBestLadder, buildMonkeyDistribution,
@@ -11,6 +11,8 @@ import { scoreFor, type ScoreAction } from './game/scoring';
 import heartUrl from '@/assets/heart.png';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarTracked, playPrincessHelpSound, isDragonRoaringNow, unlockAudio } from './game/sounds';
 import { playLevel1Music, stopLevel1Music, playLevel2Music, stopLevel2Music, playLevel3Music, stopLevel3Music, playLevel4Music, stopLevel4Music, stopAllMusic } from './game/bgMusic';
+import { pauseBrowserSfx, resumeBrowserSfx } from './game/sounds';
+import { pauseBrowserMusic, resumeBrowserMusic } from './game/bgMusic';
 
 // True for Level 1 rounds (rounds 1, 5, 9, 13, …) — not L2/L3/L4.
 const isLevel1Round = (round: number): boolean =>
@@ -18,6 +20,12 @@ const isLevel1Round = (round: number): boolean =>
 import { loadScores, qualifiesForTop, insertScore, clearLocalScores, formatDate, entryDisplayName, MAX_ENTRIES, type LeaderboardEntry } from './game/leaderboard';
 import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal, type GlobalEntry } from './game/globalLeaderboard';
 import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/deviceStats';
+import { checkWorkerPlayerNameAvailability, getWorkerPlayerName, isWorkerNameAvailabilityEndpointMissing, isWorkerNameUnavailableError } from './game/workerApi';
+import { recordGameplayControlKey, resetGameplayControlType } from './game/controlType';
+import { isLandscapeLeaderboardViewport } from './game/leaderboardViewport';
+import { getBrowserGameplayPauseAction } from './game/browserPause';
+import { adjacentAttractScreen, isAttractScreen } from './game/attractNavigation';
+import { canMountLadder } from './game/ladderMount';
 import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
 import { LEVEL2_PARAMS, getLevel2Difficulty } from './game/level2/params';
 import { initLevel2, updateLevel2, renderLevel2, spawnLevel2Robots, fireballHitsPlayer, tryPickupCan, tryPickupRock, trySealVolcano, maybeSpawnVolcanoRock, onMonkeyKilled, removeMonkeyWithoutKill, newSpawnJacket, pushJacket, isHoleAtPlatform, tickApples, appleHitsPlayer, notifyVolcanoSealedL3, type L2Sprites } from './game/level2/level2';
@@ -258,6 +266,7 @@ type GameState =
   | 'savedAnim'          // L4-cleared cinematic: dragon re-kidnaps princess
   | 'highscorePrompt'
   | 'enterName'
+  | 'confirmName'
   | 'leaderboard'        // post-game LOCAL leaderboard (only-local qualifier)
   | 'globalLeaderboard'  // post-game GLOBAL leaderboard (global qualifier)
   | 'attractLocalLeaderboard'
@@ -308,6 +317,8 @@ const CavemanVsDragonGame = () => {
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
   const [gameState, setGameState] = useState<GameState>('intro');
+  const [isWebPaused, setIsWebPaused] = useState(false);
+  const webPausedRef = useRef(false);
   const [scores, setScores] = useState<LeaderboardEntry[]>(() => loadScores());
   const [globalScores, setGlobalScores] = useState<GlobalEntry[]>([]);
   const [globalLoading, setGlobalLoading] = useState<boolean>(false);
@@ -328,6 +339,8 @@ const CavemanVsDragonGame = () => {
   const submittingScoreRef = useRef<boolean>(false);
   const [nameInput, setNameInput] = useState<string>('');
   const [nameError, setNameError] = useState<string>('');
+  const nameAvailabilityCheckingRef = useRef(false);
+  const [confirmNameChoice, setConfirmNameChoice] = useState<'yes' | 'change'>('yes');
   const [pendingScore, setPendingScore] = useState(0);
   const [pendingLevel, setPendingLevel] = useState(1);
   // Level intro overlay: 'level' shows "Level N" for 3s, then 'black' for 0.5s, then null.
@@ -673,6 +686,7 @@ const CavemanVsDragonGame = () => {
   }, []);
 
   const resetGame = useCallback(() => {
+    resetGameplayControlType();
     const g = gameRef.current;
     g.score = 0; g.lives = 3; g.lastLifeMilestone = 0; g.round = 1;
     setScore(0); setLives(3);
@@ -775,83 +789,138 @@ const CavemanVsDragonGame = () => {
     playLevelIntro(nextRound, () => resetLevel());
   }, [resetLevel, resetPlayer, playLevelIntro]);
 
-  // Submit a high score: writes to LOCAL always, and to GLOBAL if it qualifies
-  // for the global top 20. Then routes to the appropriate post-game view.
+  // Submit a high score locally, and to the Worker when it qualifies
+  // globally. A global row remains one-per-player/highest-score-only.
   const submitHighScore = useCallback(async () => {
-    // Guard against re-entry from mashed Enter presses while the cloud
-    // insert is still pending. Without this, each Enter added another row
-    // to the global leaderboard (and could dupe the local row too).
     if (submittingScoreRef.current) return;
-    const raw = nameInputRef.current;
+    const raw = getWorkerPlayerName() || nameInputRef.current;
     const v = validateName(raw);
     if (!v.ok) {
       setNameError(v.error || 'INVALID NAME');
       return;
     }
+
     submittingScoreRef.current = true;
     const cleanName = raw.trim().slice(0, NAME_MAX_LENGTH);
     const entry: LeaderboardEntry = {
       name: cleanName,
-      // Keep initials for backward compat (first 3 chars uppercased)
       initials: cleanName.replace(/\s+/g, '').toUpperCase().padEnd(3, 'A').slice(0, 3),
       score: pendingScore,
       date: new Date().toISOString(),
       level: pendingLevel,
     };
-    // 1) Always write to local
-    const next = insertScore(entry);
-    setScores(next);
-    setNameError('');
-    justSubmittedLocalDateRef.current = entry.date;
 
-    // 2) If it qualifies globally, write to the cloud and show GLOBAL view.
-    //    Otherwise, show LOCAL view.
-    if (justSubmittedGlobal.current) {
-      // Anonymous usage stats: count this as a global-leaderboard hit.
-      recordGlobalHit();
-      // Optimistically merge so the user instantly sees their row.
-      const optimistic: GlobalEntry = {
-        name: cleanName,
-        score: pendingScore,
-        level: pendingLevel,
-        created_at: new Date().toISOString(),
-      };
-      setGlobalScores((prev) => {
-        const merged = [...prev, optimistic]
+    try {
+      setNameError('');
+
+      if (justSubmittedGlobal.current) {
+        recordGlobalHit();
+        const optimistic: GlobalEntry = {
+          name: cleanName,
+          score: pendingScore,
+          level: pendingLevel,
+          created_at: new Date().toISOString(),
+        };
+        setGlobalScores((prev) => [...prev, optimistic]
           .sort((a, b) => b.score - a.score || (a.created_at || '').localeCompare(b.created_at || ''))
-          .slice(0, MAX_ENTRIES);
-        return merged;
-      });
-      // Mark "just submitted" so the leaderboard-view effect skips its probe
-      // for this transition — we already have the authoritative row from the
-      // insert response, and probing too early would race the server-side
-      // commit and overwrite the optimistic row with a stale empty list.
-      justSubmittedSkipProbe.current = true;
-      // AWAIT the cloud write so we never navigate before the insert lands.
-      // submitGlobalScore returns the canonical row and updates the cache.
-      const saved = await submitGlobalScore({
-        name: cleanName,
-        score: pendingScore,
-        level: pendingLevel,
-      });
-      if (saved) {
-        justSubmittedGlobalIdRef.current = saved.id ?? null;
-        // Replace the optimistic placeholder with the real row (now has id).
-        setGlobalScores((prev) => {
-          const withoutOptimistic = prev.filter(
-            (r) => !(r.name === optimistic.name && r.score === optimistic.score && !r.id),
-          );
-          const merged = [...withoutOptimistic, saved]
-            .sort((a, b) => b.score - a.score || (a.created_at || '').localeCompare(b.created_at || ''))
-            .slice(0, MAX_ENTRIES);
-          return merged;
-        });
+          .slice(0, MAX_ENTRIES));
+
+        let saved: GlobalEntry | null;
+        try {
+          saved = await submitGlobalScore({
+            name: cleanName,
+            score: pendingScore,
+            level: pendingLevel,
+          });
+        } catch (error) {
+          setGlobalScores((prev) => prev.filter(
+            (row) => !(row.name === optimistic.name && row.score === optimistic.score && !row.id),
+          ));
+          if (isWorkerNameUnavailableError(error)) {
+            setNameError('THAT NAME ALREADY EXISTS. CHOOSE ANOTHER.');
+            setGameState('enterName');
+            return;
+          }
+          throw error;
+        }
+
+        if (saved) {
+          justSubmittedSkipProbe.current = true;
+          justSubmittedGlobalIdRef.current = saved.id ?? null;
+          setGlobalScores((prev) => {
+            const withoutOptimistic = prev.filter(
+              (row) => !(row.name === optimistic.name && row.score === optimistic.score && !row.id),
+            );
+            return [...withoutOptimistic, saved]
+              .sort((a, b) => b.score - a.score || (a.created_at || '').localeCompare(b.created_at || ''))
+              .slice(0, MAX_ENTRIES);
+          });
+        } else {
+          justSubmittedSkipProbe.current = false;
+        }
       }
-      setGameState('globalLeaderboard');
-    } else {
-      setGameState('leaderboard');
+
+      // Local history intentionally allows the same public name multiple times.
+      const next = insertScore(entry);
+      setScores(next);
+      justSubmittedLocalDateRef.current = entry.date;
+      setGameState(justSubmittedGlobal.current ? 'globalLeaderboard' : 'leaderboard');
+    } finally {
+      submittingScoreRef.current = false;
     }
   }, [pendingScore, pendingLevel]);
+
+  const requestNameConfirmation = useCallback(async () => {
+    if (submittingScoreRef.current || nameAvailabilityCheckingRef.current) return;
+    const savedWorkerName = getWorkerPlayerName();
+    const raw = savedWorkerName || nameInputRef.current;
+    const validation = validateName(raw);
+    if (!validation.ok) {
+      const message = validation.error || 'INVALID NAME';
+      nameErrorRef.current = message;
+      setNameError(message);
+      return;
+    }
+
+    // Local-only entries are not permanent account names. Returning players
+    // already have a permanent Worker name and skip both entry and confirmation.
+    if (!justSubmittedGlobal.current || savedWorkerName) {
+      await submitHighScore();
+      return;
+    }
+
+    const cleanName = raw.trim().slice(0, NAME_MAX_LENGTH);
+    nameAvailabilityCheckingRef.current = true;
+    nameErrorRef.current = '';
+    setNameError('');
+    try {
+      const available = await checkWorkerPlayerNameAvailability(cleanName);
+      if (!available) {
+        const message = 'THAT NAME ALREADY EXISTS. CHOOSE ANOTHER.';
+        nameErrorRef.current = message;
+        setNameError(message);
+        return;
+      }
+      setConfirmNameChoice('yes');
+      setGameState('confirmName');
+    } catch (error) {
+      if (isWorkerNameAvailabilityEndpointMissing(error)) {
+        // Registration is still the authoritative, atomic uniqueness check.
+        // Continue to confirmation when an older Worker lacks the optional
+        // preflight route; a duplicate is rejected when the user chooses Yes.
+        setConfirmNameChoice('yes');
+        setGameState('confirmName');
+        return;
+      }
+      const message = isWorkerNameUnavailableError(error)
+        ? 'THAT NAME ALREADY EXISTS. CHOOSE ANOTHER.'
+        : 'COULD NOT CHECK NAME. PLEASE TRY AGAIN.';
+      nameErrorRef.current = message;
+      setNameError(message);
+    } finally {
+      nameAvailabilityCheckingRef.current = false;
+    }
+  }, [submitHighScore]);
 
   // Keep refs in sync with state for the canvas render loop
   useEffect(() => { scoresRef.current = scores; }, [scores]);
@@ -900,6 +969,82 @@ const CavemanVsDragonGame = () => {
   const gameStateRef = useRef<GameState>('intro');
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
 
+  const toggleWebPause = useCallback(() => {
+    if (isNativeApp || gameStateRef.current !== 'playing' || levelIntroRef.current) return;
+
+    const nextPaused = !webPausedRef.current;
+    webPausedRef.current = nextPaused;
+    setIsWebPaused(nextPaused);
+
+    if (nextPaused) {
+      void pauseBrowserMusic();
+      void pauseBrowserSfx();
+    } else {
+      void resumeBrowserMusic();
+      void resumeBrowserSfx();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (gameState === 'playing' || !webPausedRef.current) return;
+    webPausedRef.current = false;
+    setIsWebPaused(false);
+    void resumeBrowserMusic();
+    void resumeBrowserSfx();
+  }, [gameState]);
+
+  // Native Android gameplay controls arrive through the Java bridge rather
+  // than the browser Gamepad API, so record that custom event explicitly.
+  useEffect(() => {
+    if (!isNativeApp) return;
+    const recordNativeController = (event: Event) => {
+      const detail = (event as CustomEvent<{ key?: string; down?: boolean }>).detail;
+      if (!detail?.down || !detail.key) return;
+      recordGameplayControlKey(
+        'gamepad',
+        detail.key,
+        gameStateRef.current === 'playing',
+      );
+    };
+    window.addEventListener('cvd-native-controller-key', recordNativeController);
+    return () => {
+      window.removeEventListener('cvd-native-controller-key', recordNativeController);
+    };
+  }, []);
+
+  const moveAttractScreen = useCallback((direction: -1 | 1) => {
+    const current = gameStateRef.current;
+    if (!isAttractScreen(current)) return;
+    setGameState(adjacentAttractScreen(current, mobileStartUi, direction));
+  }, [mobileStartUi]);
+
+  // Taps keep their original start-game behavior. A deliberate horizontal
+  // swipe navigates the attract screens instead: swipe left moves forward,
+  // and swipe right moves backward.
+  const attractPointerStartRef = useRef<{ id: number; x: number; y: number } | null>(null);
+  const handleAttractPointerDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    unlockAudio();
+    attractPointerStartRef.current = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  }, []);
+  const handleAttractPointerUp = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    const start = attractPointerStartRef.current;
+    attractPointerStartRef.current = null;
+    if (!start || start.id !== e.pointerId) return;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    if (Math.abs(dx) >= 48 && Math.abs(dx) > Math.abs(dy) * 1.25) {
+      moveAttractScreen(dx < 0 ? 1 : -1);
+      return;
+    }
+    anyInputHandlerRef.current?.('Tap', 'pad');
+  }, [moveAttractScreen]);
+  const handleAttractPointerCancel = useCallback(() => {
+    attractPointerStartRef.current = null;
+  }, []);
+
   // Stop gameplay music whenever we're not actively in gameplay.
   // Keep music control inside SavedAnimation while the ending cinematic runs;
   // otherwise this parent effect immediately stops the ending track after it starts.
@@ -935,33 +1080,15 @@ const CavemanVsDragonGame = () => {
     };
   }, [gameState]);
 
-  // Attract-mode idle cycle on the title screen.
-  //   PC:     intro → attractControls → attractLocalLeaderboard → attractGlobalLeaderboard → intro …
-  //   Mobile browser: intro → attractLocalLeaderboard → attractGlobalLeaderboard → intro …
-  //   Native Android APK: stay on the intro/start screen until the user starts.
+  // Attract-mode idle cycle on every platform.
+  //   PC:            intro → controls → local → global → intro …
+  //   Phone/Android: intro → local → global → intro …
+  // Manual left/right navigation uses this same ordering.
   useEffect(() => {
-    if (isNativeApp) return;
-
-    let nextState: GameState | null = null;
-    let delay = 0;
-    if (gameState === 'intro') {
-      nextState = mobileStartUi ? 'attractLocalLeaderboard' : 'attractControls';
-      delay = 5000;
-    } else if (gameState === 'attractControls') {
-      nextState = 'attractLocalLeaderboard';
-      delay = 5000;
-    } else if (gameState === 'attractLocalLeaderboard') {
-      nextState = 'attractGlobalLeaderboard';
-      delay = 5000;
-    } else if (gameState === 'attractGlobalLeaderboard') {
-      nextState = 'intro';
-      delay = 5000;
-    }
-    if (!nextState) return;
-    const target = nextState;
-    const timer = window.setTimeout(() => setGameState(target), delay);
+    if (!isAttractScreen(gameState)) return;
+    const timer = window.setTimeout(() => moveAttractScreen(1), 5000);
     return () => window.clearTimeout(timer);
-  }, [gameState, mobileStartUi]);
+  }, [gameState, moveAttractScreen]);
 
   // Wire up the unified "any input" handler. Re-binds whenever dependencies change.
   useEffect(() => {
@@ -970,12 +1097,38 @@ const CavemanVsDragonGame = () => {
       const gs = gameStateRef.current;
       const g = gameRef.current;
 
+      if (gs === 'playing') {
+        const pauseAction = getBrowserGameplayPauseAction({
+          isNativeApp,
+          isPaused: webPausedRef.current,
+          key,
+          source: _source,
+        });
+
+        if (pauseAction === 'pause' || pauseAction === 'resume') {
+          keysRef.current.delete(key);
+          toggleWebPause();
+          return true;
+        }
+        if (pauseAction === 'consume') {
+          keysRef.current.delete(key);
+          return true;
+        }
+      }
+
       if (
         gs === 'intro' ||
         gs === 'attractLocalLeaderboard' ||
         gs === 'attractGlobalLeaderboard' ||
         gs === 'attractControls'
       ) {
+        // Left/right navigates without starting. This covers PC arrows,
+        // browser Gamepad API input, Android D-pad, and native analog events.
+        if (key === 'ArrowLeft' || key === 'ArrowRight') {
+          moveAttractScreen(key === 'ArrowRight' ? 1 : -1);
+          return true;
+        }
+
         // PC: on the local-leaderboard attract screen, holding C for 10s
         // opens the "clear local leaderboard" confirmation. Don't start a
         // new game while C is being held.
@@ -1091,9 +1244,18 @@ const CavemanVsDragonGame = () => {
 
       if (gs === 'highscorePrompt') {
         if (now < continueArmedAtRef.current) return true;
-        setNameInput('');
-        nameInputRef.current = '';
+        const savedWorkerName = getWorkerPlayerName();
+        setNameInput(savedWorkerName || '');
+        nameInputRef.current = savedWorkerName || '';
         setNameError('');
+
+        // A returning player keeps the first public name automatically. The
+        // hidden device credential restores authentication without showing
+        // the name keyboard, password, registration, or login UI.
+        if (savedWorkerName) {
+          void submitHighScore();
+          return true;
+        }
         setGameState('enterName');
 
         // Controller/touch entry uses the in-game keyboard below. Do not
@@ -1124,19 +1286,31 @@ const CavemanVsDragonGame = () => {
           setGameState('highscorePrompt');
           return true;
         }
-        // Not a high score: only R restarts (handled by outer keydown handler)
-        return false;
+        // A non-qualifying score restarts on any button/key. This removes
+        // the need for a separate on-screen R control on GAME OVER.
+        resetGame();
+        return true;
       }
 
       if (gs === 'enterName') {
-        // The hidden <input> handles typing via React onChange; here we only
-        // catch Enter (submit). Everything else is swallowed so it doesn't
-        // bleed into the game.
         if (key === 'Enter') {
-          submitHighScore();
+          void requestNameConfirmation();
           return true;
         }
-        return true; // swallow other keys during entry (typing handled by input element)
+        return true;
+      }
+
+      if (gs === 'confirmName') {
+        if (key === 'ArrowLeft' || key === 'ArrowRight') {
+          setConfirmNameChoice((choice) => choice === 'yes' ? 'change' : 'yes');
+          return true;
+        }
+        if (key === 'Enter' || key === ' ' || key === 'r' || key === 'R') {
+          if (confirmNameChoice === 'yes') void submitHighScore();
+          else setGameState('enterName');
+          return true;
+        }
+        return true;
       }
 
       if (gs === 'leaderboard' || gs === 'globalLeaderboard') {
@@ -1147,7 +1321,7 @@ const CavemanVsDragonGame = () => {
 
       return false;
     };
-  }, [startNextLevel, submitHighScore, resetGame, startInLevel2Test, startInLevel3Test, startInLevel3Iter4Test, startInLevel4Test, globalScores]);
+  }, [startNextLevel, submitHighScore, requestNameConfirmation, confirmNameChoice, resetGame, startInLevel2Test, startInLevel3Test, startInLevel3Iter4Test, startInLevel4Test, globalScores, moveAttractScreen, toggleWebPause]);
 
 
 
@@ -1176,11 +1350,12 @@ const CavemanVsDragonGame = () => {
       ['I','J','K','L','M','N','O','P'],
       ['Q','R','S','T','U','V','W','X'],
       ['Y','Z','0','1','2','3','4','5'],
-      ['6','7','8','9','SPACE','DEL'],
+      ['6','7','8','9','SHIFT','SPACE','DEL','SEND'],
     ];
 
     let row = 0;
     let col = 0;
+    let shifted = true;
     let repeatDelay: number | null = null;
     let repeatTimer: number | null = null;
 
@@ -1248,8 +1423,29 @@ const CavemanVsDragonGame = () => {
     });
     overlay.appendChild(nameDisplay);
 
+    const statusDisplay = document.createElement('div');
+    statusDisplay.setAttribute('role', 'status');
+    statusDisplay.setAttribute('aria-live', 'polite');
+    Object.assign(statusDisplay.style, {
+      minHeight: '18px',
+      textAlign: 'center',
+      fontWeight: 'bold',
+      fontSize: 'clamp(10px, 2.4vw, 15px)',
+      marginBottom: '4px',
+      color: '#ff6b6b',
+    } as Partial<CSSStyleDeclaration>);
+    const syncStatusDisplay = () => {
+      const checking = nameAvailabilityCheckingRef.current;
+      const message = checking ? 'CHECKING NAME...' : nameErrorRef.current;
+      statusDisplay.textContent = message || '';
+      statusDisplay.style.color = checking ? '#ffd400' : '#ff6b6b';
+      statusDisplay.style.visibility = message ? 'visible' : 'hidden';
+    };
+    syncStatusDisplay();
+    overlay.appendChild(statusDisplay);
+
     const instructions = document.createElement('div');
-    instructions.textContent = 'D-PAD / STICK: MOVE   A: SELECT   START: SUBMIT';
+    instructions.textContent = 'D-PAD / STICK: MOVE   A: SELECT   SHIFT: CASE   START / SEND: CONTINUE';
     Object.assign(instructions.style, {
       textAlign: 'center',
       fontSize: 'clamp(9px, 2.2vw, 14px)',
@@ -1270,16 +1466,43 @@ const CavemanVsDragonGame = () => {
 
     const buttons: HTMLButtonElement[][] = [];
 
+    const keyLabel = (token: string) => {
+      if (/^[A-Z]$/.test(token)) return shifted ? token : token.toLowerCase();
+      if (token === 'SHIFT') return shifted ? 'SHIFT' : 'shift';
+      if (token === 'DEL') return '⌫';
+      return token;
+    };
+
+    const renderKeyLabels = () => {
+      buttons.forEach((buttonRow, r) => {
+        buttonRow.forEach((button, c) => {
+          button.textContent = keyLabel(rows[r][c]);
+        });
+      });
+    };
+
     const setNameValue = (next: string) => {
       const clipped = next.slice(0, NAME_MAX_LENGTH);
       nameInputRef.current = clipped;
       setNameInput(clipped);
+      nameErrorRef.current = '';
       setNameError('');
       syncNameDisplay();
+      syncStatusDisplay();
     };
 
     const activate = (token: string) => {
       const current = nameInputRef.current || '';
+      if (token === 'SEND') {
+        void requestNameConfirmation();
+        return;
+      }
+      if (token === 'SHIFT') {
+        shifted = !shifted;
+        renderKeyLabels();
+        renderSelection();
+        return;
+      }
       if (token === 'DEL') {
         setNameValue(current.slice(0, -1));
         return;
@@ -1291,7 +1514,10 @@ const CavemanVsDragonGame = () => {
         return;
       }
       if (current.length < NAME_MAX_LENGTH) {
-        setNameValue(current + token);
+        const character = /^[A-Z]$/.test(token) && !shifted
+          ? token.toLowerCase()
+          : token;
+        setNameValue(current + character);
       }
     };
 
@@ -1319,10 +1545,10 @@ const CavemanVsDragonGame = () => {
       tokens.forEach((token, c) => {
         const button = document.createElement('button');
         button.type = 'button';
-        button.textContent = token === 'SPACE' ? 'SPACE' : token === 'DEL' ? '⌫' : token;
+        button.textContent = keyLabel(token);
         button.setAttribute('aria-label', token);
         Object.assign(button.style, {
-          flex: token === 'SPACE' ? '2' : '1',
+          flex: token === 'SPACE' || token === 'SHIFT' || token === 'SEND' ? '2' : '1',
           minWidth: '0',
           minHeight: 'clamp(32px, 6.5vh, 48px)',
           padding: '2px',
@@ -1417,7 +1643,7 @@ const CavemanVsDragonGame = () => {
           window.setTimeout(syncNameDisplay, 800);
           return;
         }
-        submitHighScore();
+        void requestNameConfirmation();
       }
     };
 
@@ -1427,7 +1653,10 @@ const CavemanVsDragonGame = () => {
 
     // If the user chooses the phone keyboard by tapping the name field,
     // keep the controller overlay's name display synchronized with React.
-    const syncTimer = window.setInterval(syncNameDisplay, 100);
+    const syncTimer = window.setInterval(() => {
+      syncNameDisplay();
+      syncStatusDisplay();
+    }, 100);
 
     return () => {
       clearRepeat();
@@ -1435,7 +1664,7 @@ const CavemanVsDragonGame = () => {
       window.removeEventListener('cvd-native-controller-key', onNativeControllerKey);
       overlay.remove();
     };
-  }, [gameState, submitHighScore]);
+  }, [gameState, requestNameConfirmation]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1521,6 +1750,11 @@ const CavemanVsDragonGame = () => {
       let key = e.key;
       const padKey = ANDROID_PAD_KEYS[e.keyCode];
       if (padKey) { key = padKey; markGamepadActive(); e.preventDefault(); }
+      recordGameplayControlKey(
+        padKey ? 'gamepad' : 'keyboard',
+        key,
+        gameStateRef.current === 'playing',
+      );
       keysRef.current.add(key);
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(key)) e.preventDefault();
       // Route input through the unified handler. It returns true if it consumed the key.
@@ -1561,6 +1795,8 @@ const CavemanVsDragonGame = () => {
         return;
       }
       lastTime = timestamp - (elapsed % FRAME_INTERVAL);
+
+      if (webPausedRef.current) return;
 
       const g = gameRef.current;
       const keys = keysRef.current;
@@ -1783,8 +2019,9 @@ const CavemanVsDragonGame = () => {
         // vertical overlap with the ladder span counts as being within reach.
         const playerCX = p.x + p.w / 2;
         const LADDER_HALF_W = 7;
-        // Overlap-based horizontal tolerance (any pixel overlap).
-        const OVERLAP_SNAP = p.w / 2 + LADDER_HALF_W; // = 15 for a 16-wide player
+        // Mounting gets a small deterministic assist beyond exact sprite
+        // overlap. This prevents first-life spawn differences from making Up
+        // appear unresponsive while keeping distant ladders out of range.
         let nearestLadder: (typeof LADDERS)[number] | null = null;
         let nearestLadderIdx = -1;
         let nearestLadderDist = Infinity;
@@ -1879,9 +2116,15 @@ const CavemanVsDragonGame = () => {
         const jumpJustPressed = jumpPressed && !(g as any)._jumpHeldLastFrame;
         (g as any)._jumpHeldLastFrame = jumpPressed;
 
-        // Lenient mount: any pixel of horizontal overlap between the player
-        // and the ladder is enough to start climbing when Up/Down is pressed.
-        const canMountHere = !!nearestLadder && nearestLadderDist <= OVERLAP_SNAP;
+        // Accept nearby intentional Up/Down input even if the character and
+        // ladder sprites do not overlap yet. The search radius remains the
+        // hard upper bound, so this cannot snap to a distant ladder.
+        const canMountHere = !!nearestLadder && canMountLadder(
+          nearestLadderDist,
+          p.w,
+          LADDER_HALF_W,
+          LADDER_SNAP,
+        );
 
 
         if (wantUp && nearestLadder && !jumpPressed && (p.climbing || canMountHere)) {
@@ -3903,7 +4146,8 @@ const CavemanVsDragonGame = () => {
           ctx.fillText(continuePrompt, CANVAS_W / 2, CANVAS_H / 2 + 80);
           ctx.fillText('TO CONTINUE', CANVAS_W / 2, CANVAS_H / 2 + 110);
         } else {
-          ctx.fillText('PRESS R TO RESTART', CANVAS_W / 2, CANVAS_H / 2 + 80);
+          ctx.fillText(continuePrompt, CANVAS_W / 2, CANVAS_H / 2 + 80);
+          ctx.fillText('TO RESTART', CANVAS_W / 2, CANVAS_H / 2 + 110);
         }
       }
       if (gameStateRef.current === 'highscorePrompt') {
@@ -4063,6 +4307,7 @@ const CavemanVsDragonGame = () => {
       prev[key] = down;
       if (down) {
         markGamepadActive();
+        recordGameplayControlKey('gamepad', key, gameStateRef.current === 'playing');
         keysRef.current.add(key);
         anyInputHandlerRef.current?.(key, 'pad');
         if (isStart && key === 'r') {
@@ -4141,6 +4386,7 @@ const CavemanVsDragonGame = () => {
 
   const simulateKey = useCallback((key: string, type: 'down' | 'up') => {
     if (type === 'down') {
+      recordGameplayControlKey('touch', key, gameStateRef.current === 'playing');
       keysRef.current.add(key);
       // Route mobile pad presses through the unified menu input handler too.
       anyInputHandlerRef.current?.(key, 'pad');
@@ -4258,7 +4504,7 @@ const CavemanVsDragonGame = () => {
   // On the native APK, tablets play without on-screen controls. Phones keep them.
   // Hide on-screen controls whenever a hardware gamepad / bluetooth controller
   // is connected (any orientation), or on tablets in the native APK build.
-  const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls');
+  const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls' || gameState === 'enterName' || gameState === 'confirmName' || gameState === 'globalLeaderboard');
   // Landscape side-mounted controls are an APK-only layout. In the browser
   // we always render the portrait bottom bar, regardless of window aspect.
   const useLandscapeLayout = controlsVisible && isLandscape && isNativeApp;
@@ -4294,7 +4540,7 @@ const CavemanVsDragonGame = () => {
     </div>
   );
 
-  const rButtonEl = (gameState === 'gameover' || gameState === 'leaderboard' || gameState === 'globalLeaderboard') ? (
+  const rButtonEl = (gameState === 'leaderboard' || gameState === 'globalLeaderboard') ? (
     <button
       className="w-12 h-12 self-center rounded-full bg-accent text-accent-foreground text-sm font-bold active:scale-95 shrink-0"
       onPointerDown={(e) => {
@@ -4349,6 +4595,21 @@ const CavemanVsDragonGame = () => {
             sizes naturally from its 512x480 backing store. */}
         <div
           className="relative flex h-full w-full items-center justify-center"
+          onPointerDown={(e) => {
+            if (isNativeApp || gameStateRef.current !== 'playing' || levelIntroRef.current) return;
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+            const bounds = canvas.getBoundingClientRect();
+            if (
+              e.clientX < bounds.left ||
+              e.clientX > bounds.right ||
+              e.clientY < bounds.top ||
+              e.clientY > bounds.bottom
+            ) return;
+            e.preventDefault();
+            e.stopPropagation();
+            toggleWebPause();
+          }}
           style={
             isNativeApp
               ? {
@@ -4376,6 +4637,20 @@ const CavemanVsDragonGame = () => {
           />
         </div>
 
+        {isWebPaused && gameState === 'playing' && !isNativeApp && (
+          <div
+            className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center"
+            aria-label="Game paused"
+          >
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-lg">
+              <div className="flex h-8 items-center gap-2">
+                <span className="block h-8 w-2 rounded-sm bg-black" />
+                <span className="block h-8 w-2 rounded-sm bg-black" />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Hidden text input — surfaces the OS soft keyboard during name entry.
             Always mounted so focus() called inside a user-gesture handler can
             reliably open the mobile keyboard. Visually hidden when not in use. */}
@@ -4393,7 +4668,7 @@ const CavemanVsDragonGame = () => {
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();
-              if (gameState === 'enterName') submitHighScore();
+              if (gameState === 'enterName') void requestNameConfirmation();
             }
           }}
           autoFocus={gameState === 'enterName'}
@@ -4404,6 +4679,7 @@ const CavemanVsDragonGame = () => {
           aria-label="Enter your name (up to 10 characters)"
           placeholder=""
           inputMode={gameState === 'enterName' ? 'text' : 'none'}
+          enterKeyHint="send"
           readOnly={gameState !== 'enterName'}
           tabIndex={gameState === 'enterName' ? 0 : -1}
           className={
@@ -4413,6 +4689,39 @@ const CavemanVsDragonGame = () => {
           }
           style={{ WebkitAppearance: 'none', appearance: 'none' }}
         />
+
+        {gameState === 'confirmName' && (
+          <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/95 px-6">
+            <div className="w-full max-w-lg rounded-lg border-2 border-accent bg-black p-6 text-center font-caveman text-white shadow-2xl">
+              <h2 className="mb-5 text-2xl text-accent">Confirm Leaderboard Name</h2>
+              <p className="mb-3 text-xl">{nameInputRef.current.trim()}</p>
+              <p className="mb-6 text-sm leading-relaxed">
+                This will be your leaderboard name from now on and cannot be changed.
+                Do you want this name?
+              </p>
+              <div className="flex justify-center gap-4">
+                <button
+                  type="button"
+                  autoFocus={confirmNameChoice === 'yes'}
+                  onFocus={() => setConfirmNameChoice('yes')}
+                  onClick={() => void submitHighScore()}
+                  className={`min-w-28 rounded border-2 px-5 py-3 ${confirmNameChoice === 'yes' ? 'border-accent bg-white text-black' : 'border-white bg-black text-white'}`}
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  autoFocus={confirmNameChoice === 'change'}
+                  onFocus={() => setConfirmNameChoice('change')}
+                  onClick={() => setGameState('enterName')}
+                  className={`min-w-28 rounded border-2 px-5 py-3 ${confirmNameChoice === 'change' ? 'border-accent bg-white text-black' : 'border-white bg-black text-white'}`}
+                >
+                  Change
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* L4-cleared cinematic: dragon re-kidnaps the princess. */}
         {gameState === 'savedAnim' && (
@@ -4435,11 +4744,10 @@ const CavemanVsDragonGame = () => {
           <button
             type="button"
             aria-label="Start game"
-            onPointerDown={(e) => {
-              e.preventDefault();
-              unlockAudio();
-              anyInputHandlerRef.current?.('Tap', 'pad');
-            }}
+            onPointerDown={handleAttractPointerDown}
+            onPointerUp={handleAttractPointerUp}
+            onPointerCancel={handleAttractPointerCancel}
+            onPointerLeave={handleAttractPointerCancel}
             className="absolute inset-0 flex flex-col items-center justify-between overflow-hidden focus:outline-none bg-black"
             style={{
               backgroundImage: `url(${introBackgroundUrl})`,
@@ -4497,11 +4805,13 @@ const CavemanVsDragonGame = () => {
         {gameState === 'attractLocalLeaderboard' && (
           <AttractLeaderboardScreen
             kind="local"
-            isMobile={isMobile}
+            isMobile={mobileStartUi}
+            gamepadActive={gamepadActive}
             scores={scores}
             globalScores={globalScores}
             globalLoading={globalLoading}
             onStart={() => { unlockAudio(); anyInputHandlerRef.current?.('Tap', 'pad'); }}
+            onNavigate={moveAttractScreen}
             onRequestClearLocal={() => setConfirmClearOpen(true)}
             background={introBackgroundUrl}
             logo={team2goLogoUrl}
@@ -4509,15 +4819,37 @@ const CavemanVsDragonGame = () => {
           />
         )}
 
-        {/* Attract: GLOBAL leaderboard (everyone, via Lovable Cloud) */}
+        {/* Attract: GLOBAL leaderboard (everyone, via Cloudflare Worker) */}
         {gameState === 'attractGlobalLeaderboard' && (
           <AttractLeaderboardScreen
             kind="global"
-            isMobile={isMobile}
+            isMobile={mobileStartUi}
+            gamepadActive={gamepadActive}
             scores={scores}
             globalScores={globalScores}
             globalLoading={globalLoading}
             onStart={() => { unlockAudio(); anyInputHandlerRef.current?.('Tap', 'pad'); }}
+            onNavigate={moveAttractScreen}
+            onRequestClearLocal={() => setConfirmClearOpen(true)}
+            background={introBackgroundUrl}
+            logo={team2goLogoUrl}
+            onLogoTap={handleLogoTap}
+          />
+        )}
+
+        {/* Post-score GLOBAL leaderboard uses the same responsive DOM layout
+            as attract mode. The canvas version stretches with the portrait
+            game surface and makes the table appear enlarged and clipped. */}
+        {gameState === 'globalLeaderboard' && (
+          <AttractLeaderboardScreen
+            kind="global"
+            isMobile={mobileStartUi}
+            gamepadActive={gamepadActive}
+            scores={scores}
+            globalScores={globalScores}
+            globalLoading={globalLoading}
+            onStart={() => { unlockAudio(); resetGame(); }}
+            onNavigate={() => {}}
             onRequestClearLocal={() => setConfirmClearOpen(true)}
             background={introBackgroundUrl}
             logo={team2goLogoUrl}
@@ -4530,7 +4862,10 @@ const CavemanVsDragonGame = () => {
           <button
             type="button"
             aria-label="Start game"
-            onPointerDown={(e) => { e.preventDefault(); unlockAudio(); anyInputHandlerRef.current?.('Tap', 'pad'); }}
+            onPointerDown={handleAttractPointerDown}
+            onPointerUp={handleAttractPointerUp}
+            onPointerCancel={handleAttractPointerCancel}
+            onPointerLeave={handleAttractPointerCancel}
             className="absolute inset-0 flex flex-col items-center overflow-hidden focus:outline-none bg-black"
             style={{
               backgroundImage: `url(${introBackgroundUrl})`,
@@ -4616,10 +4951,10 @@ const CavemanVsDragonGame = () => {
       </div>
 
       {/* Landscape (APK only): big red JUMP rectangle on the right of the canvas.
-          R button stacks above only when relevant (game over / leaderboard). */}
+          R button stacks above only on post-game leaderboard screens. */}
       {useLandscapeLayout && (
         <div className="h-full shrink-0 py-2 pr-[calc(env(safe-area-inset-right)+0.5rem)] pl-2 touch-none flex flex-col items-stretch justify-center gap-2 w-[min(36vw,180px)]">
-          {(gameState === 'gameover' || gameState === 'leaderboard' || gameState === 'globalLeaderboard') && (
+          {(gameState === 'leaderboard' || gameState === 'globalLeaderboard') && (
             <div className="self-center">{rButtonEl}</div>
           )}
           <div className="flex-1 min-h-0">
@@ -4677,12 +5012,14 @@ const CavemanVsDragonGame = () => {
 interface AttractLeaderboardScreenProps {
   kind: 'local' | 'global';
   isMobile: boolean;
+  gamepadActive: boolean;
   scores: LeaderboardEntry[];
   globalScores: GlobalEntry[];
   globalLoading: boolean;
   background: string;
   logo: string;
   onStart: () => void;
+  onNavigate: (direction: -1 | 1) => void;
   onRequestClearLocal: () => void;
   onLogoTap?: (e?: React.SyntheticEvent) => void;
 }
@@ -4692,17 +5029,52 @@ const LONG_PRESS_MS = 10_000;
 const AttractLeaderboardScreen = ({
   kind,
   isMobile,
+  gamepadActive,
   scores,
   globalScores,
   globalLoading,
   background,
   logo,
   onStart,
+  onNavigate,
   onRequestClearLocal,
   onLogoTap,
 }: AttractLeaderboardScreenProps) => {
   const longPressTimer = useRef<number | null>(null);
   const longPressFiredRef = useRef<boolean>(false);
+  const pointerStartRef = useRef<{ id: number; x: number; y: number } | null>(null);
+  const screenRef = useRef<HTMLButtonElement | null>(null);
+  const [leaderboardLandscape, setLeaderboardLandscape] = useState(() => (
+    typeof window !== 'undefined'
+      ? isLandscapeLeaderboardViewport(window.innerWidth, window.innerHeight)
+      : false
+  ));
+
+  // Android can briefly retain stale window dimensions after rotation. Measure
+  // this screen itself so portrait never receives the compact landscape layout.
+  useLayoutEffect(() => {
+    const screen = screenRef.current;
+    if (!screen) return;
+
+    const updateLayout = () => {
+      const bounds = screen.getBoundingClientRect();
+      setLeaderboardLandscape(isLandscapeLeaderboardViewport(bounds.width, bounds.height));
+    };
+    const scheduleUpdate = () => window.requestAnimationFrame(updateLayout);
+    const observer = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(updateLayout);
+
+    updateLayout();
+    observer?.observe(screen);
+    window.addEventListener('resize', scheduleUpdate);
+    window.addEventListener('orientationchange', scheduleUpdate);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', scheduleUpdate);
+      window.removeEventListener('orientationchange', scheduleUpdate);
+    };
+  }, []);
 
   const clearLongPress = () => {
     if (longPressTimer.current !== null) {
@@ -4714,6 +5086,8 @@ const AttractLeaderboardScreen = ({
   const handlePointerDown = (e: React.PointerEvent) => {
     e.preventDefault();
     longPressFiredRef.current = false;
+    pointerStartRef.current = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     if (kind === 'local' && isMobile) {
       clearLongPress();
       longPressTimer.current = window.setTimeout(() => {
@@ -4726,13 +5100,31 @@ const AttractLeaderboardScreen = ({
   const handlePointerUp = (e: React.PointerEvent) => {
     e.preventDefault();
     const wasLong = longPressFiredRef.current;
+    const start = pointerStartRef.current;
+    pointerStartRef.current = null;
     clearLongPress();
     longPressFiredRef.current = false;
     if (wasLong) return; // long-press already opened the dialog
+    if (!start || start.id !== e.pointerId) return;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    if (Math.abs(dx) >= 48 && Math.abs(dx) > Math.abs(dy) * 1.25) {
+      onNavigate(dx < 0 ? 1 : -1);
+      return;
+    }
     onStart();
   };
 
+  const handlePointerMove = (e: React.PointerEvent) => {
+    const start = pointerStartRef.current;
+    if (!start || start.id !== e.pointerId) return;
+    if (Math.abs(e.clientX - start.x) > 12 || Math.abs(e.clientY - start.y) > 12) {
+      clearLongPress();
+    }
+  };
+
   const handlePointerCancel = () => {
+    pointerStartRef.current = null;
     clearLongPress();
     longPressFiredRef.current = false;
   };
@@ -4742,9 +5134,11 @@ const AttractLeaderboardScreen = ({
 
   return (
     <button
+      ref={screenRef}
       type="button"
       aria-label="Start game"
       onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
       onPointerLeave={handlePointerCancel}
@@ -4758,11 +5152,11 @@ const AttractLeaderboardScreen = ({
       }}
     >
       <div className="pointer-events-none absolute inset-0 bg-black/70" />
-      <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-3 px-6 py-8">
+      <div className={`relative z-10 flex h-full w-full flex-col items-center ${leaderboardLandscape ? 'min-h-0 justify-start gap-0 px-3 pb-12 pt-2' : 'justify-center gap-3 px-6 py-8'}`}>
         <h2
           className="font-caveman text-center"
           style={{
-            fontSize: 'clamp(1.4rem, 5vw, 2.8rem)',
+            fontSize: leaderboardLandscape ? 'clamp(0.75rem, 3.8vh, 1.25rem)' : 'clamp(1.4rem, 5vw, 2.8rem)',
             color: 'hsl(var(--accent))',
             textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
           }}
@@ -4771,16 +5165,16 @@ const AttractLeaderboardScreen = ({
         </h2>
 
         <ol
-          className="flex w-full max-w-md flex-col font-caveman"
+          className={`flex w-full max-w-md flex-col font-caveman ${leaderboardLandscape ? 'min-h-0 flex-1' : ''}`}
           style={{
-            fontSize: 'clamp(0.55rem, 1.7vw, 0.85rem)',
+            fontSize: leaderboardLandscape ? 'clamp(0.4rem, 2.2vh, 0.65rem)' : 'clamp(0.55rem, 1.7vw, 0.85rem)',
             color: 'hsl(var(--foreground))',
             textShadow: '2px 2px 0 #000',
-            lineHeight: 1.15,
+            lineHeight: leaderboardLandscape ? 1 : 1.15,
           }}
         >
           <li
-            className="flex items-center justify-between gap-2 border-b-2 border-accent px-2 py-1 text-accent"
+            className={`flex items-center justify-between gap-2 border-b-2 border-accent px-2 text-accent ${leaderboardLandscape ? 'min-h-0 flex-1 py-0' : 'py-1'}`}
             aria-hidden="true"
           >
             <span className="w-6">#</span>
@@ -4793,7 +5187,7 @@ const AttractLeaderboardScreen = ({
               const e = globalScores[i];
               const display = e ? (e.name || '---') : '---';
               return (
-                <li key={i} className="flex items-center justify-between gap-2 border-b border-accent/20 px-2 py-[2px]">
+                <li key={i} className={`flex items-center justify-between gap-2 border-b border-accent/20 px-2 ${leaderboardLandscape ? 'min-h-0 flex-1 py-0' : 'py-[2px]'}`}>
                   <span className="w-6 text-accent">{(i + 1).toString().padStart(2, '0')}</span>
                   <span className="flex-1 truncate tracking-wider">{display}</span>
                   <span className="w-16 text-right">{e ? e.score.toString().padStart(6, '0') : '------'}</span>
@@ -4804,7 +5198,7 @@ const AttractLeaderboardScreen = ({
             const e = scores[i];
             const display = e ? entryDisplayName(e) : '---';
             return (
-              <li key={i} className="flex items-center justify-between gap-2 border-b border-accent/20 px-2 py-[2px]">
+              <li key={i} className={`flex items-center justify-between gap-2 border-b border-accent/20 px-2 ${leaderboardLandscape ? 'min-h-0 flex-1 py-0' : 'py-[2px]'}`}>
                 <span className="w-6 text-accent">{(i + 1).toString().padStart(2, '0')}</span>
                 <span className="flex-1 truncate tracking-wider">{display}</span>
                 <span className="w-16 text-right">{e ? e.score.toString().padStart(6, '0') : '------'}</span>
@@ -4818,7 +5212,7 @@ const AttractLeaderboardScreen = ({
           <div
             className="font-caveman text-center"
             style={{
-              fontSize: 'clamp(0.7rem, 2vw, 1rem)',
+              fontSize: leaderboardLandscape ? 'clamp(0.6rem, 2vh, 0.9rem)' : 'clamp(0.7rem, 2vw, 1rem)',
               color: 'hsl(var(--accent))',
               textShadow: '2px 2px 0 #000',
             }}
@@ -4831,21 +5225,21 @@ const AttractLeaderboardScreen = ({
             (long-press on mobile, hold C on PC), but is intentionally not shown. */}
       </div>
       {/* Footer prompt — same position as intro screen */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 mb-[7%] flex w-full flex-col items-center gap-3 px-4">
+      <div className={`pointer-events-none absolute inset-x-0 z-10 flex w-full flex-col items-center ${leaderboardLandscape ? 'bottom-1 gap-0 px-2' : 'bottom-0 mb-[7%] gap-3 px-4'}`}>
         <div
           className="intro-blink text-center font-caveman"
           style={{
-            fontSize: 'clamp(1.25rem, 4.2vw, 2.4rem)',
+            fontSize: leaderboardLandscape ? 'clamp(0.55rem, 2.8vh, 0.9rem)' : 'clamp(1.25rem, 4.2vw, 2.4rem)',
             color: 'hsl(var(--accent))',
             textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
           }}
         >
-          {mobileStartUi ? (gamepadActive ? 'Press START to Start' : 'Touch Screen to Start') : 'Press R to Start'}
+          {isMobile ? (gamepadActive ? 'Press START to Start' : 'Touch Screen to Start') : 'Press R to Start'}
         </div>
         <div
           className="flex items-center justify-center gap-3 text-center font-caveman"
           style={{
-            fontSize: 'clamp(0.85rem, 2.4vw, 1.4rem)',
+            fontSize: leaderboardLandscape ? 'clamp(0.45rem, 2vh, 0.7rem)' : 'clamp(0.85rem, 2.4vw, 1.4rem)',
             color: 'hsl(var(--foreground))',
             textShadow: '2px 2px 0 hsl(var(--primary)), 3px 3px 0 #000',
             letterSpacing: '0.08em',
@@ -4858,8 +5252,8 @@ const AttractLeaderboardScreen = ({
             onPointerDown={onLogoTap}
             className="object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] cursor-pointer"
             style={{
-              width: 'clamp(40px, 7vw, 64px)',
-              height: 'clamp(40px, 7vw, 64px)',
+              width: leaderboardLandscape ? 'clamp(20px, 7vh, 32px)' : 'clamp(40px, 7vw, 64px)',
+              height: leaderboardLandscape ? 'clamp(20px, 7vh, 32px)' : 'clamp(40px, 7vw, 64px)',
             }}
           />
         </div>
