@@ -1,7 +1,23 @@
-name: Build Caveman Vs Dragon Android APK
+name: Build Caveman Vs Dragon Android
 
 on:
   workflow_dispatch:
+    inputs:
+      version_code:
+        description: Google Play version code (increase for every upload)
+        required: true
+        default: '1'
+        type: string
+      version_name:
+        description: User-visible semantic version
+        required: true
+        default: '1.0.0'
+        type: string
+      build_play_bundle:
+        description: Build the signed Google Play app bundle
+        required: true
+        default: false
+        type: boolean
   push:
     branches:
       - AndroidAPK-MobileStartPrompt1
@@ -1668,6 +1684,8 @@ jobs:
           PY
 
       - name: Build web game
+        env:
+          VITE_CVD_APP_VERSION: ${{ inputs.version_name || '1.1.0' }}
         run: npm run build
 
       - name: Create Android project
@@ -2480,6 +2498,35 @@ jobs:
           p.write_text(s)
           PY
 
+      - name: Configure signed Google Play release
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_play_bundle }}
+        shell: bash
+        env:
+          CVD_UPLOAD_KEYSTORE_BASE64: ${{ secrets.CVD_UPLOAD_KEYSTORE_BASE64 }}
+          CVD_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.CVD_UPLOAD_KEYSTORE_PASSWORD }}
+          CVD_UPLOAD_KEY_ALIAS: ${{ secrets.CVD_UPLOAD_KEY_ALIAS }}
+          CVD_UPLOAD_KEY_PASSWORD: ${{ secrets.CVD_UPLOAD_KEY_PASSWORD }}
+          RELEASE_VERSION_CODE: ${{ inputs.version_code }}
+          RELEASE_VERSION_NAME: ${{ inputs.version_name }}
+        run: |
+          set -euo pipefail
+          for name in CVD_UPLOAD_KEYSTORE_BASE64 CVD_UPLOAD_KEYSTORE_PASSWORD CVD_UPLOAD_KEY_ALIAS CVD_UPLOAD_KEY_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              echo "Missing required GitHub secret: $name" >&2
+              exit 1
+            fi
+          done
+          export CVD_UPLOAD_KEYSTORE_PATH="$RUNNER_TEMP/caveman-vs-dragon-upload.jks"
+          printf '%s' "$CVD_UPLOAD_KEYSTORE_BASE64" | base64 --decode > "$CVD_UPLOAD_KEYSTORE_PATH"
+          keytool -list \
+            -keystore "$CVD_UPLOAD_KEYSTORE_PATH" \
+            -storepass "$CVD_UPLOAD_KEYSTORE_PASSWORD" \
+            -alias "$CVD_UPLOAD_KEY_ALIAS" >/dev/null
+          python3 scripts/configure_android_release.py \
+            --gradle-file android/app/build.gradle \
+            --version-code "$RELEASE_VERSION_CODE" \
+            --version-name "$RELEASE_VERSION_NAME"
+
       - name: Restore persistent test signing key
         uses: actions/cache@v4
         with:
@@ -2522,5 +2569,40 @@ jobs:
           path: |
             CavemanVsDragon-debug.apk
             CavemanVsDragon-debug.apk.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Build signed Google Play app bundle
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_play_bundle }}
+        working-directory: android
+        env:
+          CVD_UPLOAD_KEYSTORE_PATH: ${{ runner.temp }}/caveman-vs-dragon-upload.jks
+          CVD_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.CVD_UPLOAD_KEYSTORE_PASSWORD }}
+          CVD_UPLOAD_KEY_ALIAS: ${{ secrets.CVD_UPLOAD_KEY_ALIAS }}
+          CVD_UPLOAD_KEY_PASSWORD: ${{ secrets.CVD_UPLOAD_KEY_PASSWORD }}
+        run: ./gradlew --no-daemon bundleRelease
+
+      - name: Verify Google Play app bundle
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_play_bundle }}
+        shell: bash
+        env:
+          CVD_UPLOAD_KEY_ALIAS: ${{ secrets.CVD_UPLOAD_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          AAB='android/app/build/outputs/bundle/release/app-release.aab'
+          test -s "$AAB"
+          jarsigner -verify -strict -certs "$AAB"
+          unzip -l "$AAB" | grep -F 'base/manifest/AndroidManifest.xml'
+          sha256sum "$AAB" | tee CavemanVsDragon-release.aab.sha256
+          cp "$AAB" CavemanVsDragon-release.aab
+
+      - name: Upload Google Play app bundle
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_play_bundle }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Caveman-Vs-Dragon-Play-v${{ inputs.version_name }}
+          path: |
+            CavemanVsDragon-release.aab
+            CavemanVsDragon-release.aab.sha256
           if-no-files-found: error
           retention-days: 14
