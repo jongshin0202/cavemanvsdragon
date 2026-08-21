@@ -20,7 +20,7 @@ const isLevel1Round = (round: number): boolean =>
 import { loadScores, qualifiesForTop, insertScore, clearLocalScores, formatDate, entryDisplayName, MAX_ENTRIES, type LeaderboardEntry } from './game/leaderboard';
 import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal, type GlobalEntry } from './game/globalLeaderboard';
 import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/deviceStats';
-import { checkWorkerPlayerNameAvailability, claimWorkerLeaderboardProfile, getWorkerPlayerName, isWorkerInvalidCredentialsError, isWorkerNameAvailabilityEndpointMissing, isWorkerNameUnavailableError, loginWorkerLeaderboardProfile, workerProfileNeedsLogin } from './game/workerApi';
+import { canUpgradeWorkerProfile, checkWorkerPlayerNameAvailability, claimWorkerLeaderboardProfile, getWorkerPlayerName, isWorkerInvalidCredentialsError, isWorkerNameAvailabilityEndpointMissing, isWorkerNameUnavailableError, loginWorkerLeaderboardProfile, upgradeWorkerLeaderboardProfile, workerProfileNeedsUpgrade } from './game/workerApi';
 import { recordGameplayControlKey, resetGameplayControlType } from './game/controlType';
 import { isLandscapeLeaderboardViewport } from './game/leaderboardViewport';
 import { getBrowserGameplayPauseAction } from './game/browserPause';
@@ -342,7 +342,7 @@ const CavemanVsDragonGame = () => {
   const [nameError, setNameError] = useState<string>('');
   const nameAvailabilityCheckingRef = useRef(false);
   const [confirmNameChoice, setConfirmNameChoice] = useState<'yes' | 'change'>('yes');
-  const [profileAuthMode, setProfileAuthMode] = useState<'claim' | 'login'>('claim');
+  const [profileAuthMode, setProfileAuthMode] = useState<'claim' | 'login' | 'upgrade'>('claim');
   const [profilePassword, setProfilePassword] = useState('');
   const [profilePasswordConfirmation, setProfilePasswordConfirmation] = useState('');
   const [profileRecoveryEmail, setProfileRecoveryEmail] = useState('');
@@ -890,7 +890,7 @@ const CavemanVsDragonGame = () => {
 
     // Local-only entries are not permanent account names. Returning players
     // already have a permanent Worker name and skip both entry and confirmation.
-    if (!justSubmittedGlobal.current || savedWorkerName) {
+    if (!justSubmittedGlobal.current || (savedWorkerName && !workerProfileNeedsUpgrade())) {
       await submitHighScore();
       return;
     }
@@ -900,8 +900,16 @@ const CavemanVsDragonGame = () => {
     nameErrorRef.current = '';
     setNameError('');
     try {
-      const available = await checkWorkerPlayerNameAvailability(cleanName);
-      setProfileAuthMode(available ? 'claim' : 'login');
+      const availability = await checkWorkerPlayerNameAvailability(cleanName);
+      if (availability.claim_state === 'legacy_upgrade_required' && !canUpgradeWorkerProfile(cleanName)) {
+        setNameError('ADD A PASSWORD ON THE ORIGINAL DEVICE FIRST.');
+        return;
+      }
+      setProfileAuthMode(
+        availability.claim_state === 'available'
+          ? 'claim'
+          : availability.claim_state === 'legacy_upgrade_required' ? 'upgrade' : 'login',
+      );
       setProfilePassword('');
       setProfilePasswordConfirmation('');
       setProfileRecoveryEmail('');
@@ -934,7 +942,7 @@ const CavemanVsDragonGame = () => {
       setNameError('PASSWORD MUST BE AT LEAST 8 CHARACTERS.');
       return;
     }
-    if (profileAuthMode === 'claim' && profilePassword !== profilePasswordConfirmation) {
+    if (profileAuthMode !== 'login' && profilePassword !== profilePasswordConfirmation) {
       setNameError('PASSWORDS DO NOT MATCH.');
       return;
     }
@@ -948,6 +956,12 @@ const CavemanVsDragonGame = () => {
     try {
       if (profileAuthMode === 'claim') {
         await claimWorkerLeaderboardProfile({
+          name: cleanName,
+          password: profilePassword,
+          recovery_email: profileRecoveryEmail.trim() || undefined,
+        });
+      } else if (profileAuthMode === 'upgrade') {
+        await upgradeWorkerLeaderboardProfile({
           name: cleanName,
           password: profilePassword,
           recovery_email: profileRecoveryEmail.trim() || undefined,
@@ -1297,9 +1311,11 @@ const CavemanVsDragonGame = () => {
         nameInputRef.current = savedWorkerName || '';
         setNameError('');
 
-        if (savedWorkerName && workerProfileNeedsLogin()) {
-          setProfileAuthMode('login');
+        if (savedWorkerName && workerProfileNeedsUpgrade()) {
+          setProfileAuthMode('upgrade');
           setProfilePassword('');
+          setProfilePasswordConfirmation('');
+          setProfileRecoveryEmail('');
           setGameState('confirmName');
           return true;
         }
@@ -4742,13 +4758,15 @@ const CavemanVsDragonGame = () => {
               onSubmit={(event) => { event.preventDefault(); void authenticateLeaderboardProfile(); }}
             >
               <h2 className="mb-3 text-xl text-accent">
-                {profileAuthMode === 'claim' ? 'Claim Leaderboard Name' : 'Welcome Back'}
+                {profileAuthMode === 'claim'
+                  ? 'Claim Leaderboard Name'
+                  : profileAuthMode === 'upgrade' ? 'Protect Your Leaderboard Name' : 'Welcome Back'}
               </h2>
               <p className="mb-2 text-xl">{nameInputRef.current.trim()}</p>
               <p className="mb-4 text-xs leading-relaxed text-white/80">
-                {profileAuthMode === 'claim'
-                  ? 'Create a password to use this name on your APK, phone web, and PC.'
-                  : 'This name already exists. Enter its password to use it on this device.'}
+                {profileAuthMode === 'login'
+                  ? 'This name already exists. Enter its password to use it on this device.'
+                  : 'Create a password to use this name on your APK, phone web, and PC.'}
               </p>
               <div className="mx-auto mb-4 flex max-w-sm flex-col gap-3 text-left text-xs">
                 <label>
@@ -4758,12 +4776,12 @@ const CavemanVsDragonGame = () => {
                     value={profilePassword}
                     onChange={(event) => { setProfilePassword(event.target.value); setNameError(''); }}
                     autoFocus
-                    autoComplete={profileAuthMode === 'claim' ? 'new-password' : 'current-password'}
+                    autoComplete={profileAuthMode === 'login' ? 'current-password' : 'new-password'}
                     minLength={8}
                     className="w-full rounded border border-white/60 bg-white px-3 py-2 font-sans text-base text-black outline-none focus:border-accent"
                   />
                 </label>
-                {profileAuthMode === 'claim' && (
+                {profileAuthMode !== 'login' && (
                   <>
                     <label>
                       <span className="mb-1 block">Confirm password</span>
@@ -4797,7 +4815,7 @@ const CavemanVsDragonGame = () => {
                   onFocus={() => setConfirmNameChoice('yes')}
                   className={`min-w-28 rounded border-2 px-5 py-3 ${confirmNameChoice === 'yes' ? 'border-accent bg-white text-black' : 'border-white bg-black text-white'}`}
                 >
-                  {profileAuthBusy ? 'Please wait...' : profileAuthMode === 'claim' ? 'Claim Name' : 'Use Name'}
+                  {profileAuthBusy ? 'Please wait...' : profileAuthMode === 'login' ? 'Use Name' : 'Save Password'}
                 </button>
                 <button
                   type="button"

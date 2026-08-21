@@ -43,11 +43,17 @@ describe('invisible Worker device identity', () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(ok({
       available: false,
       display_name: 'JONG',
+      claim_state: 'login_required',
+      requires_password: true,
     }));
     vi.stubGlobal('fetch', fetchMock);
 
     const api = await loadApi();
-    await expect(api.checkWorkerPlayerNameAvailability(' Jong ')).resolves.toBe(false);
+    await expect(api.checkWorkerPlayerNameAvailability(' Jong ')).resolves.toMatchObject({
+      available: false,
+      claim_state: 'login_required',
+      requires_password: true,
+    });
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
       'https://api.example/v1/device-players/name-availability?name=+Jong+',
@@ -144,6 +150,7 @@ describe('invisible Worker device identity', () => {
       .mockResolvedValueOnce(ok({
         player: { id: 'account-player-1', display_name: 'JONG' },
         session: { token: 'account-session-1', expires_at: '2099-01-01T00:00:00.000Z' },
+        device_credentials: { player_id: 'account-player-1', credential: 'account-credential-1' },
       }))
       .mockResolvedValueOnce(ok({
         improved: true,
@@ -182,6 +189,7 @@ describe('invisible Worker device identity', () => {
       player_id: 'account-player-1',
       display_name: 'JONG',
       session_token: 'account-session-1',
+      credential: 'account-credential-1',
     });
 
     await api.submitWorkerScore({ name: 'IGNORED', score: 22000, level: 5 });
@@ -194,6 +202,7 @@ describe('invisible Worker device identity', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(ok({
       player: { id: 'account-player-1', display_name: 'JONG' },
       session: { token: 'pc-session', expires_at: '2099-01-01T00:00:00.000Z' },
+      device_credentials: { player_id: 'account-player-1', credential: 'pc-credential' },
     })));
     const api = await loadApi();
 
@@ -203,6 +212,63 @@ describe('invisible Worker device identity', () => {
     const storedRaw = localStorage.getItem(accountIdentityKey) || '';
     expect(storedRaw).not.toContain('correct-password');
     expect(JSON.parse(storedRaw).session_token).toBe('pc-session');
+  });
+
+  it('upgrades the matching legacy device profile with its hidden credential', async () => {
+    localStorage.setItem(identityKey, JSON.stringify({
+      player_id: 'legacy-player',
+      display_name: 'JONG',
+      credential: 'legacy-secret',
+      session_token: 'legacy-session',
+      session_expires_at: '2099-01-01T00:00:00.000Z',
+    }));
+    const fetchMock = vi.fn().mockResolvedValueOnce(ok({
+      player: { id: 'legacy-player', display_name: 'JONG' },
+      session: { token: 'upgraded-session', expires_at: '2099-01-01T00:00:00.000Z' },
+      device_credentials: { player_id: 'legacy-player', credential: 'upgraded-credential' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    const api = await loadApi();
+
+    expect(api.canUpgradeWorkerProfile('jong')).toBe(true);
+    await api.upgradeWorkerLeaderboardProfile({
+      name: 'JONG',
+      password: 'new-password',
+      recovery_email: 'jong@example.com',
+    });
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.example/v1/leaderboard-profiles/upgrade');
+    const body = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body));
+    expect(body).toMatchObject({ name: 'JONG', credential: 'legacy-secret' });
+    expect(localStorage.getItem(accountIdentityKey)).not.toContain('new-password');
+  });
+
+  it('refreshes an expired account session with its installation credential', async () => {
+    localStorage.setItem(accountIdentityKey, JSON.stringify({
+      player_id: 'account-player-1',
+      display_name: 'JONG',
+      credential: 'account-credential',
+      session_token: 'expired-session',
+      session_expires_at: '2020-01-01T00:00:00.000Z',
+    }));
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(ok({
+        player: { id: 'account-player-1', display_name: 'JONG' },
+        session: { token: 'refreshed-account-session', expires_at: '2099-01-01T00:00:00.000Z' },
+        device_credentials: { player_id: 'account-player-1', credential: 'refreshed-credential' },
+      }))
+      .mockResolvedValueOnce(ok({ improved: false, submission_id: 's-1', entry: null }));
+    vi.stubGlobal('fetch', fetchMock);
+    const api = await loadApi();
+
+    await api.submitWorkerScore({ name: 'JONG', score: 100, level: 1 });
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.example/v1/leaderboard-profiles/session');
+    expect(JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body))).toMatchObject({
+      player_id: 'account-player-1', credential: 'account-credential',
+    });
+    expect(new Headers((fetchMock.mock.calls[1]?.[1] as RequestInit).headers).get('Authorization'))
+      .toBe('Bearer refreshed-account-session');
   });
 
   it('restores an expired session silently before submitting a score', async () => {

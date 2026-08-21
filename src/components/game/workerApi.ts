@@ -35,6 +35,7 @@ interface StoredDeviceIdentity {
 interface StoredAccountIdentity {
   player_id: string;
   display_name: string;
+  credential: string;
   session_token: string;
   session_expires_at: string;
 }
@@ -60,6 +61,14 @@ interface DeviceSessionResult {
 interface AccountSessionResult {
   player: { id: string; display_name: string };
   session: { token: string; expires_at: string };
+  device_credentials?: { player_id: string; credential: string };
+}
+
+export interface WorkerNameAvailability {
+  available: boolean;
+  display_name: string;
+  claim_state: 'available' | 'login_required' | 'legacy_upgrade_required';
+  requires_password: boolean;
 }
 
 const DEVICE_IDENTITY_KEY = 'cavemanVsDragon.workerDeviceIdentity.v1';
@@ -124,6 +133,7 @@ function loadDeviceIdentity(): StoredDeviceIdentity | null {
       typeof parsed.player_id !== 'string' ||
       typeof parsed.display_name !== 'string' ||
       typeof parsed.credential !== 'string' ||
+      typeof parsed.credential !== 'string' ||
       typeof parsed.session_token !== 'string' ||
       typeof parsed.session_expires_at !== 'string'
     ) {
@@ -147,6 +157,7 @@ function loadAccountIdentity(): StoredAccountIdentity | null {
     if (
       typeof parsed.player_id !== 'string' ||
       typeof parsed.display_name !== 'string' ||
+      typeof parsed.credential !== 'string' ||
       typeof parsed.session_token !== 'string' ||
       typeof parsed.session_expires_at !== 'string'
     ) return null;
@@ -156,10 +167,13 @@ function loadAccountIdentity(): StoredAccountIdentity | null {
   }
 }
 
-function saveAccountIdentity(result: AccountSessionResult): void {
+function saveAccountIdentity(result: AccountSessionResult, existingCredential?: string): void {
+  const credential = result.device_credentials?.credential ?? existingCredential;
+  if (!credential) throw new Error('Server did not return a device credential.');
   localStorage.setItem(ACCOUNT_IDENTITY_KEY, JSON.stringify({
     player_id: result.player.id,
     display_name: result.player.display_name,
+    credential,
     session_token: result.session.token,
     session_expires_at: result.session.expires_at,
   } satisfies StoredAccountIdentity));
@@ -174,6 +188,15 @@ export function workerProfileNeedsLogin(): boolean {
   if (!identity) return false;
   const expiresAt = Date.parse(identity.session_expires_at);
   return !Number.isFinite(expiresAt) || expiresAt <= Date.now() + 60_000;
+}
+
+export function workerProfileNeedsUpgrade(): boolean {
+  return !loadAccountIdentity() && Boolean(loadDeviceIdentity());
+}
+
+export function canUpgradeWorkerProfile(name: string): boolean {
+  const legacy = loadDeviceIdentity();
+  return Boolean(legacy && legacy.display_name.toLocaleLowerCase() === name.trim().toLocaleLowerCase());
 }
 
 export async function claimWorkerLeaderboardProfile(input: {
@@ -206,6 +229,28 @@ export async function loginWorkerLeaderboardProfile(input: {
     }),
   });
   saveAccountIdentity(result);
+}
+
+export async function upgradeWorkerLeaderboardProfile(input: {
+  name: string;
+  password: string;
+  recovery_email?: string;
+}): Promise<void> {
+  const legacy = loadDeviceIdentity();
+  if (!legacy || legacy.display_name.toLocaleLowerCase() !== input.name.trim().toLocaleLowerCase()) {
+    throw new WorkerApiError('Use the original device to add a password to this name.', 403, 'legacy_device_required');
+  }
+  const result = await workerRequest<AccountSessionResult>('/v1/leaderboard-profiles/upgrade', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...platformMetadata(),
+      name: input.name,
+      password: input.password,
+      recovery_email: input.recovery_email || undefined,
+      credential: legacy.credential,
+    }),
+  });
+  saveAccountIdentity(result, legacy.credential);
 }
 
 export function isWorkerInvalidCredentialsError(error: unknown): boolean {
@@ -253,13 +298,13 @@ export async function fetchWorkerLeaderboard(limit: number): Promise<{
   return workerRequest(`/v1/leaderboard?limit=${safeLimit}&offset=0`);
 }
 
-export async function checkWorkerPlayerNameAvailability(name: string): Promise<boolean> {
+export async function checkWorkerPlayerNameAvailability(name: string): Promise<WorkerNameAvailability> {
   if (!workerApiConfigured()) throw new Error('VITE_CVD_API_URL is not configured');
   const query = new URLSearchParams({ name });
-  const result = await workerRequest<{ available: boolean; display_name: string }>(
+  const result = await workerRequest<WorkerNameAvailability>(
     `/v1/device-players/name-availability?${query.toString()}`,
   );
-  return result.available;
+  return result;
 }
 
 export function isWorkerNameUnavailableError(error: unknown): boolean {
@@ -336,6 +381,25 @@ function activeAccountIdentity(): StoredAccountIdentity | null {
   return Number.isFinite(expiresAt) && expiresAt > Date.now() + 60_000 ? identity : null;
 }
 
+async function restoreAccountSession(identity: StoredAccountIdentity): Promise<StoredAccountIdentity> {
+  const result = await workerRequest<AccountSessionResult>('/v1/leaderboard-profiles/session', {
+    method: 'POST',
+    body: JSON.stringify({
+      player_id: identity.player_id,
+      installation_id: getOrCreateDeviceId(),
+      credential: identity.credential,
+    }),
+  });
+  saveAccountIdentity(result, identity.credential);
+  return loadAccountIdentity() as StoredAccountIdentity;
+}
+
+async function activeOrRestoredAccountIdentity(): Promise<StoredAccountIdentity | null> {
+  const stored = loadAccountIdentity();
+  if (!stored) return null;
+  return activeAccountIdentity() ?? restoreAccountSession(stored);
+}
+
 async function postScore(
   identity: StoredDeviceIdentity,
   score: number,
@@ -364,7 +428,7 @@ export async function submitWorkerScore(entry: {
 }): Promise<ScoreResult> {
   if (!workerWritesEnabled()) throw new Error('Worker score writes are disabled');
   const occurredAt = new Date().toISOString();
-  const accountIdentity = activeAccountIdentity();
+  const accountIdentity = await activeOrRestoredAccountIdentity();
   if (accountIdentity) {
     return postScore(accountIdentity as StoredDeviceIdentity, entry.score, entry.level, occurredAt);
   }
