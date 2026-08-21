@@ -4364,7 +4364,9 @@ const CavemanVsDragonGame = () => {
   const lastHapticAtRef = useRef(0);
   const pulseHaptic = (ms: number) => {
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    if (lastHapticAtRef.current > 0 && now - lastHapticAtRef.current < 18) return;
+    // Chrome on Samsung phones can emit pointerdown and touchstart for the
+    // same press. Keep the touch fallback without producing a double pulse.
+    if (lastHapticAtRef.current > 0 && now - lastHapticAtRef.current < 60) return;
     lastHapticAtRef.current = now;
     vibrateNow(ms);
   };
@@ -4393,7 +4395,7 @@ const CavemanVsDragonGame = () => {
     const cur = activePadKeysRef.current;
     cur.forEach((k) => { if (!next.includes(k)) simulateKey(k, 'up'); });
     next.forEach((k) => { if (!cur.includes(k)) simulateKey(k, 'down'); });
-    if (next.length && next.join(',') !== cur.join(',')) pulseHaptic(35);
+    if (next.length && next.join(',') !== cur.join(',')) pulseHaptic(80);
     activePadKeysRef.current = next;
     setActivePadKeysState(next);
   };
@@ -4425,7 +4427,7 @@ const CavemanVsDragonGame = () => {
 
   const pressPadKey = (rawKey: string) => {
     setActiveKeys(padKeyToKeys(rawKey));
-    pulseHaptic(35);
+    pulseHaptic(80);
   };
 
   // Track active pad pointer so document-level move/up listeners follow the finger
@@ -4459,6 +4461,12 @@ const CavemanVsDragonGame = () => {
       padPointerIdRef.current = e.pointerId;
       updatePadFromPoint(e.clientX, e.clientY);
     },
+    // Samsung Chrome can suppress pointer events for touch-none controls in
+    // some gesture paths, so request haptics from the native touch event too.
+    onTouchStart: (e: React.TouchEvent) => {
+      e.preventDefault();
+      pulseHaptic(80);
+    },
   };
 
   const tapHandlers = (key: string, vibMs = 40) => ({
@@ -4477,7 +4485,10 @@ const CavemanVsDragonGame = () => {
     // Prevent the browser from synthesizing duplicate mouse/touch events
     // after pointerdown — those can fire a spurious pointercancel that
     // releases the held key (e.g. JUMP only triggering once while held).
-    onTouchStart: (e: React.TouchEvent) => { e.preventDefault(); },
+    onTouchStart: (e: React.TouchEvent) => {
+      e.preventDefault();
+      pulseHaptic(vibMs);
+    },
     onTouchEnd: (e: React.TouchEvent) => { e.preventDefault(); },
     onTouchCancel: (e: React.TouchEvent) => { e.preventDefault(); },
     onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
@@ -4527,13 +4538,13 @@ const CavemanVsDragonGame = () => {
       className="w-12 h-12 self-center rounded-full bg-accent text-accent-foreground text-sm font-bold active:scale-95 shrink-0"
       onPointerDown={(e) => {
         e.preventDefault();
-        pulseHaptic(45);
+        pulseHaptic(100);
         const consumed = anyInputHandlerRef.current?.('r', 'pad');
         if (!consumed) resetGame();
       }}
       onTouchStart={(e) => {
         e.preventDefault();
-        pulseHaptic(45);
+        pulseHaptic(100);
         const consumed = anyInputHandlerRef.current?.('r', 'pad');
         if (!consumed) resetGame();
       }}
@@ -4545,7 +4556,7 @@ const CavemanVsDragonGame = () => {
   const jumpButtonEl = (
     <button
       className="h-full w-full min-w-0 rounded-full bg-primary text-primary-foreground text-2xl font-bold active:scale-95"
-      {...tapHandlers(' ', 45)}
+      {...tapHandlers(' ', 100)}
     >{jumpLabel}</button>
   );
 
@@ -4553,7 +4564,7 @@ const CavemanVsDragonGame = () => {
   const jumpButtonLandscapeEl = (
     <button
       className="h-full w-full min-w-0 rounded-2xl bg-red-600 text-white text-3xl font-extrabold tracking-wider active:scale-95 active:bg-red-700 shadow-lg"
-      {...tapHandlers(' ', 45)}
+      {...tapHandlers(' ', 100)}
     >{jumpLabel}</button>
   );
 
