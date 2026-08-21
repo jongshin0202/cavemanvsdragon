@@ -309,4 +309,24 @@ describe('invisible Worker device identity', () => {
     const scoreInit = fetchMock.mock.calls[1]?.[1] as RequestInit;
     expect(new Headers(scoreInit.headers).get('Authorization')).toBe('Bearer restored-session');
   });
+
+  it('recovers a profile with a personal answer without storing the answer', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(ok({ recovery_question: 'Where is my secret stone?' }))
+      .mockResolvedValueOnce(ok({
+        player: { id: 'account-player-1', display_name: 'JONG' },
+        session: { token: 'recovery-session', expires_at: '2099-01-01T00:00:00.000Z' },
+        device_credentials: { player_id: 'account-player-1', credential: 'recovery-credential' },
+      }));
+    vi.stubGlobal('fetch', fetchMock);
+    const api = await loadApi();
+
+    await expect(api.fetchWorkerRecoveryQuestion('JONG')).resolves.toBe('Where is my secret stone?');
+    await api.recoverWorkerLeaderboardProfile({ name: 'JONG', answer: 'Behind the waterfall' });
+
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('https://api.example/v1/leaderboard-profiles/recover-with-question');
+    const stored = localStorage.getItem(accountIdentityKey) || '';
+    expect(stored).toContain('recovery-credential');
+    expect(stored).not.toContain('Behind the waterfall');
+  });
 });

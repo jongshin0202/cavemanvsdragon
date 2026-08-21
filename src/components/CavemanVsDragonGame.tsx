@@ -20,7 +20,7 @@ const isLevel1Round = (round: number): boolean =>
 import { loadScores, qualifiesForTop, insertScore, clearLocalScores, formatDate, entryDisplayName, MAX_ENTRIES, type LeaderboardEntry } from './game/leaderboard';
 import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal, type GlobalEntry } from './game/globalLeaderboard';
 import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/deviceStats';
-import { canUpgradeWorkerProfile, checkWorkerPlayerNameAvailability, claimWorkerLeaderboardProfile, getWorkerPlayerName, isWorkerInvalidCredentialsError, isWorkerNameAvailabilityEndpointMissing, isWorkerNameUnavailableError, loginWorkerLeaderboardProfile, upgradeWorkerLeaderboardProfile, workerProfileNeedsUpgrade } from './game/workerApi';
+import { canUpgradeWorkerProfile, checkWorkerPlayerNameAvailability, claimWorkerLeaderboardProfile, fetchWorkerRecoveryQuestion, getWorkerPlayerName, isWorkerInvalidCredentialsError, isWorkerNameAvailabilityEndpointMissing, isWorkerNameUnavailableError, loginWorkerLeaderboardProfile, recoverWorkerLeaderboardProfile, upgradeWorkerLeaderboardProfile, workerProfileNeedsUpgrade } from './game/workerApi';
 import { recordGameplayControlKey, resetGameplayControlType } from './game/controlType';
 import { isLandscapeLeaderboardViewport } from './game/leaderboardViewport';
 import { getBrowserGameplayPauseAction } from './game/browserPause';
@@ -342,10 +342,13 @@ const CavemanVsDragonGame = () => {
   const [nameError, setNameError] = useState<string>('');
   const nameAvailabilityCheckingRef = useRef(false);
   const [confirmNameChoice, setConfirmNameChoice] = useState<'yes' | 'change'>('yes');
-  const [profileAuthMode, setProfileAuthMode] = useState<'claim' | 'login' | 'upgrade'>('claim');
+  const [profileAuthMode, setProfileAuthMode] = useState<'claim' | 'login' | 'upgrade' | 'recover'>('claim');
   const [profilePassword, setProfilePassword] = useState('');
   const [profilePasswordConfirmation, setProfilePasswordConfirmation] = useState('');
   const [profileRecoveryEmail, setProfileRecoveryEmail] = useState('');
+  const [profileRecoveryQuestion, setProfileRecoveryQuestion] = useState('');
+  const [profileRecoveryAnswer, setProfileRecoveryAnswer] = useState('');
+  const [profileHasRecoveryQuestion, setProfileHasRecoveryQuestion] = useState(false);
   const [profileAuthBusy, setProfileAuthBusy] = useState(false);
   const [pendingScore, setPendingScore] = useState(0);
   const [pendingLevel, setPendingLevel] = useState(1);
@@ -910,9 +913,12 @@ const CavemanVsDragonGame = () => {
           ? 'claim'
           : availability.claim_state === 'legacy_upgrade_required' ? 'upgrade' : 'login',
       );
+      setProfileHasRecoveryQuestion(availability.recovery_question_configured);
       setProfilePassword('');
       setProfilePasswordConfirmation('');
       setProfileRecoveryEmail('');
+      setProfileRecoveryQuestion('');
+      setProfileRecoveryAnswer('');
       setConfirmNameChoice('yes');
       setGameState('confirmName');
     } catch (error) {
@@ -938,17 +944,38 @@ const CavemanVsDragonGame = () => {
   const authenticateLeaderboardProfile = useCallback(async () => {
     if (profileAuthBusy || submittingScoreRef.current) return;
     const cleanName = nameInputRef.current.trim().slice(0, NAME_MAX_LENGTH);
-    if (profilePassword.length < 8) {
-      setNameError('PASSWORD MUST BE AT LEAST 8 CHARACTERS.');
+    if (profileAuthMode === 'recover') {
+      if (profileRecoveryAnswer.trim().length < 6) {
+        setNameError('RECOVERY ANSWER MUST BE AT LEAST 6 CHARACTERS.');
+        return;
+      }
+    } else if (profilePassword.length < 10) {
+      setNameError('PASSWORD MUST BE AT LEAST 10 CHARACTERS.');
       return;
     }
-    if (profileAuthMode !== 'login' && profilePassword !== profilePasswordConfirmation) {
+    if (profileAuthMode !== 'login' && profileAuthMode !== 'recover' && profilePassword !== profilePasswordConfirmation) {
       setNameError('PASSWORDS DO NOT MATCH.');
       return;
     }
     if (profileRecoveryEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profileRecoveryEmail)) {
       setNameError('ENTER A VALID EMAIL OR LEAVE IT BLANK.');
       return;
+    }
+    if (profileAuthMode !== 'login' && profileAuthMode !== 'recover') {
+      const hasQuestion = Boolean(profileRecoveryQuestion.trim());
+      const hasAnswer = Boolean(profileRecoveryAnswer.trim());
+      if (hasQuestion !== hasAnswer) {
+        setNameError('ENTER BOTH A RECOVERY QUESTION AND ANSWER, OR LEAVE BOTH BLANK.');
+        return;
+      }
+      if (hasQuestion && profileRecoveryQuestion.trim().length < 8) {
+        setNameError('RECOVERY QUESTION MUST BE AT LEAST 8 CHARACTERS.');
+        return;
+      }
+      if (hasAnswer && profileRecoveryAnswer.trim().length < 6) {
+        setNameError('RECOVERY ANSWER MUST BE AT LEAST 6 CHARACTERS.');
+        return;
+      }
     }
 
     setProfileAuthBusy(true);
@@ -959,20 +986,26 @@ const CavemanVsDragonGame = () => {
           name: cleanName,
           password: profilePassword,
           recovery_email: profileRecoveryEmail.trim() || undefined,
+          recovery_question: profileRecoveryQuestion.trim() || undefined,
+          recovery_answer: profileRecoveryAnswer.trim() || undefined,
         });
       } else if (profileAuthMode === 'upgrade') {
         await upgradeWorkerLeaderboardProfile({
           name: cleanName,
           password: profilePassword,
           recovery_email: profileRecoveryEmail.trim() || undefined,
+          recovery_question: profileRecoveryQuestion.trim() || undefined,
+          recovery_answer: profileRecoveryAnswer.trim() || undefined,
         });
+      } else if (profileAuthMode === 'recover') {
+        await recoverWorkerLeaderboardProfile({ name: cleanName, answer: profileRecoveryAnswer });
       } else {
         await loginWorkerLeaderboardProfile({ name: cleanName, password: profilePassword });
       }
       await submitHighScore();
     } catch (error) {
       if (isWorkerInvalidCredentialsError(error)) {
-        setNameError('WRONG PASSWORD. TRY AGAIN OR CHOOSE ANOTHER NAME.');
+        setNameError(profileAuthMode === 'recover' ? 'WRONG RECOVERY ANSWER. TRY AGAIN.' : 'WRONG PASSWORD. TRY AGAIN OR CHOOSE ANOTHER NAME.');
       } else if (isWorkerNameUnavailableError(error)) {
         setProfileAuthMode('login');
         setNameError('NAME WAS JUST CLAIMED. ENTER ITS PASSWORD.');
@@ -982,7 +1015,23 @@ const CavemanVsDragonGame = () => {
     } finally {
       setProfileAuthBusy(false);
     }
-  }, [profileAuthBusy, profileAuthMode, profilePassword, profilePasswordConfirmation, profileRecoveryEmail, submitHighScore]);
+  }, [profileAuthBusy, profileAuthMode, profilePassword, profilePasswordConfirmation, profileRecoveryEmail, profileRecoveryQuestion, profileRecoveryAnswer, submitHighScore]);
+
+  const beginPersonalQuestionRecovery = useCallback(async () => {
+    if (profileAuthBusy) return;
+    setProfileAuthBusy(true);
+    setNameError('');
+    try {
+      const question = await fetchWorkerRecoveryQuestion(nameInputRef.current.trim());
+      setProfileRecoveryQuestion(question);
+      setProfileRecoveryAnswer('');
+      setProfileAuthMode('recover');
+    } catch (error) {
+      setNameError(error instanceof Error ? error.message.toUpperCase() : 'RECOVERY QUESTION IS UNAVAILABLE.');
+    } finally {
+      setProfileAuthBusy(false);
+    }
+  }, [profileAuthBusy]);
 
   // Keep refs in sync with state for the canvas render loop
   useEffect(() => { scoresRef.current = scores; }, [scores]);
@@ -4760,16 +4809,19 @@ const CavemanVsDragonGame = () => {
               <h2 className="mb-3 text-xl text-accent">
                 {profileAuthMode === 'claim'
                   ? 'Claim Leaderboard Name'
-                  : profileAuthMode === 'upgrade' ? 'Protect Your Leaderboard Name' : 'Welcome Back'}
+                  : profileAuthMode === 'upgrade' ? 'Protect Your Leaderboard Name'
+                    : profileAuthMode === 'recover' ? 'Personal Recovery Question' : 'Welcome Back'}
               </h2>
               <p className="mb-2 text-xl">{nameInputRef.current.trim()}</p>
               <p className="mb-4 text-xs leading-relaxed text-white/80">
-                {profileAuthMode === 'login'
+                {profileAuthMode === 'recover'
+                  ? profileRecoveryQuestion
+                  : profileAuthMode === 'login'
                   ? 'This name already exists. Enter its password to use it on this device.'
                   : 'Create a password to use this name on your APK, phone web, and PC.'}
               </p>
               <div className="mx-auto mb-4 flex max-w-sm flex-col gap-3 text-left text-xs">
-                <label>
+                {profileAuthMode !== 'recover' && <label>
                   <span className="mb-1 block">Password</span>
                   <input
                     type="password"
@@ -4777,11 +4829,26 @@ const CavemanVsDragonGame = () => {
                     onChange={(event) => { setProfilePassword(event.target.value); setNameError(''); }}
                     autoFocus
                     autoComplete={profileAuthMode === 'login' ? 'current-password' : 'new-password'}
-                    minLength={8}
+                    minLength={10}
                     className="w-full rounded border border-white/60 bg-white px-3 py-2 font-sans text-base text-black outline-none focus:border-accent"
                   />
-                </label>
-                {profileAuthMode !== 'login' && (
+                </label>}
+                {profileAuthMode === 'recover' && (
+                  <label>
+                    <span className="mb-1 block">Your answer</span>
+                    <input
+                      type="password"
+                      value={profileRecoveryAnswer}
+                      onChange={(event) => { setProfileRecoveryAnswer(event.target.value); setNameError(''); }}
+                      autoFocus
+                      autoComplete="off"
+                      minLength={6}
+                      maxLength={128}
+                      className="w-full rounded border border-white/60 bg-white px-3 py-2 font-sans text-base text-black outline-none focus:border-accent"
+                    />
+                  </label>
+                )}
+                {profileAuthMode !== 'login' && profileAuthMode !== 'recover' && (
                   <>
                     <label>
                       <span className="mb-1 block">Confirm password</span>
@@ -4790,7 +4857,7 @@ const CavemanVsDragonGame = () => {
                         value={profilePasswordConfirmation}
                         onChange={(event) => { setProfilePasswordConfirmation(event.target.value); setNameError(''); }}
                         autoComplete="new-password"
-                        minLength={8}
+                        minLength={10}
                         className="w-full rounded border border-white/60 bg-white px-3 py-2 font-sans text-base text-black outline-none focus:border-accent"
                       />
                     </label>
@@ -4801,6 +4868,28 @@ const CavemanVsDragonGame = () => {
                         value={profileRecoveryEmail}
                         onChange={(event) => { setProfileRecoveryEmail(event.target.value); setNameError(''); }}
                         autoComplete="email"
+                        className="w-full rounded border border-white/60 bg-white px-3 py-2 font-sans text-base text-black outline-none focus:border-accent"
+                      />
+                    </label>
+                    <label>
+                      <span className="mb-1 block">Personal recovery question (optional)</span>
+                      <input
+                        type="text"
+                        value={profileRecoveryQuestion}
+                        onChange={(event) => { setProfileRecoveryQuestion(event.target.value); setNameError(''); }}
+                        maxLength={120}
+                        placeholder="Something only you would know"
+                        className="w-full rounded border border-white/60 bg-white px-3 py-2 font-sans text-base text-black outline-none focus:border-accent"
+                      />
+                    </label>
+                    <label>
+                      <span className="mb-1 block">Recovery answer (optional)</span>
+                      <input
+                        type="password"
+                        value={profileRecoveryAnswer}
+                        onChange={(event) => { setProfileRecoveryAnswer(event.target.value); setNameError(''); }}
+                        autoComplete="off"
+                        maxLength={128}
                         className="w-full rounded border border-white/60 bg-white px-3 py-2 font-sans text-base text-black outline-none focus:border-accent"
                       />
                     </label>
@@ -4815,7 +4904,7 @@ const CavemanVsDragonGame = () => {
                   onFocus={() => setConfirmNameChoice('yes')}
                   className={`min-w-28 rounded border-2 px-5 py-3 ${confirmNameChoice === 'yes' ? 'border-accent bg-white text-black' : 'border-white bg-black text-white'}`}
                 >
-                  {profileAuthBusy ? 'Please wait...' : profileAuthMode === 'login' ? 'Use Name' : 'Save Password'}
+                  {profileAuthBusy ? 'Please wait...' : profileAuthMode === 'login' ? 'Use Name' : profileAuthMode === 'recover' ? 'Verify Answer' : 'Save Password'}
                 </button>
                 <button
                   type="button"
@@ -4827,6 +4916,16 @@ const CavemanVsDragonGame = () => {
                   Change Name
                 </button>
               </div>
+              {profileAuthMode === 'login' && profileHasRecoveryQuestion && (
+                <button
+                  type="button"
+                  disabled={profileAuthBusy}
+                  onClick={() => void beginPersonalQuestionRecovery()}
+                  className="mt-3 text-xs text-accent underline"
+                >
+                  Answer Personal Question
+                </button>
+              )}
             </form>
           </div>
         )}
