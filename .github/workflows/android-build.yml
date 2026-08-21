@@ -1670,6 +1670,17 @@ jobs:
       - name: Build web game
         run: npm run build
 
+      - name: Verify production leaderboard bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          rg -q 'cavemanvsdragon-api\.jwshin1\.workers\.dev' dist/assets --glob '*.js'
+          rg -q 'leaderboard-profiles/session' dist/assets --glob '*.js'
+          rg -q 'This password lets you use this leaderboard name on other devices' dist/assets --glob '*.js'
+          rg -q 'Password Saved' dist/assets --glob '*.js'
+          rg -q 'OK' dist/assets --glob '*.js'
+          echo 'Production API, cross-device password login, and OK label are bundled.'
+
       - name: Create Android project
         shell: bash
         run: |
@@ -2472,11 +2483,20 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
+
           p = Path('android/variables.gradle')
           s = p.read_text()
-          import re
           s = re.sub(r'compileSdkVersion\s*=\s*\d+', 'compileSdkVersion = 36', s)
           s = re.sub(r'targetSdkVersion\s*=\s*\d+', 'targetSdkVersion = 36', s)
+          p.write_text(s)
+
+          p = Path('android/app/build.gradle')
+          s = p.read_text()
+          s, code_count = re.subn(r'versionCode\s+\d+', 'versionCode 110', s, count=1)
+          s, name_count = re.subn(r'versionName\s+"[^"]+"', 'versionName "1.1.0"', s, count=1)
+          if code_count != 1 or name_count != 1:
+              raise SystemExit('Unable to set Android versionCode/versionName')
           p.write_text(s)
           PY
 
@@ -2502,25 +2522,90 @@ jobs:
               -dname "CN=Android Debug,O=Team2Go,C=US"
           fi
 
-      - name: Build signed debug APK
-        working-directory: android
-        run: ./gradlew --no-daemon clean assembleDebug
-
-      - name: Verify APK exists
+      - name: Restore Google Play upload signing key
         shell: bash
+        env:
+          ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
         run: |
-          APK='android/app/build/outputs/apk/debug/app-debug.apk'
-          test -s "$APK"
-          ls -lh "$APK"
-          sha256sum "$APK" | tee CavemanVsDragon-debug.apk.sha256
-          cp "$APK" CavemanVsDragon-debug.apk
+          set -euo pipefail
+          test -n "$ANDROID_UPLOAD_KEYSTORE_BASE64"
+          install -d -m 700 "$RUNNER_TEMP/cvd-signing"
+          printf '%s' "$ANDROID_UPLOAD_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/cvd-signing/upload.jks"
+          chmod 600 "$RUNNER_TEMP/cvd-signing/upload.jks"
+          test -s "$RUNNER_TEMP/cvd-signing/upload.jks"
 
-      - name: Upload APK artifact
+      - name: Build signed debug APK and release AAB
+        working-directory: android
+        env:
+          ANDROID_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_STORE_PASSWORD }}
+          ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          ANDROID_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$ANDROID_UPLOAD_STORE_PASSWORD"
+          test -n "$ANDROID_UPLOAD_KEY_ALIAS"
+          test -n "$ANDROID_UPLOAD_KEY_PASSWORD"
+          ./gradlew --no-daemon clean assembleDebug bundleRelease \
+            -Pandroid.injected.signing.store.file="$RUNNER_TEMP/cvd-signing/upload.jks" \
+            -Pandroid.injected.signing.store.password="$ANDROID_UPLOAD_STORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$ANDROID_UPLOAD_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$ANDROID_UPLOAD_KEY_PASSWORD"
+
+      - name: Verify Android packages exist
+        shell: bash
+        env:
+          ANDROID_UPLOAD_CERT_SHA256: ${{ secrets.ANDROID_UPLOAD_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          APK='android/app/build/outputs/apk/debug/app-debug.apk'
+          AAB='android/app/build/outputs/bundle/release/app-release.aab'
+          test -s "$APK"
+          test -s "$AAB"
+          ls -lh "$APK" "$AAB"
+          jarsigner -verify -strict -certs "$AAB"
+
+          test -n "$ANDROID_UPLOAD_CERT_SHA256"
+          ACTUAL_CERT_SHA256="$(keytool -printcert -jarfile "$AAB" | sed -n 's/^[[:space:]]*SHA256: //p' | head -1 | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
+          EXPECTED_CERT_SHA256="$(printf '%s' "$ANDROID_UPLOAD_CERT_SHA256" | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
+          test -n "$ACTUAL_CERT_SHA256"
+          test "$ACTUAL_CERT_SHA256" = "$EXPECTED_CERT_SHA256"
+
+          BUNDLETOOL="$RUNNER_TEMP/bundletool.jar"
+          curl -fL --retry 3 \
+            'https://github.com/google/bundletool/releases/download/1.18.1/bundletool-all-1.18.1.jar' \
+            -o "$BUNDLETOOL"
+          VERSION_CODE="$(java -jar "$BUNDLETOOL" dump manifest --bundle="$AAB" --xpath='/manifest/@android:versionCode')"
+          VERSION_NAME="$(java -jar "$BUNDLETOOL" dump manifest --bundle="$AAB" --xpath='/manifest/@android:versionName')"
+          test "$VERSION_CODE" = '110'
+          test "$VERSION_NAME" = '1.1.0'
+
+          rm -rf "$RUNNER_TEMP/cvd-aab"
+          mkdir -p "$RUNNER_TEMP/cvd-aab"
+          unzip -q "$AAB" 'base/assets/public/assets/*.js' -d "$RUNNER_TEMP/cvd-aab"
+          rg -q 'cavemanvsdragon-api\.jwshin1\.workers\.dev' "$RUNNER_TEMP/cvd-aab" --glob '*.js'
+          rg -q 'leaderboard-profiles/session' "$RUNNER_TEMP/cvd-aab" --glob '*.js'
+          rg -q 'This password lets you use this leaderboard name on other devices' "$RUNNER_TEMP/cvd-aab" --glob '*.js'
+          rg -q 'Password Saved' "$RUNNER_TEMP/cvd-aab" --glob '*.js'
+          rg -q 'OK' "$RUNNER_TEMP/cvd-aab" --glob '*.js'
+
+          sha256sum "$APK" | tee CavemanVsDragon-debug.apk.sha256
+          sha256sum "$AAB" | tee CavemanVsDragon-release.aab.sha256
+          cp "$APK" CavemanVsDragon-debug.apk
+          cp "$AAB" CavemanVsDragon-release.aab
+
+      - name: Remove Google Play upload signing key
+        if: always()
+        shell: bash
+        run: rm -rf "$RUNNER_TEMP/cvd-signing"
+
+      - name: Upload Android package artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Caveman-Vs-Dragon-APK
+          name: Caveman-Vs-Dragon-Android
           path: |
             CavemanVsDragon-debug.apk
             CavemanVsDragon-debug.apk.sha256
+            CavemanVsDragon-release.aab
+            CavemanVsDragon-release.aab.sha256
           if-no-files-found: error
           retention-days: 14
