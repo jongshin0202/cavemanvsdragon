@@ -345,8 +345,8 @@ const CavemanVsDragonGame = () => {
   const [profileAuthMode, setProfileAuthMode] = useState<'claim' | 'login' | 'upgrade'>('claim');
   const [profilePassword, setProfilePassword] = useState('');
   const [profilePasswordConfirmation, setProfilePasswordConfirmation] = useState('');
-  const [profileRecoveryEmail, setProfileRecoveryEmail] = useState('');
   const [profileAuthBusy, setProfileAuthBusy] = useState(false);
+  const [passwordSavedOpen, setPasswordSavedOpen] = useState(false);
   const [pendingScore, setPendingScore] = useState(0);
   const [pendingLevel, setPendingLevel] = useState(1);
   // Level intro overlay: 'level' shows "Level N" for 3s, then 'black' for 0.5s, then null.
@@ -912,7 +912,6 @@ const CavemanVsDragonGame = () => {
       );
       setProfilePassword('');
       setProfilePasswordConfirmation('');
-      setProfileRecoveryEmail('');
       setConfirmNameChoice('yes');
       setGameState('confirmName');
     } catch (error) {
@@ -938,19 +937,14 @@ const CavemanVsDragonGame = () => {
   const authenticateLeaderboardProfile = useCallback(async () => {
     if (profileAuthBusy || submittingScoreRef.current) return;
     const cleanName = nameInputRef.current.trim().slice(0, NAME_MAX_LENGTH);
-    if (profilePassword.length < 8) {
-      setNameError('PASSWORD MUST BE AT LEAST 8 CHARACTERS.');
+    if (profilePassword.length < 10) {
+      setNameError('PASSWORD MUST BE AT LEAST 10 CHARACTERS.');
       return;
     }
     if (profileAuthMode !== 'login' && profilePassword !== profilePasswordConfirmation) {
       setNameError('PASSWORDS DO NOT MATCH.');
       return;
     }
-    if (profileRecoveryEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profileRecoveryEmail)) {
-      setNameError('ENTER A VALID EMAIL OR LEAVE IT BLANK.');
-      return;
-    }
-
     setProfileAuthBusy(true);
     setNameError('');
     try {
@@ -958,18 +952,20 @@ const CavemanVsDragonGame = () => {
         await claimWorkerLeaderboardProfile({
           name: cleanName,
           password: profilePassword,
-          recovery_email: profileRecoveryEmail.trim() || undefined,
         });
       } else if (profileAuthMode === 'upgrade') {
         await upgradeWorkerLeaderboardProfile({
           name: cleanName,
           password: profilePassword,
-          recovery_email: profileRecoveryEmail.trim() || undefined,
         });
       } else {
         await loginWorkerLeaderboardProfile({ name: cleanName, password: profilePassword });
       }
-      await submitHighScore();
+      if (profileAuthMode === 'login') {
+        await submitHighScore();
+      } else {
+        setPasswordSavedOpen(true);
+      }
     } catch (error) {
       if (isWorkerInvalidCredentialsError(error)) {
         setNameError('WRONG PASSWORD. TRY AGAIN OR CHOOSE ANOTHER NAME.');
@@ -982,7 +978,7 @@ const CavemanVsDragonGame = () => {
     } finally {
       setProfileAuthBusy(false);
     }
-  }, [profileAuthBusy, profileAuthMode, profilePassword, profilePasswordConfirmation, profileRecoveryEmail, submitHighScore]);
+  }, [profileAuthBusy, profileAuthMode, profilePassword, profilePasswordConfirmation, submitHighScore]);
 
   // Keep refs in sync with state for the canvas render loop
   useEffect(() => { scoresRef.current = scores; }, [scores]);
@@ -1372,6 +1368,13 @@ const CavemanVsDragonGame = () => {
       }
 
       if (gs === 'confirmName') {
+        if (passwordSavedOpen) {
+          if (key === 'Enter' || key === ' ' || key === 'r' || key === 'R') {
+            setPasswordSavedOpen(false);
+            void submitHighScore();
+          }
+          return true;
+        }
         if (key === 'ArrowLeft' || key === 'ArrowRight') {
           setConfirmNameChoice((choice) => choice === 'yes' ? 'change' : 'yes');
           return true;
@@ -1392,7 +1395,7 @@ const CavemanVsDragonGame = () => {
 
       return false;
     };
-  }, [startNextLevel, submitHighScore, requestNameConfirmation, authenticateLeaderboardProfile, confirmNameChoice, resetGame, startInLevel2Test, startInLevel3Test, startInLevel3Iter4Test, startInLevel4Test, globalScores, moveAttractScreen, toggleWebPause]);
+  }, [startNextLevel, submitHighScore, requestNameConfirmation, authenticateLeaderboardProfile, confirmNameChoice, passwordSavedOpen, resetGame, startInLevel2Test, startInLevel3Test, startInLevel3Iter4Test, startInLevel4Test, globalScores, moveAttractScreen, toggleWebPause]);
 
 
 
@@ -4766,7 +4769,7 @@ const CavemanVsDragonGame = () => {
               <p className="mb-4 text-xs leading-relaxed text-white/80">
                 {profileAuthMode === 'login'
                   ? 'This name already exists. Enter its password to use it on this device.'
-                  : 'Create a password to use this name on your APK, phone web, and PC.'}
+                  : 'This password lets you use this leaderboard name on other devices. Choose something memorable and save it somewhere safe. Forgotten passwords cannot be recovered.'}
               </p>
               <div className="mx-auto mb-4 flex max-w-sm flex-col gap-3 text-left text-xs">
                 <label>
@@ -4777,7 +4780,7 @@ const CavemanVsDragonGame = () => {
                     onChange={(event) => { setProfilePassword(event.target.value); setNameError(''); }}
                     autoFocus
                     autoComplete={profileAuthMode === 'login' ? 'current-password' : 'new-password'}
-                    minLength={8}
+                    minLength={10}
                     className="w-full rounded border border-white/60 bg-white px-3 py-2 font-sans text-base text-black outline-none focus:border-accent"
                   />
                 </label>
@@ -4790,17 +4793,7 @@ const CavemanVsDragonGame = () => {
                         value={profilePasswordConfirmation}
                         onChange={(event) => { setProfilePasswordConfirmation(event.target.value); setNameError(''); }}
                         autoComplete="new-password"
-                        minLength={8}
-                        className="w-full rounded border border-white/60 bg-white px-3 py-2 font-sans text-base text-black outline-none focus:border-accent"
-                      />
-                    </label>
-                    <label>
-                      <span className="mb-1 block">Recovery email (optional)</span>
-                      <input
-                        type="email"
-                        value={profileRecoveryEmail}
-                        onChange={(event) => { setProfileRecoveryEmail(event.target.value); setNameError(''); }}
-                        autoComplete="email"
+                        minLength={10}
                         className="w-full rounded border border-white/60 bg-white px-3 py-2 font-sans text-base text-black outline-none focus:border-accent"
                       />
                     </label>
@@ -4828,6 +4821,28 @@ const CavemanVsDragonGame = () => {
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {passwordSavedOpen && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/95 px-6">
+            <div className="w-full max-w-lg rounded-lg border-2 border-accent bg-black p-6 text-center font-caveman text-white shadow-2xl">
+              <h2 className="mb-4 text-2xl text-accent">Password Saved</h2>
+              <p className="mb-6 text-sm leading-relaxed">
+                Your leaderboard name is now protected. Please record your password somewhere safe. It cannot be recovered if forgotten.
+              </p>
+              <button
+                type="button"
+                autoFocus
+                onClick={() => {
+                  setPasswordSavedOpen(false);
+                  void submitHighScore();
+                }}
+                className="min-w-28 rounded border-2 border-accent bg-white px-5 py-3 text-black"
+              >
+                OK
+              </button>
+            </div>
           </div>
         )}
 
