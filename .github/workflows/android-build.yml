@@ -1679,6 +1679,10 @@ jobs:
           rg -q 'This password lets you use this leaderboard name on other devices' dist/assets --glob '*.js'
           rg -q 'Password Saved' dist/assets --glob '*.js'
           rg -q 'OK' dist/assets --glob '*.js'
+          if rg -q 'Use Name' dist/assets --glob '*.js'; then
+            echo 'Obsolete Use Name button label is still bundled.' >&2
+            exit 1
+          fi
           echo 'Production API, cross-device password login, and OK label are bundled.'
 
       - name: Create Android project
@@ -2562,7 +2566,10 @@ jobs:
           test -s "$APK"
           test -s "$AAB"
           ls -lh "$APK" "$AAB"
-          jarsigner -verify -strict -certs "$AAB"
+          # Google Play upload certificates are normally self-signed. Without
+          # -strict, jarsigner still exits nonzero for an invalid signature but
+          # does not turn the expected self-signed-chain warning into failure.
+          jarsigner -verify -verbose -certs "$AAB"
 
           test -n "$ANDROID_UPLOAD_CERT_SHA256"
           ACTUAL_CERT_SHA256="$(keytool -printcert -jarfile "$AAB" | sed -n 's/^[[:space:]]*SHA256: //p' | head -1 | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
@@ -2587,6 +2594,10 @@ jobs:
           rg -q 'This password lets you use this leaderboard name on other devices' "$RUNNER_TEMP/cvd-aab" --glob '*.js'
           rg -q 'Password Saved' "$RUNNER_TEMP/cvd-aab" --glob '*.js'
           rg -q 'OK' "$RUNNER_TEMP/cvd-aab" --glob '*.js'
+          if rg -q 'Use Name' "$RUNNER_TEMP/cvd-aab" --glob '*.js'; then
+            echo 'Obsolete Use Name button label is still packaged in the AAB.' >&2
+            exit 1
+          fi
 
           sha256sum "$APK" | tee CavemanVsDragon-debug.apk.sha256
           sha256sum "$AAB" | tee CavemanVsDragon-release.aab.sha256
