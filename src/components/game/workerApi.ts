@@ -69,7 +69,6 @@ export interface WorkerNameAvailability {
   display_name: string;
   claim_state: 'available' | 'login_required' | 'legacy_upgrade_required';
   requires_password: boolean;
-  recovery_question_configured: boolean;
 }
 
 const DEVICE_IDENTITY_KEY = 'cavemanVsDragon.workerDeviceIdentity.v1';
@@ -204,8 +203,6 @@ export async function claimWorkerLeaderboardProfile(input: {
   name: string;
   password: string;
   recovery_email?: string;
-  recovery_question?: string;
-  recovery_answer?: string;
 }): Promise<void> {
   const result = await workerRequest<AccountSessionResult>('/v1/accounts/register', {
     method: 'POST',
@@ -214,8 +211,6 @@ export async function claimWorkerLeaderboardProfile(input: {
       name: input.name,
       password: input.password,
       recovery_email: input.recovery_email || undefined,
-      recovery_question: input.recovery_question || undefined,
-      recovery_answer: input.recovery_answer || undefined,
     }),
   });
   saveAccountIdentity(result);
@@ -240,8 +235,6 @@ export async function upgradeWorkerLeaderboardProfile(input: {
   name: string;
   password: string;
   recovery_email?: string;
-  recovery_question?: string;
-  recovery_answer?: string;
 }): Promise<void> {
   const legacy = loadDeviceIdentity();
   if (!legacy || legacy.display_name.toLocaleLowerCase() !== input.name.trim().toLocaleLowerCase()) {
@@ -254,34 +247,10 @@ export async function upgradeWorkerLeaderboardProfile(input: {
       name: input.name,
       password: input.password,
       recovery_email: input.recovery_email || undefined,
-      recovery_question: input.recovery_question || undefined,
-      recovery_answer: input.recovery_answer || undefined,
       credential: legacy.credential,
     }),
   });
   saveAccountIdentity(result, legacy.credential);
-}
-
-export async function fetchWorkerRecoveryQuestion(name: string): Promise<string> {
-  const result = await workerRequest<{ recovery_question: string }>(
-    '/v1/leaderboard-profiles/recovery-question',
-    { method: 'POST', body: JSON.stringify({ name }) },
-  );
-  return result.recovery_question;
-}
-
-export async function recoverWorkerLeaderboardProfile(input: {
-  name: string;
-  answer: string;
-}): Promise<void> {
-  const result = await workerRequest<AccountSessionResult>(
-    '/v1/leaderboard-profiles/recover-with-question',
-    {
-      method: 'POST',
-      body: JSON.stringify({ ...platformMetadata(), name: input.name, answer: input.answer }),
-    },
-  );
-  saveAccountIdentity(result);
 }
 
 export function isWorkerInvalidCredentialsError(error: unknown): boolean {
