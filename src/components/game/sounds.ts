@@ -418,7 +418,7 @@ export function playVineGrowSound() {
   filter.frequency.setValueAtTime(400, t0);
   filter.frequency.exponentialRampToValueAtTime(1600, t0 + dur);
   const noiseGain = ctx.createGain();
-  noiseGain.gain.setValueAtTime(mobileWebSfxLevel(0.10, 2.89), t0);
+  noiseGain.gain.setValueAtTime(mobileWebSfxLevel(0.10, 5.78), t0);
   noiseGain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
   noise.connect(filter);
   filter.connect(noiseGain);
@@ -437,7 +437,7 @@ export function playVineGrowSound() {
     const t = t0 + i * (dur / notes.length);
     osc.frequency.setValueAtTime(freq, t);
     osc.frequency.exponentialRampToValueAtTime(freq * 1.05, t + 0.18);
-    gain.gain.setValueAtTime(mobileWebSfxLevel(0.07, 2.89), t);
+    gain.gain.setValueAtTime(mobileWebSfxLevel(0.07, 5.78), t);
     gain.gain.exponentialRampToValueAtTime(0.01, t + 0.22);
     osc.start(t);
     osc.stop(t + 0.24);
@@ -451,7 +451,7 @@ export function playVineGrowSound() {
   chime.type = 'triangle';
   const tc = t0 + dur - 0.05;
   chime.frequency.setValueAtTime(1318.5, tc); // E6
-  cg.gain.setValueAtTime(mobileWebSfxLevel(0.12, 2.89), tc);
+  cg.gain.setValueAtTime(mobileWebSfxLevel(0.12, 5.78), tc);
   cg.gain.exponentialRampToValueAtTime(0.001, tc + 0.45);
   chime.start(tc);
   chime.stop(tc + 0.5);
