@@ -12,6 +12,7 @@ vi.mock('@capacitor/core', () => ({
 }));
 
 const identityKey = 'cavemanVsDragon.workerDeviceIdentity.v1';
+const accountIdentityKey = 'cavemanVsDragon.workerAccountIdentity.v1';
 
 function ok(data: unknown): Response {
   return new Response(JSON.stringify({
@@ -136,6 +137,72 @@ describe('invisible Worker device identity', () => {
     const secondBody = JSON.parse(String(secondInit.body));
     expect(secondBody).not.toHaveProperty('name');
     expect(secondBody.control_type).toBe('mixed');
+  });
+
+  it('claims a password profile without persisting its password, then reuses its session', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(ok({
+        player: { id: 'account-player-1', display_name: 'JONG' },
+        session: { token: 'account-session-1', expires_at: '2099-01-01T00:00:00.000Z' },
+      }))
+      .mockResolvedValueOnce(ok({
+        improved: true,
+        submission_id: 'account-submission-1',
+        entry: {
+          rank: 1,
+          player_id: 'account-player-1',
+          display_name: 'JONG',
+          best_score: 22000,
+          level: 5,
+          achieved_at: '2026-08-20T00:00:00.000Z',
+          updated_at: '2026-08-20T00:00:00.000Z',
+          source_platform: 'android',
+        },
+      }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const api = await loadApi();
+    await api.claimWorkerLeaderboardProfile({
+      name: 'JONG',
+      password: 'secret-password',
+      recovery_email: 'jong@example.com',
+    });
+
+    const claimBody = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body));
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.example/v1/accounts/register');
+    expect(claimBody).toMatchObject({
+      name: 'JONG',
+      password: 'secret-password',
+      recovery_email: 'jong@example.com',
+      installation_id: 'test_installation_1234567890',
+    });
+    const storedRaw = localStorage.getItem(accountIdentityKey) || '';
+    expect(storedRaw).not.toContain('secret-password');
+    expect(JSON.parse(storedRaw)).toMatchObject({
+      player_id: 'account-player-1',
+      display_name: 'JONG',
+      session_token: 'account-session-1',
+    });
+
+    await api.submitWorkerScore({ name: 'IGNORED', score: 22000, level: 5 });
+    const scoreInit = fetchMock.mock.calls[1]?.[1] as RequestInit;
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('https://api.example/v1/scores');
+    expect(new Headers(scoreInit.headers).get('Authorization')).toBe('Bearer account-session-1');
+  });
+
+  it('logs an existing profile into a second installation and stores only its session', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(ok({
+      player: { id: 'account-player-1', display_name: 'JONG' },
+      session: { token: 'pc-session', expires_at: '2099-01-01T00:00:00.000Z' },
+    })));
+    const api = await loadApi();
+
+    await api.loginWorkerLeaderboardProfile({ name: 'JONG', password: 'correct-password' });
+
+    expect(api.getWorkerPlayerName()).toBe('JONG');
+    const storedRaw = localStorage.getItem(accountIdentityKey) || '';
+    expect(storedRaw).not.toContain('correct-password');
+    expect(JSON.parse(storedRaw).session_token).toBe('pc-session');
   });
 
   it('restores an expired session silently before submitting a score', async () => {

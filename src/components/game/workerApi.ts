@@ -32,6 +32,13 @@ interface StoredDeviceIdentity {
   session_expires_at: string;
 }
 
+interface StoredAccountIdentity {
+  player_id: string;
+  display_name: string;
+  session_token: string;
+  session_expires_at: string;
+}
+
 interface ScoreResult {
   improved: boolean;
   entry: WorkerLeaderboardEntry | null;
@@ -50,7 +57,13 @@ interface DeviceSessionResult {
   session: { token: string; expires_at: string };
 }
 
+interface AccountSessionResult {
+  player: { id: string; display_name: string };
+  session: { token: string; expires_at: string };
+}
+
 const DEVICE_IDENTITY_KEY = 'cavemanVsDragon.workerDeviceIdentity.v1';
+const ACCOUNT_IDENTITY_KEY = 'cavemanVsDragon.workerAccountIdentity.v1';
 const apiUrl = (import.meta.env.VITE_CVD_API_URL || '').trim().replace(/\/$/, '');
 
 export class WorkerApiError extends Error {
@@ -126,8 +139,79 @@ function saveDeviceIdentity(identity: StoredDeviceIdentity): void {
   localStorage.setItem(DEVICE_IDENTITY_KEY, JSON.stringify(identity));
 }
 
+function loadAccountIdentity(): StoredAccountIdentity | null {
+  try {
+    const raw = localStorage.getItem(ACCOUNT_IDENTITY_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<StoredAccountIdentity>;
+    if (
+      typeof parsed.player_id !== 'string' ||
+      typeof parsed.display_name !== 'string' ||
+      typeof parsed.session_token !== 'string' ||
+      typeof parsed.session_expires_at !== 'string'
+    ) return null;
+    return parsed as StoredAccountIdentity;
+  } catch {
+    return null;
+  }
+}
+
+function saveAccountIdentity(result: AccountSessionResult): void {
+  localStorage.setItem(ACCOUNT_IDENTITY_KEY, JSON.stringify({
+    player_id: result.player.id,
+    display_name: result.player.display_name,
+    session_token: result.session.token,
+    session_expires_at: result.session.expires_at,
+  } satisfies StoredAccountIdentity));
+}
+
 export function getWorkerPlayerName(): string | null {
-  return loadDeviceIdentity()?.display_name ?? null;
+  return loadAccountIdentity()?.display_name ?? loadDeviceIdentity()?.display_name ?? null;
+}
+
+export function workerProfileNeedsLogin(): boolean {
+  const identity = loadAccountIdentity();
+  if (!identity) return false;
+  const expiresAt = Date.parse(identity.session_expires_at);
+  return !Number.isFinite(expiresAt) || expiresAt <= Date.now() + 60_000;
+}
+
+export async function claimWorkerLeaderboardProfile(input: {
+  name: string;
+  password: string;
+  recovery_email?: string;
+}): Promise<void> {
+  const result = await workerRequest<AccountSessionResult>('/v1/accounts/register', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...platformMetadata(),
+      name: input.name,
+      password: input.password,
+      recovery_email: input.recovery_email || undefined,
+    }),
+  });
+  saveAccountIdentity(result);
+}
+
+export async function loginWorkerLeaderboardProfile(input: {
+  name: string;
+  password: string;
+}): Promise<void> {
+  const result = await workerRequest<AccountSessionResult>('/v1/accounts/login', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...platformMetadata(),
+      name: input.name,
+      password: input.password,
+    }),
+  });
+  saveAccountIdentity(result);
+}
+
+export function isWorkerInvalidCredentialsError(error: unknown): boolean {
+  return error instanceof WorkerApiError && (
+    error.status === 401 || error.code === 'invalid_credentials'
+  );
 }
 
 async function workerRequest<T>(
@@ -245,6 +329,13 @@ async function activeDeviceIdentity(): Promise<StoredDeviceIdentity | null> {
   return restoreDeviceSession(identity);
 }
 
+function activeAccountIdentity(): StoredAccountIdentity | null {
+  const identity = loadAccountIdentity();
+  if (!identity) return null;
+  const expiresAt = Date.parse(identity.session_expires_at);
+  return Number.isFinite(expiresAt) && expiresAt > Date.now() + 60_000 ? identity : null;
+}
+
 async function postScore(
   identity: StoredDeviceIdentity,
   score: number,
@@ -273,6 +364,10 @@ export async function submitWorkerScore(entry: {
 }): Promise<ScoreResult> {
   if (!workerWritesEnabled()) throw new Error('Worker score writes are disabled');
   const occurredAt = new Date().toISOString();
+  const accountIdentity = activeAccountIdentity();
+  if (accountIdentity) {
+    return postScore(accountIdentity as StoredDeviceIdentity, entry.score, entry.level, occurredAt);
+  }
   const identity = await activeDeviceIdentity();
   if (!identity) {
     return registerDeviceAndSubmit({ ...entry, occurred_at: occurredAt });

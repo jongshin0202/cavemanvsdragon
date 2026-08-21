@@ -20,7 +20,7 @@ const isLevel1Round = (round: number): boolean =>
 import { loadScores, qualifiesForTop, insertScore, clearLocalScores, formatDate, entryDisplayName, MAX_ENTRIES, type LeaderboardEntry } from './game/leaderboard';
 import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal, type GlobalEntry } from './game/globalLeaderboard';
 import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/deviceStats';
-import { checkWorkerPlayerNameAvailability, getWorkerPlayerName, isWorkerNameAvailabilityEndpointMissing, isWorkerNameUnavailableError } from './game/workerApi';
+import { checkWorkerPlayerNameAvailability, claimWorkerLeaderboardProfile, getWorkerPlayerName, isWorkerInvalidCredentialsError, isWorkerNameAvailabilityEndpointMissing, isWorkerNameUnavailableError, loginWorkerLeaderboardProfile, workerProfileNeedsLogin } from './game/workerApi';
 import { recordGameplayControlKey, resetGameplayControlType } from './game/controlType';
 import { isLandscapeLeaderboardViewport } from './game/leaderboardViewport';
 import { getBrowserGameplayPauseAction } from './game/browserPause';
@@ -342,6 +342,11 @@ const CavemanVsDragonGame = () => {
   const [nameError, setNameError] = useState<string>('');
   const nameAvailabilityCheckingRef = useRef(false);
   const [confirmNameChoice, setConfirmNameChoice] = useState<'yes' | 'change'>('yes');
+  const [profileAuthMode, setProfileAuthMode] = useState<'claim' | 'login'>('claim');
+  const [profilePassword, setProfilePassword] = useState('');
+  const [profilePasswordConfirmation, setProfilePasswordConfirmation] = useState('');
+  const [profileRecoveryEmail, setProfileRecoveryEmail] = useState('');
+  const [profileAuthBusy, setProfileAuthBusy] = useState(false);
   const [pendingScore, setPendingScore] = useState(0);
   const [pendingLevel, setPendingLevel] = useState(1);
   // Level intro overlay: 'level' shows "Level N" for 3s, then 'black' for 0.5s, then null.
@@ -896,12 +901,10 @@ const CavemanVsDragonGame = () => {
     setNameError('');
     try {
       const available = await checkWorkerPlayerNameAvailability(cleanName);
-      if (!available) {
-        const message = 'THAT NAME ALREADY EXISTS. CHOOSE ANOTHER.';
-        nameErrorRef.current = message;
-        setNameError(message);
-        return;
-      }
+      setProfileAuthMode(available ? 'claim' : 'login');
+      setProfilePassword('');
+      setProfilePasswordConfirmation('');
+      setProfileRecoveryEmail('');
       setConfirmNameChoice('yes');
       setGameState('confirmName');
     } catch (error) {
@@ -909,6 +912,7 @@ const CavemanVsDragonGame = () => {
         // Registration is still the authoritative, atomic uniqueness check.
         // Continue to confirmation when an older Worker lacks the optional
         // preflight route; a duplicate is rejected when the user chooses Yes.
+        setProfileAuthMode('claim');
         setConfirmNameChoice('yes');
         setGameState('confirmName');
         return;
@@ -922,6 +926,49 @@ const CavemanVsDragonGame = () => {
       nameAvailabilityCheckingRef.current = false;
     }
   }, [submitHighScore]);
+
+  const authenticateLeaderboardProfile = useCallback(async () => {
+    if (profileAuthBusy || submittingScoreRef.current) return;
+    const cleanName = nameInputRef.current.trim().slice(0, NAME_MAX_LENGTH);
+    if (profilePassword.length < 8) {
+      setNameError('PASSWORD MUST BE AT LEAST 8 CHARACTERS.');
+      return;
+    }
+    if (profileAuthMode === 'claim' && profilePassword !== profilePasswordConfirmation) {
+      setNameError('PASSWORDS DO NOT MATCH.');
+      return;
+    }
+    if (profileRecoveryEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profileRecoveryEmail)) {
+      setNameError('ENTER A VALID EMAIL OR LEAVE IT BLANK.');
+      return;
+    }
+
+    setProfileAuthBusy(true);
+    setNameError('');
+    try {
+      if (profileAuthMode === 'claim') {
+        await claimWorkerLeaderboardProfile({
+          name: cleanName,
+          password: profilePassword,
+          recovery_email: profileRecoveryEmail.trim() || undefined,
+        });
+      } else {
+        await loginWorkerLeaderboardProfile({ name: cleanName, password: profilePassword });
+      }
+      await submitHighScore();
+    } catch (error) {
+      if (isWorkerInvalidCredentialsError(error)) {
+        setNameError('WRONG PASSWORD. TRY AGAIN OR CHOOSE ANOTHER NAME.');
+      } else if (isWorkerNameUnavailableError(error)) {
+        setProfileAuthMode('login');
+        setNameError('NAME WAS JUST CLAIMED. ENTER ITS PASSWORD.');
+      } else {
+        setNameError(error instanceof Error ? error.message.toUpperCase() : 'COULD NOT CONNECT. TRY AGAIN.');
+      }
+    } finally {
+      setProfileAuthBusy(false);
+    }
+  }, [profileAuthBusy, profileAuthMode, profilePassword, profilePasswordConfirmation, profileRecoveryEmail, submitHighScore]);
 
   // Keep refs in sync with state for the canvas render loop
   useEffect(() => { scoresRef.current = scores; }, [scores]);
@@ -1250,6 +1297,13 @@ const CavemanVsDragonGame = () => {
         nameInputRef.current = savedWorkerName || '';
         setNameError('');
 
+        if (savedWorkerName && workerProfileNeedsLogin()) {
+          setProfileAuthMode('login');
+          setProfilePassword('');
+          setGameState('confirmName');
+          return true;
+        }
+
         // A returning player keeps the first public name automatically. The
         // hidden device credential restores authentication without showing
         // the name keyboard, password, registration, or login UI.
@@ -1307,7 +1361,7 @@ const CavemanVsDragonGame = () => {
           return true;
         }
         if (key === 'Enter' || key === ' ' || key === 'r' || key === 'R') {
-          if (confirmNameChoice === 'yes') void submitHighScore();
+          if (confirmNameChoice === 'yes') void authenticateLeaderboardProfile();
           else setGameState('enterName');
           return true;
         }
@@ -1322,7 +1376,7 @@ const CavemanVsDragonGame = () => {
 
       return false;
     };
-  }, [startNextLevel, submitHighScore, requestNameConfirmation, confirmNameChoice, resetGame, startInLevel2Test, startInLevel3Test, startInLevel3Iter4Test, startInLevel4Test, globalScores, moveAttractScreen, toggleWebPause]);
+  }, [startNextLevel, submitHighScore, requestNameConfirmation, authenticateLeaderboardProfile, confirmNameChoice, resetGame, startInLevel2Test, startInLevel3Test, startInLevel3Iter4Test, startInLevel4Test, globalScores, moveAttractScreen, toggleWebPause]);
 
 
 
@@ -1742,9 +1796,9 @@ const CavemanVsDragonGame = () => {
     };
     const handleKeyDown = (e: KeyboardEvent) => {
       unlockAudio();
-      // When the user is typing into the name input, let the input handle the
-      // key natively (we still listen for Enter inside the input's own onKeyDown).
-      if (e.target === nameFieldRef.current) {
+      // Let every text field handle typing natively. This includes the name
+      // field and the password/recovery fields in the profile dialog.
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
       }
       // Translate Android controller keycodes to standard keys + flag gamepad.
@@ -4682,35 +4736,80 @@ const CavemanVsDragonGame = () => {
         />
 
         {gameState === 'confirmName' && (
-          <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/95 px-6">
-            <div className="w-full max-w-lg rounded-lg border-2 border-accent bg-black p-6 text-center font-caveman text-white shadow-2xl">
-              <h2 className="mb-5 text-2xl text-accent">Confirm Leaderboard Name</h2>
-              <p className="mb-3 text-xl">{nameInputRef.current.trim()}</p>
-              <p className="mb-6 text-sm leading-relaxed">
-                This will be your leaderboard name from now on and cannot be changed.
-                Do you want this name?
+          <div className="absolute inset-0 z-40 flex items-center justify-center overflow-y-auto bg-black/95 px-4 py-3">
+            <form
+              className="max-h-full w-full max-w-lg overflow-y-auto rounded-lg border-2 border-accent bg-black p-4 text-center font-caveman text-white shadow-2xl"
+              onSubmit={(event) => { event.preventDefault(); void authenticateLeaderboardProfile(); }}
+            >
+              <h2 className="mb-3 text-xl text-accent">
+                {profileAuthMode === 'claim' ? 'Claim Leaderboard Name' : 'Welcome Back'}
+              </h2>
+              <p className="mb-2 text-xl">{nameInputRef.current.trim()}</p>
+              <p className="mb-4 text-xs leading-relaxed text-white/80">
+                {profileAuthMode === 'claim'
+                  ? 'Create a password to use this name on your APK, phone web, and PC.'
+                  : 'This name already exists. Enter its password to use it on this device.'}
               </p>
-              <div className="flex justify-center gap-4">
+              <div className="mx-auto mb-4 flex max-w-sm flex-col gap-3 text-left text-xs">
+                <label>
+                  <span className="mb-1 block">Password</span>
+                  <input
+                    type="password"
+                    value={profilePassword}
+                    onChange={(event) => { setProfilePassword(event.target.value); setNameError(''); }}
+                    autoFocus
+                    autoComplete={profileAuthMode === 'claim' ? 'new-password' : 'current-password'}
+                    minLength={8}
+                    className="w-full rounded border border-white/60 bg-white px-3 py-2 font-sans text-base text-black outline-none focus:border-accent"
+                  />
+                </label>
+                {profileAuthMode === 'claim' && (
+                  <>
+                    <label>
+                      <span className="mb-1 block">Confirm password</span>
+                      <input
+                        type="password"
+                        value={profilePasswordConfirmation}
+                        onChange={(event) => { setProfilePasswordConfirmation(event.target.value); setNameError(''); }}
+                        autoComplete="new-password"
+                        minLength={8}
+                        className="w-full rounded border border-white/60 bg-white px-3 py-2 font-sans text-base text-black outline-none focus:border-accent"
+                      />
+                    </label>
+                    <label>
+                      <span className="mb-1 block">Recovery email (optional)</span>
+                      <input
+                        type="email"
+                        value={profileRecoveryEmail}
+                        onChange={(event) => { setProfileRecoveryEmail(event.target.value); setNameError(''); }}
+                        autoComplete="email"
+                        className="w-full rounded border border-white/60 bg-white px-3 py-2 font-sans text-base text-black outline-none focus:border-accent"
+                      />
+                    </label>
+                  </>
+                )}
+              </div>
+              {nameError && <p role="alert" className="mb-3 text-xs text-red-400">{nameError}</p>}
+              <div className="flex justify-center gap-3">
                 <button
-                  type="button"
-                  autoFocus={confirmNameChoice === 'yes'}
+                  type="submit"
+                  disabled={profileAuthBusy}
                   onFocus={() => setConfirmNameChoice('yes')}
-                  onClick={() => void submitHighScore()}
                   className={`min-w-28 rounded border-2 px-5 py-3 ${confirmNameChoice === 'yes' ? 'border-accent bg-white text-black' : 'border-white bg-black text-white'}`}
                 >
-                  Yes
+                  {profileAuthBusy ? 'Please wait...' : profileAuthMode === 'claim' ? 'Claim Name' : 'Use Name'}
                 </button>
                 <button
                   type="button"
                   autoFocus={confirmNameChoice === 'change'}
                   onFocus={() => setConfirmNameChoice('change')}
-                  onClick={() => setGameState('enterName')}
+                  onClick={() => { setNameError(''); setGameState('enterName'); }}
                   className={`min-w-28 rounded border-2 px-5 py-3 ${confirmNameChoice === 'change' ? 'border-accent bg-white text-black' : 'border-white bg-black text-white'}`}
                 >
-                  Change
+                  Change Name
                 </button>
               </div>
-            </div>
+            </form>
           </div>
         )}
 
