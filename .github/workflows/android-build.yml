@@ -533,6 +533,17 @@ jobs:
           p = Path('src/components/game/sounds.ts')
           s = p.read_text()
 
+          # MainLevel2 now contains the approved, platform-aware SFX bus.
+          # Keep this legacy migration step harmless when rebuilding current source.
+          canonical_markers = [
+              'const MOBILE_WEB_SFX_GAIN = 2.4;',
+              'function getSfxOutput(ctx: AudioContext): AudioNode {',
+              'sfxOutput.gain.value = isMobileWebPhone() ? MOBILE_WEB_SFX_GAIN : 1;',
+          ]
+          if all(marker in s for marker in canonical_markers):
+              print('Current platform-aware SFX bus already present; legacy migration skipped')
+              raise SystemExit(0)
+
           # Remove the previous one-off completion-cue boosts so every SFX is
           # handled by the same master mix bus.
           reversions = [
@@ -645,6 +656,17 @@ jobs:
 
           p = Path('src/components/game/sounds.ts')
           s = p.read_text()
+
+          # The approved source applies the final vine adjustment only on
+          # mobile web. Do not replace it with this older global APK mix.
+          canonical_markers = [
+              'mobileWebSfxLevel(0.10, 5.78)',
+              'mobileWebSfxLevel(0.07, 5.78)',
+              'mobileWebSfxLevel(0.12, 5.78)',
+          ]
+          if all(marker in s for marker in canonical_markers):
+              print('Current mobile-web vine balance already present; legacy boost skipped')
+              raise SystemExit(0)
 
           def get_block(name: str):
               token = f'export function {name}('
