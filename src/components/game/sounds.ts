@@ -1,15 +1,59 @@
+import { Capacitor } from '@capacitor/core';
+
 // Web Audio API sound effects generator
+const MOBILE_WEB_SFX_GAIN = 2.4;
+
 let audioCtx: AudioContext | null = null;
+let sfxOutput: GainNode | null = null;
+
+function isMobileWebPhone(): boolean {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  if (Capacitor.isNativePlatform()) return false;
+
+  const shortSide = Math.min(window.innerWidth, window.innerHeight);
+  const hasTouch = navigator.maxTouchPoints > 0 || window.matchMedia?.('(pointer: coarse)').matches;
+  return hasTouch && shortSide < 600;
+}
+
+function mobileWebSfxLevel(baseLevel: number, mobileMultiplier: number): number {
+  return isMobileWebPhone() ? baseLevel * mobileMultiplier : baseLevel;
+}
 
 function getCtx(): AudioContext {
-  if (!audioCtx) audioCtx = new AudioContext();
+  if (!audioCtx) {
+    audioCtx = new AudioContext();
+    sfxOutput = audioCtx.createGain();
+    sfxOutput.gain.value = isMobileWebPhone() ? MOBILE_WEB_SFX_GAIN : 1;
+    sfxOutput.connect(audioCtx.destination);
+  }
   return audioCtx;
+}
+
+function getSfxOutput(ctx: AudioContext): AudioNode {
+  getCtx();
+  return sfxOutput ?? ctx.destination;
 }
 
 // Call after a user gesture to unlock audio (browsers block autoplay otherwise).
 export function unlockAudio() {
   const ctx = getCtx();
   if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+}
+
+let browserSfxPaused = false;
+
+export async function pauseBrowserSfx(): Promise<void> {
+  if (!audioCtx || audioCtx.state !== 'running') return;
+  browserSfxPaused = true;
+  try { await audioCtx.suspend(); } catch { /* ignore */ }
+}
+
+export async function resumeBrowserSfx(): Promise<void> {
+  if (!browserSfxPaused) return;
+  browserSfxPaused = false;
+  if (audioCtx?.state === 'suspended') {
+    try { await audioCtx.resume(); } catch { /* ignore */ }
+  }
 }
 
 // Dragon wing flap — cinematic "movie dragon" wingbeat.
@@ -42,7 +86,7 @@ export function playWingFlapSound() {
   noiseGain.gain.setValueAtTime(0, now);
   noiseGain.gain.linearRampToValueAtTime(0.95, now + 0.05);
   noiseGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
-  noise.connect(hp); hp.connect(lp); lp.connect(noiseGain); noiseGain.connect(ctx.destination);
+  noise.connect(hp); hp.connect(lp); lp.connect(noiseGain); noiseGain.connect(getSfxOutput(ctx));
   noise.start(now); noise.stop(now + dur);
 
   // ── 2) Deep sub-rumble = mass of air being moved ──
@@ -54,7 +98,7 @@ export function playWingFlapSound() {
   subGain.gain.setValueAtTime(0, now);
   subGain.gain.linearRampToValueAtTime(0.85, now + 0.03);
   subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
-  sub.connect(subGain); subGain.connect(ctx.destination);
+  sub.connect(subGain); subGain.connect(getSfxOutput(ctx));
   sub.start(now); sub.stop(now + 0.3);
 
   // ── 3) Leathery membrane snap (short bandpassed noise crack) ──
@@ -73,7 +117,7 @@ export function playWingFlapSound() {
   const snapGain = ctx.createGain();
   snapGain.gain.setValueAtTime(0.55, now + 0.02);
   snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
-  snap.connect(bp); bp.connect(snapGain); snapGain.connect(ctx.destination);
+  snap.connect(bp); bp.connect(snapGain); snapGain.connect(getSfxOutput(ctx));
   snap.start(now + 0.02); snap.stop(now + 0.16);
 }
 
@@ -87,11 +131,11 @@ export function playJumpSound() {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.connect(gain);
-  gain.connect(ctx.destination);
+  gain.connect(getSfxOutput(ctx));
   osc.type = 'square';
   osc.frequency.setValueAtTime(200, ctx.currentTime);
   osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.15);
-  gain.gain.setValueAtTime(0.15, ctx.currentTime);
+  gain.gain.setValueAtTime(mobileWebSfxLevel(0.15, 1.625), ctx.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
   osc.start(ctx.currentTime);
   osc.stop(ctx.currentTime + 0.2);
@@ -102,7 +146,7 @@ export function playBarrelRollSound() {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.connect(gain);
-  gain.connect(ctx.destination);
+  gain.connect(getSfxOutput(ctx));
   osc.type = 'sawtooth';
   osc.frequency.setValueAtTime(80, ctx.currentTime);
   osc.frequency.linearRampToValueAtTime(50, ctx.currentTime + 0.3);
@@ -119,7 +163,7 @@ export function playGameOverSound() {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(getSfxOutput(ctx));
     osc.type = 'square';
     osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.2);
     gain.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.2);
@@ -136,7 +180,7 @@ export function playWinSound() {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(getSfxOutput(ctx));
     osc.type = 'square';
     osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.15);
     gain.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.15);
@@ -151,7 +195,7 @@ export function playHitSound() {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.connect(gain);
-  gain.connect(ctx.destination);
+  gain.connect(getSfxOutput(ctx));
   osc.type = 'sawtooth';
   osc.frequency.setValueAtTime(300, ctx.currentTime);
   osc.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 0.3);
@@ -168,7 +212,7 @@ export function playRobotKillSound() {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(getSfxOutput(ctx));
     osc.type = 'square';
     osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.1);
     gain.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.1);
@@ -186,7 +230,7 @@ export function playKeyGrabSound() {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(getSfxOutput(ctx));
     osc.type = 'triangle';
     const t = ctx.currentTime + i * 0.07;
     osc.frequency.setValueAtTime(freq, t);
@@ -220,7 +264,7 @@ export function playWaterSproutSound() {
   filter.Q.value = 4;
   noise.connect(filter);
   filter.connect(noiseGain);
-  noiseGain.connect(ctx.destination);
+  noiseGain.connect(getSfxOutput(ctx));
   noise.start(ctx.currentTime);
   noise.stop(ctx.currentTime + 0.6);
 
@@ -228,7 +272,7 @@ export function playWaterSproutSound() {
   const osc = ctx.createOscillator();
   const oscGain = ctx.createGain();
   osc.connect(oscGain);
-  oscGain.connect(ctx.destination);
+  oscGain.connect(getSfxOutput(ctx));
   osc.type = 'sine';
   osc.frequency.setValueAtTime(300, ctx.currentTime + 0.05);
   osc.frequency.exponentialRampToValueAtTime(900, ctx.currentTime + 0.55);
@@ -263,7 +307,7 @@ export function playGenieAppearSound() {
   noiseGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.5);
   noise.connect(noiseFilter);
   noiseFilter.connect(noiseGain);
-  noiseGain.connect(ctx.destination);
+  noiseGain.connect(getSfxOutput(ctx));
   noise.start(t0);
   noise.stop(t0 + 0.5);
 
@@ -273,7 +317,7 @@ export function playGenieAppearSound() {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(getSfxOutput(ctx));
     osc.type = 'triangle';
     const t = t0 + 0.08 + i * 0.07;
     osc.frequency.setValueAtTime(freq, t);
@@ -287,7 +331,7 @@ export function playGenieAppearSound() {
   const chime = ctx.createOscillator();
   const chimeGain = ctx.createGain();
   chime.connect(chimeGain);
-  chimeGain.connect(ctx.destination);
+  chimeGain.connect(getSfxOutput(ctx));
   chime.type = 'sine';
   const tc = t0 + 0.5;
   chime.frequency.setValueAtTime(2093, tc); // C7
@@ -309,7 +353,7 @@ export function playPrincessSavedSound() {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(getSfxOutput(ctx));
     osc.type = 'square';
     const t = t0 + i * 0.11;
     osc.frequency.setValueAtTime(freq, t);
@@ -326,7 +370,7 @@ export function playPrincessSavedSound() {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(getSfxOutput(ctx));
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(freq, chordT);
     gain.gain.setValueAtTime(0.10, chordT);
@@ -339,7 +383,7 @@ export function playPrincessSavedSound() {
   const sparkle = ctx.createOscillator();
   const sparkleGain = ctx.createGain();
   sparkle.connect(sparkleGain);
-  sparkleGain.connect(ctx.destination);
+  sparkleGain.connect(getSfxOutput(ctx));
   sparkle.type = 'sine';
   const ts = t0 + 0.55;
   sparkle.frequency.setValueAtTime(2349.32, ts); // D7
@@ -374,11 +418,11 @@ export function playVineGrowSound() {
   filter.frequency.setValueAtTime(400, t0);
   filter.frequency.exponentialRampToValueAtTime(1600, t0 + dur);
   const noiseGain = ctx.createGain();
-  noiseGain.gain.setValueAtTime(0.10, t0);
+  noiseGain.gain.setValueAtTime(mobileWebSfxLevel(0.10, 5.78), t0);
   noiseGain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
   noise.connect(filter);
   filter.connect(noiseGain);
-  noiseGain.connect(ctx.destination);
+  noiseGain.connect(getSfxOutput(ctx));
   noise.start(t0);
   noise.stop(t0 + dur);
 
@@ -388,12 +432,12 @@ export function playVineGrowSound() {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(getSfxOutput(ctx));
     osc.type = 'sine';
     const t = t0 + i * (dur / notes.length);
     osc.frequency.setValueAtTime(freq, t);
     osc.frequency.exponentialRampToValueAtTime(freq * 1.05, t + 0.18);
-    gain.gain.setValueAtTime(0.07, t);
+    gain.gain.setValueAtTime(mobileWebSfxLevel(0.07, 5.78), t);
     gain.gain.exponentialRampToValueAtTime(0.01, t + 0.22);
     osc.start(t);
     osc.stop(t + 0.24);
@@ -403,11 +447,11 @@ export function playVineGrowSound() {
   const chime = ctx.createOscillator();
   const cg = ctx.createGain();
   chime.connect(cg);
-  cg.connect(ctx.destination);
+  cg.connect(getSfxOutput(ctx));
   chime.type = 'triangle';
   const tc = t0 + dur - 0.05;
   chime.frequency.setValueAtTime(1318.5, tc); // E6
-  cg.gain.setValueAtTime(0.12, tc);
+  cg.gain.setValueAtTime(mobileWebSfxLevel(0.12, 5.78), tc);
   cg.gain.exponentialRampToValueAtTime(0.001, tc + 0.45);
   chime.start(tc);
   chime.stop(tc + 0.5);
@@ -519,7 +563,7 @@ export function playDragonRoarSound() {
   f1.connect(f2);
   f2.connect(bright);
   bright.connect(amp);
-  amp.connect(ctx.destination);
+  amp.connect(getSfxOutput(ctx));
 
   saw1.o.start(t0); saw1.o.stop(t0 + dur);
   saw2.o.start(t0); saw2.o.stop(t0 + dur);
@@ -536,7 +580,7 @@ export function playDragonRoarSound() {
   subG.gain.setValueAtTime(0.0001, t0);
   subG.gain.exponentialRampToValueAtTime(0.35, t0 + 0.05);
   subG.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
-  sub.connect(subG); subG.connect(ctx.destination);
+  sub.connect(subG); subG.connect(getSfxOutput(ctx));
   sub.start(t0); sub.stop(t0 + dur);
 
   lastRoarEndsAt = t0 + dur;
@@ -592,7 +636,7 @@ export function playPrincessHelpSound() {
   // Direct path — the bandpass that was killing the fundamentals is removed
   sqr.connect(sqrG); sqrG.connect(env1);
   tri.connect(triG); triG.connect(env1);
-  env1.connect(ctx.destination);
+  env1.connect(getSfxOutput(ctx));
 
   sqr.start(t0); sqr.stop(t0 + dur1);
   tri.start(t0); tri.stop(t0 + dur1);
@@ -609,7 +653,7 @@ export function playPrincessHelpSound() {
   popG.gain.setValueAtTime(0.0001, t2);
   popG.gain.exponentialRampToValueAtTime(0.32, t2 + 0.015);
   popG.gain.exponentialRampToValueAtTime(0.001, t2 + dur2);
-  pop.connect(popG); popG.connect(ctx.destination);
+  pop.connect(popG); popG.connect(getSfxOutput(ctx));
   pop.start(t2); pop.stop(t2 + dur2);
 }
 
@@ -637,7 +681,7 @@ export function playFireBreathSound() {
   hissGain.gain.linearRampToValueAtTime(0.55, t0 + 0.04);
   hissGain.gain.setValueAtTime(0.55, t0 + dur - 0.08);
   hissGain.gain.linearRampToValueAtTime(0, t0 + dur);
-  hiss.connect(bp); bp.connect(hissGain); hissGain.connect(ctx.destination);
+  hiss.connect(bp); bp.connect(hissGain); hissGain.connect(getSfxOutput(ctx));
   hiss.start(t0); hiss.stop(t0 + dur);
 
   // ----- 2) Low rumbling roar (lowpassed brown-ish noise) — combustion body -----
@@ -660,7 +704,7 @@ export function playFireBreathSound() {
   roarGain.gain.linearRampToValueAtTime(0.7, t0 + 0.05);
   roarGain.gain.setValueAtTime(0.7, t0 + dur - 0.1);
   roarGain.gain.linearRampToValueAtTime(0, t0 + dur);
-  roar.connect(lp); lp.connect(roarGain); roarGain.connect(ctx.destination);
+  roar.connect(lp); lp.connect(roarGain); roarGain.connect(getSfxOutput(ctx));
   roar.start(t0); roar.stop(t0 + dur);
 
   // ----- 3) Crackle pops (random short bursts through highpass) — flame snapping -----
@@ -678,7 +722,7 @@ export function playFireBreathSound() {
   crackGain.gain.setValueAtTime(0.35, t0);
   crackGain.gain.setValueAtTime(0.35, t0 + dur - 0.05);
   crackGain.gain.linearRampToValueAtTime(0, t0 + dur);
-  crack.connect(hp); hp.connect(crackGain); crackGain.connect(ctx.destination);
+  crack.connect(hp); hp.connect(crackGain); crackGain.connect(getSfxOutput(ctx));
   crack.start(t0); crack.stop(t0 + dur);
 }
 
@@ -689,7 +733,7 @@ export function playBoinkSound() {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.connect(gain);
-  gain.connect(ctx.destination);
+  gain.connect(getSfxOutput(ctx));
   osc.type = 'sine';
   const t0 = ctx.currentTime;
   osc.frequency.setValueAtTime(220, t0);
@@ -727,9 +771,8 @@ export function playDizzySound(durationSec = 2.5) {
     gain.gain.exponentialRampToValueAtTime(0.12, start + 0.015);
     gain.gain.exponentialRampToValueAtTime(0.001, start + chirpDur);
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(getSfxOutput(ctx));
     osc.start(start);
     osc.stop(start + chirpDur + 0.02);
   }
 }
-

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import {
   CANVAS_W, CANVAS_H, GRAVITY, JUMP_FORCE, MOVE_SPEED, BARREL_SPEED, CLIMB_SPEED, ROBOT_SPEED, getRoundDifficulty,
   PLATFORMS, LADDERS, getPlatformY, rectsOverlap, findPlatformIndex, findBestLadder, buildMonkeyDistribution,
@@ -11,6 +11,8 @@ import { scoreFor, type ScoreAction } from './game/scoring';
 import heartUrl from '@/assets/heart.png';
 import { playJumpSound, playBarrelRollSound, playGameOverSound, playWinSound, playHitSound, playRobotKillSound, playKeyGrabSound, playWaterSproutSound, playGenieAppearSound, playPrincessSavedSound, playVineGrowSound, playDragonRoarTracked, playPrincessHelpSound, isDragonRoaringNow, unlockAudio } from './game/sounds';
 import { playLevel1Music, stopLevel1Music, playLevel2Music, stopLevel2Music, playLevel3Music, stopLevel3Music, playLevel4Music, stopLevel4Music, stopAllMusic } from './game/bgMusic';
+import { pauseBrowserSfx, resumeBrowserSfx } from './game/sounds';
+import { pauseBrowserMusic, resumeBrowserMusic } from './game/bgMusic';
 
 // True for Level 1 rounds (rounds 1, 5, 9, 13, …) — not L2/L3/L4.
 const isLevel1Round = (round: number): boolean =>
@@ -20,6 +22,8 @@ import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal
 import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/deviceStats';
 import { checkWorkerPlayerNameAvailability, getWorkerPlayerName, isWorkerNameAvailabilityEndpointMissing, isWorkerNameUnavailableError } from './game/workerApi';
 import { recordGameplayControlKey, resetGameplayControlType } from './game/controlType';
+import { isLandscapeLeaderboardViewport } from './game/leaderboardViewport';
+import { getBrowserGameplayPauseAction } from './game/browserPause';
 import { adjacentAttractScreen, isAttractScreen } from './game/attractNavigation';
 import { canMountLadder } from './game/ladderMount';
 import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
@@ -313,6 +317,8 @@ const CavemanVsDragonGame = () => {
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
   const [gameState, setGameState] = useState<GameState>('intro');
+  const [isWebPaused, setIsWebPaused] = useState(false);
+  const webPausedRef = useRef(false);
   const [scores, setScores] = useState<LeaderboardEntry[]>(() => loadScores());
   const [globalScores, setGlobalScores] = useState<GlobalEntry[]>([]);
   const [globalLoading, setGlobalLoading] = useState<boolean>(false);
@@ -963,6 +969,30 @@ const CavemanVsDragonGame = () => {
   const gameStateRef = useRef<GameState>('intro');
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
 
+  const toggleWebPause = useCallback(() => {
+    if (isNativeApp || gameStateRef.current !== 'playing' || levelIntroRef.current) return;
+
+    const nextPaused = !webPausedRef.current;
+    webPausedRef.current = nextPaused;
+    setIsWebPaused(nextPaused);
+
+    if (nextPaused) {
+      void pauseBrowserMusic();
+      void pauseBrowserSfx();
+    } else {
+      void resumeBrowserMusic();
+      void resumeBrowserSfx();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (gameState === 'playing' || !webPausedRef.current) return;
+    webPausedRef.current = false;
+    setIsWebPaused(false);
+    void resumeBrowserMusic();
+    void resumeBrowserSfx();
+  }, [gameState]);
+
   // Native Android gameplay controls arrive through the Java bridge rather
   // than the browser Gamepad API, so record that custom event explicitly.
   useEffect(() => {
@@ -1066,6 +1096,25 @@ const CavemanVsDragonGame = () => {
       const now = performance.now();
       const gs = gameStateRef.current;
       const g = gameRef.current;
+
+      if (gs === 'playing') {
+        const pauseAction = getBrowserGameplayPauseAction({
+          isNativeApp,
+          isPaused: webPausedRef.current,
+          key,
+          source: _source,
+        });
+
+        if (pauseAction === 'pause' || pauseAction === 'resume') {
+          keysRef.current.delete(key);
+          toggleWebPause();
+          return true;
+        }
+        if (pauseAction === 'consume') {
+          keysRef.current.delete(key);
+          return true;
+        }
+      }
 
       if (
         gs === 'intro' ||
@@ -1272,7 +1321,7 @@ const CavemanVsDragonGame = () => {
 
       return false;
     };
-  }, [startNextLevel, submitHighScore, requestNameConfirmation, confirmNameChoice, resetGame, startInLevel2Test, startInLevel3Test, startInLevel3Iter4Test, startInLevel4Test, globalScores, moveAttractScreen]);
+  }, [startNextLevel, submitHighScore, requestNameConfirmation, confirmNameChoice, resetGame, startInLevel2Test, startInLevel3Test, startInLevel3Iter4Test, startInLevel4Test, globalScores, moveAttractScreen, toggleWebPause]);
 
 
 
@@ -1746,6 +1795,8 @@ const CavemanVsDragonGame = () => {
         return;
       }
       lastTime = timestamp - (elapsed % FRAME_INTERVAL);
+
+      if (webPausedRef.current) return;
 
       const g = gameRef.current;
       const keys = keysRef.current;
@@ -4544,6 +4595,21 @@ const CavemanVsDragonGame = () => {
             sizes naturally from its 512x480 backing store. */}
         <div
           className="relative flex h-full w-full items-center justify-center"
+          onPointerDown={(e) => {
+            if (isNativeApp || gameStateRef.current !== 'playing' || levelIntroRef.current) return;
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+            const bounds = canvas.getBoundingClientRect();
+            if (
+              e.clientX < bounds.left ||
+              e.clientX > bounds.right ||
+              e.clientY < bounds.top ||
+              e.clientY > bounds.bottom
+            ) return;
+            e.preventDefault();
+            e.stopPropagation();
+            toggleWebPause();
+          }}
           style={
             isNativeApp
               ? {
@@ -4570,6 +4636,20 @@ const CavemanVsDragonGame = () => {
             tabIndex={0}
           />
         </div>
+
+        {isWebPaused && gameState === 'playing' && !isNativeApp && (
+          <div
+            className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center"
+            aria-label="Game paused"
+          >
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-lg">
+              <div className="flex h-8 items-center gap-2">
+                <span className="block h-8 w-2 rounded-sm bg-black" />
+                <span className="block h-8 w-2 rounded-sm bg-black" />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Hidden text input — surfaces the OS soft keyboard during name entry.
             Always mounted so focus() called inside a user-gesture handler can
@@ -4964,17 +5044,21 @@ const AttractLeaderboardScreen = ({
   const longPressFiredRef = useRef<boolean>(false);
   const pointerStartRef = useRef<{ id: number; x: number; y: number } | null>(null);
   const screenRef = useRef<HTMLButtonElement | null>(null);
-  const [leaderboardLandscape, setLeaderboardLandscape] = useState(false);
+  const [leaderboardLandscape, setLeaderboardLandscape] = useState(() => (
+    typeof window !== 'undefined'
+      ? isLandscapeLeaderboardViewport(window.innerWidth, window.innerHeight)
+      : false
+  ));
 
   // Android can briefly retain stale window dimensions after rotation. Measure
   // this screen itself so portrait never receives the compact landscape layout.
-  useEffect(() => {
+  useLayoutEffect(() => {
     const screen = screenRef.current;
     if (!screen) return;
 
     const updateLayout = () => {
       const bounds = screen.getBoundingClientRect();
-      setLeaderboardLandscape(bounds.width > bounds.height);
+      setLeaderboardLandscape(isLandscapeLeaderboardViewport(bounds.width, bounds.height));
     };
     const scheduleUpdate = () => window.requestAnimationFrame(updateLayout);
     const observer = typeof ResizeObserver === 'undefined'
