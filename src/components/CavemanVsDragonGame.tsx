@@ -18,7 +18,7 @@ import { pauseBrowserMusic, resumeBrowserMusic } from './game/bgMusic';
 const isLevel1Round = (round: number): boolean =>
   !isLevel2Round(round) && !isLevel3Round(round) && !isLevel4Round(round);
 import { loadScores, qualifiesForTop, insertScore, clearLocalScores, formatDate, entryDisplayName, MAX_ENTRIES, type LeaderboardEntry } from './game/leaderboard';
-import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal, type GlobalEntry } from './game/globalLeaderboard';
+import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal, mergeGlobalEntry, type GlobalEntry } from './game/globalLeaderboard';
 import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/deviceStats';
 import { canUpgradeWorkerProfile, checkWorkerPlayerNameAvailability, claimWorkerLeaderboardProfile, getWorkerPlayerName, isWorkerInvalidCredentialsError, isWorkerNameAvailabilityEndpointMissing, isWorkerNameUnavailableError, loginWorkerLeaderboardProfile, upgradeWorkerLeaderboardProfile, workerProfileNeedsUpgrade } from './game/workerApi';
 import { recordGameplayControlKey, resetGameplayControlType } from './game/controlType';
@@ -857,9 +857,7 @@ const CavemanVsDragonGame = () => {
             const withoutOptimistic = prev.filter(
               (row) => !(row.name === optimistic.name && row.score === optimistic.score && !row.id),
             );
-            return [...withoutOptimistic, saved]
-              .sort((a, b) => b.score - a.score || (a.created_at || '').localeCompare(b.created_at || ''))
-              .slice(0, MAX_ENTRIES);
+            return mergeGlobalEntry(withoutOptimistic, saved);
           });
         } else {
           justSubmittedSkipProbe.current = false;
@@ -4808,7 +4806,7 @@ const CavemanVsDragonGame = () => {
                   onFocus={() => setConfirmNameChoice('yes')}
                   className={`min-w-28 rounded border-2 px-5 py-3 ${confirmNameChoice === 'yes' ? 'border-accent bg-white text-black' : 'border-white bg-black text-white'}`}
                 >
-                  {profileAuthBusy ? 'Please wait...' : profileAuthMode === 'login' ? 'Use Name' : 'Save Password'}
+                  {profileAuthBusy ? 'Please wait...' : profileAuthMode === 'login' ? 'OK' : 'Save Password'}
                 </button>
                 <button
                   type="button"

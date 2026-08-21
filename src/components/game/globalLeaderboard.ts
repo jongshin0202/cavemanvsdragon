@@ -68,6 +68,12 @@ function topN(rows: GlobalEntry[], n: number = MAX_ENTRIES): GlobalEntry[] {
     .slice(0, n);
 }
 
+export function mergeGlobalEntry(rows: GlobalEntry[], row: GlobalEntry): GlobalEntry[] {
+  // Put the canonical response first so ID de-duplication keeps the newest
+  // score/metadata for this player instead of a stale row already on screen.
+  return topN([row, ...rows]);
+}
+
 function toGlobalEntry(entry: WorkerLeaderboardEntry): GlobalEntry {
   return {
     id: entry.player_id,
@@ -119,7 +125,7 @@ export async function submitGlobalScore(entry: {
     if (!result.entry) return null;
     const row = toGlobalEntry(result.entry);
     const current = loadCacheFromStorage();
-    const merged = topN([row, ...(current?.rows ?? [])]);
+    const merged = mergeGlobalEntry(current?.rows ?? [], row);
     saveCache(merged, {
       count: Math.max(current?.signature.count ?? 0, merged.length),
       latest: result.entry.updated_at || result.entry.achieved_at,
