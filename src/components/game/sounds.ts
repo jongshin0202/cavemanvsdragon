@@ -5,6 +5,12 @@ const MOBILE_WEB_SFX_GAIN = 2.4;
 
 let audioCtx: AudioContext | null = null;
 let sfxOutput: GainNode | null = null;
+let browserSfxPaused = false;
+
+function resumeSfxContext(): void {
+  if (!audioCtx || browserSfxPaused || audioCtx.state === 'running' || audioCtx.state === 'closed') return;
+  void audioCtx.resume().catch(() => {});
+}
 
 function isMobileWebPhone(): boolean {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
@@ -26,6 +32,10 @@ function getCtx(): AudioContext {
     sfxOutput.gain.value = isMobileWebPhone() ? MOBILE_WEB_SFX_GAIN : 1;
     sfxOutput.connect(audioCtx.destination);
   }
+  // Android WebView can suspend Web Audio independently from HTMLAudio BGM
+  // during lifecycle and level transitions. Every SFX entry point calls
+  // getCtx(), so recovering here keeps Levels 1-4 on the same reliable path.
+  resumeSfxContext();
   return audioCtx;
 }
 
@@ -36,11 +46,9 @@ function getSfxOutput(ctx: AudioContext): AudioNode {
 
 // Call after a user gesture to unlock audio (browsers block autoplay otherwise).
 export function unlockAudio() {
-  const ctx = getCtx();
-  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  getCtx();
+  resumeSfxContext();
 }
-
-let browserSfxPaused = false;
 
 export async function pauseBrowserSfx(): Promise<void> {
   if (!audioCtx || audioCtx.state !== 'running') return;
@@ -54,6 +62,13 @@ export async function resumeBrowserSfx(): Promise<void> {
   if (audioCtx?.state === 'suspended') {
     try { await audioCtx.resume(); } catch { /* ignore */ }
   }
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('cvd-native-app-foreground', () => {
+    browserSfxPaused = false;
+    resumeSfxContext();
+  });
 }
 
 // Dragon wing flap — cinematic "movie dragon" wingbeat.

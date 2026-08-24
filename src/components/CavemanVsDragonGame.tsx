@@ -20,7 +20,7 @@ const isLevel1Round = (round: number): boolean =>
 import { loadScores, qualifiesForTop, insertScore, clearLocalScores, formatDate, entryDisplayName, MAX_ENTRIES, type LeaderboardEntry } from './game/leaderboard';
 import { checkAndRefresh, qualifiesForGlobal, submitGlobalScore, getCachedGlobal, mergeGlobalEntry, type GlobalEntry } from './game/globalLeaderboard';
 import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/deviceStats';
-import { canUpgradeWorkerProfile, checkWorkerPlayerNameAvailability, claimWorkerLeaderboardProfile, getWorkerPlayerName, isWorkerInvalidCredentialsError, isWorkerNameAvailabilityEndpointMissing, isWorkerNameUnavailableError, loginWorkerLeaderboardProfile, upgradeWorkerLeaderboardProfile, workerProfileNeedsUpgrade } from './game/workerApi';
+import { canUpgradeWorkerProfile, checkWorkerPlayerNameAvailability, claimWorkerLeaderboardProfile, getWorkerPlayerName, isWorkerInvalidCredentialsError, isWorkerNameAvailabilityEndpointMissing, isWorkerNameUnavailableError, loginWorkerLeaderboardProfile, reclaimClearedWorkerLeaderboardProfile, upgradeWorkerLeaderboardProfile, workerProfileNeedsUpgrade } from './game/workerApi';
 import { recordGameplayControlKey, resetGameplayControlType } from './game/controlType';
 import { isLandscapeLeaderboardViewport } from './game/leaderboardViewport';
 import { getBrowserGameplayPauseAction } from './game/browserPause';
@@ -342,7 +342,7 @@ const CavemanVsDragonGame = () => {
   const [nameError, setNameError] = useState<string>('');
   const nameAvailabilityCheckingRef = useRef(false);
   const [confirmNameChoice, setConfirmNameChoice] = useState<'yes' | 'change'>('yes');
-  const [profileAuthMode, setProfileAuthMode] = useState<'claim' | 'login' | 'upgrade'>('claim');
+  const [profileAuthMode, setProfileAuthMode] = useState<'claim' | 'login' | 'upgrade' | 'reclaim'>('claim');
   const [profilePassword, setProfilePassword] = useState('');
   const [profilePasswordConfirmation, setProfilePasswordConfirmation] = useState('');
   const [profileAuthBusy, setProfileAuthBusy] = useState(false);
@@ -906,6 +906,7 @@ const CavemanVsDragonGame = () => {
       setProfileAuthMode(
         availability.claim_state === 'available'
           ? 'claim'
+          : availability.claim_state === 'cleared_legacy_reclaimable' ? 'reclaim'
           : availability.claim_state === 'legacy_upgrade_required' ? 'upgrade' : 'login',
       );
       setProfilePassword('');
@@ -953,6 +954,11 @@ const CavemanVsDragonGame = () => {
         });
       } else if (profileAuthMode === 'upgrade') {
         await upgradeWorkerLeaderboardProfile({
+          name: cleanName,
+          password: profilePassword,
+        });
+      } else if (profileAuthMode === 'reclaim') {
+        await reclaimClearedWorkerLeaderboardProfile({
           name: cleanName,
           password: profilePassword,
         });
@@ -4761,7 +4767,9 @@ const CavemanVsDragonGame = () => {
               <h2 className="mb-3 text-xl text-accent">
                 {profileAuthMode === 'claim'
                   ? 'Claim Leaderboard Name'
-                  : profileAuthMode === 'upgrade' ? 'Protect Your Leaderboard Name' : 'Welcome Back'}
+                  : profileAuthMode === 'upgrade'
+                    ? 'Protect Your Leaderboard Name'
+                    : profileAuthMode === 'reclaim' ? 'Reclaim Leaderboard Name' : 'Welcome Back'}
               </h2>
               <p className="mb-2 text-xl">{nameInputRef.current.trim()}</p>
               <p className="mb-4 text-xs leading-relaxed text-white/80">
