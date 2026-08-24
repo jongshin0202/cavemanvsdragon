@@ -67,7 +67,7 @@ interface AccountSessionResult {
 export interface WorkerNameAvailability {
   available: boolean;
   display_name: string;
-  claim_state: 'available' | 'login_required' | 'legacy_upgrade_required';
+  claim_state: 'available' | 'login_required' | 'legacy_upgrade_required' | 'cleared_legacy_reclaimable';
   requires_password: boolean;
 }
 
@@ -251,6 +251,21 @@ export async function upgradeWorkerLeaderboardProfile(input: {
     }),
   });
   saveAccountIdentity(result, legacy.credential);
+}
+
+export async function reclaimClearedWorkerLeaderboardProfile(input: {
+  name: string;
+  password: string;
+}): Promise<void> {
+  const result = await workerRequest<AccountSessionResult>('/v1/leaderboard-profiles/upgrade', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...platformMetadata(),
+      name: input.name,
+      password: input.password,
+    }),
+  });
+  saveAccountIdentity(result);
 }
 
 export function isWorkerInvalidCredentialsError(error: unknown): boolean {

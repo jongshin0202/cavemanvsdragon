@@ -28,6 +28,8 @@ class FakeAudioContext {
   currentTime = 0;
   state = 'running';
   destination = new FakeAudioNode();
+  resume = vi.fn(async () => { this.state = 'running'; });
+  suspend = vi.fn(async () => { this.state = 'suspended'; });
 
   createGain() {
     const gain = new FakeGainNode();
@@ -37,6 +39,14 @@ class FakeAudioContext {
 
   createOscillator() {
     return new FakeOscillatorNode();
+  }
+}
+
+const createdContexts: FakeAudioContext[] = [];
+class TrackedFakeAudioContext extends FakeAudioContext {
+  constructor() {
+    super();
+    createdContexts.push(this);
   }
 }
 
@@ -53,10 +63,11 @@ async function initializeSfx({
 }) {
   vi.resetModules();
   createdGains.length = 0;
+  createdContexts.length = 0;
   vi.doMock('@capacitor/core', () => ({
     Capacitor: { isNativePlatform: () => native },
   }));
-  vi.stubGlobal('AudioContext', FakeAudioContext);
+  vi.stubGlobal('AudioContext', TrackedFakeAudioContext);
   Object.defineProperty(navigator, 'maxTouchPoints', { configurable: true, value: touchPoints });
   Object.defineProperty(window, 'innerWidth', { configurable: true, value: width });
   Object.defineProperty(window, 'innerHeight', { configurable: true, value: height });
@@ -76,6 +87,30 @@ describe('mobile web SFX output gain', () => {
     const output = await initializeSfx({ touchPoints: 5, width: 844, height: 390 });
     expect(output.gain.value).toBe(2.4);
     expect(createdGains[1].gain.setValueAtTime).toHaveBeenCalledWith(0.24375, 0);
+  });
+
+  it('resumes a suspended native SFX context before the next level sound', async () => {
+    await initializeSfx({ native: true, touchPoints: 5, width: 844, height: 390 });
+    const context = createdContexts[0];
+    context.state = 'suspended';
+    const { playJumpSound } = await import('./sounds');
+
+    playJumpSound();
+
+    expect(context.resume).toHaveBeenCalledTimes(1);
+    expect(context.state).toBe('running');
+  });
+
+  it('resumes native SFX when Android returns to the foreground', async () => {
+    await initializeSfx({ native: true, touchPoints: 5, width: 844, height: 390 });
+    const context = createdContexts[0];
+    context.state = 'suspended';
+
+    window.dispatchEvent(new Event('cvd-native-app-foreground'));
+    await Promise.resolve();
+
+    expect(context.resume).toHaveBeenCalledTimes(1);
+    expect(context.state).toBe('running');
   });
 
   it('keeps desktop web sound effects unchanged', async () => {

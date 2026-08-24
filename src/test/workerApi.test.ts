@@ -243,6 +243,24 @@ describe('invisible Worker device identity', () => {
     expect(localStorage.getItem(accountIdentityKey)).not.toContain('new-password');
   });
 
+  it('reclaims a globally cleared legacy profile without an old device credential', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(ok({
+      player: { id: 'cleared-player', display_name: 'JONG' },
+      session: { token: 'reclaimed-session', expires_at: '2099-01-01T00:00:00.000Z' },
+      device_credentials: { player_id: 'cleared-player', credential: 'new-device-credential' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    const api = await loadApi();
+
+    await api.reclaimClearedWorkerLeaderboardProfile({ name: 'JONG', password: 'new-password' });
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.example/v1/leaderboard-profiles/upgrade');
+    const body = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body));
+    expect(body).toMatchObject({ name: 'JONG', password: 'new-password' });
+    expect(body).not.toHaveProperty('credential');
+    expect(localStorage.getItem(accountIdentityKey)).not.toContain('new-password');
+  });
+
   it('refreshes an expired account session with its installation credential', async () => {
     localStorage.setItem(accountIdentityKey, JSON.stringify({
       player_id: 'account-player-1',
