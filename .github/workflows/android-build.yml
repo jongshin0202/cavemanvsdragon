@@ -215,6 +215,8 @@ jobs:
           rg -q 'export async function resumeBrowserSfx' src/components/game/sounds.ts
           rg -q 'function resumeSfxContext' src/components/game/sounds.ts
           rg -q "cvd-native-app-foreground" src/components/game/sounds.ts
+          rg -q 'if \(Capacitor\.isNativePlatform\(\)\) return true' src/components/game/sounds.ts
+          rg -q 'PHONE_SFX_GAIN = 2\.4' src/components/game/sounds.ts
           rg -q 'export async function pauseBrowserMusic' src/components/game/bgMusic.ts
           rg -q 'export async function resumeBrowserMusic' src/components/game/bgMusic.ts
           rg -q 'pauseBrowserMusic\(\)' src/components/CavemanVsDragonGame.tsx
@@ -1510,8 +1512,8 @@ jobs:
 
           p = Path('android/app/build.gradle')
           s = p.read_text()
-          s, code_count = re.subn(r'versionCode\s+\d+', 'versionCode 111', s, count=1)
-          s, name_count = re.subn(r'versionName\s+"[^"]+"', 'versionName "1.1.1"', s, count=1)
+          s, code_count = re.subn(r'versionCode\s+\d+', 'versionCode 112', s, count=1)
+          s, name_count = re.subn(r'versionName\s+"[^"]+"', 'versionName "1.1.2"', s, count=1)
           if code_count != 1 or name_count != 1:
               raise SystemExit('Unable to set Android versionCode/versionName')
           p.write_text(s)
@@ -1596,8 +1598,8 @@ jobs:
             -o "$BUNDLETOOL"
           VERSION_CODE="$(java -jar "$BUNDLETOOL" dump manifest --bundle="$AAB" --xpath='/manifest/@android:versionCode')"
           VERSION_NAME="$(java -jar "$BUNDLETOOL" dump manifest --bundle="$AAB" --xpath='/manifest/@android:versionName')"
-          test "$VERSION_CODE" = '111'
-          test "$VERSION_NAME" = '1.1.1'
+          test "$VERSION_CODE" = '112'
+          test "$VERSION_NAME" = '1.1.2'
 
           rm -rf "$RUNNER_TEMP/cvd-aab"
           mkdir -p "$RUNNER_TEMP/cvd-aab"

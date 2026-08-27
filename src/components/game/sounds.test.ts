@@ -82,7 +82,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('mobile web SFX output gain', () => {
+describe('phone SFX output gain', () => {
   it('boosts sound effects on a web phone', async () => {
     const output = await initializeSfx({ touchPoints: 5, width: 844, height: 390 });
     expect(output.gain.value).toBe(2.4);
@@ -119,9 +119,9 @@ describe('mobile web SFX output gain', () => {
     expect(createdGains[1].gain.setValueAtTime).toHaveBeenCalledWith(0.15, 0);
   });
 
-  it('does not change native mobile sound effects', async () => {
+  it('gives the Android APK the same SFX mix as the phone website', async () => {
     const output = await initializeSfx({ native: true, touchPoints: 5, width: 844, height: 390 });
-    expect(output.gain.value).toBe(1);
-    expect(createdGains[1].gain.setValueAtTime).toHaveBeenCalledWith(0.15, 0);
+    expect(output.gain.value).toBe(2.4);
+    expect(createdGains[1].gain.setValueAtTime).toHaveBeenCalledWith(0.24375, 0);
   });
 });

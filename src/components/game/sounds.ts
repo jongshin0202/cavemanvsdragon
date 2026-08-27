@@ -1,7 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 
 // Web Audio API sound effects generator
-const MOBILE_WEB_SFX_GAIN = 2.4;
+const PHONE_SFX_GAIN = 2.4;
 
 let audioCtx: AudioContext | null = null;
 let sfxOutput: GainNode | null = null;
@@ -12,24 +12,26 @@ function resumeSfxContext(): void {
   void audioCtx.resume().catch(() => {});
 }
 
-function isMobileWebPhone(): boolean {
+function usesPhoneSfxMix(): boolean {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
-  if (Capacitor.isNativePlatform()) return false;
+  // The Android APK should sound like the phone website. WebView otherwise
+  // skips the mobile-web boost and its SFX are buried under HTMLAudio music.
+  if (Capacitor.isNativePlatform()) return true;
 
   const shortSide = Math.min(window.innerWidth, window.innerHeight);
   const hasTouch = navigator.maxTouchPoints > 0 || window.matchMedia?.('(pointer: coarse)').matches;
   return hasTouch && shortSide < 600;
 }
 
-function mobileWebSfxLevel(baseLevel: number, mobileMultiplier: number): number {
-  return isMobileWebPhone() ? baseLevel * mobileMultiplier : baseLevel;
+function phoneSfxLevel(baseLevel: number, phoneMultiplier: number): number {
+  return usesPhoneSfxMix() ? baseLevel * phoneMultiplier : baseLevel;
 }
 
 function getCtx(): AudioContext {
   if (!audioCtx) {
     audioCtx = new AudioContext();
     sfxOutput = audioCtx.createGain();
-    sfxOutput.gain.value = isMobileWebPhone() ? MOBILE_WEB_SFX_GAIN : 1;
+    sfxOutput.gain.value = usesPhoneSfxMix() ? PHONE_SFX_GAIN : 1;
     sfxOutput.connect(audioCtx.destination);
   }
   // Android WebView can suspend Web Audio independently from HTMLAudio BGM
@@ -150,7 +152,7 @@ export function playJumpSound() {
   osc.type = 'square';
   osc.frequency.setValueAtTime(200, ctx.currentTime);
   osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.15);
-  gain.gain.setValueAtTime(mobileWebSfxLevel(0.15, 1.625), ctx.currentTime);
+  gain.gain.setValueAtTime(phoneSfxLevel(0.15, 1.625), ctx.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
   osc.start(ctx.currentTime);
   osc.stop(ctx.currentTime + 0.2);
@@ -433,7 +435,7 @@ export function playVineGrowSound() {
   filter.frequency.setValueAtTime(400, t0);
   filter.frequency.exponentialRampToValueAtTime(1600, t0 + dur);
   const noiseGain = ctx.createGain();
-  noiseGain.gain.setValueAtTime(mobileWebSfxLevel(0.10, 5.78), t0);
+  noiseGain.gain.setValueAtTime(phoneSfxLevel(0.10, 5.78), t0);
   noiseGain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
   noise.connect(filter);
   filter.connect(noiseGain);
@@ -452,7 +454,7 @@ export function playVineGrowSound() {
     const t = t0 + i * (dur / notes.length);
     osc.frequency.setValueAtTime(freq, t);
     osc.frequency.exponentialRampToValueAtTime(freq * 1.05, t + 0.18);
-    gain.gain.setValueAtTime(mobileWebSfxLevel(0.07, 5.78), t);
+    gain.gain.setValueAtTime(phoneSfxLevel(0.07, 5.78), t);
     gain.gain.exponentialRampToValueAtTime(0.01, t + 0.22);
     osc.start(t);
     osc.stop(t + 0.24);
@@ -466,7 +468,7 @@ export function playVineGrowSound() {
   chime.type = 'triangle';
   const tc = t0 + dur - 0.05;
   chime.frequency.setValueAtTime(1318.5, tc); // E6
-  cg.gain.setValueAtTime(mobileWebSfxLevel(0.12, 5.78), tc);
+  cg.gain.setValueAtTime(phoneSfxLevel(0.12, 5.78), tc);
   cg.gain.exponentialRampToValueAtTime(0.001, tc + 0.45);
   chime.start(tc);
   chime.stop(tc + 0.5);
