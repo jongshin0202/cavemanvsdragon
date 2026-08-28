@@ -63,6 +63,7 @@ import dedicationPcUrl from '@/assets/dedication-pc.png';
 import SavedAnimation from './savedAnimation/SavedAnimation';
 import { Capacitor } from '@capacitor/core';
 import { vibrateWebControl } from './game/controlHaptics';
+import ControllerPasswordKeyboard from './game/ControllerPasswordKeyboard';
 
 const isNativeApp = Capacitor.isNativePlatform();
 
@@ -1379,6 +1380,9 @@ const CavemanVsDragonGame = () => {
           }
           return true;
         }
+        // A connected controller is handled by the dedicated password
+        // keyboard. Do not let its A/START buttons submit the form directly.
+        if (gamepadActiveRef.current) return true;
         if (key === 'ArrowLeft' || key === 'ArrowRight') {
           setConfirmNameChoice((choice) => choice === 'yes' ? 'change' : 'yes');
           return true;
@@ -4784,7 +4788,8 @@ const CavemanVsDragonGame = () => {
                     type="password"
                     value={profilePassword}
                     onChange={(event) => { setProfilePassword(event.target.value); setNameError(''); }}
-                    autoFocus
+                    autoFocus={!gamepadActive}
+                    readOnly={gamepadActive}
                     autoComplete={profileAuthMode === 'login' ? 'current-password' : 'new-password'}
                     minLength={5}
                     className="w-full rounded border border-white/60 bg-white px-3 py-2 font-sans text-base text-black outline-none focus:border-accent"
@@ -4798,6 +4803,7 @@ const CavemanVsDragonGame = () => {
                         type="password"
                         value={profilePasswordConfirmation}
                         onChange={(event) => { setProfilePasswordConfirmation(event.target.value); setNameError(''); }}
+                        readOnly={gamepadActive}
                         autoComplete="new-password"
                         minLength={5}
                         className="w-full rounded border border-white/60 bg-white px-3 py-2 font-sans text-base text-black outline-none focus:border-accent"
@@ -4827,6 +4833,19 @@ const CavemanVsDragonGame = () => {
                 </button>
               </div>
             </form>
+            {gamepadActive && (
+              <ControllerPasswordKeyboard
+                login={profileAuthMode === 'login'}
+                password={profilePassword}
+                confirmation={profilePasswordConfirmation}
+                busy={profileAuthBusy}
+                error={nameError}
+                onPasswordChange={(value) => { setProfilePassword(value); setNameError(''); }}
+                onConfirmationChange={(value) => { setProfilePasswordConfirmation(value); setNameError(''); }}
+                onSubmit={() => { void authenticateLeaderboardProfile(); }}
+                onCancel={() => { setNameError(''); setGameState('enterName'); }}
+              />
+            )}
           </div>
         )}
 
