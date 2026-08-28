@@ -28,12 +28,24 @@ describe('browser gameplay pause input', () => {
     }
   });
 
-  it('does not change native APK input behavior', () => {
+  it('toggles native APK pause with the controller START button', () => {
     expect(getBrowserGameplayPauseAction({
       isNativeApp: true,
       isPaused: false,
-      key: 'R',
-      source: 'keyboard',
+      key: 'Start',
+      source: 'pad',
+    })).toBe('pause');
+    expect(getBrowserGameplayPauseAction({
+      isNativeApp: true,
+      isPaused: true,
+      key: 'Start',
+      source: 'pad',
+    })).toBe('resume');
+    expect(getBrowserGameplayPauseAction({
+      isNativeApp: true,
+      isPaused: false,
+      key: ' ',
+      source: 'pad',
     })).toBe('none');
   });
 });

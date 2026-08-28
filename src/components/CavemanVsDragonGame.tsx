@@ -1036,7 +1036,7 @@ const CavemanVsDragonGame = () => {
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
 
   const toggleWebPause = useCallback(() => {
-    if (isNativeApp || gameStateRef.current !== 'playing' || levelIntroRef.current) return;
+    if (gameStateRef.current !== 'playing' || levelIntroRef.current) return;
 
     const nextPaused = !webPausedRef.current;
     webPausedRef.current = nextPaused;
@@ -1049,6 +1049,31 @@ const CavemanVsDragonGame = () => {
       void resumeBrowserMusic();
       void resumeBrowserSfx();
     }
+  }, []);
+
+  // Android WebView lifecycle events must explicitly suspend both HTMLAudio
+  // and Web Audio. WebView.onPause()/pauseTimers() alone does not guarantee
+  // that AudioContext-backed level music and sound effects stop.
+  useEffect(() => {
+    if (!isNativeApp) return;
+
+    const pauseForBackground = () => {
+      void pauseBrowserMusic();
+      void pauseBrowserSfx();
+    };
+    const resumeFromBackground = () => {
+      // Returning to the app must not undo a pause the player requested.
+      if (webPausedRef.current) return;
+      void resumeBrowserMusic();
+      void resumeBrowserSfx();
+    };
+
+    window.addEventListener('cvd-native-app-background', pauseForBackground);
+    window.addEventListener('cvd-native-app-foreground', resumeFromBackground);
+    return () => {
+      window.removeEventListener('cvd-native-app-background', pauseForBackground);
+      window.removeEventListener('cvd-native-app-foreground', resumeFromBackground);
+    };
   }, []);
 
   useEffect(() => {
@@ -1071,6 +1096,9 @@ const CavemanVsDragonGame = () => {
         detail.key,
         gameStateRef.current === 'playing',
       );
+      if (detail.key === 'Start' && gameStateRef.current === 'playing') {
+        anyInputHandlerRef.current?.('Start', 'pad');
+      }
     };
     window.addEventListener('cvd-native-controller-key', recordNativeController);
     return () => {
@@ -4673,7 +4701,7 @@ const CavemanVsDragonGame = () => {
         <div
           className="relative flex h-full w-full items-center justify-center"
           onPointerDown={(e) => {
-            if (isNativeApp || gameStateRef.current !== 'playing' || levelIntroRef.current) return;
+            if (gameStateRef.current !== 'playing' || levelIntroRef.current) return;
             const canvas = canvasRef.current;
             if (!canvas) return;
             const bounds = canvas.getBoundingClientRect();
@@ -4714,7 +4742,7 @@ const CavemanVsDragonGame = () => {
           />
         </div>
 
-        {isWebPaused && gameState === 'playing' && !isNativeApp && (
+        {isWebPaused && gameState === 'playing' && (
           <div
             className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center"
             aria-label="Game paused"
