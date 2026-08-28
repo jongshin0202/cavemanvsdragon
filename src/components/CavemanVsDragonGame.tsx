@@ -936,8 +936,8 @@ const CavemanVsDragonGame = () => {
   const authenticateLeaderboardProfile = useCallback(async () => {
     if (profileAuthBusy || submittingScoreRef.current) return;
     const cleanName = nameInputRef.current.trim().slice(0, NAME_MAX_LENGTH);
-    if (profilePassword.length < 10) {
-      setNameError('PASSWORD MUST BE AT LEAST 10 CHARACTERS.');
+    if (profilePassword.length < 5) {
+      setNameError('PASSWORD MUST BE AT LEAST 5 CHARACTERS.');
       return;
     }
     if (profileAuthMode !== 'login' && profilePassword !== profilePasswordConfirmation) {
@@ -4786,7 +4786,7 @@ const CavemanVsDragonGame = () => {
                     onChange={(event) => { setProfilePassword(event.target.value); setNameError(''); }}
                     autoFocus
                     autoComplete={profileAuthMode === 'login' ? 'current-password' : 'new-password'}
-                    minLength={10}
+                    minLength={5}
                     className="w-full rounded border border-white/60 bg-white px-3 py-2 font-sans text-base text-black outline-none focus:border-accent"
                   />
                 </label>
@@ -4799,7 +4799,7 @@ const CavemanVsDragonGame = () => {
                         value={profilePasswordConfirmation}
                         onChange={(event) => { setProfilePasswordConfirmation(event.target.value); setNameError(''); }}
                         autoComplete="new-password"
-                        minLength={10}
+                        minLength={5}
                         className="w-full rounded border border-white/60 bg-white px-3 py-2 font-sans text-base text-black outline-none focus:border-accent"
                       />
                     </label>
