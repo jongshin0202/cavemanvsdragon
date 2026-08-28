@@ -349,6 +349,9 @@ const CavemanVsDragonGame = () => {
   const [profileAuthBusy, setProfileAuthBusy] = useState(false);
   const [passwordSavedOpen, setPasswordSavedOpen] = useState(false);
   const [pendingScore, setPendingScore] = useState(0);
+  // The canvas loop is long-lived and must not read the initial React render's
+  // pendingScore value. Keep an imperative mirror for the name-entry overlay.
+  const pendingScoreRef = useRef(0);
   const [pendingLevel, setPendingLevel] = useState(1);
   // Level intro overlay: 'level' shows "Level N" for 3s, then 'black' for 0.5s, then null.
   const [levelIntro, setLevelIntro] = useState<null | 'level' | 'black'>(null);
@@ -1350,6 +1353,7 @@ const CavemanVsDragonGame = () => {
         const qGlobal = qualifiesForGlobal(g.score, globalScores);
         if (qLocal || qGlobal) {
           // Promote to high-score prompt; swallow this input so a second press is required to advance
+          pendingScoreRef.current = g.score;
           setPendingScore(g.score);
           setPendingLevel(g.round);
           justSubmittedGlobal.current = qGlobal;
@@ -4259,7 +4263,7 @@ const CavemanVsDragonGame = () => {
         ctx.fillStyle = '#FFD700'; ctx.font = `bold 26px ${arcade}`;
         ctx.fillText('ENTER YOUR NAME', CANVAS_W / 2, 90);
         ctx.fillStyle = '#FFFFFF'; ctx.font = `bold 22px ${arcade}`;
-        ctx.fillText(`SCORE: ${pendingScore}`, CANVAS_W / 2, 140);
+        ctx.fillText(`SCORE: ${pendingScoreRef.current}`, CANVAS_W / 2, 140);
 
         // Name field box (visual representation of the typed name)
         const boxW = 380, boxH = 64;

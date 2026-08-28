@@ -39,7 +39,9 @@ export default function ControllerPasswordKeyboard({
 }: ControllerPasswordKeyboardProps) {
   const [row, setRow] = useState(0);
   const [col, setCol] = useState(0);
-  const [shifted, setShifted] = useState(false);
+  // Match the name-entry keyboard: start with capitals, then SHIFT toggles to
+  // lowercase. The visible key labels always reflect what will be entered.
+  const [shifted, setShifted] = useState(true);
   const [field, setField] = useState<Field>('password');
 
   const value = field === 'password' ? password : confirmation;
@@ -112,7 +114,7 @@ export default function ControllerPasswordKeyboard({
   const masked = value.length ? '•'.repeat(value.length) : '_';
 
   return (
-    <div className="fixed inset-0 z-[70] flex flex-col justify-end overflow-y-auto bg-black/98 p-2 font-mono text-white">
+    <div className="fixed inset-0 z-[70] flex flex-col overflow-y-auto bg-black px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] font-mono text-white">
       <div className="mx-auto mb-1 text-center text-sm font-bold text-accent">
         {login ? 'ENTER PASSWORD' : field === 'password' ? 'CREATE PASSWORD' : 'CONFIRM PASSWORD'}
       </div>
@@ -128,7 +130,11 @@ export default function ControllerPasswordKeyboard({
           <div key={rowIndex} className="flex justify-center gap-1">
             {tokens.map((token, colIndex) => {
               const selected = row === rowIndex && col === colIndex;
-              const label = token === 'DEL' ? '⌫' : token === 'SHIFT' ? (shifted ? 'SHIFT' : 'shift') : token;
+              const label = token === 'DEL'
+                ? '⌫'
+                : token === 'SHIFT'
+                  ? (shifted ? 'SHIFT' : 'shift')
+                  : /^[A-Z]$/.test(token) && !shifted ? token.toLowerCase() : token;
               return (
                 <button
                   key={token}
