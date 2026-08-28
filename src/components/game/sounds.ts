@@ -66,13 +66,6 @@ export async function resumeBrowserSfx(): Promise<void> {
   }
 }
 
-if (typeof window !== 'undefined') {
-  window.addEventListener('cvd-native-app-foreground', () => {
-    browserSfxPaused = false;
-    resumeSfxContext();
-  });
-}
-
 // Dragon wing flap — cinematic "movie dragon" wingbeat.
 // Layers: massive sub-rumble + leathery membrane snap + broad airy whoosh.
 export function playWingFlapSound() {

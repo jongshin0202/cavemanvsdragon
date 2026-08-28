@@ -214,7 +214,9 @@ jobs:
           rg -q 'export async function pauseBrowserSfx' src/components/game/sounds.ts
           rg -q 'export async function resumeBrowserSfx' src/components/game/sounds.ts
           rg -q 'function resumeSfxContext' src/components/game/sounds.ts
-          rg -q "cvd-native-app-foreground" src/components/game/sounds.ts
+          rg -q "cvd-native-app-background" src/components/CavemanVsDragonGame.tsx
+          rg -q "cvd-native-app-foreground" src/components/CavemanVsDragonGame.tsx
+          rg -Fq "anyInputHandlerRef.current?.('Start', 'pad')" src/components/CavemanVsDragonGame.tsx
           rg -q 'if \(Capacitor\.isNativePlatform\(\)\) return true' src/components/game/sounds.ts
           rg -q 'PHONE_SFX_GAIN = 2\.4' src/components/game/sounds.ts
           rg -q 'export async function pauseBrowserMusic' src/components/game/bgMusic.ts

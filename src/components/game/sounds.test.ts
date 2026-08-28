@@ -101,16 +101,15 @@ describe('phone SFX output gain', () => {
     expect(context.state).toBe('running');
   });
 
-  it('resumes native SFX when Android returns to the foreground', async () => {
+  it('suspends native SFX when Android enters the background', async () => {
     await initializeSfx({ native: true, touchPoints: 5, width: 844, height: 390 });
     const context = createdContexts[0];
-    context.state = 'suspended';
+    const { pauseBrowserSfx } = await import('./sounds');
 
-    window.dispatchEvent(new Event('cvd-native-app-foreground'));
-    await Promise.resolve();
+    await pauseBrowserSfx();
 
-    expect(context.resume).toHaveBeenCalledTimes(1);
-    expect(context.state).toBe('running');
+    expect(context.suspend).toHaveBeenCalledTimes(1);
+    expect(context.state).toBe('suspended');
   });
 
   it('keeps desktop web sound effects unchanged', async () => {
