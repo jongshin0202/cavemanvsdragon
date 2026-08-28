@@ -315,6 +315,10 @@ export async function pauseBrowserMusic(): Promise<void> {
 
 export async function resumeBrowserMusic(): Promise<void> {
   if (!browserMusicPaused) return;
+  // Android may dispatch its foreground event just before the WebView's
+  // document becomes visible. Keep the snapshot intact so visibilitychange
+  // can retry instead of losing the track behind the native media gate.
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
   browserMusicPaused = false;
 
   if (browserMusicContextWasRunning && audioCtx?.state === 'suspended') {

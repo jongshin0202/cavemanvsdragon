@@ -1057,22 +1057,37 @@ const CavemanVsDragonGame = () => {
   useEffect(() => {
     if (!isNativeApp) return;
 
+    let foregroundPending = false;
+
     const pauseForBackground = () => {
+      foregroundPending = false;
       void pauseBrowserMusic();
       void pauseBrowserSfx();
     };
-    const resumeFromBackground = () => {
+    const resumeWhenVisible = () => {
       // Returning to the app must not undo a pause the player requested.
-      if (webPausedRef.current) return;
+      if (
+        !foregroundPending ||
+        webPausedRef.current ||
+        document.visibilityState === 'hidden'
+      ) return;
+      foregroundPending = false;
       void resumeBrowserMusic();
       void resumeBrowserSfx();
+    };
+    const resumeFromBackground = () => {
+      if (webPausedRef.current) return;
+      foregroundPending = true;
+      resumeWhenVisible();
     };
 
     window.addEventListener('cvd-native-app-background', pauseForBackground);
     window.addEventListener('cvd-native-app-foreground', resumeFromBackground);
+    document.addEventListener('visibilitychange', resumeWhenVisible);
     return () => {
       window.removeEventListener('cvd-native-app-background', pauseForBackground);
       window.removeEventListener('cvd-native-app-foreground', resumeFromBackground);
+      document.removeEventListener('visibilitychange', resumeWhenVisible);
     };
   }, []);
 

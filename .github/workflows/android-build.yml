@@ -216,6 +216,8 @@ jobs:
           rg -q 'function resumeSfxContext' src/components/game/sounds.ts
           rg -q "cvd-native-app-background" src/components/CavemanVsDragonGame.tsx
           rg -q "cvd-native-app-foreground" src/components/CavemanVsDragonGame.tsx
+          rg -q "visibilitychange" src/components/CavemanVsDragonGame.tsx
+          rg -q "document.visibilityState === 'hidden'" src/components/game/bgMusic.ts
           rg -Fq "anyInputHandlerRef.current?.('Start', 'pad')" src/components/CavemanVsDragonGame.tsx
           rg -q 'if \(Capacitor\.isNativePlatform\(\)\) return true' src/components/game/sounds.ts
           rg -q 'PHONE_SFX_GAIN = 2\.4' src/components/game/sounds.ts
