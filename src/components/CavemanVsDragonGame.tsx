@@ -1375,6 +1375,7 @@ const CavemanVsDragonGame = () => {
       if (gs === 'confirmName') {
         if (passwordSavedOpen) {
           if (key === 'Enter' || key === ' ' || key === 'r' || key === 'R') {
+            setGameState(justSubmittedGlobal.current ? 'globalLeaderboard' : 'leaderboard');
             setPasswordSavedOpen(false);
             void submitHighScore();
           }
@@ -1382,7 +1383,7 @@ const CavemanVsDragonGame = () => {
         }
         // A connected controller is handled by the dedicated password
         // keyboard. Do not let its A/START buttons submit the form directly.
-        if (gamepadActiveRef.current) return true;
+        if (isNativeApp || gamepadActiveRef.current) return true;
         if (key === 'ArrowLeft' || key === 'ArrowRight') {
           setConfirmNameChoice((choice) => choice === 'yes' ? 'change' : 'yes');
           return true;
@@ -4788,8 +4789,8 @@ const CavemanVsDragonGame = () => {
                     type="password"
                     value={profilePassword}
                     onChange={(event) => { setProfilePassword(event.target.value); setNameError(''); }}
-                    autoFocus={!gamepadActive}
-                    readOnly={gamepadActive}
+                    autoFocus={!isNativeApp && !gamepadActive}
+                    readOnly={isNativeApp || gamepadActive}
                     autoComplete={profileAuthMode === 'login' ? 'current-password' : 'new-password'}
                     minLength={5}
                     className="w-full rounded border border-white/60 bg-white px-3 py-2 font-sans text-base text-black outline-none focus:border-accent"
@@ -4803,7 +4804,7 @@ const CavemanVsDragonGame = () => {
                         type="password"
                         value={profilePasswordConfirmation}
                         onChange={(event) => { setProfilePasswordConfirmation(event.target.value); setNameError(''); }}
-                        readOnly={gamepadActive}
+                        readOnly={isNativeApp || gamepadActive}
                         autoComplete="new-password"
                         minLength={5}
                         className="w-full rounded border border-white/60 bg-white px-3 py-2 font-sans text-base text-black outline-none focus:border-accent"
@@ -4833,7 +4834,7 @@ const CavemanVsDragonGame = () => {
                 </button>
               </div>
             </form>
-            {gamepadActive && (
+            {(isNativeApp || gamepadActive) && (
               <ControllerPasswordKeyboard
                 login={profileAuthMode === 'login'}
                 password={profilePassword}
@@ -4860,6 +4861,7 @@ const CavemanVsDragonGame = () => {
                 type="button"
                 autoFocus
                 onClick={() => {
+                  setGameState(justSubmittedGlobal.current ? 'globalLeaderboard' : 'leaderboard');
                   setPasswordSavedOpen(false);
                   void submitHighScore();
                 }}
