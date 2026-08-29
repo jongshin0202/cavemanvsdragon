@@ -1,12 +1,13 @@
-const LADDER_MOUNT_ASSIST_PX = 10;
-
 export function ladderMountTolerance(
-  playerWidth: number,
-  ladderHalfWidth: number,
+  _playerWidth: number,
+  _ladderHalfWidth: number,
   searchRadius: number,
 ): number {
-  const overlapTolerance = playerWidth / 2 + ladderHalfWidth;
-  return Math.min(searchRadius - 1, overlapTolerance + LADDER_MOUNT_ASSIST_PX);
+  // Any ladder admitted by the nearby-ladder search should be mountable.
+  // Keeping one pixel inside the search radius prevents snapping to a ladder
+  // that has not actually been selected, while removing the smaller second
+  // threshold that made Up intermittently fail near a ladder edge.
+  return searchRadius - 1;
 }
 
 export function canMountLadder(

@@ -2229,10 +2229,18 @@ const CavemanVsDragonGame = () => {
         const holdLeft = rawLeft || (!rawRight && canGuideTowardLadder && g.courseDir === -1);
         const holdRight = rawRight || (!rawLeft && canGuideTowardLadder && g.courseDir === 1);
 
+        // Keep a short climb-intent buffer for touch controls. A finger can
+        // cross the visual gap between Left/Right and Up for a frame while
+        // the caveman is being aligned with a ladder; without this buffer the
+        // intended climb was lost and Up appeared unresponsive.
         if (rawUp) {
           g.pendingClimb = 'up';
+          (g as any)._pendingClimbFrames = 8;
         } else if (rawDown) {
           g.pendingClimb = 'down';
+          (g as any)._pendingClimbFrames = 8;
+        } else if (((g as any)._pendingClimbFrames ?? 0) > 0) {
+          (g as any)._pendingClimbFrames--;
         } else {
           g.pendingClimb = null;
         }
@@ -4702,7 +4710,7 @@ const CavemanVsDragonGame = () => {
       {/* Landscape: D-pad on left */}
       {useLandscapeLayout && (
         <div className="h-full shrink-0 py-2 pl-[calc(env(safe-area-inset-left)+0.5rem)] pr-2 touch-none flex items-center">
-          <div className="h-[min(80vh,260px)] w-[min(40vw,200px)]">{dpadEl}</div>
+          <div className="h-[min(72vh,240px)] w-[min(48vw,240px)]">{dpadEl}</div>
         </div>
       )}
 
@@ -5154,7 +5162,7 @@ const CavemanVsDragonGame = () => {
           {(gameState === 'leaderboard' || gameState === 'globalLeaderboard') && (
             <div className="self-center">{rButtonEl}</div>
           )}
-          <div className="flex-1 min-h-0">
+          <div className="h-[min(72vh,240px)] min-h-0">
             {jumpButtonLandscapeEl}
           </div>
         </div>
