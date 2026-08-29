@@ -43,7 +43,7 @@ describe('ControllerPasswordKeyboard', () => {
     expect(screen.getByText('•')).toBeInTheDocument();
   });
 
-  it('keeps 0 through 9 together before punctuation and enters backslash', () => {
+  it('keeps 0 through 9 together before punctuation and enters both slashes', () => {
     const onPasswordChange = vi.fn();
     render(
       <ControllerPasswordKeyboard
@@ -62,8 +62,11 @@ describe('ControllerPasswordKeyboard', () => {
     const labels = screen.getAllByRole('button').map((button) => button.getAttribute('aria-label'));
     expect(labels.indexOf('6')).toBe(labels.indexOf('5') + 1);
     expect(labels.indexOf('9')).toBeLessThan(labels.indexOf('!'));
+    expect(labels.indexOf('/')).toBeGreaterThan(labels.indexOf('$'));
     expect(labels.indexOf('\\')).toBeGreaterThan(labels.indexOf('$'));
 
+    fireEvent.pointerDown(screen.getByRole('button', { name: '/' }));
+    expect(onPasswordChange).toHaveBeenLastCalledWith('/');
     fireEvent.pointerDown(screen.getByRole('button', { name: '\\' }));
     expect(onPasswordChange).toHaveBeenLastCalledWith('\\');
   });

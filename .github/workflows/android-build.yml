@@ -310,13 +310,13 @@ jobs:
           # Landscape: equal-width control rails with a flexible centered game area.
           replace_once(
               'className="h-full shrink-0 py-2 pl-[calc(env(safe-area-inset-left)+0.5rem)] pr-2 touch-none flex items-center"',
-              'className="h-full w-[min(28vw,180px)] shrink-0 py-2 pl-[calc(env(safe-area-inset-left)+0.5rem)] pr-2 touch-none flex items-center"',
+              'className="h-full w-[min(32vw,220px)] shrink-0 py-2 pl-[calc(env(safe-area-inset-left)+0.5rem)] pr-2 touch-none flex items-center"',
               'landscape D-pad rail'
           )
 
           replace_once(
-              'className="h-[min(80vh,260px)] w-[min(40vw,200px)]"',
-              'className="h-[min(80vh,260px)] w-full"',
+              'className="h-[min(72vh,240px)] w-[min(48vw,240px)]"',
+              'className="h-[min(72vh,220px)] w-full"',
               'landscape D-pad size'
           )
 
@@ -328,7 +328,7 @@ jobs:
 
           replace_once(
               'className="h-full shrink-0 py-2 pr-[calc(env(safe-area-inset-right)+0.5rem)] pl-2 touch-none flex flex-col items-stretch justify-center gap-2 w-[min(36vw,180px)]"',
-              'className="h-full w-[min(28vw,180px)] shrink-0 py-2 pr-[calc(env(safe-area-inset-right)+0.5rem)] pl-2 touch-none flex flex-col items-stretch justify-center gap-2"',
+              'className="h-full w-[min(32vw,220px)] shrink-0 py-2 pr-[calc(env(safe-area-inset-right)+0.5rem)] pl-2 touch-none flex flex-col items-stretch justify-center gap-2"',
               'landscape JUMP rail'
           )
 
