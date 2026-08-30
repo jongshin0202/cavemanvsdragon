@@ -7,7 +7,7 @@ describe('vibrateWebControl', () => {
 
     expect(vibrateWebControl(45, { vibrate } as unknown as Navigator)).toBe(true);
     expect(vibrate).toHaveBeenCalledTimes(1);
-    expect(vibrate).toHaveBeenCalledWith([45]);
+    expect(vibrate).toHaveBeenCalledWith(45);
   });
 
   it('uses a perceptible minimum pulse', () => {
@@ -15,14 +15,14 @@ describe('vibrateWebControl', () => {
 
     vibrateWebControl(5, { vibrate } as unknown as Navigator);
 
-    expect(vibrate).toHaveBeenCalledWith([CONTROL_HAPTIC_MIN_MS]);
+    expect(vibrate).toHaveBeenCalledWith(CONTROL_HAPTIC_MIN_MS);
   });
 
   it('falls back to the prefixed browser API when present', () => {
     const webkitVibrate = vi.fn(() => true);
 
     expect(vibrateWebControl(35, { webkitVibrate } as unknown as Navigator)).toBe(true);
-    expect(webkitVibrate).toHaveBeenCalledWith([35]);
+    expect(webkitVibrate).toHaveBeenCalledWith(35);
   });
 
   it('does nothing when the browser exposes no vibration API', () => {
