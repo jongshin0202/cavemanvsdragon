@@ -4791,8 +4791,8 @@ const CavemanVsDragonGame = () => {
     <div className={`relative flex h-[100dvh] min-h-[100dvh] w-full overflow-hidden select-none bg-background ${useLandscapeLayout ? 'flex-row' : 'flex-col'}`}>
       {/* Landscape: D-pad on left */}
       {useLandscapeLayout && (
-        <div className="h-full shrink-0 py-2 pl-[calc(env(safe-area-inset-left)+0.5rem)] pr-2 touch-none flex items-center">
-          <div className="h-[min(72vh,240px)] w-[min(48vw,240px)]">{dpadEl}</div>
+        <div className="flex h-full w-[clamp(132px,24vw,240px)] shrink-0 items-center justify-center py-2 pl-[calc(env(safe-area-inset-left)+0.5rem)] pr-2 touch-none">
+          <div className="h-[min(72vh,240px)] w-full max-w-[220px]">{dpadEl}</div>
         </div>
       )}
 
@@ -4840,8 +4840,12 @@ const CavemanVsDragonGame = () => {
             style={{
               imageRendering: 'pixelated',
               aspectRatio: `${CANVAS_W} / ${CANVAS_H}`,
-              height: '100%',
-              width: 'auto',
+              // Portrait must be width-led. A full-height canvas constrained
+              // afterward by the phone's narrow width can stretch vertically.
+              // Landscape remains height-led so it uses the available center
+              // column while preserving the same native canvas aspect ratio.
+              height: isLandscape ? '100%' : 'auto',
+              width: isLandscape ? 'auto' : '100%',
             }}
             tabIndex={0}
           />
@@ -5244,11 +5248,11 @@ const CavemanVsDragonGame = () => {
       {/* Landscape phone: big red JUMP rectangle on the right of the canvas.
           R button stacks above only on post-game leaderboard screens. */}
       {useLandscapeLayout && (
-        <div className="h-full shrink-0 py-2 pr-[calc(env(safe-area-inset-right)+0.5rem)] pl-2 touch-none flex flex-col items-stretch justify-center gap-2 w-[min(36vw,180px)]">
+        <div className="flex h-full w-[clamp(132px,24vw,240px)] shrink-0 flex-col items-center justify-center gap-2 py-2 pl-2 pr-[calc(env(safe-area-inset-right)+0.5rem)] touch-none">
           {(gameState === 'leaderboard' || gameState === 'globalLeaderboard') && (
             <div className="self-center">{rButtonEl}</div>
           )}
-          <div className="h-[min(72vh,240px)] min-h-0">
+          <div className="h-[min(48vh,180px)] min-h-0 w-[72%] max-w-[160px]">
             {jumpButtonLandscapeEl}
           </div>
         </div>
@@ -5257,8 +5261,8 @@ const CavemanVsDragonGame = () => {
       {/* Portrait: original bottom controls bar. Controls — only on touch devices (mobile/tablet).
           Hidden during intro/attract screens or when a hardware gamepad is detected. */}
       {controlsVisible && !isLandscape && (
-      <div className={`w-full shrink-0 overflow-hidden px-2 pt-2 touch-none ${isNativeApp ? 'pb-0 -mt-2' : 'pb-[calc(env(safe-area-inset-bottom)+0.5rem)]'}`}>
-        <div className="grid h-[152px] w-full grid-cols-[minmax(0,1fr)_3rem_minmax(7.5rem,38vw)] items-stretch gap-2">
+      <div className={`w-full shrink-0 overflow-hidden px-3 pt-1 touch-none ${isNativeApp ? 'pb-1' : 'pb-[calc(env(safe-area-inset-bottom)+0.75rem)]'}`}>
+        <div className="grid h-[clamp(184px,27dvh,228px)] w-full grid-cols-[minmax(0,1fr)_3rem_minmax(8rem,38vw)] items-stretch gap-3">
           {dpadEl}
           {rButtonEl}
           {jumpButtonEl}
