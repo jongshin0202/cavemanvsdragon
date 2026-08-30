@@ -218,7 +218,8 @@ jobs:
           rg -q "cvd-native-app-foreground" src/components/CavemanVsDragonGame.tsx
           rg -q "visibilitychange" src/components/CavemanVsDragonGame.tsx
           rg -q "document.visibilityState === 'hidden'" src/components/game/bgMusic.ts
-          rg -Fq "anyInputHandlerRef.current?.('Start', 'pad')" src/components/CavemanVsDragonGame.tsx
+          rg -Fq "anyInputHandlerRef.current?.(detail.key, 'pad')" src/components/CavemanVsDragonGame.tsx
+          rg -Fq "keysRef.current.add(detail.key)" src/components/CavemanVsDragonGame.tsx
           rg -q 'if \(Capacitor\.isNativePlatform\(\)\) return true' src/components/game/sounds.ts
           rg -q 'PHONE_SFX_GAIN = 2\.4' src/components/game/sounds.ts
           rg -q 'export async function pauseBrowserMusic' src/components/game/bgMusic.ts
@@ -440,7 +441,7 @@ jobs:
 
           old = (
               "  // ============= Gamepad API polling (PC + browsers that expose it) =============\n"
-              "  // Standard mapping: 0=A (jump), 9=Start (R), 12/13/14/15 = DPAD up/down/left/right.\n"
+              "  // Standard mapping: 0=A (jump), 9=Start, 12/13/14/15 = DPAD up/down/left/right.\n"
               "  // Left stick: axes[0] (x), axes[1] (y). Threshold 0.4.\n"
               "  useEffect(() => {\n"
               "    let raf = 0;"

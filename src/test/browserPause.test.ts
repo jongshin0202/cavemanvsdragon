@@ -48,4 +48,19 @@ describe('browser gameplay pause input', () => {
       source: 'pad',
     })).toBe('none');
   });
+
+  it('toggles phone and desktop web pause with the controller START button', () => {
+    expect(getBrowserGameplayPauseAction({
+      isNativeApp: false,
+      isPaused: false,
+      key: 'Start',
+      source: 'pad',
+    })).toBe('pause');
+    expect(getBrowserGameplayPauseAction({
+      isNativeApp: false,
+      isPaused: true,
+      key: 'Start',
+      source: 'pad',
+    })).toBe('resume');
+  });
 });

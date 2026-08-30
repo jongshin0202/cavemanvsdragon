@@ -13,14 +13,13 @@ export function getBrowserGameplayPauseAction({
   key,
   source,
 }: BrowserGameplayPauseInput): BrowserGameplayPauseAction {
-  // The Android bridge reports the physical controller's START button using
-  // the pad source. START toggles pause in native gameplay; it must not be
-  // ignored just because the browser Gamepad path is disabled in the APK.
-  if (isNativeApp) {
-    return source === 'pad' && key === 'Start'
-      ? (isPaused ? 'resume' : 'pause')
-      : 'none';
+  // Both the Android bridge and browser Gamepad API normalize the physical
+  // controller's START button to this shared action.
+  if (source === 'pad' && key === 'Start') {
+    return isPaused ? 'resume' : 'pause';
   }
+
+  if (isNativeApp) return 'none';
 
   if (isPaused && source === 'keyboard') return 'resume';
   if (!isPaused && source === 'keyboard' && key === 'Enter') return 'pause';
