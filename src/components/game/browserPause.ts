@@ -1,4 +1,5 @@
 type BrowserGameplayPauseAction = 'pause' | 'resume' | 'consume' | 'none';
+export type BrowserPageAudioAction = 'pause' | 'resume' | 'release' | 'none';
 
 interface BrowserGameplayPauseInput {
   isNativeApp: boolean;
@@ -26,4 +27,22 @@ export function getBrowserGameplayPauseAction({
   if (!isPaused && source === 'keyboard' && key.toLowerCase() === 'r') return 'consume';
 
   return 'none';
+}
+
+interface BrowserPageAudioInput {
+  visibilityState: DocumentVisibilityState;
+  pausedForPageBackground: boolean;
+  playerPaused: boolean;
+}
+
+export function getBrowserPageAudioAction({
+  visibilityState,
+  pausedForPageBackground,
+  playerPaused,
+}: BrowserPageAudioInput): BrowserPageAudioAction {
+  if (visibilityState === 'hidden') {
+    return pausedForPageBackground ? 'none' : 'pause';
+  }
+  if (!pausedForPageBackground) return 'none';
+  return playerPaused ? 'release' : 'resume';
 }
