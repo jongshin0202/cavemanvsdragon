@@ -297,6 +297,7 @@ const CavemanVsDragonGame = () => {
   // Landscape orientation — on touch devices, when held horizontally, the
   // D-pad moves to the left of the canvas and JUMP/R move to the right.
   const [isLandscape, setIsLandscape] = useState<boolean>(false);
+  const [isDocumentFullscreen, setIsDocumentFullscreen] = useState<boolean>(false);
   // Tablet detection — touch devices whose shorter side is ≥ 600 CSS px are
   // treated as tablets. On the native APK build these get a 4:3 game area
   // and NO on-screen controls (they typically have keyboards/gamepads or
@@ -314,6 +315,18 @@ const CavemanVsDragonGame = () => {
     return () => {
       window.removeEventListener('resize', update);
       window.removeEventListener('orientationchange', update);
+    };
+  }, []);
+  useEffect(() => {
+    const update = () => setIsDocumentFullscreen(Boolean(
+      document.fullscreenElement || (document as any).webkitFullscreenElement,
+    ));
+    update();
+    document.addEventListener('fullscreenchange', update);
+    document.addEventListener('webkitfullscreenchange', update as EventListener);
+    return () => {
+      document.removeEventListener('fullscreenchange', update);
+      document.removeEventListener('webkitfullscreenchange', update as EventListener);
     };
   }, []);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -4735,7 +4748,24 @@ const CavemanVsDragonGame = () => {
   );
 
   return (
-    <div className={`flex h-[100dvh] min-h-[100dvh] w-full overflow-hidden select-none bg-background ${useLandscapeLayout ? 'flex-row' : 'flex-col'}`}>
+    <div className={`relative flex h-[100dvh] min-h-[100dvh] w-full overflow-hidden select-none bg-background ${useLandscapeLayout ? 'flex-row' : 'flex-col'}`}>
+      {!isNativeApp && isTouchDevice && isLandscape && !isDocumentFullscreen && (
+        <button
+          type="button"
+          className="absolute right-2 top-2 z-[100] rounded border-2 border-accent bg-black/90 px-3 py-2 font-caveman text-xs text-accent shadow-lg"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            void requestMobileLandscapeFullscreen({
+              isNativeApp,
+              isTouchDevice,
+              isLandscape: true,
+            });
+          }}
+        >
+          FULL SCREEN
+        </button>
+      )}
       {/* Landscape: D-pad on left */}
       {useLandscapeLayout && (
         <div className="h-full shrink-0 py-2 pl-[calc(env(safe-area-inset-left)+0.5rem)] pr-2 touch-none flex items-center">
@@ -5008,7 +5038,11 @@ const CavemanVsDragonGame = () => {
                   textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
                 }}
               >
-                {mobileStartUi ? (gamepadActive ? 'Press START to Start' : 'Touch Screen to Start') : 'Press R to Start'}
+                {mobileStartUi
+                  ? (isNativeApp
+                    ? (gamepadActive ? 'Press START to Start' : 'Touch Screen to Start')
+                    : 'Press START or Touch Screen to Start')
+                  : 'Press R to Start'}
               </div>
               <div
                 className="flex items-center justify-center gap-3 text-center font-caveman"
@@ -5468,7 +5502,11 @@ const AttractLeaderboardScreen = ({
             textShadow: '3px 3px 0 hsl(var(--primary)), 5px 5px 0 #000',
           }}
         >
-          {isMobile ? (gamepadActive ? 'Press START to Start' : 'Touch Screen to Start') : 'Press R to Start'}
+          {isMobile
+            ? (isNativeApp
+              ? (gamepadActive ? 'Press START to Start' : 'Touch Screen to Start')
+              : 'Press START or Touch Screen to Start')
+            : 'Press R to Start'}
         </div>
         <div
           className="flex items-center justify-center gap-3 text-center font-caveman"
