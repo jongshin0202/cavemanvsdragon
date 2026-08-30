@@ -5041,7 +5041,7 @@ const CavemanVsDragonGame = () => {
                 {mobileStartUi
                   ? (isNativeApp
                     ? (gamepadActive ? 'Press START to Start' : 'Touch Screen to Start')
-                    : 'Press START or Touch Screen to Start')
+                    : (gamepadActive ? 'Press START to Start' : 'Touch Screen to Start'))
                   : 'Press R to Start'}
               </div>
               <div
@@ -5505,7 +5505,7 @@ const AttractLeaderboardScreen = ({
           {isMobile
             ? (isNativeApp
               ? (gamepadActive ? 'Press START to Start' : 'Touch Screen to Start')
-              : 'Press START or Touch Screen to Start')
+              : (gamepadActive ? 'Press START to Start' : 'Touch Screen to Start'))
             : 'Press R to Start'}
         </div>
         <div
