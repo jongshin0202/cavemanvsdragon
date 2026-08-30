@@ -65,6 +65,12 @@ import SavedAnimation from './savedAnimation/SavedAnimation';
 import { Capacitor } from '@capacitor/core';
 import { vibrateWebControl } from './game/controlHaptics';
 import { requestMobileLandscapeFullscreen } from './game/mobileFullscreen';
+
+const MOBILE_FULLSCREEN_NOTICE_HOLD_MS = 4000;
+const isFullscreenActive = () => Boolean(
+  document.fullscreenElement
+  || (document as Document & { webkitFullscreenElement?: Element | null }).webkitFullscreenElement,
+);
 import ControllerPasswordKeyboard from './game/ControllerPasswordKeyboard';
 
 const isNativeApp = Capacitor.isNativePlatform();
@@ -360,6 +366,10 @@ const CavemanVsDragonGame = () => {
   const [levelIntroNumber, setLevelIntroNumber] = useState(1);
   const [jumpLabel, setJumpLabel] = useState<'JUMP' | 'KICK'>('JUMP');
   const levelIntroTimersRef = useRef<number[]>([]);
+  // Mobile Chrome briefly covers fullscreen content with its own exit hint.
+  // The browser does not expose that hint's visibility, so keep the opening
+  // Level 1 card up for the matching interval after fullscreen succeeds.
+  const fullscreenNoticeUntilRef = useRef(0);
   // Mirrors `levelIntro` so the rAF game loop (which doesn't see React state
   // directly) can pause physics/spawns/sounds while the "Level N" overlay is
   // showing. Without this, e.g. L1 barrels would start spawning during the
@@ -679,22 +689,35 @@ const CavemanVsDragonGame = () => {
   }, [resetPlayer]);
 
   // Plays the "Level N" intro (3s) → black (0.5s) → then runs onDone.
+  // On a mobile-web fullscreen start, Level 1 remains visible until Chrome's
+  // temporary fullscreen notice should have cleared, then gameplay starts
+  // directly without flashing the black transition underneath the notice.
   const playLevelIntro = useCallback((levelNumber: number, onDone: () => void) => {
     levelIntroTimersRef.current.forEach((id) => window.clearTimeout(id));
     levelIntroTimersRef.current = [];
     setLevelIntroNumber(levelNumber);
     setLevelIntro('level');
     levelIntroRef.current = 'level';
-    const t1 = window.setTimeout(() => {
-      setLevelIntro('black');
-      levelIntroRef.current = 'black';
-    }, 3000);
-    const t2 = window.setTimeout(() => {
+    const finish = () => {
       setLevelIntro(null);
       levelIntroRef.current = null;
       onDone();
-    }, 3500);
-    levelIntroTimersRef.current.push(t1, t2);
+    };
+    const t1 = window.setTimeout(() => {
+      const fullscreenNoticeRemaining = levelNumber === 1
+        ? fullscreenNoticeUntilRef.current - performance.now()
+        : 0;
+      if (fullscreenNoticeRemaining > 0) {
+        const holdTimer = window.setTimeout(finish, fullscreenNoticeRemaining);
+        levelIntroTimersRef.current.push(holdTimer);
+        return;
+      }
+      setLevelIntro('black');
+      levelIntroRef.current = 'black';
+      const blackTimer = window.setTimeout(finish, 500);
+      levelIntroTimersRef.current.push(blackTimer);
+    }, 3000);
+    levelIntroTimersRef.current.push(t1);
   }, []);
 
   const resetGame = useCallback(() => {
@@ -1915,10 +1938,15 @@ const CavemanVsDragonGame = () => {
     };
     const handleFirstGesture = () => {
       unlockAudio();
+      const fullscreenWasActive = isFullscreenActive();
       void requestMobileLandscapeFullscreen({
         isNativeApp,
         isTouchDevice,
         isLandscape: window.innerWidth > window.innerHeight,
+      }).then((enteredFullscreen) => {
+        if (enteredFullscreen && !fullscreenWasActive) {
+          fullscreenNoticeUntilRef.current = performance.now() + MOBILE_FULLSCREEN_NOTICE_HOLD_MS;
+        }
       });
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -4465,10 +4493,15 @@ const CavemanVsDragonGame = () => {
         if (key === 'Start') {
           // Some browsers may accept controller START as activation. Chrome
           // usually requires a screen touch, so this remains best-effort.
+          const fullscreenWasActive = isFullscreenActive();
           void requestMobileLandscapeFullscreen({
             isNativeApp,
             isTouchDevice,
             isLandscape: window.innerWidth > window.innerHeight,
+          }).then((enteredFullscreen) => {
+            if (enteredFullscreen && !fullscreenWasActive) {
+              fullscreenNoticeUntilRef.current = performance.now() + MOBILE_FULLSCREEN_NOTICE_HOLD_MS;
+            }
           });
         }
         const consumed = anyInputHandlerRef.current?.(key, 'pad');
