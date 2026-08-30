@@ -64,6 +64,7 @@ import dedicationPcUrl from '@/assets/dedication-pc.png';
 import SavedAnimation from './savedAnimation/SavedAnimation';
 import { Capacitor } from '@capacitor/core';
 import { vibrateWebControl } from './game/controlHaptics';
+import { requestMobileLandscapeFullscreen } from './game/mobileFullscreen';
 import ControllerPasswordKeyboard from './game/ControllerPasswordKeyboard';
 
 const isNativeApp = Capacitor.isNativePlatform();
@@ -1104,23 +1105,25 @@ const CavemanVsDragonGame = () => {
   // than the browser Gamepad API, so record that custom event explicitly.
   useEffect(() => {
     if (!isNativeApp) return;
-    const recordNativeController = (event: Event) => {
+    const handleNativeController = (event: Event) => {
       const detail = (event as CustomEvent<{ key?: string; down?: boolean }>).detail;
-      if (!detail?.down || !detail.key) return;
-      recordGameplayControlKey(
-        'gamepad',
-        detail.key,
-        gameStateRef.current === 'playing',
-      );
-      if (detail.key === 'Start' && gameStateRef.current === 'playing') {
-        anyInputHandlerRef.current?.('Start', 'pad');
+      if (!detail?.key) return;
+
+      markGamepadActive();
+      if (detail.down) {
+        recordGameplayControlKey('gamepad', detail.key, gameStateRef.current === 'playing');
+        keysRef.current.add(detail.key);
+        const consumed = anyInputHandlerRef.current?.(detail.key, 'pad');
+        if (detail.key === 'Start' && !consumed) resetGame();
+      } else {
+        keysRef.current.delete(detail.key);
       }
     };
-    window.addEventListener('cvd-native-controller-key', recordNativeController);
+    window.addEventListener('cvd-native-controller-key', handleNativeController);
     return () => {
-      window.removeEventListener('cvd-native-controller-key', recordNativeController);
+      window.removeEventListener('cvd-native-controller-key', handleNativeController);
     };
-  }, []);
+  }, [markGamepadActive, resetGame]);
 
   const moveAttractScreen = useCallback((direction: -1 | 1) => {
     const current = gameStateRef.current;
@@ -1910,7 +1913,14 @@ const CavemanVsDragonGame = () => {
         cHoldFiredRef.current = false;
       }
     };
-    const handleFirstGesture = () => { unlockAudio(); };
+    const handleFirstGesture = () => {
+      unlockAudio();
+      void requestMobileLandscapeFullscreen({
+        isNativeApp,
+        isTouchDevice,
+        isLandscape: window.innerWidth > window.innerHeight,
+      });
+    };
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     window.addEventListener('pointerdown', handleFirstGesture);
@@ -4437,26 +4447,23 @@ const CavemanVsDragonGame = () => {
       window.removeEventListener('pointerdown', handleFirstGesture);
       window.removeEventListener('touchstart', handleFirstGesture);
     };
-  }, [resetGame, resetPlayer]);
+  }, [isNativeApp, isTouchDevice, resetGame, resetPlayer]);
 
   // ============= Gamepad API polling (PC + browsers that expose it) =============
-  // Standard mapping: 0=A (jump), 9=Start (R), 12/13/14/15 = DPAD up/down/left/right.
+  // Standard mapping: 0=A (jump), 9=Start, 12/13/14/15 = DPAD up/down/left/right.
   // Left stick: axes[0] (x), axes[1] (y). Threshold 0.4.
   useEffect(() => {
     let raf = 0;
     const prev: Record<string, boolean> = {};
-    const send = (key: string, down: boolean, isStart = false) => {
+    const send = (key: string, down: boolean) => {
       if (down === !!prev[key]) return;
       prev[key] = down;
       if (down) {
         markGamepadActive();
         recordGameplayControlKey('gamepad', key, gameStateRef.current === 'playing');
         keysRef.current.add(key);
-        anyInputHandlerRef.current?.(key, 'pad');
-        if (isStart && key === 'r') {
-          // Match keyboard 'R' behavior: if not consumed by menus, reset.
-          // anyInputHandlerRef already had a chance above.
-        }
+        const consumed = anyInputHandlerRef.current?.(key, 'pad');
+        if (key === 'Start' && !consumed) resetGame();
       } else {
         keysRef.current.delete(key);
       }
@@ -4482,7 +4489,7 @@ const CavemanVsDragonGame = () => {
         send('ArrowLeft', left);
         send('ArrowRight', right);
         send(' ', jump);
-        send('r', start, true);
+        send('Start', start);
         markGamepadActive();
         break; // first connected gamepad wins
       }
@@ -4506,7 +4513,7 @@ const CavemanVsDragonGame = () => {
       window.removeEventListener('gamepadconnected', onConnect);
       cancelAnimationFrame(raf);
     };
-  }, [markGamepadActive]);
+  }, [markGamepadActive, resetGame]);
   // Fire synchronously from the pointer handler so Android browsers retain
   // the user activation required by the Vibration API.
   const vibrateNow = (ms: number) => vibrateWebControl(ms);
