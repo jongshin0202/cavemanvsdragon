@@ -29,7 +29,9 @@ export const vibrateWebControl = (
 
   const duration = Math.max(CONTROL_HAPTIC_MIN_MS, Math.round(ms));
   try {
-    return vibrate([duration]) !== false;
+    // A single numeric duration is supported more consistently by Android web
+    // browsers than a one-item vibration pattern.
+    return vibrate(duration) !== false;
   } catch {
     return false;
   }

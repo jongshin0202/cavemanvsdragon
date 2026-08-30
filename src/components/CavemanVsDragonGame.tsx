@@ -4516,8 +4516,9 @@ const CavemanVsDragonGame = () => {
     // Chrome on Samsung phones can emit pointerdown and touchstart for the
     // same press. Keep the touch fallback without producing a double pulse.
     if (lastHapticAtRef.current > 0 && now - lastHapticAtRef.current < 60) return;
-    lastHapticAtRef.current = now;
-    vibrateNow(ms);
+    // If pointer vibration is rejected, allow touchstart to retry instead of
+    // treating the failed request as a completed pulse.
+    if (vibrateNow(ms)) lastHapticAtRef.current = now;
   };
 
   const simulateKey = useCallback((key: string, type: 'down' | 'up') => {

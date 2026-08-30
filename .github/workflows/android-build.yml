@@ -403,10 +403,10 @@ jobs:
               const nativeBridge = (window as any).CvdNative;
               if (nativeBridge && typeof nativeBridge.vibrate === 'function') {
                 nativeBridge.vibrate(duration);
-                return;
+                return true;
               }
             } catch {}
-            vibrateWebControl(duration);
+            return vibrateWebControl(duration);
           };"""
           if 'nativeBridge.vibrate(duration);' in s:
               print('Native haptics bridge already present')
