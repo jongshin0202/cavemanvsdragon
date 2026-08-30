@@ -23,6 +23,7 @@ import { recordLaunchAndMaybeFlush, recordRound, recordGlobalHit } from './game/
 import { canUpgradeWorkerProfile, checkWorkerPlayerNameAvailability, claimWorkerLeaderboardProfile, getWorkerPlayerName, isWorkerInvalidCredentialsError, isWorkerNameAvailabilityEndpointMissing, isWorkerNameUnavailableError, loginWorkerLeaderboardProfile, reclaimClearedWorkerLeaderboardProfile, upgradeWorkerLeaderboardProfile, workerProfileNeedsUpgrade } from './game/workerApi';
 import { recordGameplayControlKey, resetGameplayControlType } from './game/controlType';
 import { isLandscapeLeaderboardViewport } from './game/leaderboardViewport';
+import { shouldAllowSystemNameKeyboard, shouldUseLandscapeTouchLayout } from './game/touchUi';
 import { getBrowserGameplayPauseAction } from './game/browserPause';
 import { adjacentAttractScreen, isAttractScreen } from './game/attractNavigation';
 import { canMountLadder } from './game/ladderMount';
@@ -1519,7 +1520,10 @@ const CavemanVsDragonGame = () => {
 
     const nameDisplay = document.createElement('button');
     nameDisplay.type = 'button';
-    nameDisplay.setAttribute('aria-label', 'Player name. Tap to use phone keyboard.');
+    nameDisplay.setAttribute(
+      'aria-label',
+      isNativeApp ? 'Player name' : 'Player name. Tap to use phone keyboard.',
+    );
     Object.assign(nameDisplay.style, {
       display: 'block',
       width: 'min(92vw, 560px)',
@@ -1545,6 +1549,7 @@ const CavemanVsDragonGame = () => {
     nameDisplay.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       e.stopPropagation();
+      if (isNativeApp) return;
       try {
         nameFieldRef.current?.focus({ preventScroll: true } as any);
       } catch {
@@ -4484,6 +4489,13 @@ const CavemanVsDragonGame = () => {
       if (!anyConnected) {
         // release any latched keys
         for (const k of Object.keys(prev)) if (prev[k]) send(k, false);
+        // In a phone browser, restore touch controls after an external
+        // controller is disconnected. Native controller state is managed by
+        // the Android bridge above.
+        if (!isNativeApp && gamepadActiveRef.current) {
+          gamepadActiveRef.current = false;
+          setGamepadActive(false);
+        }
       }
       raf = requestAnimationFrame(poll);
     };
@@ -4635,9 +4647,18 @@ const CavemanVsDragonGame = () => {
   // Hide on-screen controls whenever a hardware gamepad / bluetooth controller
   // is connected (any orientation), or on tablets in the native APK build.
   const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls' || gameState === 'enterName' || gameState === 'confirmName' || gameState === 'globalLeaderboard');
-  // Landscape side-mounted controls are an APK-only layout. In the browser
-  // we always render the portrait bottom bar, regardless of window aspect.
-  const useLandscapeLayout = controlsVisible && isLandscape && isNativeApp;
+  // Phones use the same side-mounted landscape controls in both the APK and
+  // mobile web. Desktop web never passes controlsVisible because it does not
+  // have a coarse pointer; tablets and attached controllers remain excluded.
+  const useLandscapeLayout = shouldUseLandscapeTouchLayout({
+    controlsVisible,
+    isLandscape,
+    isTablet,
+  });
+  const systemNameKeyboardEnabled = shouldAllowSystemNameKeyboard({
+    isNativeApp,
+    gamepadActive,
+  });
 
   const dpadEl = (
     <div
@@ -4697,7 +4718,7 @@ const CavemanVsDragonGame = () => {
     >{jumpLabel}</button>
   );
 
-  // Landscape (APK only): big red rectangle JUMP button on the right side.
+  // Landscape phone: big red rectangle JUMP button on the right side.
   const jumpButtonLandscapeEl = (
     <button
       className="h-full w-full min-w-0 rounded-2xl bg-red-600 text-white text-3xl font-extrabold tracking-wider active:scale-95 active:bg-red-700 shadow-lg"
@@ -4799,17 +4820,17 @@ const CavemanVsDragonGame = () => {
               if (gameState === 'enterName') void requestNameConfirmation();
             }
           }}
-          autoFocus={gameState === 'enterName'}
+          autoFocus={gameState === 'enterName' && systemNameKeyboardEnabled}
           autoCapitalize="characters"
           autoCorrect="off"
           spellCheck={false}
           maxLength={NAME_MAX_LENGTH}
           aria-label="Enter your name (up to 10 characters)"
           placeholder=""
-          inputMode={gameState === 'enterName' ? 'text' : 'none'}
+          inputMode={gameState === 'enterName' && systemNameKeyboardEnabled ? 'text' : 'none'}
           enterKeyHint="send"
-          readOnly={gameState !== 'enterName'}
-          tabIndex={gameState === 'enterName' ? 0 : -1}
+          readOnly={gameState !== 'enterName' || !systemNameKeyboardEnabled}
+          tabIndex={gameState === 'enterName' && systemNameKeyboardEnabled ? 0 : -1}
           className={
             gameState === 'enterName'
               ? "absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[14%] bg-transparent text-transparent caret-transparent border-0 outline-none focus:outline-none p-0 m-0 text-center"
@@ -5155,7 +5176,7 @@ const CavemanVsDragonGame = () => {
         )}
       </div>
 
-      {/* Landscape (APK only): big red JUMP rectangle on the right of the canvas.
+      {/* Landscape phone: big red JUMP rectangle on the right of the canvas.
           R button stacks above only on post-game leaderboard screens. */}
       {useLandscapeLayout && (
         <div className="h-full shrink-0 py-2 pr-[calc(env(safe-area-inset-right)+0.5rem)] pl-2 touch-none flex flex-col items-stretch justify-center gap-2 w-[min(36vw,180px)]">
