@@ -297,7 +297,6 @@ const CavemanVsDragonGame = () => {
   // Landscape orientation — on touch devices, when held horizontally, the
   // D-pad moves to the left of the canvas and JUMP/R move to the right.
   const [isLandscape, setIsLandscape] = useState<boolean>(false);
-  const [isDocumentFullscreen, setIsDocumentFullscreen] = useState<boolean>(false);
   // Tablet detection — touch devices whose shorter side is ≥ 600 CSS px are
   // treated as tablets. On the native APK build these get a 4:3 game area
   // and NO on-screen controls (they typically have keyboards/gamepads or
@@ -315,18 +314,6 @@ const CavemanVsDragonGame = () => {
     return () => {
       window.removeEventListener('resize', update);
       window.removeEventListener('orientationchange', update);
-    };
-  }, []);
-  useEffect(() => {
-    const update = () => setIsDocumentFullscreen(Boolean(
-      document.fullscreenElement || (document as any).webkitFullscreenElement,
-    ));
-    update();
-    document.addEventListener('fullscreenchange', update);
-    document.addEventListener('webkitfullscreenchange', update as EventListener);
-    return () => {
-      document.removeEventListener('fullscreenchange', update);
-      document.removeEventListener('webkitfullscreenchange', update as EventListener);
     };
   }, []);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -4475,6 +4462,15 @@ const CavemanVsDragonGame = () => {
         markGamepadActive();
         recordGameplayControlKey('gamepad', key, gameStateRef.current === 'playing');
         keysRef.current.add(key);
+        if (key === 'Start') {
+          // Some browsers may accept controller START as activation. Chrome
+          // usually requires a screen touch, so this remains best-effort.
+          void requestMobileLandscapeFullscreen({
+            isNativeApp,
+            isTouchDevice,
+            isLandscape: window.innerWidth > window.innerHeight,
+          });
+        }
         const consumed = anyInputHandlerRef.current?.(key, 'pad');
         if (key === 'Start' && !consumed) resetGame();
       } else {
@@ -4526,7 +4522,7 @@ const CavemanVsDragonGame = () => {
       window.removeEventListener('gamepadconnected', onConnect);
       cancelAnimationFrame(raf);
     };
-  }, [markGamepadActive, resetGame]);
+  }, [isTouchDevice, markGamepadActive, resetGame]);
   // Fire synchronously from the pointer handler so Android browsers retain
   // the user activation required by the Vibration API.
   const vibrateNow = (ms: number) => vibrateWebControl(ms);
@@ -4749,23 +4745,6 @@ const CavemanVsDragonGame = () => {
 
   return (
     <div className={`relative flex h-[100dvh] min-h-[100dvh] w-full overflow-hidden select-none bg-background ${useLandscapeLayout ? 'flex-row' : 'flex-col'}`}>
-      {!isNativeApp && isTouchDevice && isLandscape && !isDocumentFullscreen && (
-        <button
-          type="button"
-          className="absolute right-2 top-2 z-[100] rounded border-2 border-accent bg-black/90 px-3 py-2 font-caveman text-xs text-accent shadow-lg"
-          onPointerDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            void requestMobileLandscapeFullscreen({
-              isNativeApp,
-              isTouchDevice,
-              isLandscape: true,
-            });
-          }}
-        >
-          FULL SCREEN
-        </button>
-      )}
       {/* Landscape: D-pad on left */}
       {useLandscapeLayout && (
         <div className="h-full shrink-0 py-2 pl-[calc(env(safe-area-inset-left)+0.5rem)] pr-2 touch-none flex items-center">
