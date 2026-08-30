@@ -24,7 +24,7 @@ import { canUpgradeWorkerProfile, checkWorkerPlayerNameAvailability, claimWorker
 import { recordGameplayControlKey, resetGameplayControlType } from './game/controlType';
 import { isLandscapeLeaderboardViewport } from './game/leaderboardViewport';
 import { shouldAllowSystemNameKeyboard, shouldUseLandscapeTouchLayout } from './game/touchUi';
-import { getBrowserGameplayPauseAction } from './game/browserPause';
+import { getBrowserGameplayPauseAction, getBrowserPageAudioAction } from './game/browserPause';
 import { adjacentAttractScreen, isAttractScreen } from './game/attractNavigation';
 import { canMountLadder } from './game/ladderMount';
 import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
@@ -1090,6 +1090,50 @@ const CavemanVsDragonGame = () => {
       window.removeEventListener('cvd-native-app-background', pauseForBackground);
       window.removeEventListener('cvd-native-app-foreground', resumeFromBackground);
       document.removeEventListener('visibilitychange', resumeWhenVisible);
+    };
+  }, []);
+
+  // Browsers do not emit the native Android lifecycle bridge events. Pause
+  // both audio paths whenever this page is hidden (another tab, another app,
+  // or the browser itself is backgrounded), then resume only after this page
+  // is visible again. A player-requested pause always takes precedence.
+  useEffect(() => {
+    if (isNativeApp) return;
+
+    let pausedForPageBackground = false;
+
+    const pauseForPageBackground = () => {
+      if (pausedForPageBackground) return;
+      pausedForPageBackground = true;
+      void pauseBrowserMusic();
+      void pauseBrowserSfx();
+    };
+    const handleVisibilityChange = () => {
+      const action = getBrowserPageAudioAction({
+        visibilityState: document.visibilityState,
+        pausedForPageBackground,
+        playerPaused: webPausedRef.current,
+      });
+      if (action === 'pause') {
+        pauseForPageBackground();
+      } else if (action === 'resume' || action === 'release') {
+        pausedForPageBackground = false;
+        if (action === 'resume') {
+          void resumeBrowserMusic();
+          void resumeBrowserSfx();
+        }
+      }
+    };
+
+    const resumeFromPageBackground = () => handleVisibilityChange();
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', pauseForPageBackground);
+    window.addEventListener('pageshow', resumeFromPageBackground);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', pauseForPageBackground);
+      window.removeEventListener('pageshow', resumeFromPageBackground);
     };
   }, []);
 

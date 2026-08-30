@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { getBrowserGameplayPauseAction } from '@/components/game/browserPause';
+import {
+  getBrowserGameplayPauseAction,
+  getBrowserPageAudioAction,
+} from '@/components/game/browserPause';
 
 describe('browser gameplay pause input', () => {
   it('pauses web gameplay with Enter and never restarts with R', () => {
@@ -62,5 +65,36 @@ describe('browser gameplay pause input', () => {
       key: 'Start',
       source: 'pad',
     })).toBe('resume');
+  });
+});
+
+describe('browser page audio lifecycle', () => {
+  it('pauses once when the game tab becomes hidden', () => {
+    expect(getBrowserPageAudioAction({
+      visibilityState: 'hidden',
+      pausedForPageBackground: false,
+      playerPaused: false,
+    })).toBe('pause');
+    expect(getBrowserPageAudioAction({
+      visibilityState: 'hidden',
+      pausedForPageBackground: true,
+      playerPaused: false,
+    })).toBe('none');
+  });
+
+  it('resumes when the game tab becomes visible again', () => {
+    expect(getBrowserPageAudioAction({
+      visibilityState: 'visible',
+      pausedForPageBackground: true,
+      playerPaused: false,
+    })).toBe('resume');
+  });
+
+  it('preserves a player-requested pause after returning to the tab', () => {
+    expect(getBrowserPageAudioAction({
+      visibilityState: 'visible',
+      pausedForPageBackground: true,
+      playerPaused: true,
+    })).toBe('release');
   });
 });
