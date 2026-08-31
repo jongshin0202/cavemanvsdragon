@@ -1199,8 +1199,13 @@ const CavemanVsDragonGame = () => {
       moveAttractScreen(dx < 0 ? 1 : -1);
       return;
     }
+    // Chrome on Android grants transient user activation when a touch is
+    // completed (pointerup), not reliably on touchstart/pointerdown. Keep the
+    // fullscreen call directly in this trusted event and before Tap changes
+    // the game state to playing.
+    void requestMobileFullscreen({ isNativeApp, isTouchDevice });
     anyInputHandlerRef.current?.('Tap', 'pad');
-  }, [moveAttractScreen]);
+  }, [isTouchDevice, moveAttractScreen]);
   const handleAttractPointerCancel = useCallback(() => {
     attractPointerStartRef.current = null;
   }, []);
@@ -1960,26 +1965,8 @@ const CavemanVsDragonGame = () => {
         cHoldFiredRef.current = false;
       }
     };
-    let fullscreenRequestPending = false;
-    const requestStartFullscreen = () => {
-      if (fullscreenRequestPending || !isMobileFullscreenStartState(gameStateRef.current)) return;
-      unlockAudio();
-      fullscreenRequestPending = true;
-      void requestMobileFullscreen({
-        isNativeApp,
-        isTouchDevice,
-      }).finally(() => {
-        fullscreenRequestPending = false;
-      });
-    };
-    const handleStartPointer = () => requestStartFullscreen();
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
-    // Capture the initiating pointer before the start-screen control changes
-    // gameStateRef to "playing". Android Chrome also requires fullscreen to
-    // be requested directly from this trusted pointer event; touchstart is
-    // not consistently accepted as fullscreen user activation.
-    window.addEventListener('pointerdown', handleStartPointer, { capture: true });
 
     let intervalId: number | null = null; // 60Hz game loop driver
 
@@ -4506,7 +4493,6 @@ const CavemanVsDragonGame = () => {
       if (intervalId !== null) clearInterval(intervalId);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
-      window.removeEventListener('pointerdown', handleStartPointer, { capture: true });
     };
   }, [isNativeApp, isTouchDevice, resetGame, resetPlayer]);
 
