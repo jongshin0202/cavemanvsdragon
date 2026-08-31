@@ -1972,17 +1972,14 @@ const CavemanVsDragonGame = () => {
         fullscreenRequestPending = false;
       });
     };
-    const handleStartTouch = () => requestStartFullscreen();
-    const handleStartPointer = (event: PointerEvent) => {
-      // Touchscreen browsers dispatch touchstart before pointerdown. Use the
-      // earliest event and avoid issuing a duplicate request for one tap.
-      if (event.pointerType === 'touch') return;
-      requestStartFullscreen();
-    };
+    const handleStartPointer = () => requestStartFullscreen();
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
-    window.addEventListener('touchstart', handleStartTouch, { passive: true });
-    window.addEventListener('pointerdown', handleStartPointer);
+    // Capture the initiating pointer before the start-screen control changes
+    // gameStateRef to "playing". Android Chrome also requires fullscreen to
+    // be requested directly from this trusted pointer event; touchstart is
+    // not consistently accepted as fullscreen user activation.
+    window.addEventListener('pointerdown', handleStartPointer, { capture: true });
 
     let intervalId: number | null = null; // 60Hz game loop driver
 
@@ -4509,8 +4506,7 @@ const CavemanVsDragonGame = () => {
       if (intervalId !== null) clearInterval(intervalId);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
-      window.removeEventListener('touchstart', handleStartTouch);
-      window.removeEventListener('pointerdown', handleStartPointer);
+      window.removeEventListener('pointerdown', handleStartPointer, { capture: true });
     };
   }, [isNativeApp, isTouchDevice, resetGame, resetPlayer]);
 
