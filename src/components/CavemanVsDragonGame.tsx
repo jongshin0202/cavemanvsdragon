@@ -95,7 +95,10 @@ const isLadderUsable = (round: number, idx: number): boolean => {
     // The L1 top vine remains gated by its own seed/key flow, not the
     // sprout runtime — let the existing topVineUnlocked logic handle it.
     if (!isLevel2Round(round) && idx === getTopVineIdx()) return true;
-    return isLadderUsableL2(idx);
+    // L1/L2 vines grow upward from their base, so a visibly withering vine
+    // beside the player can be mounted and revived. L3 mid-vines grow down
+    // from the ceiling and retain their stricter reach rules.
+    return isLadderUsableL2(idx, !isLevel3Round(round));
   }
   return true;
 };
@@ -3912,7 +3915,14 @@ const CavemanVsDragonGame = () => {
       };
       for (let li = 0; li < LADDERS.length; li++) {
         if (!isLevel2Round(g.round) && li === getTopVineIdx()) continue; // L1: top vine drawn separately
-        if (!isLadderUsable(g.round, li)) continue; // hide ungrown sprouts
+        // Draw the full vine only when its sprout is fully grown. A
+        // withering vine can still be mounted (and revived), but its partial
+        // animation is rendered by the sprout pass below.
+        if (sproutMechanicActive(g.round)) {
+          if (!getSprouts()[li]?.grown) continue;
+        } else if (!isLadderUsable(g.round, li)) {
+          continue;
+        }
         const l = LADDERS[li];
         const sr = isLevel3Round(g.round) ? getSprouts()[li] : null;
         const isMidVineL3 = sr && li !== GREEN_TOP_LADDER_IDX && li !== PURPLE_TOP_LADDER_IDX;
