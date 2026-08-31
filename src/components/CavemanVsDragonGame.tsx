@@ -26,7 +26,7 @@ import { isLandscapeLeaderboardViewport } from './game/leaderboardViewport';
 import { shouldAllowSystemNameKeyboard, shouldUseLandscapeTouchLayout } from './game/touchUi';
 import { getBrowserGameplayPauseAction, getBrowserPageAudioAction } from './game/browserPause';
 import { adjacentAttractScreen, isAttractScreen } from './game/attractNavigation';
-import { canMountLadder } from './game/ladderMount';
+import { canMountLadder, canStartLadderClimb } from './game/ladderMount';
 import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
 import { LEVEL2_PARAMS, getLevel2Difficulty } from './game/level2/params';
 import { initLevel2, updateLevel2, renderLevel2, spawnLevel2Robots, fireballHitsPlayer, tryPickupCan, tryPickupRock, trySealVolcano, maybeSpawnVolcanoRock, onMonkeyKilled, removeMonkeyWithoutKill, newSpawnJacket, pushJacket, isHoleAtPlatform, tickApples, appleHitsPlayer, notifyVolcanoSealedL3, type L2Sprites } from './game/level2/level2';
@@ -2322,7 +2322,13 @@ const CavemanVsDragonGame = () => {
         );
 
 
-        if (wantUp && nearestLadder && !jumpPressed && (p.climbing || canMountHere)) {
+        if (canStartLadderClimb(
+          wantUp,
+          !!nearestLadder,
+          jumpJustPressed,
+          p.climbing,
+          canMountHere,
+        ) && nearestLadder) {
           p.climbing = true;
           p.x = nearestLadder.x + 7 - p.w / 2;
         } else if (wantDown) {
@@ -4681,15 +4687,43 @@ const CavemanVsDragonGame = () => {
     },
   };
 
+  // Pointer capture normally delivers the matching release to the Jump
+  // button. Fullscreen/layout transitions can still interrupt that delivery
+  // on mobile browsers, so also release the exact tracked pointer at the
+  // document level. This prevents a stale Space key from blocking ladders.
+  const jumpPointerIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    const releaseJump = (e: PointerEvent) => {
+      if (jumpPointerIdRef.current === null || e.pointerId !== jumpPointerIdRef.current) return;
+      jumpPointerIdRef.current = null;
+      simulateKey(' ', 'up');
+    };
+    document.addEventListener('pointerup', releaseJump);
+    document.addEventListener('pointercancel', releaseJump);
+    return () => {
+      document.removeEventListener('pointerup', releaseJump);
+      document.removeEventListener('pointercancel', releaseJump);
+    };
+  }, [simulateKey]);
+
   const tapHandlers = (key: string, vibMs = 40) => ({
     onPointerDown: (e: React.PointerEvent) => {
       e.preventDefault();
       pulseHaptic(vibMs);
+      jumpPointerIdRef.current = e.pointerId;
       (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
       simulateKey(key, 'down');
     },
-    onPointerUp: (e: React.PointerEvent) => { e.preventDefault(); simulateKey(key, 'up'); },
-    onPointerCancel: (e: React.PointerEvent) => { e.preventDefault(); simulateKey(key, 'up'); },
+    onPointerUp: (e: React.PointerEvent) => {
+      e.preventDefault();
+      jumpPointerIdRef.current = null;
+      simulateKey(key, 'up');
+    },
+    onPointerCancel: (e: React.PointerEvent) => {
+      e.preventDefault();
+      jumpPointerIdRef.current = null;
+      simulateKey(key, 'up');
+    },
     onPointerLeave: (e: React.PointerEvent) => {
       // Only release if the pointer is no longer pressed (finger lifted off-button).
       if (e.buttons === 0) simulateKey(key, 'up');
