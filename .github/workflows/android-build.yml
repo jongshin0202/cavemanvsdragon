@@ -315,7 +315,8 @@ jobs:
               'center game area': 'relative flex min-h-0 min-w-0 w-full flex-1',
               'landscape JUMP size': 'h-[min(48vh,180px)] min-h-0 w-[72%]',
               'portrait game offset': "-translate-y-[clamp(32px,6dvh,56px)]",
-              'portrait control offset': "-translate-y-[clamp(44px,7dvh,64px)]",
+              'portrait dynamic control centering': 'portraitControlsPanelRef',
+              'portrait control translation': 'translateY(${portraitControlsOffset}px)',
               'portrait expanded D-pad': 'col-span-2 h-full min-w-0 pr-1',
           }
           missing_layout = [name for name, marker in required_phone_layout.items() if marker not in s]
