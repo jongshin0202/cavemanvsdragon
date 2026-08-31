@@ -302,36 +302,25 @@ jobs:
           )
 
           replace_once(
-              "  const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls' || gameState === 'enterName' || gameState === 'confirmName' || gameState === 'globalLeaderboard');",
+              "  const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !gamepadActive && !levelIntro && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls' || gameState === 'enterName' || gameState === 'confirmName' || gameState === 'globalLeaderboard');",
               """  const controllerPresent = gamepadActive || nativeHardwareController || isIiRcadeDevice;
-          const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !controllerPresent && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls' || gameState === 'enterName' || gameState === 'confirmName' || gameState === 'globalLeaderboard');""",
+          const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !controllerPresent && !levelIntro && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls' || gameState === 'enterName' || gameState === 'confirmName' || gameState === 'globalLeaderboard');""",
               'controls visibility block'
           )
 
-          # Landscape: equal-width control rails with a flexible centered game area.
-          replace_once(
-              'className="h-full shrink-0 py-2 pl-[calc(env(safe-area-inset-left)+0.5rem)] pr-2 touch-none flex items-center"',
-              'className="h-full w-[min(32vw,220px)] shrink-0 py-2 pl-[calc(env(safe-area-inset-left)+0.5rem)] pr-2 touch-none flex items-center"',
-              'landscape D-pad rail'
-          )
-
-          replace_once(
-              'className="h-[min(72vh,240px)] w-[min(48vw,240px)]"',
-              'className="h-[min(72vh,220px)] w-full"',
-              'landscape D-pad size'
-          )
-
-          replace_once(
-              'className="relative flex min-h-0 w-full flex-1 items-center justify-center bg-black"',
-              'className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center bg-black"',
-              'center game area'
-          )
-
-          replace_once(
-              'className="h-full shrink-0 py-2 pr-[calc(env(safe-area-inset-right)+0.5rem)] pl-2 touch-none flex flex-col items-stretch justify-center gap-2 w-[min(36vw,180px)]"',
-              'className="h-full w-[min(32vw,220px)] shrink-0 py-2 pr-[calc(env(safe-area-inset-right)+0.5rem)] pl-2 touch-none flex flex-col items-stretch justify-center gap-2"',
-              'landscape JUMP rail'
-          )
+          # Phone geometry is canonical source shared by web and APK. Verify it
+          # instead of rewriting it during packaging so both outputs stay exact.
+          required_phone_layout = {
+              'landscape D-pad rail': 'w-[clamp(132px,24vw,240px)]',
+              'center game area': 'relative flex min-h-0 min-w-0 w-full flex-1',
+              'landscape JUMP size': 'h-[min(48vh,180px)] min-h-0 w-[72%]',
+              'portrait game offset': "-translate-y-[clamp(32px,6dvh,56px)]",
+              'portrait control offset': "-translate-y-[clamp(44px,7dvh,64px)]",
+              'portrait expanded D-pad': 'col-span-2 h-full min-w-0 pr-1',
+          }
+          missing_layout = [name for name, marker in required_phone_layout.items() if marker not in s]
+          if missing_layout:
+              raise SystemExit('Canonical phone layout missing: ' + ', '.join(missing_layout))
 
           # Native container aspect ratio: iiRcade gets full 5:4.
           aspect_pattern = re.compile(
@@ -360,38 +349,23 @@ jobs:
               'canvas aspect ratio'
           )
 
-          canvas_width_pattern = re.compile(
-              r"(aspectRatio:\s*isIiRcadeDevice\s*\?\s*'5 / 4'\s*:\s*`\$\{CANVAS_W\} / \$\{CANVAS_H\}`,\s*\n"
-              r"\s*height:\s*'100%',\s*\n)\s*width:\s*'auto',"
+          canvas_size_pattern = re.compile(
+              r"(?P<indent>^[ \t]*)height: isLandscape \? '100%' : 'auto',\n"
+              r"(?P=indent)width: isLandscape \? 'auto' : '100%',",
+              re.MULTILINE,
           )
-          s, count = canvas_width_pattern.subn(
-              r"\1                      width: isIiRcadeDevice ? '100%' : 'auto',",
+          s, count = canvas_size_pattern.subn(
+              lambda match: (
+                  f"{match.group('indent')}height: isIiRcadeDevice ? '100%' : (isLandscape ? '100%' : 'auto'),\n"
+                  f"{match.group('indent')}width: isIiRcadeDevice ? '100%' : (isLandscape ? 'auto' : '100%'),"
+              ),
               s,
-              count=1
-          )
-          if count != 1:
-              raise SystemExit(f'canvas width block: expected 1 match, found {count}')
-
-          # Portrait camera cutout: move only the game screen downward by the
-          # native display-cutout safe inset. The control bar is intentionally
-          # untouched, and landscape/iiRcade layouts are unaffected.
-          native_style_pattern = re.compile(
-              r"maxHeight:\s*'100%',\s*\n"
-              r"\s*maxWidth:\s*'100%',"
-          )
-          native_style_replacement = """maxHeight: '100%',
-                  maxWidth: '100%',
-                  transform: !isLandscape && nativeTopCutoutInset > 0
-                    ? `translateY(${nativeTopCutoutInset}px)`
-                    : undefined,"""
-          s, count = native_style_pattern.subn(
-              native_style_replacement,
-              s,
-              count=1
+              count=1,
           )
           if count != 1:
               raise SystemExit(
-                  f'portrait camera-cutout game offset: expected 1 match, found {count}'
+                  'iiRcade canvas fill while preserving canonical phone sizing: '
+                  f'expected 1 match, found {count}'
               )
 
           # APK haptics: prefer the native bridge while retaining the canonical
@@ -417,14 +391,6 @@ jobs:
               raise SystemExit(
                   f'vibrateNow canonical block: expected 1 match, found {s.count(vibrate_old)}'
               )
-
-          # Portrait native controls: center the 152px control row vertically
-          # in the space below the game instead of letting it touch the phone bottom.
-          replace_once(
-              'className={`w-full shrink-0 overflow-hidden px-2 pt-2 touch-none ${isNativeApp ? \'pb-0 -mt-2\' : \'pb-[calc(env(safe-area-inset-bottom)+0.5rem)]\'}`}',
-              'className={`w-full shrink-0 overflow-hidden px-2 touch-none ${isNativeApp ? \'py-[clamp(24px,4vh,48px)]\' : \'pt-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]\'}`}',
-              'portrait control centering'
-          )
 
           p.write_text(s)
           print('Android layout/controller/native-haptics/portrait-centering/cutout-offset patch applied successfully')

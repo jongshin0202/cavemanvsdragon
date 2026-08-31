@@ -99,9 +99,15 @@ function rollAliveFrames(): number {
 
 export function getSprouts(): SproutRuntime[] { return sproutsRuntime; }
 
-export function isLadderUsableL2(idx: number): boolean {
+export function isLadderUsableL2(idx: number, allowWitheringMount = false): boolean {
   const s = sproutsRuntime[idx];
-  return !!s && s.grown;
+  if (!s) return false;
+  // A vine withers gradually and remains visibly connected to its base while
+  // growProgress is above zero. Let the player mount that visible vine; the
+  // existing in-use behavior then revives it on the next tick. Previously we
+  // set grown=false at the start of the animation, making a full-looking vine
+  // ignore Up until it disappeared and regrew.
+  return s.grown || (allowWitheringMount && s.phase === 'wither' && s.growProgress > 0);
 }
 
 /** Host calls this each frame for the sprout currently being climbed (if any). */
@@ -437,4 +443,3 @@ export function enableLevel1SproutMechanic(topVineIdx: number, l2IterEquivalent:
     };
   });
 }
-

@@ -26,7 +26,7 @@ import { isLandscapeLeaderboardViewport } from './game/leaderboardViewport';
 import { shouldAllowSystemNameKeyboard, shouldUseLandscapeTouchLayout } from './game/touchUi';
 import { getBrowserGameplayPauseAction, getBrowserPageAudioAction } from './game/browserPause';
 import { adjacentAttractScreen, isAttractScreen } from './game/attractNavigation';
-import { canMountLadder } from './game/ladderMount';
+import { canMountLadder, canStartLadderClimb } from './game/ladderMount';
 import { validateName, NAME_MAX_LENGTH, NAME_ALLOWED_REGEX } from './game/profanity';
 import { LEVEL2_PARAMS, getLevel2Difficulty } from './game/level2/params';
 import { initLevel2, updateLevel2, renderLevel2, spawnLevel2Robots, fireballHitsPlayer, tryPickupCan, tryPickupRock, trySealVolcano, maybeSpawnVolcanoRock, onMonkeyKilled, removeMonkeyWithoutKill, newSpawnJacket, pushJacket, isHoleAtPlatform, tickApples, appleHitsPlayer, notifyVolcanoSealedL3, type L2Sprites } from './game/level2/level2';
@@ -64,7 +64,7 @@ import dedicationPcUrl from '@/assets/dedication-pc.png';
 import SavedAnimation from './savedAnimation/SavedAnimation';
 import { Capacitor } from '@capacitor/core';
 import { vibrateWebControl } from './game/controlHaptics';
-import { requestMobileLandscapeFullscreen } from './game/mobileFullscreen';
+import { isMobileFullscreenStartState, requestMobileFullscreen } from './game/mobileFullscreen';
 import ControllerPasswordKeyboard from './game/ControllerPasswordKeyboard';
 
 const isNativeApp = Capacitor.isNativePlatform();
@@ -95,7 +95,10 @@ const isLadderUsable = (round: number, idx: number): boolean => {
     // The L1 top vine remains gated by its own seed/key flow, not the
     // sprout runtime — let the existing topVineUnlocked logic handle it.
     if (!isLevel2Round(round) && idx === getTopVineIdx()) return true;
-    return isLadderUsableL2(idx);
+    // L1/L2 vines grow upward from their base, so a visibly withering vine
+    // beside the player can be mounted and revived. L3 mid-vines grow down
+    // from the ceiling and retain their stricter reach rules.
+    return isLadderUsableL2(idx, !isLevel3Round(round));
   }
   return true;
 };
@@ -1196,8 +1199,13 @@ const CavemanVsDragonGame = () => {
       moveAttractScreen(dx < 0 ? 1 : -1);
       return;
     }
+    // Chrome on Android grants transient user activation when a touch is
+    // completed (pointerup), not reliably on touchstart/pointerdown. Keep the
+    // fullscreen call directly in this trusted event and before Tap changes
+    // the game state to playing.
+    void requestMobileFullscreen({ isNativeApp, isTouchDevice });
     anyInputHandlerRef.current?.('Tap', 'pad');
-  }, [moveAttractScreen]);
+  }, [isTouchDevice, moveAttractScreen]);
   const handleAttractPointerCancel = useCallback(() => {
     attractPointerStartRef.current = null;
   }, []);
@@ -1957,18 +1965,8 @@ const CavemanVsDragonGame = () => {
         cHoldFiredRef.current = false;
       }
     };
-    const handleFirstGesture = () => {
-      unlockAudio();
-      void requestMobileLandscapeFullscreen({
-        isNativeApp,
-        isTouchDevice,
-        isLandscape: window.innerWidth > window.innerHeight,
-      });
-    };
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
-    window.addEventListener('pointerdown', handleFirstGesture);
-    window.addEventListener('touchstart', handleFirstGesture, { passive: true });
 
     let intervalId: number | null = null; // 60Hz game loop driver
 
@@ -2324,7 +2322,13 @@ const CavemanVsDragonGame = () => {
         );
 
 
-        if (wantUp && nearestLadder && !jumpPressed && (p.climbing || canMountHere)) {
+        if (canStartLadderClimb(
+          wantUp,
+          !!nearestLadder,
+          jumpJustPressed,
+          p.climbing,
+          canMountHere,
+        ) && nearestLadder) {
           p.climbing = true;
           p.x = nearestLadder.x + 7 - p.w / 2;
         } else if (wantDown) {
@@ -3915,7 +3919,14 @@ const CavemanVsDragonGame = () => {
       };
       for (let li = 0; li < LADDERS.length; li++) {
         if (!isLevel2Round(g.round) && li === getTopVineIdx()) continue; // L1: top vine drawn separately
-        if (!isLadderUsable(g.round, li)) continue; // hide ungrown sprouts
+        // Draw the full vine only when its sprout is fully grown. A
+        // withering vine can still be mounted (and revived), but its partial
+        // animation is rendered by the sprout pass below.
+        if (sproutMechanicActive(g.round)) {
+          if (!getSprouts()[li]?.grown) continue;
+        } else if (!isLadderUsable(g.round, li)) {
+          continue;
+        }
         const l = LADDERS[li];
         const sr = isLevel3Round(g.round) ? getSprouts()[li] : null;
         const isMidVineL3 = sr && li !== GREEN_TOP_LADDER_IDX && li !== PURPLE_TOP_LADDER_IDX;
@@ -4488,8 +4499,6 @@ const CavemanVsDragonGame = () => {
       if (intervalId !== null) clearInterval(intervalId);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
-      window.removeEventListener('pointerdown', handleFirstGesture);
-      window.removeEventListener('touchstart', handleFirstGesture);
     };
   }, [isNativeApp, isTouchDevice, resetGame, resetPlayer]);
 
@@ -4506,13 +4515,12 @@ const CavemanVsDragonGame = () => {
         markGamepadActive();
         recordGameplayControlKey('gamepad', key, gameStateRef.current === 'playing');
         keysRef.current.add(key);
-        if (key === 'Start') {
+        if (key === 'Start' && isMobileFullscreenStartState(gameStateRef.current)) {
           // Some browsers may accept controller START as activation. Chrome
           // usually requires a screen touch, so this remains best-effort.
-          void requestMobileLandscapeFullscreen({
+          void requestMobileFullscreen({
             isNativeApp,
             isTouchDevice,
-            isLandscape: window.innerWidth > window.innerHeight,
           });
         }
         const consumed = anyInputHandlerRef.current?.(key, 'pad');
@@ -4679,15 +4687,43 @@ const CavemanVsDragonGame = () => {
     },
   };
 
+  // Pointer capture normally delivers the matching release to the Jump
+  // button. Fullscreen/layout transitions can still interrupt that delivery
+  // on mobile browsers, so also release the exact tracked pointer at the
+  // document level. This prevents a stale Space key from blocking ladders.
+  const jumpPointerIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    const releaseJump = (e: PointerEvent) => {
+      if (jumpPointerIdRef.current === null || e.pointerId !== jumpPointerIdRef.current) return;
+      jumpPointerIdRef.current = null;
+      simulateKey(' ', 'up');
+    };
+    document.addEventListener('pointerup', releaseJump);
+    document.addEventListener('pointercancel', releaseJump);
+    return () => {
+      document.removeEventListener('pointerup', releaseJump);
+      document.removeEventListener('pointercancel', releaseJump);
+    };
+  }, [simulateKey]);
+
   const tapHandlers = (key: string, vibMs = 40) => ({
     onPointerDown: (e: React.PointerEvent) => {
       e.preventDefault();
       pulseHaptic(vibMs);
+      jumpPointerIdRef.current = e.pointerId;
       (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
       simulateKey(key, 'down');
     },
-    onPointerUp: (e: React.PointerEvent) => { e.preventDefault(); simulateKey(key, 'up'); },
-    onPointerCancel: (e: React.PointerEvent) => { e.preventDefault(); simulateKey(key, 'up'); },
+    onPointerUp: (e: React.PointerEvent) => {
+      e.preventDefault();
+      jumpPointerIdRef.current = null;
+      simulateKey(key, 'up');
+    },
+    onPointerCancel: (e: React.PointerEvent) => {
+      e.preventDefault();
+      jumpPointerIdRef.current = null;
+      simulateKey(key, 'up');
+    },
     onPointerLeave: (e: React.PointerEvent) => {
       // Only release if the pointer is no longer pressed (finger lifted off-button).
       if (e.buttons === 0) simulateKey(key, 'up');
@@ -4707,7 +4743,7 @@ const CavemanVsDragonGame = () => {
   // On the native APK, tablets play without on-screen controls. Phones keep them.
   // Hide on-screen controls whenever a hardware gamepad / bluetooth controller
   // is connected (any orientation), or on tablets in the native APK build.
-  const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls' || gameState === 'enterName' || gameState === 'confirmName' || gameState === 'globalLeaderboard');
+  const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !gamepadActive && !levelIntro && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls' || gameState === 'enterName' || gameState === 'confirmName' || gameState === 'globalLeaderboard');
   // Phones use the same side-mounted landscape controls in both the APK and
   // mobile web. Desktop web never passes controlsVisible because it does not
   // have a coarse pointer; tablets and attached controllers remain excluded.
@@ -4791,20 +4827,20 @@ const CavemanVsDragonGame = () => {
     <div className={`relative flex h-[100dvh] min-h-[100dvh] w-full overflow-hidden select-none bg-background ${useLandscapeLayout ? 'flex-row' : 'flex-col'}`}>
       {/* Landscape: D-pad on left */}
       {useLandscapeLayout && (
-        <div className="h-full shrink-0 py-2 pl-[calc(env(safe-area-inset-left)+0.5rem)] pr-2 touch-none flex items-center">
-          <div className="h-[min(72vh,240px)] w-[min(48vw,240px)]">{dpadEl}</div>
+        <div className="flex h-full w-[clamp(132px,24vw,240px)] shrink-0 items-center justify-center py-2 pl-[calc(env(safe-area-inset-left)+0.5rem)] pr-2 touch-none">
+          <div className="h-[min(72vh,240px)] w-full max-w-[220px]">{dpadEl}</div>
         </div>
       )}
 
 
       {/* Game area — fills all remaining space above controls */}
-      <div className="relative flex min-h-0 w-full flex-1 items-center justify-center bg-black">
+      <div className="relative flex min-h-0 min-w-0 w-full flex-1 items-center justify-center bg-black">
         {/* On native APK, constrain the game area to the device's natural
             aspect (16:9 phones, 4:3 tablets) so the canvas fills the screen
             instead of leaving large black bars. In the browser the canvas
             sizes naturally from its 512x480 backing store. */}
         <div
-          className="relative flex h-full w-full items-center justify-center"
+          className={`relative flex h-full w-full items-center justify-center ${controlsVisible && !isLandscape ? '-translate-y-[clamp(32px,6dvh,56px)]' : ''}`}
           onPointerDown={(e) => {
             if (gameStateRef.current !== 'playing' || levelIntroRef.current) return;
             const canvas = canvasRef.current;
@@ -4821,7 +4857,7 @@ const CavemanVsDragonGame = () => {
             toggleWebPause();
           }}
           style={
-            isNativeApp
+            isNativeApp && isTablet
               ? {
                   aspectRatio: isLandscape
                     ? (isTablet ? '4 / 3' : '16 / 9')
@@ -4840,8 +4876,12 @@ const CavemanVsDragonGame = () => {
             style={{
               imageRendering: 'pixelated',
               aspectRatio: `${CANVAS_W} / ${CANVAS_H}`,
-              height: '100%',
-              width: 'auto',
+              // Portrait must be width-led. A full-height canvas constrained
+              // afterward by the phone's narrow width can stretch vertically.
+              // Landscape remains height-led so it uses the available center
+              // column while preserving the same native canvas aspect ratio.
+              height: isLandscape ? '100%' : 'auto',
+              width: isLandscape ? 'auto' : '100%',
             }}
             tabIndex={0}
           />
@@ -5244,11 +5284,11 @@ const CavemanVsDragonGame = () => {
       {/* Landscape phone: big red JUMP rectangle on the right of the canvas.
           R button stacks above only on post-game leaderboard screens. */}
       {useLandscapeLayout && (
-        <div className="h-full shrink-0 py-2 pr-[calc(env(safe-area-inset-right)+0.5rem)] pl-2 touch-none flex flex-col items-stretch justify-center gap-2 w-[min(36vw,180px)]">
+        <div className="flex h-full w-[clamp(132px,24vw,240px)] shrink-0 flex-col items-center justify-center gap-2 py-2 pl-2 pr-[calc(env(safe-area-inset-right)+0.5rem)] touch-none">
           {(gameState === 'leaderboard' || gameState === 'globalLeaderboard') && (
             <div className="self-center">{rButtonEl}</div>
           )}
-          <div className="h-[min(72vh,240px)] min-h-0">
+          <div className="h-[min(48vh,180px)] min-h-0 w-[72%] max-w-[160px]">
             {jumpButtonLandscapeEl}
           </div>
         </div>
@@ -5257,10 +5297,16 @@ const CavemanVsDragonGame = () => {
       {/* Portrait: original bottom controls bar. Controls — only on touch devices (mobile/tablet).
           Hidden during intro/attract screens or when a hardware gamepad is detected. */}
       {controlsVisible && !isLandscape && (
-      <div className={`w-full shrink-0 overflow-hidden px-2 pt-2 touch-none ${isNativeApp ? 'pb-0 -mt-2' : 'pb-[calc(env(safe-area-inset-bottom)+0.5rem)]'}`}>
-        <div className="grid h-[152px] w-full grid-cols-[minmax(0,1fr)_3rem_minmax(7.5rem,38vw)] items-stretch gap-2">
-          {dpadEl}
-          {rButtonEl}
+      <div className={`w-full shrink-0 -translate-y-[clamp(44px,7dvh,64px)] overflow-visible px-3 pt-1 touch-none ${isNativeApp ? 'pb-1' : 'pb-[calc(env(safe-area-inset-bottom)+0.75rem)]'}`}>
+        <div className="grid h-[clamp(184px,27dvh,228px)] w-full grid-cols-[minmax(0,1fr)_3rem_minmax(8rem,38vw)] items-stretch gap-3">
+          {gameState === 'leaderboard' ? (
+            <>
+              {dpadEl}
+              {rButtonEl}
+            </>
+          ) : (
+            <div className="col-span-2 h-full min-w-0 pr-1">{dpadEl}</div>
+          )}
           {jumpButtonEl}
         </div>
       </div>

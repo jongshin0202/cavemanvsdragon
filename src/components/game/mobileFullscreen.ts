@@ -9,17 +9,26 @@ interface FullscreenElement extends HTMLElement {
 interface MobileFullscreenOptions {
   isNativeApp: boolean;
   isTouchDevice: boolean;
-  isLandscape: boolean;
   doc?: FullscreenDocument;
 }
 
-export async function requestMobileLandscapeFullscreen({
+const FULLSCREEN_START_STATES = new Set([
+  'intro',
+  'attractControls',
+  'attractLocalLeaderboard',
+  'attractGlobalLeaderboard',
+]);
+
+export function isMobileFullscreenStartState(gameState: string): boolean {
+  return FULLSCREEN_START_STATES.has(gameState);
+}
+
+export async function requestMobileFullscreen({
   isNativeApp,
   isTouchDevice,
-  isLandscape,
   doc = document as FullscreenDocument,
 }: MobileFullscreenOptions): Promise<boolean> {
-  if (isNativeApp || !isTouchDevice || !isLandscape) return false;
+  if (isNativeApp || !isTouchDevice) return false;
   if (doc.fullscreenElement || doc.webkitFullscreenElement) return true;
 
   const root = doc.documentElement as FullscreenElement;
