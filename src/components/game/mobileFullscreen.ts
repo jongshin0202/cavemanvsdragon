@@ -12,6 +12,17 @@ interface MobileFullscreenOptions {
   doc?: FullscreenDocument;
 }
 
+const FULLSCREEN_START_STATES = new Set([
+  'intro',
+  'attractControls',
+  'attractLocalLeaderboard',
+  'attractGlobalLeaderboard',
+]);
+
+export function isMobileFullscreenStartState(gameState: string): boolean {
+  return FULLSCREEN_START_STATES.has(gameState);
+}
+
 export async function requestMobileFullscreen({
   isNativeApp,
   isTouchDevice,

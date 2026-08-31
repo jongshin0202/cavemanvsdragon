@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { requestMobileFullscreen } from '@/components/game/mobileFullscreen';
+import {
+  isMobileFullscreenStartState,
+  requestMobileFullscreen,
+} from '@/components/game/mobileFullscreen';
 
 const makeDocument = (requestFullscreen?: () => Promise<void>) => ({
   fullscreenElement: null,
@@ -7,6 +10,13 @@ const makeDocument = (requestFullscreen?: () => Promise<void>) => ({
 }) as unknown as Document;
 
 describe('mobile fullscreen', () => {
+  it('allows requests only before gameplay starts', () => {
+    expect(isMobileFullscreenStartState('intro')).toBe(true);
+    expect(isMobileFullscreenStartState('attractGlobalLeaderboard')).toBe(true);
+    expect(isMobileFullscreenStartState('playing')).toBe(false);
+    expect(isMobileFullscreenStartState('enterName')).toBe(false);
+  });
+
   it('requests fullscreen for touch web after a user gesture', async () => {
     const requestFullscreen = vi.fn(async () => undefined);
     const result = await requestMobileFullscreen({
