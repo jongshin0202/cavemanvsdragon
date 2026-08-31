@@ -64,7 +64,7 @@ import dedicationPcUrl from '@/assets/dedication-pc.png';
 import SavedAnimation from './savedAnimation/SavedAnimation';
 import { Capacitor } from '@capacitor/core';
 import { vibrateWebControl } from './game/controlHaptics';
-import { requestMobileLandscapeFullscreen } from './game/mobileFullscreen';
+import { requestMobileFullscreen } from './game/mobileFullscreen';
 import ControllerPasswordKeyboard from './game/ControllerPasswordKeyboard';
 
 const isNativeApp = Capacitor.isNativePlatform();
@@ -1959,10 +1959,9 @@ const CavemanVsDragonGame = () => {
     };
     const handleFirstGesture = () => {
       unlockAudio();
-      void requestMobileLandscapeFullscreen({
+      void requestMobileFullscreen({
         isNativeApp,
         isTouchDevice,
-        isLandscape: window.innerWidth > window.innerHeight,
       });
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -4509,10 +4508,9 @@ const CavemanVsDragonGame = () => {
         if (key === 'Start') {
           // Some browsers may accept controller START as activation. Chrome
           // usually requires a screen touch, so this remains best-effort.
-          void requestMobileLandscapeFullscreen({
+          void requestMobileFullscreen({
             isNativeApp,
             isTouchDevice,
-            isLandscape: window.innerWidth > window.innerHeight,
           });
         }
         const consumed = anyInputHandlerRef.current?.(key, 'pad');
@@ -4707,7 +4705,7 @@ const CavemanVsDragonGame = () => {
   // On the native APK, tablets play without on-screen controls. Phones keep them.
   // Hide on-screen controls whenever a hardware gamepad / bluetooth controller
   // is connected (any orientation), or on tablets in the native APK build.
-  const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !gamepadActive && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls' || gameState === 'enterName' || gameState === 'confirmName' || gameState === 'globalLeaderboard');
+  const controlsVisible = isTouchDevice && !(isNativeApp && isTablet) && !gamepadActive && !levelIntro && !(gameState === 'intro' || gameState === 'attractLocalLeaderboard' || gameState === 'attractGlobalLeaderboard' || gameState === 'attractControls' || gameState === 'enterName' || gameState === 'confirmName' || gameState === 'globalLeaderboard');
   // Phones use the same side-mounted landscape controls in both the APK and
   // mobile web. Desktop web never passes controlsVisible because it does not
   // have a coarse pointer; tablets and attached controllers remain excluded.
@@ -4798,7 +4796,7 @@ const CavemanVsDragonGame = () => {
 
 
       {/* Game area — fills all remaining space above controls */}
-      <div className="relative flex min-h-0 w-full flex-1 items-center justify-center bg-black">
+      <div className="relative flex min-h-0 min-w-0 w-full flex-1 items-center justify-center bg-black">
         {/* On native APK, constrain the game area to the device's natural
             aspect (16:9 phones, 4:3 tablets) so the canvas fills the screen
             instead of leaving large black bars. In the browser the canvas
@@ -4821,7 +4819,7 @@ const CavemanVsDragonGame = () => {
             toggleWebPause();
           }}
           style={
-            isNativeApp
+            isNativeApp && isTablet
               ? {
                   aspectRatio: isLandscape
                     ? (isTablet ? '4 / 3' : '16 / 9')

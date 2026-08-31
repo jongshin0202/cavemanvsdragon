@@ -9,17 +9,15 @@ interface FullscreenElement extends HTMLElement {
 interface MobileFullscreenOptions {
   isNativeApp: boolean;
   isTouchDevice: boolean;
-  isLandscape: boolean;
   doc?: FullscreenDocument;
 }
 
-export async function requestMobileLandscapeFullscreen({
+export async function requestMobileFullscreen({
   isNativeApp,
   isTouchDevice,
-  isLandscape,
   doc = document as FullscreenDocument,
 }: MobileFullscreenOptions): Promise<boolean> {
-  if (isNativeApp || !isTouchDevice || !isLandscape) return false;
+  if (isNativeApp || !isTouchDevice) return false;
   if (doc.fullscreenElement || doc.webkitFullscreenElement) return true;
 
   const root = doc.documentElement as FullscreenElement;
