@@ -1182,9 +1182,16 @@ const CavemanVsDragonGame = () => {
   const handleAttractPointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     unlockAudio();
+    // Fullscreen must be requested directly from the gesture that starts the
+    // game. Never defer or retry it from gameplay control touches, because a
+    // later D-pad/JUMP press would then interrupt active play.
+    void requestMobileFullscreen({
+      isNativeApp,
+      isTouchDevice,
+    });
     attractPointerStartRef.current = { id: e.pointerId, x: e.clientX, y: e.clientY };
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-  }, []);
+  }, [isNativeApp, isTouchDevice]);
   const handleAttractPointerUp = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     const start = attractPointerStartRef.current;
@@ -1957,17 +1964,8 @@ const CavemanVsDragonGame = () => {
         cHoldFiredRef.current = false;
       }
     };
-    const handleFirstGesture = () => {
-      unlockAudio();
-      void requestMobileFullscreen({
-        isNativeApp,
-        isTouchDevice,
-      });
-    };
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
-    window.addEventListener('pointerdown', handleFirstGesture);
-    window.addEventListener('touchstart', handleFirstGesture, { passive: true });
 
     let intervalId: number | null = null; // 60Hz game loop driver
 
@@ -4487,8 +4485,6 @@ const CavemanVsDragonGame = () => {
       if (intervalId !== null) clearInterval(intervalId);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
-      window.removeEventListener('pointerdown', handleFirstGesture);
-      window.removeEventListener('touchstart', handleFirstGesture);
     };
   }, [isNativeApp, isTouchDevice, resetGame, resetPlayer]);
 
@@ -4505,7 +4501,7 @@ const CavemanVsDragonGame = () => {
         markGamepadActive();
         recordGameplayControlKey('gamepad', key, gameStateRef.current === 'playing');
         keysRef.current.add(key);
-        if (key === 'Start') {
+        if (key === 'Start' && isAttractScreen(gameStateRef.current)) {
           // Some browsers may accept controller START as activation. Chrome
           // usually requires a screen touch, so this remains best-effort.
           void requestMobileFullscreen({
