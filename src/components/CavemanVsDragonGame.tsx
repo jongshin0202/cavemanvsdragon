@@ -1185,9 +1185,13 @@ const CavemanVsDragonGame = () => {
   const handleAttractPointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     unlockAudio();
+    // Request fullscreen from the first trusted part of the start gesture.
+    // Some Android Chrome versions accept pointerdown while others only
+    // accept the completed pointerup below, so retain both synchronous paths.
+    void requestMobileFullscreen({ isNativeApp, isTouchDevice });
     attractPointerStartRef.current = { id: e.pointerId, x: e.clientX, y: e.clientY };
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-  }, []);
+  }, [isTouchDevice]);
   const handleAttractPointerUp = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     const start = attractPointerStartRef.current;
@@ -4756,6 +4760,49 @@ const CavemanVsDragonGame = () => {
     isNativeApp,
     gamepadActive,
   });
+  const gameRootRef = useRef<HTMLDivElement>(null);
+  const portraitControlsPanelRef = useRef<HTMLDivElement>(null);
+  const [portraitControlsOffset, setPortraitControlsOffset] = useState(0);
+  const portraitControlsUpwardBias = 18;
+
+  // Keep the portrait controls visually centered in the black space below
+  // the canvas. Measuring the rendered canvas makes this exact across web,
+  // the APK WebView, fullscreen transitions, and different phone ratios.
+  useLayoutEffect(() => {
+    if (!controlsVisible || isLandscape) {
+      setPortraitControlsOffset(0);
+      return;
+    }
+
+    const root = gameRootRef.current;
+    const canvas = canvasRef.current;
+    const panel = portraitControlsPanelRef.current;
+    if (!root || !canvas || !panel) return;
+
+    const centerControls = () => {
+      const rootRect = root.getBoundingClientRect();
+      const canvasRect = canvas.getBoundingClientRect();
+      const panelRect = panel.getBoundingClientRect();
+      const lowerBlackHeight = Math.max(0, rootRect.bottom - canvasRect.bottom);
+      const desiredPanelTop = canvasRect.bottom
+        + Math.max(0, (lowerBlackHeight - panelRect.height) / 2)
+        - portraitControlsUpwardBias;
+      const correction = desiredPanelTop - panelRect.top;
+      if (Math.abs(correction) < 0.5) return;
+      setPortraitControlsOffset((current) => current + correction);
+    };
+
+    centerControls();
+    const observer = new ResizeObserver(centerControls);
+    observer.observe(root);
+    observer.observe(canvas);
+    observer.observe(panel);
+    window.addEventListener('resize', centerControls);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', centerControls);
+    };
+  }, [controlsVisible, isLandscape]);
 
   const dpadEl = (
     <div
@@ -4824,7 +4871,7 @@ const CavemanVsDragonGame = () => {
   );
 
   return (
-    <div className={`relative flex h-[100dvh] min-h-[100dvh] w-full overflow-hidden select-none bg-background ${useLandscapeLayout ? 'flex-row' : 'flex-col'}`}>
+    <div ref={gameRootRef} className={`relative flex h-[100dvh] min-h-[100dvh] w-full overflow-hidden select-none bg-background ${useLandscapeLayout ? 'flex-row' : 'flex-col'}`}>
       {/* Landscape: D-pad on left */}
       {useLandscapeLayout && (
         <div className="flex h-full w-[clamp(132px,24vw,240px)] shrink-0 items-center justify-center py-2 pl-[calc(env(safe-area-inset-left)+0.5rem)] pr-2 touch-none">
@@ -5297,8 +5344,11 @@ const CavemanVsDragonGame = () => {
       {/* Portrait: original bottom controls bar. Controls — only on touch devices (mobile/tablet).
           Hidden during intro/attract screens or when a hardware gamepad is detected. */}
       {controlsVisible && !isLandscape && (
-      <div className={`w-full shrink-0 -translate-y-[clamp(44px,7dvh,64px)] overflow-visible px-3 pt-1 touch-none ${isNativeApp ? 'pb-1' : 'pb-[calc(env(safe-area-inset-bottom)+0.75rem)]'}`}>
-        <div className="grid h-[clamp(184px,27dvh,228px)] w-full grid-cols-[minmax(0,1fr)_3rem_minmax(8rem,38vw)] items-stretch gap-3">
+      <div
+        className={`w-full shrink-0 overflow-visible px-3 pt-1 touch-none ${isNativeApp ? 'pb-1' : 'pb-[calc(env(safe-area-inset-bottom)+0.75rem)]'}`}
+        style={{ transform: `translateY(${portraitControlsOffset}px)` }}
+      >
+        <div ref={portraitControlsPanelRef} className="grid h-[clamp(184px,27dvh,228px)] w-full grid-cols-[minmax(0,1fr)_3rem_minmax(8rem,38vw)] items-stretch gap-3">
           {gameState === 'leaderboard' ? (
             <>
               {dpadEl}

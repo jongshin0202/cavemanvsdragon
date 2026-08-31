@@ -8,8 +8,8 @@ export const CONTROL_HAPTIC_MIN_MS = 24;
  * Requests a single vibration pulse from a mobile web browser.
  *
  * Keep this synchronous with the pointer/touch handler: Chromium requires a
- * user activation for vibration. A single request is more reliable on Android
- * than cancelling an existing pattern immediately before starting a new one.
+ * user activation for vibration. Clear any stale pulse first, matching the
+ * behavior that proved reliable on the original Android web controls.
  */
 export const vibrateWebControl = (
   ms: number,
@@ -29,8 +29,7 @@ export const vibrateWebControl = (
 
   const duration = Math.max(CONTROL_HAPTIC_MIN_MS, Math.round(ms));
   try {
-    // A single numeric duration is supported more consistently by Android web
-    // browsers than a one-item vibration pattern.
+    vibrate(0);
     return vibrate(duration) !== false;
   } catch {
     return false;
