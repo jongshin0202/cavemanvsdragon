@@ -1185,9 +1185,13 @@ const CavemanVsDragonGame = () => {
   const handleAttractPointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     unlockAudio();
+    // Request fullscreen from the first trusted part of the start gesture.
+    // Some Android Chrome versions accept pointerdown while others only
+    // accept the completed pointerup below, so retain both synchronous paths.
+    void requestMobileFullscreen({ isNativeApp, isTouchDevice });
     attractPointerStartRef.current = { id: e.pointerId, x: e.clientX, y: e.clientY };
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-  }, []);
+  }, [isTouchDevice]);
   const handleAttractPointerUp = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     const start = attractPointerStartRef.current;
@@ -4759,6 +4763,7 @@ const CavemanVsDragonGame = () => {
   const gameRootRef = useRef<HTMLDivElement>(null);
   const portraitControlsPanelRef = useRef<HTMLDivElement>(null);
   const [portraitControlsOffset, setPortraitControlsOffset] = useState(0);
+  const portraitControlsUpwardBias = 18;
 
   // Keep the portrait controls visually centered in the black space below
   // the canvas. Measuring the rendered canvas makes this exact across web,
@@ -4780,7 +4785,8 @@ const CavemanVsDragonGame = () => {
       const panelRect = panel.getBoundingClientRect();
       const lowerBlackHeight = Math.max(0, rootRect.bottom - canvasRect.bottom);
       const desiredPanelTop = canvasRect.bottom
-        + Math.max(0, (lowerBlackHeight - panelRect.height) / 2);
+        + Math.max(0, (lowerBlackHeight - panelRect.height) / 2)
+        - portraitControlsUpwardBias;
       const correction = desiredPanelTop - panelRect.top;
       if (Math.abs(correction) < 0.5) return;
       setPortraitControlsOffset((current) => current + correction);
