@@ -4804,7 +4804,7 @@ const CavemanVsDragonGame = () => {
             instead of leaving large black bars. In the browser the canvas
             sizes naturally from its 512x480 backing store. */}
         <div
-          className="relative flex h-full w-full items-center justify-center"
+          className={`relative flex h-full w-full items-center justify-center ${controlsVisible && !isLandscape ? '-translate-y-[clamp(32px,6dvh,56px)]' : ''}`}
           onPointerDown={(e) => {
             if (gameStateRef.current !== 'playing' || levelIntroRef.current) return;
             const canvas = canvasRef.current;
@@ -5261,10 +5261,16 @@ const CavemanVsDragonGame = () => {
       {/* Portrait: original bottom controls bar. Controls — only on touch devices (mobile/tablet).
           Hidden during intro/attract screens or when a hardware gamepad is detected. */}
       {controlsVisible && !isLandscape && (
-      <div className={`w-full shrink-0 overflow-hidden px-3 pt-1 touch-none ${isNativeApp ? 'pb-1' : 'pb-[calc(env(safe-area-inset-bottom)+0.75rem)]'}`}>
+      <div className={`w-full shrink-0 -translate-y-[clamp(44px,7dvh,64px)] overflow-visible px-3 pt-1 touch-none ${isNativeApp ? 'pb-1' : 'pb-[calc(env(safe-area-inset-bottom)+0.75rem)]'}`}>
         <div className="grid h-[clamp(184px,27dvh,228px)] w-full grid-cols-[minmax(0,1fr)_3rem_minmax(8rem,38vw)] items-stretch gap-3">
-          {dpadEl}
-          {rButtonEl}
+          {gameState === 'leaderboard' ? (
+            <>
+              {dpadEl}
+              {rButtonEl}
+            </>
+          ) : (
+            <div className="col-span-2 h-full min-w-0 pr-1">{dpadEl}</div>
+          )}
           {jumpButtonEl}
         </div>
       </div>
